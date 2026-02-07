@@ -1,0 +1,122 @@
+---
+title: The Six-Layer Stack
+description: Six layers of emergent capability — from deterministic truth to full sovereignty.
+---
+
+The Syncropel Protocol is organized as a **six-layer cognitive stack**. Each layer solves a distinct problem in the progression from raw computation to full digital sovereignty.
+
+## Overview
+
+```
+┌─────────────────────────────────────────┐
+│  L5  SOVEREIGNTY                        │
+│      Identity. Mandates. Covenants.     │
+├─────────────────────────────────────────┤
+│  L4  EVOLUTION                          │
+│      Learning. Engrams. Selection.      │
+├─────────────────────────────────────────┤
+│  L3  INTELLIGENCE                       │
+│      Intent. Simulation. Reasoning.     │
+├─────────────────────────────────────────┤
+│  L2  ECONOMICS                          │
+│      Value. Lineage. Settlement.        │
+├─────────────────────────────────────────┤
+│  L1  RESILIENCE                         │
+│      Recovery. Healing. Continuity.     │
+├─────────────────────────────────────────┤
+│  L0  TRUTH                              │
+│      Deterministic. Verifiable.         │
+└─────────────────────────────────────────┘
+```
+
+Each layer **extends but never modifies** the layers below it. This is the principle of **layer independence** — L3 Intelligence builds on L2 Economics, but can never break L0 Truth.
+
+## L0: Truth
+
+**The Bedrock.** Everything in Syncropel starts here.
+
+L0 provides deterministic, verifiable execution. The same inputs always produce the same outputs. Every computation produces a cryptographic trace that can be independently verified.
+
+- **Content addressing**: `identity(x) = hash(canonical(x))`
+- **Hermetic execution**: The kernel has zero side effects
+- **Immutable traces**: Every run produces an append-only record
+
+**What it solves**: "How do we run code reliably?"
+
+## L1: Resilience
+
+**The Healer.** Systems that bend but don't break.
+
+L1 introduces time as a variable. Networks fail, batteries die, APIs rate-limit. L1 ensures the system recovers gracefully from any failure.
+
+- **Circuit breakers**: Stop calling broken services
+- **Exponential backoff**: Retry with respect for system limits
+- **Resumable execution**: Save state and resume when connectivity returns
+
+**What it solves**: "How do we survive failure?"
+
+## L2: Economics
+
+**The Router.** Value flows like physics.
+
+L2 introduces economic reasoning. Instead of rigid "run Step A, then Step B," the system asks "who should run Step A? The fast expensive one, or the cheap slow one?"
+
+- **Lineage Cascade**: Every derived work traces to its inputs; value flows automatically to creators
+- **Atomic settlement**: Work and payment settle as one transaction
+- **Conservation law**: Total inputs = total outputs + total costs (Axiom A4)
+
+**What it solves**: "How do we allocate resources fairly?"
+
+## L3: Intelligence
+
+**The Planner.** From intent to execution.
+
+L3 is where the [Cortex](https://syncropic.com) reasoning engine operates. It translates natural language goals into executable traces using the Generative Trace Model.
+
+- **Intent synthesis**: "Find churn risk" → executable DAG
+- **Simulation**: Run traces in simulation before committing to real execution
+- **The Dial**: Controls the tradeoff between replay and generation (Axiom A8)
+
+**What it solves**: "How do we reason about complex goals?"
+
+## L4: Evolution
+
+**The Evolver.** The system improves itself.
+
+L4 introduces learning. Successful execution patterns are crystallized into reusable **engrams** — compressed representations of proven workflows.
+
+- **Pattern crystallization**: Successful traces become reusable patterns
+- **Minimum Description Length**: Compress patterns to their essence
+- **Collective memory**: Share patterns across instances via federation
+
+**What it solves**: "How do we get smarter over time?"
+
+## L5: Sovereignty
+
+**The Crown.** You own yourself.
+
+L5 introduces identity, governance, and self-determination. Entities at this level have their own identity, can delegate authority, and enforce their own rules.
+
+- **Decentralized Identifiers (DIDs)**: Portable identity that travels with you
+- **Mandates**: Delegated authority with explicit scope and constraints
+- **Covenants**: Rules bound to assets that enforce themselves
+
+**What it solves**: "How do we create independent, accountable entities?"
+
+## The Three Tiers
+
+The stack operates across three physical tiers:
+
+| Tier | Environment | Example |
+|------|-------------|---------|
+| **T1** | Cloud | Full parallelization, high throughput |
+| **T2** | Edge | Device-local, offline-capable |
+| **T3** | Browser | Zero-install, fully portable |
+
+The same graph can execute on any tier. This is the principle of **tier universality** — write once, run anywhere.
+
+## Related Concepts
+
+- [The Dial](/docs/concepts/the-dial) — Operates at L3-L4, controlling generation vs. replay
+- [Lineage Cascade](/docs/concepts/lineage-cascade) — L2's economic mechanism for value attribution
+- [Physics, Not Policy](/docs/concepts/physics-not-policy) — L0's guarantee of structural enforcement

@@ -1,0 +1,54 @@
+---
+title: Connect Your Data
+description: How to connect your own data sources to Syncropel via namespaces.
+---
+
+Syncropel uses **namespaces** to organize and isolate data sources. Each namespace is a sandbox — your data, credentials, and patterns stay isolated from other namespaces.
+
+## What Is a Namespace?
+
+A namespace is a named container that holds:
+
+- **Data source connections** (databases, APIs, files)
+- **Variables** (configuration values, credentials)
+- **Bindings** (mappings between data sources and the execution environment)
+
+## Creating a Namespace
+
+1. Navigate to [app.syncropel.com/namespaces](https://app.syncropel.com/namespaces)
+2. Click **New Namespace**
+3. Provide a name (e.g., `my-company-data`)
+4. Configure your data sources
+
+## Supported Data Sources
+
+| Type | Examples | Connection Method |
+|------|----------|-------------------|
+| **SQL Databases** | PostgreSQL, MySQL, SQL Server | Connection string |
+| **Cloud Storage** | S3, GCS, Azure Blob | Access key + bucket |
+| **APIs** | REST, GraphQL | Base URL + auth token |
+| **Files** | CSV, JSON, Parquet | Upload or URL |
+
+## Security
+
+- All credentials are encrypted at rest
+- Connections are made via secure channels (TLS)
+- Each namespace is fully isolated — no cross-namespace data access
+- You can revoke access to any data source at any time
+
+## What's Next?
+
+Once your namespace is configured, you can reference it when creating traces. The system will use your data sources to execute effects like READ, TRANSFORM, and WRITE.
+
+<Cards>
+  <Card
+    title="Quick Start"
+    description="Run your first trace using the demo namespace."
+    href="/docs/tutorials/quickstart"
+  />
+  <Card
+    title="Effect Vocabulary"
+    description="Learn about the effects that operate on your data."
+    href="/docs/reference/effects"
+  />
+</Cards>

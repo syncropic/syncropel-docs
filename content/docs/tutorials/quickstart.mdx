@@ -1,0 +1,78 @@
+---
+title: Quick Start
+description: Build your first trace in 5 minutes.
+---
+
+This tutorial walks you through describing a goal, executing a trace, and inspecting the results — all in under 5 minutes.
+
+## Prerequisites
+
+- A modern web browser (Chrome, Firefox, Safari, or Edge)
+- No installation required — everything runs in the browser
+
+## Step 1: Open Studio
+
+Navigate to [app.syncropel.com](https://app.syncropel.com) and sign in (or use the demo without signing in).
+
+## Step 2: Describe Your Goal
+
+In the goal input, type a natural language description of what you want to accomplish:
+
+```
+Find customers at risk of churn based on purchase frequency and support ticket patterns
+```
+
+## Step 3: Set the Dial
+
+Use the Dial slider to set your desired autonomy level:
+
+- **REPLAY (0.0)** — Use an exact match from the pattern registry
+- **ADAPT (0.3)** — Adapt an existing pattern to your goal
+- **EXPLORE (0.5)** — Explore variations and alternatives
+- **CREATE (0.8)** — Generate a novel approach
+
+For your first trace, try **EXPLORE (0.5)** — a good balance between predictability and creativity.
+
+## Step 4: Select a Namespace
+
+Choose a data source (namespace) that contains the data you want to work with. For the demo, select **demo-retail**.
+
+## Step 5: Run
+
+Click **Run**. The system will:
+
+1. Parse your natural language goal into structured intent
+2. Search the pattern registry for matching traces
+3. Generate or adapt a trace based on the Dial setting
+4. Execute each effect in sequence, showing you the results
+
+## Step 6: Inspect the Trace
+
+As the trace executes, you'll see each **effect** in the pipeline:
+
+- **READ** — Load data from the namespace
+- **TRANSFORM** — Apply transformations to the data
+- **CALL** — Invoke external services or computations
+- **WRITE** — Produce output
+
+Each effect shows its inputs, outputs, and intermediate state. Nothing is hidden.
+
+## What's Next?
+
+<Cards>
+  <Card
+    title="The Dial"
+    description="Understand how the Dial controls the tradeoff between replay and generation."
+    href="/docs/concepts/the-dial"
+  />
+  <Card
+    title="The Six-Layer Stack"
+    description="Learn about the architecture that makes this possible."
+    href="/docs/concepts/the-stack"
+  />
+  <Card
+    title="Effect Vocabulary"
+    description="Explore the 12 effect kinds that form the computational vocabulary."
+    href="/docs/reference/effects"
+  />
+</Cards>

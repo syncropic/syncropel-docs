@@ -1,0 +1,70 @@
+---
+title: Lineage Cascade
+description: How value flows automatically through chains of creation, derivation, and remix.
+---
+
+The Lineage Cascade is Syncropel's mechanism for **automatic, physics-based value attribution**. When work is derived from other work, the system traces the chain of creation and distributes value to every contributor — automatically, atomically, and without intermediaries.
+
+## The Problem
+
+In today's digital world, creation is rarely isolated. A DJ remixes a track. A data scientist builds on a colleague's feature engineering. A developer forks and extends a library. But the original creators rarely see value from downstream work.
+
+Why? Because attribution is manual, unenforceable, and easily lost.
+
+## The Solution: Physics, Not Promises
+
+Syncropel makes attribution a **physical law** of the system, not a policy that can be ignored:
+
+1. **Every output references its inputs** — cryptographic lineage hashes link derived work to source material
+2. **Value flows are atomic** — when a derived trace settles, all upstream creators are paid in the same transaction
+3. **Conservation applies** — total value in = total value out + costs (Axiom A4). Value cannot appear or vanish.
+
+## How It Works
+
+```
+Creator A produces Trace₁ (original work)
+    │
+    ▼
+Creator B produces Trace₂ (derived from Trace₁)
+    │
+    ▼
+Creator C produces Trace₃ (derived from Trace₂)
+    │
+    ▼
+End user pays $1.00 for Trace₃
+    │
+    ├── Creator C receives $0.60 (direct value)
+    ├── Creator B receives $0.25 (lineage: Trace₂ → Trace₃)
+    ├── Creator A receives $0.10 (lineage: Trace₁ → Trace₂ → Trace₃)
+    └── Protocol fee:       $0.05
+```
+
+The split ratios are determined by **Covenants** — rules bound to assets that enforce themselves. When Creator A publishes Trace₁, they attach a Covenant specifying their terms. These terms cascade through all derivative work.
+
+## Key Properties
+
+- **Automatic**: No manual tracking, no invoices, no reconciliation
+- **Atomic**: Settlement happens in one transaction — work and payment are one
+- **Cryptographic**: Lineage hashes are tamper-proof; attribution cannot be forged
+- **Composable**: Multiple lineage chains can merge and split
+- **Auditable**: Every payment can be traced to its source through the lineage graph
+
+## The DJ Analogy
+
+Imagine a DJ who creates a remix:
+
+1. They sample a vocal from Track A (Covenant: 15% of downstream revenue)
+2. They use a beat from Track B (Covenant: 10% of downstream revenue)
+3. They publish the remix as Track C with their own Covenant
+
+When Track C earns revenue:
+- The DJ gets their share
+- The vocalist from Track A gets 15% automatically
+- The beat producer from Track B gets 10% automatically
+- No lawyers. No disputes. No delays. Physics.
+
+## Related Concepts
+
+- [The Six-Layer Stack](/docs/concepts/the-stack) — Lineage Cascade operates at L2 (Economics)
+- [Physics, Not Policy](/docs/concepts/physics-not-policy) — The enforcement mechanism behind the Cascade
+- [The Dial](/docs/concepts/the-dial) — Higher Dial values generate new lineage chains

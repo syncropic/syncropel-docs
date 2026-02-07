@@ -1,0 +1,116 @@
+---
+title: Glossary
+description: The canonical Syncropel lexicon — 30 essential terms.
+---
+
+This glossary defines the core terminology used throughout the Syncropel Protocol. For the complete glossary of 111+ terms, see the [full protocol specification](https://syncropel.org/spec).
+
+## A
+
+### Accord
+Logic bound to a relationship defining exchange terms between two principals. An Accord governs how value, data, and authority flow between parties.
+
+### Asset
+An encrypted data object with associated owner, lineage, and covenant. Assets are the fundamental units of ownership in Syncropel.
+
+### Axiom
+One of the 9 foundational mathematical principles that govern all Syncropel behavior. See [the protocol overview](/docs) for the complete list.
+
+## C
+
+### Cortex
+The 7-million parameter recursive reasoning engine at L3 (Intelligence). Not an LLM — a deterministic reasoning system that translates natural language goals into executable traces.
+
+### Covenant
+A usage rule bound to an asset. Covenants are self-enforcing — they travel with the data and execute automatically. Similar to real property covenants that "run with the land."
+
+### Crystallization
+The process of compressing a successful execution pattern into a reusable engram. Operates via Minimum Description Length (MDL) compression.
+
+## D
+
+### Dial
+A single continuous parameter on \[0, 1\] that controls the tradeoff between deterministic replay and generative creation. See [The Dial](/docs/concepts/the-dial).
+
+### DID (Decentralized Identifier)
+A portable, self-sovereign identity that travels with its owner. Used at L5 (Sovereignty) for identity management.
+
+## E
+
+### Effect
+The fundamental unit of computation in Syncropel. There are 12 effect kinds (READ, WRITE, TRANSFORM, CALL, SEQUENCE, PARALLEL, BRANCH, LOOP, INVOKE, COMPOSE, OBSERVE, HALT). See [Effect Vocabulary](/docs/reference/effects).
+
+### Engram
+A compressed, reusable pattern crystallized from successful execution. Engrams are the units of learned knowledge in Syncropel, stored in the pattern registry.
+
+## G
+
+### Graph
+An immutable, topological definition of logic with zero state. The template from which Sessions and Runs are derived. Part of the Trinity (Graph → Session → Run).
+
+### Grant
+A cryptographic permission token that authorizes a specific action. Grants can be delegated, revoked, and verified offline.
+
+### GTM (Generative Trace Model)
+The model that treats computation as autoregressive effect generation. Defines how traces are generated, matched, and executed across four abstraction levels.
+
+## L
+
+### Lineage
+The cryptographic chain linking derived work to its source materials. Every output references the hashes of its inputs, creating an immutable attribution graph.
+
+### Lineage Cascade
+The mechanism by which value flows automatically through chains of derivation. See [Lineage Cascade](/docs/concepts/lineage-cascade).
+
+## M
+
+### Mandate
+Delegated authority to act on behalf of another principal. Mandates have explicit scope, constraints, and expiration — authority is always bounded.
+
+## N
+
+### Namespace
+An isolated container for data sources, variables, and bindings. Each namespace is a sandbox — no cross-namespace data access without explicit grants.
+
+## P
+
+### Pattern
+A reusable template for execution, stored in the pattern registry. Patterns exist at four abstraction levels (Intent, Flow, Structural, Exact).
+
+### Principal
+An entity with identity and liability — either an individual, organization, or agent. Every action in Syncropel traces back to a principal.
+
+## R
+
+### Run
+The immutable trace resulting from executing a Session. An append-only fossil record of everything that happened. Part of the Trinity (Graph → Session → Run).
+
+## S
+
+### Session
+A mutable workspace formed by binding a Graph to an Environment. Sessions converge via CRDTs. Part of the Trinity (Graph → Session → Run).
+
+### SIM (Syncropel Interaction Model)
+The unified concept: Surface + Intelligence + Memory = Graph + Dial + Registry. Every Syncropel experience is a SIM.
+
+### Sovereign
+An entity at L5 with self-governing identity, delegatable authority, and self-enforcing rules. The highest level of autonomy in the protocol.
+
+## T
+
+### Tender
+Any unit of value (currency, computational credit, asset, service) used in economic transactions within the protocol.
+
+### Trace
+The complete record of an execution, including all effects, their inputs, outputs, and timing. Traces are the primary product of execution — not just the final return value.
+
+### Trait
+An inherent property of a host system (e.g., `trait:gpu`, `trait:filesystem`). Traits determine which effects can execute on which tiers.
+
+### Trust Score
+A mathematically computed confidence measure using Wilson-score intervals. Accounts for sample size: 3/3 successes rates lower than 95/100. Trust is a statistic, not a feeling.
+
+## V
+
+### VFS (Virtual File System)
+The universal I/O abstraction that lets the same code access data across T1 (Cloud), T2 (Edge), and T3 (Browser) through a uniform `sync://` protocol.
