@@ -1,0 +1,206 @@
+---
+title: Governance
+description: "Session Capability Tokens and the 10-check validator — governance computed once, enforced everywhere."
+---
+
+Syncropel's governance model computes all constraints **once** at session creation, encodes them in a cryptographically signed **Session Capability Token (SCT)**, then enforces them at every effect execution through pure arithmetic and set membership checks. No database lookups at runtime. No rule evaluation. No ambiguity.
+
+## The Session Capability Token (SCT)
+
+An SCT carries everything needed to govern a session:
+
+| Field | Type | What It Controls |
+|-------|------|-----------------|
+| `principal_did` | string | Who this session belongs to |
+| `namespace` | string | Governance scope (resolved through hierarchy) |
+| `capability` | CapabilityEnvelope | What effects are allowed (primitives, shapes, operations, resources, limits) |
+| `deny` | DenyEnvelope | What effects are explicitly forbidden (forbid-wins) |
+| `budget` | BudgetEnvelope | What the session can spend (compute USD, latency ms, quality floor, risk ceiling) |
+| `dial_ceiling` | Decimal | Maximum dial position (from trust + namespace + identity) |
+| `hash_access` | set | Which hash levels are accessible (L0, L1, L2, L3) |
+| `governance_tier` | enum | STANDARD or ELEVATED |
+| `trust_score` | Decimal | Wilson lower bound at session creation |
+| `created_at` | datetime | When the SCT was issued |
+| `expires_at` | datetime | When the SCT expires |
+| `content_hash` | string | SHA-256 of canonical SCT (for integrity verification) |
+
+## How an SCT Is Computed
+
+The registry walks 10 steps to produce an SCT:
+
+```
+1. AUTHENTICATE     Verify identity (JWT, API key, or local trust)
+2. RESOLVE PRINCIPAL  Load service account, verify ACTIVE status
+3. LOAD NAMESPACE CHAIN  Walk DEFAULT → ORG → PROJECT → ENV → JOB
+4. MERGE POLICIES    Intersection for ALLOW, union for DENY (forbid-wins)
+5. COMPUTE TRUST     Wilson lower bound for (principal, namespace domain)
+6. DERIVE DIAL CEILING  min(identity, namespace, trust, budget)
+7. EVALUATE BUDGET    Session budget from namespace, capped by SA limits
+8. BUILD CAPABILITY   Intersect principal's allowed effects with policy
+9. CHECK CRL         Verify principal DID not revoked
+10. SIGN & ISSUE      Ed25519 sign, record SESSION_CREATED audit
+```
+
+After step 10, the SCT is frozen. Every governance decision for the session reduces to checking fields on this token.
+
+## The 10-Check Validator
+
+Every effect is validated against the SCT before execution. The checks split between the registry (stateful) and registry-core (pure):
+
+| Check | Name | What It Validates | Location |
+|-------|------|-------------------|----------|
+| **1** | CRL revocation | Is the SCT or principal DID on the revocation list? | Registry |
+| **2** | Policy freshness | Is the policy version current? | Registry |
+| **3** | Capability envelope | Is this primitive + shape + operation + resource in the SCT? | registry-core |
+| **4** | Deny constraints | Does any deny rule match this effect? | registry-core |
+| **5** | Session budget | consumed + estimated &le; SCT budget? | registry-core |
+| **6** | Dial ceiling | Is dial\_position &le; SCT dial\_ceiling? | registry-core |
+| **7** | Hash level access | Is the requested hash level in `sct.hash_access`? | registry-core |
+| **8** | Budget guard | Per-effect: quality &ge; floor, risk &le; ceiling? | registry-core |
+| **9** | Structural limits | Effects count &le; max\_effects? Depth &le; max\_depth? Output constraints? Lineage integrity? Federation consent? | registry-core |
+| **10** | HITL approval | Does this effect require human approval? | Registry |
+
+**Checks 3-9** are pure functions — no I/O, no database access, no async. They take an SCT and a list of effects and return a pass/fail result. This is what `syncropel-registry-core` provides.
+
+**Checks 1, 2, 10** require store access and live in the registry.
+
+## Capability Envelope
+
+The capability envelope defines the session's allowed effect space:
+
+```python
+CapabilityEnvelope(
+    primitives={"GET", "CALL"},           # Allowed primitives (F1 subset)
+    shapes={"ONE", "MANY", "OPTIONAL"},   # Allowed shapes (F2 subset)
+    operations=["db.*", "llm.generate"],  # Glob patterns for operations
+    resources=["/sync/database/*"],       # Glob patterns for resources
+    max_effects=500,                      # Max effects per trace
+    max_depth=25,                         # Max nesting depth
+)
+```
+
+Check 3 validates each effect against this envelope:
+- 3a: Is the primitive in `capability.primitives`?
+- 3b: Is the shape in `capability.shapes`?
+- 3c: Does the operation match any pattern in `capability.operations`?
+- 3d: Does the resource match any pattern in `capability.resources`?
+
+Empty lists mean "all allowed" — an escape hatch for development.
+
+## Deny Envelope (Forbid-Wins)
+
+Deny rules override capability. If any deny rule matches, the effect is blocked — no capability grant can override it.
+
+```python
+DenyEnvelope(rules=[
+    DenyRule(
+        resources=["/secret/*"],
+        primitives=["GET"],
+    ),
+    DenyRule(
+        operations=["db.drop_table"],
+        primitives=["CALL"],
+    ),
+])
+```
+
+Check 4 tests every effect against every deny rule. Deny rules accumulate through the namespace hierarchy (union composition).
+
+## Budget Envelope (QuadMetrics)
+
+Budget is a 4-dimensional constraint:
+
+| Dimension | What It Caps | Zero Means |
+|-----------|-------------|-----------|
+| `compute` | USD cost | Unlimited |
+| `latency` | Milliseconds | Unlimited |
+| `quality_floor` | Minimum quality score \[0,1\] | No minimum |
+| `risk_ceiling` | Maximum risk score \[0,1\] | No maximum |
+
+Check 5 validates session-level totals. Check 8 validates per-effect quality and risk bounds.
+
+Budget is tracked with Decimal precision — no floating-point drift.
+
+## Two Governance Tiers
+
+| Tier | Dial Range | What Changes |
+|------|-----------|--------------|
+| **STANDARD** | d \< 2/3 | Checks 1-9 only |
+| **ELEVATED** | d &ge; 2/3 | Checks 1-9 **plus** Check 10 (HITL) for PUT and CALL effects |
+
+In the CREATE zone (dial &ge; 2/3), writing data or invoking external services requires explicit human approval. GET and MAP don't trigger HITL — they're read-only and pure transformation.
+
+## Validation Result
+
+Every validation returns a structured result:
+
+```python
+GovernanceValidationResult(
+    valid=False,
+    result_type="DENIED",
+    denial_kind="CAPABILITY_VIOLATION",
+    errors=[
+        GovernanceCheckError(
+            check_number=3,
+            check_name="capability_envelope",
+            kind="CAPABILITY_VIOLATION",
+            detail="Primitive PUT not in capability set {GET, CALL}",
+            effect_index=2,
+        )
+    ],
+    checks_passed=[4, 5, 6, 7, 8, 9],
+    checks_failed=[3],
+)
+```
+
+All checks run even if earlier checks fail — you get the complete picture, not just the first error.
+
+## Using the Library
+
+```python
+from decimal import Decimal
+from syncropel_registry_core.models.sct import (
+    SessionCapabilityToken, CapabilityEnvelope, BudgetEnvelope,
+)
+from syncropel_registry_core.validators.governance import validate_checks_3_to_9
+
+sct = SessionCapabilityToken(
+    principal_did="did:sync:user:alice",
+    namespace="acme/analytics/prod",
+    capability=CapabilityEnvelope(
+        primitives={"GET", "CALL"},
+        shapes={"ONE", "MANY"},
+        operations=["db.*"],
+        resources=["/sync/database/*"],
+    ),
+    budget=BudgetEnvelope(
+        compute=Decimal("0.05"),
+        latency=Decimal("30000"),
+    ),
+    dial_ceiling=Decimal("0.5"),
+)
+
+trace_effects = [
+    {"primitive": "GET", "shape": "MANY", "operation": "db.query",
+     "resource": "/sync/database/users"},
+]
+
+result = validate_checks_3_to_9(
+    trace_effects, sct,
+    dial_position=Decimal("0.4"),
+    requested_hash_level="L1",
+)
+
+if result.valid:
+    print("All checks passed:", result.checks_passed)
+else:
+    for error in result.errors:
+        print(f"Check {error.check_number}: {error.detail}")
+```
+
+## Related Concepts
+
+- [Namespaces](/docs/concepts/namespaces) — SCT capabilities come from namespace resolution
+- [The Dial](/docs/concepts/the-dial) — Dial ceiling in the SCT limits autonomy
+- [Trust](/docs/concepts/trust) — Trust score feeds into dial ceiling derivation
+- [Hash Levels](/docs/concepts/hash-levels) — `hash_access` in the SCT controls pattern matching
