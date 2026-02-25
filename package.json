@@ -8,7 +8,10 @@
     "start": "next start",
     "types:check": "fumadocs-mdx && next typegen && tsc --noEmit",
     "postinstall": "fumadocs-mdx",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cf:build": "npx @opennextjs/cloudflare build",
+    "cf:preview": "npx @opennextjs/cloudflare build && npx @opennextjs/cloudflare preview",
+    "cf:deploy": "npx @opennextjs/cloudflare build && npx @opennextjs/cloudflare deploy"
   },
   "dependencies": {
     "fumadocs-core": "16.5.1",
@@ -21,6 +24,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.16.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/mdx": "^2.0.13",
     "@types/node": "^25.1.0",
