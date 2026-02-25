@@ -1,11 +1,11 @@
 ---
 title: Namespaces
-description: "5-level hierarchy where governance monotonically narrows — child namespaces can never have more permissions than their parent."
+description: "DEFAULT → ORG → PROJECT → ENV → JOB — hierarchical governance that monotonically narrows. Child namespaces can never have more permissions than their parent."
 ---
 
-Namespaces are the **unit of everything** in Syncropel: governance scope, tenancy boundary, federation unit, secrets scope, and budget allocation. They form a 5-level hierarchy where governance monotonically narrows — a child namespace can never have more permissions, more budget, or more autonomy than its parent.
+Namespaces are the **unit of everything** in Syncropel: governance scope, tenancy boundary, federation unit, secrets scope, and budget allocation. They form a hierarchy where governance monotonically narrows — a child namespace can never have more permissions, more budget, or more autonomy than its parent.
 
-## The 5 Levels
+## The Levels
 
 | Level | Name | Example | Typical Use |
 |-------|------|---------|-------------|

@@ -1,11 +1,11 @@
 ---
 title: The Effect Algebra
-description: "4 primitives and 5 shapes — the atomic vocabulary of all computation in Syncropel."
+description: "GET, PUT, CALL, MAP and VOID, ONE, OPTIONAL, MANY, KEYED — the atomic vocabulary of all computation in Syncropel."
 ---
 
-Every computation in Syncropel decomposes into **effects** — atomic units with a primitive, input shape, output shape, operation, and parameters. This isn't a design choice; it's a mathematical property. Four primitives and five shapes form a closed algebra under composition.
+Every computation in Syncropel decomposes into **effects** — atomic units with a primitive, input shape, output shape, operation, and parameters. This isn't a design choice; it's a mathematical property. A closed set of primitives and shapes form a closed algebra under composition.
 
-## 4 Primitives
+## Primitives
 
 These are **Frozen Foundation F1** — they will never change.
 
@@ -18,13 +18,13 @@ These are **Frozen Foundation F1** — they will never change.
 
 Any computational action — no matter how complex — decomposes into a sequence of these four. A machine learning pipeline is GET (load data) then MAP (transform) then CALL (train model) then PUT (save results). An API integration is GET then MAP then PUT.
 
-**Why only 4?** Because this set is:
+**Why this set?** Because it is:
 - **Closed under composition** — combining primitives produces more primitives
-- **Hashable** — enables the [4-level hash hierarchy](/docs/concepts/hash-levels)
+- **Hashable** — enables the [hash level hierarchy](/docs/concepts/hash-levels)
 - **Verifiable** — the symbolic validator checks every effect against governance
-- **Minimal** — adding a 5th primitive would break all existing hashes across every registry
+- **Minimal** — adding a primitive would break all existing hashes across every registry
 
-## 5 Data Shapes
+## Data Shapes
 
 These are **Frozen Foundation F2** — they will never change.
 
@@ -96,7 +96,7 @@ Operations are matched via **glob patterns** in governance policies:
 
 ## Hashing: Privacy from Structure
 
-The 4-primitive + 5-shape algebra enables **content-addressed hashing at 4 levels of detail**:
+The primitive + shape algebra enables **content-addressed hashing at progressive levels of detail**:
 
 | Level | What's Hashed | Privacy | Use |
 |-------|--------------|---------|-----|
@@ -160,5 +160,5 @@ hash_l0, hash_l1, hash_l2, hash_l3 = compute_hashes(effects)
 ## Related Concepts
 
 - [The Dial](/docs/concepts/the-dial) — Controls which hash level the system matches at
-- [Hash Levels](/docs/concepts/hash-levels) — The 4-level privacy gradient built on this algebra
+- [Hash Levels](/docs/concepts/hash-levels) — The privacy gradient built on this algebra
 - [Frozen Foundations](/docs/reference/frozen-foundations) — The complete list of immutable protocol constants

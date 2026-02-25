@@ -26,7 +26,7 @@ SHA-256 of the canonical JSON representation of an object. Used for identity (F1
 A list of revoked principal DIDs and SCT hashes. [Check 1](/docs/concepts/governance) in the governance pipeline. When a service account is deactivated, its DID is added to the CRL.
 
 ### Crystallization
-The process by which a repeatedly successful pattern becomes a permanent, trusted entry in the registry. Requires 100+ observations, Wilson score above 0.90, and positive MDL (Minimum Description Length) gain.
+The process by which a repeatedly successful pattern becomes a permanent, trusted entry in the registry. Requires consistent reliability across many observations and positive pattern efficiency.
 
 ## D
 
@@ -122,10 +122,10 @@ The 4-dimensional budget model: compute (USD), latency (ms), quality floor \[0,1
 ## R
 
 ### Registry
-The governance engine: computes SCTs, manages policies, stores observations, coordinates federation, maintains audit trails. Runs locally via `spl serve` (DuckDB) or in production (PostgreSQL).
+The governance engine: computes SCTs, manages policies, stores observations, coordinates federation, maintains audit trails. Runs locally via `spl serve` or in production.
 
 ### registry-core
-The shared governance library (`syncropel-registry-core`). Pure Python, zero dependencies, implements governance checks 3-9. Used by both the CLI and production registry.
+The shared governance library (`syncropel-registry-core`). Zero dependencies, implements governance checks 3-9. Used by both the CLI and production registry.
 
 ## S
 
@@ -147,9 +147,9 @@ The Syncropel CLI command. See [CLI Reference](/docs/reference/cli).
 The complete record of an execution: all effects, their inputs, outputs, and timing. Traces are the primary output of execution — inspectable via `spl trace ls/show/stats`.
 
 ### Trust Score
-A mathematically computed confidence measure using Wilson score lower bound. Accounts for sample size, applies temporal decay, and bridges to the [dial ceiling](/docs/concepts/the-dial). See [Trust](/docs/concepts/trust).
+A mathematically computed confidence measure. Accounts for sample size, applies temporal decay, and bridges to the [dial ceiling](/docs/concepts/the-dial). See [Trust](/docs/concepts/trust).
 
 ## W
 
 ### Wilson Score
-The statistical method used for trust computation. The Wilson score lower bound at 95% confidence accounts for both success rate and sample size. Combined with a [cold-start prior](#cold-start-prior) of Beta(7, 10) and 30-day half-life temporal decay. See [Trust](/docs/concepts/trust).
+The statistical method used for trust computation. Accounts for both success rate and sample size. Combined with a [cold-start prior](#cold-start-prior) and temporal decay. See [Trust](/docs/concepts/trust) for the full algorithm.

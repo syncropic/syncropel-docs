@@ -22,7 +22,7 @@ Syncropel registry starting...
 Registry ready.
 ```
 
-The registry creates a persistent DuckDB database and a `default` namespace. All `spl` commands automatically connect to `localhost:9100`.
+The registry creates a persistent database and a `default` namespace. All `spl` commands automatically connect to `localhost:9100`.
 
 ## 2. Create a Namespace Hierarchy
 
@@ -182,7 +182,7 @@ spl observe record \
   --latency 5000 -j
 ```
 
-Each observation feeds the [trust model](/docs/concepts/trust) — Wilson score with 30-day exponential decay.
+Each observation feeds the [trust model](/docs/concepts/trust) — mathematically computed confidence with temporal decay.
 
 ## 6. Check the Trust Score
 
@@ -204,7 +204,7 @@ spl trust show \
 }
 ```
 
-With 2 successes and 1 failure, plus the cold-start prior of Beta(7,10), the trust score is moderate. More successful observations will increase it.
+With 2 successes and 1 failure, plus the cold-start prior, the trust score is moderate. More successful observations will increase it.
 
 The `dial_ceiling` is the maximum dial position this principal can use in this namespace — governance enforces this at [Check 6](/docs/reference/governance-checks).
 
@@ -299,4 +299,4 @@ Every namespace in this hierarchy is governed. Every effect is validated against
 - [Governance](/docs/concepts/governance) — How SCTs are computed and validated
 - [Governance Checks](/docs/reference/governance-checks) — All 10 checks in detail
 - [Policy Management](/docs/guides/policy-management) — Policy composition and common patterns
-- [Local Registry](/docs/guides/local-registry) — DuckDB storage, 68 API routes, persistence
+- [Local Registry](/docs/guides/local-registry) — Storage, API surface, persistence

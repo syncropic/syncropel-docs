@@ -32,11 +32,11 @@ Requires Python 3.12+.
 
 | Command | Description |
 |---------|------------|
-| `spl serve` | Start local registry on port 9100 (DuckDB-backed, persistent) |
+| `spl serve` | Start local registry on port 9100 (persistent, offline-first) |
 | `spl serve --port 8080` | Use a custom port |
 | `spl serve --open` | Open browser to dashboard on start |
 
-The local registry stores data at `~/.syncropel/registry.duckdb` and auto-writes `~/.syncropel/config.yaml` so all CLI commands hit localhost.
+The local registry stores data at `~/.syncropel/` and auto-writes `~/.syncropel/config.yaml` so all CLI commands hit localhost.
 
 ### namespace — Manage Namespaces
 
@@ -66,7 +66,7 @@ Policies support `--primitives`, `--operations`, `--resources`, `--deny-*`, and 
 
 | Command | Description |
 |---------|------------|
-| `spl trust show -j` | Show Wilson-score trust with temporal decay |
+| `spl trust show -j` | Show trust score with temporal decay |
 | `spl trust compute -j` | Recompute trust for current context |
 
 ### observe — Record Observations

@@ -1,9 +1,9 @@
 ---
 title: Local Registry
-description: "Deep dive into spl serve — DuckDB storage, 68 API routes, schema, persistence, and how it matches the production registry."
+description: "Deep dive into spl serve — storage, API routes, schema, persistence, and how it matches the production registry."
 ---
 
-`spl serve` starts a full governance-aware registry on your machine. It's not a mock or a dev stub — it runs the same governance logic, the same API surface, and the same validation pipeline as the production registry. The only difference is the backing store: DuckDB instead of PostgreSQL.
+`spl serve` starts a full governance-aware registry on your machine. It's not a mock or a dev stub — it runs the same governance logic, the same API surface, and the same validation pipeline as the production registry.
 
 ## Starting the Registry
 
@@ -27,7 +27,7 @@ The registry auto-configures the CLI: it writes `registry_url: http://localhost:
 
 ## What's Inside
 
-### DuckDB Storage (Schema v4)
+### Storage (Schema v4)
 
 All data persists at `~/.syncropel/registry.duckdb` — a single file. It survives restarts, and you can back it up by copying the file.
 
@@ -56,7 +56,7 @@ Schema migrations are automatic — the registry checks `_schema_version` on sta
 
 ### 68 API Routes
 
-The server exposes 68 routes via Starlette, covering:
+The server exposes a full API surface covering:
 
 | Group | Example Routes | Purpose |
 |-------|---------------|---------|
@@ -83,8 +83,8 @@ Everything that runs in production runs locally:
 |-----------|-------------|
 | **SCT issuance** | Computes Session Capability Tokens from namespace chain + trust + budget |
 | **10-check validator** | Checks 1-2, 10 (CRL, policy freshness, HITL) in registry + checks 3-9 via registry-core |
-| **Trust computation** | Wilson score with cold-start Beta(7,10) and 30-day decay |
-| **Namespace resolution** | 5-level hierarchy walk with monotonic narrowing |
+| **Trust computation** | Mathematical trust with cold-start prior and temporal decay |
+| **Namespace resolution** | Hierarchy walk with monotonic narrowing |
 | **Observation recording** | Auto-populates dial zone from dial position |
 | **Audit trail** | Every governance action recorded immutably |
 | **CRL management** | Service account revocation |
@@ -139,17 +139,17 @@ When `spl serve` is running, the `SPL_REGISTRY_URL` environment variable is auto
 |---------|-------------------|------------|
 | Governance checks | All 10 | All 10 |
 | SCT computation | Full 10-step algorithm | Same |
-| Trust model | Wilson + decay | Same |
-| API surface | 68 routes | Same + scaling endpoints |
-| Backing store | DuckDB (single file) | PostgreSQL |
+| Trust model | Full trust computation | Same |
+| API surface | Full | Same + scaling endpoints |
+| Backing store | Single-file (persistent) | Managed database |
 | Federation | Consent edges (local) | Full peer sync |
 | Authentication | `AUTH_PROVIDER=dev` | Clerk JWT |
 
-The governance logic is identical because both environments import `syncropel-registry-core` — the same pure Python library with the same checks, same thresholds, same math.
+The governance logic is identical because both environments use `syncropel-registry-core` — the same shared governance library with the same checks, same thresholds, same math.
 
 ## Related
 
 - [Quick Start](/docs/tutorials/quickstart) — Get the registry running in 5 minutes
 - [CLI Reference](/docs/reference/cli) — All `spl` commands
-- [Namespaces](/docs/concepts/namespaces) — The 5-level hierarchy managed by the registry
+- [Namespaces](/docs/concepts/namespaces) — The hierarchy managed by the registry
 - [Governance](/docs/concepts/governance) — The SCT pipeline running inside the registry

@@ -48,7 +48,7 @@ Registry started at http://localhost:9100
 Database: ~/.syncropel/registry.duckdb (persistent)
 ```
 
-The local registry is DuckDB-backed and persistent — your data survives restarts. It exposes the same API as the production registry, so SDKs connect identically.
+The local registry is persistent — your data survives restarts. It exposes the same API as the production registry, so SDKs connect identically.
 
 **Leave this running** and open a new terminal for the remaining steps.
 
@@ -86,9 +86,9 @@ Now `myproject` only allows GET and CALL effects — no PUT or MAP. Any attempt 
 spl trust show -j
 ```
 
-New principals start with a **cold-start prior** — a Wilson score based on Beta(7, 10), giving an effective score around 0.47. This places you in the ADAPT dial zone: you can replay and adapt known patterns, but you need to earn trust before creating novel ones.
+New principals start with a **cold-start prior** — a mathematically computed trust score around 0.47. This places you in the ADAPT dial zone: you can replay and adapt known patterns, but you need to earn trust before creating novel ones.
 
-Trust grows through successful observations and decays with a 30-day half-life.
+Trust grows through successful observations and decays over time.
 
 ## Step 6: View the Audit Trail
 
@@ -104,7 +104,7 @@ You'll see audit records for the namespace creation and policy changes. Nothing 
 
 In 5 minutes, you set up:
 
-1. **A local registry** — persistent DuckDB store at `~/.syncropel/registry.duckdb`
+1. **A local registry** — persistent store at `~/.syncropel/`
 2. **A governed namespace** — `myproject` inheriting from `default`, with a restrictive policy
 3. **A trust baseline** — cold-start prior that unlocks more autonomy as you prove reliability
 4. **An audit trail** — immutable record of every governance decision
@@ -116,7 +116,7 @@ The governance stack running locally is identical to what runs in production. Ev
 <Cards>
   <Card
     title="The Effect Algebra"
-    description="Understand the 4 primitives and 5 shapes that form the vocabulary of all computation."
+    description="Understand the primitives and shapes that form the vocabulary of all computation."
     href="/docs/concepts/effects"
   />
   <Card

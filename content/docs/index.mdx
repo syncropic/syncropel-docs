@@ -5,14 +5,14 @@ description: Formal verification infrastructure for AI computation. Install the 
 
 Syncropel is **verification infrastructure for AI computation** — a formal algebra and governance protocol that any AI system can embed to become trustworthy. Like TLS for the web, Syncropel is invisible infrastructure: your agents run, Syncropel verifies.
 
-The protocol is built on immutable foundations: **4 effect primitives**, **5 data shapes**, **4 hash levels**, and a **10-check governance pipeline** — all enforced by mathematics, not promises.
+The protocol is built on immutable foundations: **effect primitives** (GET, PUT, CALL, MAP), **data shapes** (VOID, ONE, OPTIONAL, MANY, KEYED), **hash levels** (Exact, Structural, Flow, Intent), and a **deterministic governance pipeline** — all enforced by mathematics, not promises.
 
 ## What Ships Today
 
-Two production-ready packages, 915 tests:
+Two production-ready packages:
 
-- **`spl` CLI** — A local developer registry. `spl serve` runs the full governance stack on your machine (DuckDB-backed, persistent, offline-first). Same API as the production registry.
-- **`syncropel-registry-core`** — Shared governance library (pure Python, zero dependencies). Used by both the CLI and production registry to ensure identical governance decisions.
+- **`spl` CLI** — A local developer registry. `spl serve` runs the full governance stack on your machine (persistent, offline-first). Same API as the production registry.
+- **`syncropel-registry-core`** — Shared governance library (zero dependencies). Used by both the CLI and production registry to ensure identical governance decisions.
 
 ```bash
 curl -fsSL https://get.syncropic.com/spl | sh
@@ -29,7 +29,7 @@ spl serve
   />
   <Card
     title="The Effect Algebra"
-    description="4 primitives and 5 shapes — the atomic vocabulary of all computation."
+    description="GET, PUT, CALL, MAP and VOID, ONE, OPTIONAL, MANY, KEYED — the atomic vocabulary of all computation."
     href="/docs/concepts/effects"
   />
   <Card
@@ -49,22 +49,22 @@ spl serve
 <Cards>
   <Card
     title="Hash Levels"
-    description="4 levels of privacy-preserving hashing — from exact replay to intent matching."
+    description="Exact, Structural, Flow, Intent — privacy-preserving hashing from exact replay to intent matching."
     href="/docs/concepts/hash-levels"
   />
   <Card
     title="Namespaces"
-    description="5-level hierarchy where governance monotonically narrows."
+    description="DEFAULT, ORG, PROJECT, ENV, JOB — hierarchical governance that monotonically narrows."
     href="/docs/concepts/namespaces"
   />
   <Card
     title="Governance"
-    description="Session Capability Tokens and the 10-check validator."
+    description="Session Capability Tokens and the deterministic governance validator."
     href="/docs/concepts/governance"
   />
   <Card
     title="Trust"
-    description="Wilson score with cold-start prior and temporal decay."
+    description="Mathematically computed confidence with cold-start prior and temporal decay."
     href="/docs/concepts/trust"
   />
 </Cards>
@@ -73,16 +73,16 @@ spl serve
 
 | Foundation | What | Frozen? |
 |-----------|------|---------|
-| **4 Primitives** | GET, PUT, CALL, MAP | Yes (F1) |
-| **5 Shapes** | VOID, ONE, OPTIONAL, MANY, KEYED | Yes (F2) |
-| **4 Hash Levels** | L0 Exact, L1 Structural, L2 Flow, L3 Intent | Yes (F6) |
-| **4 Dial Zones** | REPLAY \[0,1/3), ADAPT \[1/3,1/2), EXPLORE \[1/2,2/3), CREATE \[2/3,1\] | Yes (F5) |
-| **5 Namespace Levels** | DEFAULT, ORG, PROJECT, ENV, JOB | Yes |
-| **10 Governance Checks** | CRL, Policy freshness, Capability, Deny, Budget, Dial, Hash level, Budget guard, Structural, HITL | Yes |
+| **Primitives** | GET, PUT, CALL, MAP | Yes (F1) |
+| **Shapes** | VOID, ONE, OPTIONAL, MANY, KEYED | Yes (F2) |
+| **Hash Levels** | Exact, Structural, Flow, Intent | Yes (F6) |
+| **Dial Zones** | REPLAY \[0,1/3), ADAPT \[1/3,1/2), EXPLORE \[1/2,2/3), CREATE \[2/3,1\] | Yes (F5) |
+| **Namespace Levels** | DEFAULT, ORG, PROJECT, ENV, JOB | Yes |
+| **Governance Checks** | CRL, Policy freshness, Capability, Deny, Budget, Dial, Hash level, Budget guard, Structural, HITL | Yes |
 
 These are **Frozen Foundations** — they will never change. Any computation decomposes into these primitives. Any governance decision reduces to these checks.
 
-## 9 Axioms
+## Axioms
 
 | Axiom | Name | One-Line |
 |-------|------|----------|

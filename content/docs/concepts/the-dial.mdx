@@ -7,9 +7,9 @@ The Dial is a single continuous parameter on the interval \[0, 1\] that controls
 
 This is **Axiom A8**.
 
-## 4 Zones
+## Zones
 
-The Dial divides into four zones at exact fractional boundaries. These are **Frozen Foundations F4 and F5** — they will never change.
+The Dial divides into zones at exact fractional boundaries. These are **Frozen Foundations F4 and F5** — they will never change.
 
 | Zone | Range | What Happens |
 |------|-------|-------------|
@@ -37,9 +37,9 @@ You don't pick any dial position you want. Your **trust score** determines a **d
 | \< 0.70 | 2/3 | REPLAY + ADAPT + EXPLORE |
 | &ge; 0.70 | 1.0 | All zones |
 
-**New principals start with a cold-start prior** of Beta(7, 10), giving a Wilson lower bound of approximately 0.47. This places them in the second tier: REPLAY + ADAPT. They can use known patterns and adapt them, but must earn trust before exploring or creating.
+**New principals start with a cold-start prior**, giving a trust score of approximately 0.47. This places them in the second tier: REPLAY + ADAPT. They can use known patterns and adapt them, but must earn trust before exploring or creating.
 
-Trust grows through successful observations and decays with a **30-day half-life**. Use a pattern successfully, your trust increases. Stop using it, your trust decays back toward the cold-start prior. This is **Axiom A2** (Convergence) in action — reliable behavior is rewarded with more autonomy.
+Trust grows through successful observations and decays over time. Use a pattern successfully, your trust increases. Stop using it, your trust decays back toward the cold-start baseline. This is **Axiom A2** (Convergence) in action — reliable behavior is rewarded with more autonomy.
 
 ## Hash Access by Zone
 
@@ -134,6 +134,6 @@ The Dial embodies **bounded autonomy**. Rather than choosing between "human does
 
 ## Related Concepts
 
-- [The Effect Algebra](/docs/concepts/effects) — The 4 primitives and 5 shapes that the Dial governs
+- [The Effect Algebra](/docs/concepts/effects) — The primitives and shapes that the Dial governs
 - [Hash Levels](/docs/concepts/hash-levels) — How the Dial controls pattern matching granularity
 - [Physics, Not Policy](/docs/concepts/physics-not-policy) — Why structural enforcement matters
