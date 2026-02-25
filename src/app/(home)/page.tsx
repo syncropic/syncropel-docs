@@ -37,9 +37,10 @@ export default function HomePage() {
           <span className="text-[#b45309] dark:text-[#d97706]">governs</span>.
         </h1>
         <p className="text-base text-fd-muted-foreground max-w-xl mx-auto leading-relaxed">
-          A programmable substrate for computation that observes, validates,
-          and improves. Formal algebra. Privacy-preserving federation.
-          Bounded autonomy.
+          A formal algebra for computation governance. Closed primitives.
+          Deterministic validation. What isn&apos;t permitted can&apos;t execute.
+          What is spent can&apos;t be spent again. Trust earned from evidence,
+          not granted by policy or promises.
         </p>
 
         {/* Install */}
@@ -148,19 +149,13 @@ export default function HomePage() {
           <div className="flex gap-3">
             <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">spl</code>
             <span className="text-fd-muted-foreground">
-              CLI + local registry. Governance, trust, audit, namespaces, policies. DuckDB-backed, offline-first.
+              CLI + local registry. Governance, trust, audit, namespaces, policies. Offline-first.
             </span>
           </div>
           <div className="flex gap-3">
             <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">registry-core</code>
             <span className="text-fd-muted-foreground">
-              Shared governance library. Pure Python, zero dependencies. Same logic in CLI and production.
-            </span>
-          </div>
-          <div className="flex gap-3">
-            <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">915 tests</code>
-            <span className="text-fd-muted-foreground">
-              Across 5 codebases. Rust, Python, TypeScript.
+              Shared governance library. Zero dependencies. Same logic in CLI and production.
             </span>
           </div>
         </div>
@@ -177,12 +172,10 @@ export default function HomePage() {
       {/* Foundations */}
       <section className="w-full max-w-3xl mx-auto px-6 py-14">
         <p className="text-sm text-fd-muted-foreground">
-          <span className="font-medium text-fd-foreground">4</span> primitives &middot;{' '}
-          <span className="font-medium text-fd-foreground">5</span> shapes &middot;{' '}
-          <span className="font-medium text-fd-foreground">4</span> hash levels &middot;{' '}
-          <span className="font-medium text-fd-foreground">4</span> dial zones &middot;{' '}
-          <span className="font-medium text-fd-foreground">9</span> axioms &middot;{' '}
-          <span className="font-medium text-fd-foreground">10</span> governance checks
+          <span className="font-medium text-fd-foreground">Primitives:</span> GET, PUT, CALL, MAP &middot;{' '}
+          <span className="font-medium text-fd-foreground">Shapes:</span> VOID, ONE, OPTIONAL, MANY, KEYED &middot;{' '}
+          <span className="font-medium text-fd-foreground">Hash levels:</span> Exact, Structural, Flow, Intent &middot;{' '}
+          <span className="font-medium text-fd-foreground">Dial zones:</span> REPLAY, ADAPT, EXPLORE, CREATE
         </p>
         <Link
           href="/docs/reference/frozen-foundations"
