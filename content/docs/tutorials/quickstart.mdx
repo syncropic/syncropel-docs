@@ -8,19 +8,24 @@ This tutorial gets you from zero to a running local registry with governance in 
 ## Prerequisites
 
 - Python 3.12 or later
-- pip, pipx, or uv
 
 ## Step 1: Install the CLI
 
 ```bash
-# With pip (includes local registry support)
-pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+curl -fsSL https://get.syncropic.com/spl | sh
+```
 
-# Or with pipx (isolated install)
+The installer detects your package manager (pipx, uv, or pip) and installs `spl` with local registry support. You can also install manually:
+
+```bash
+# With pipx (recommended — isolated install)
 pipx install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
 
 # Or with uv
 uv tool install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+
+# Or with pip
+pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
 ```
 
 Verify the installation:

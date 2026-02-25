@@ -1,26 +1,59 @@
 import Link from 'next/link';
 
-const navCards = [
+const capabilities = [
+  {
+    title: 'Observable',
+    desc: 'Every action traced. Content-addressed and inspectable. Structured effects, not log lines.',
+    ready: true,
+  },
+  {
+    title: 'Validated',
+    desc: 'Formal verification before or after execution. Programmable policies. Architectural guarantees, not bolted-on safety.',
+    ready: true,
+  },
+  {
+    title: 'Composable',
+    desc: 'A small, fixed set of primitives and shapes. Closed under composition. Build anything and prove properties about the whole.',
+    ready: true,
+  },
+  {
+    title: 'Learning',
+    desc: 'Patterns extracted from traces. Trust computed from observations. The system gets smarter from everything flowing through it.',
+    ready: true,
+  },
+  {
+    title: 'Federated',
+    desc: 'Knowledge shared across organizations without sharing data. Privacy-preserving by construction. Patterns improve the network.',
+    ready: false,
+  },
+  {
+    title: 'Programmable',
+    desc: 'Define your own validation rules, policies, and automation triggers. A substrate you control and configure to your domain.',
+    ready: true,
+  },
+];
+
+const startCards = [
   {
     label: 'Tutorial',
     title: 'Quick Start',
-    desc: 'Install spl, start a local registry, create your first namespace.',
+    desc: 'Install spl, start a local registry, set your first policy.',
     href: '/docs/tutorials/quickstart',
     icon: '▶',
   },
   {
-    label: 'Core Concept',
-    title: 'The Effect Algebra',
-    desc: '4 primitives. 5 shapes. The foundation of all computation.',
-    href: '/docs/concepts/effects',
-    icon: '⟲',
+    label: 'Tutorial',
+    title: 'Core Workflow',
+    desc: 'End-to-end: namespace, policy, observe, trust, audit.',
+    href: '/docs/tutorials/core-workflow',
+    icon: '↻',
   },
   {
-    label: 'Core Concept',
-    title: 'The Dial',
-    desc: 'One parameter. REPLAY to CREATE. Trust unlocks autonomy.',
-    href: '/docs/concepts/the-dial',
-    icon: '◉',
+    label: 'Concept',
+    title: 'The Effect Algebra',
+    desc: '4 primitives. 5 shapes. The atoms of all computation.',
+    href: '/docs/concepts/effects',
+    icon: '⟲',
   },
   {
     label: 'Philosophy',
@@ -31,7 +64,12 @@ const navCards = [
   },
 ];
 
-const deepDiveCards = [
+const conceptCards = [
+  {
+    title: 'The Dial',
+    desc: 'One parameter. REPLAY to CREATE. Trust unlocks autonomy.',
+    href: '/docs/concepts/the-dial',
+  },
   {
     title: 'Hash Levels',
     desc: 'L0-L3 content-addressed identity. One hash, four resolutions.',
@@ -44,7 +82,7 @@ const deepDiveCards = [
   },
   {
     title: 'Governance',
-    desc: 'SCT computation, 10-check validator, forbid-wins policies.',
+    desc: 'Session Capability Tokens and the 10-check validator.',
     href: '/docs/concepts/governance',
   },
   {
@@ -52,16 +90,11 @@ const deepDiveCards = [
     desc: 'Wilson score with cold-start prior and 30-day decay.',
     href: '/docs/concepts/trust',
   },
-];
-
-const foundations = [
-  { id: 'F1', name: '4 Effect Primitives', value: 'GET, PUT, CALL, MAP' },
-  { id: 'F2', name: '5 Data Shapes', value: 'VOID, ONE, OPTIONAL, MANY, KEYED' },
-  { id: 'F3', name: 'Dial Range', value: 'Continuous scalar d in [0, 1]' },
-  { id: 'F4', name: 'Zone Thresholds', value: 'T1=1/3, T2=1/2, T3=2/3' },
-  { id: 'F6', name: '4 Hash Levels', value: 'L0 Exact, L1 Structural, L2 Flow, L3 Intent' },
-  { id: 'F8', name: 'L0 Sharing Rule', value: 'L0 hashes NEVER leave the local namespace' },
-  { id: 'F10', name: 'Hash Algorithm', value: 'SHA-256, lowercase hex, 64 characters' },
+  {
+    title: 'Federation',
+    desc: 'Consent-gated evidence sharing across trust boundaries.',
+    href: '/docs/concepts/federation',
+  },
 ];
 
 const axioms = [
@@ -82,16 +115,16 @@ export default function HomePage() {
       {/* Hero */}
       <section className="w-full max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
         <p className="text-xs font-mono uppercase tracking-[0.3em] text-fd-muted-foreground mb-6">
-          Verification Infrastructure for AI Computation
+          Infrastructure That Learns
         </p>
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
           Syncropel{' '}
           <span className="text-[#b45309] dark:text-[#d97706]">Documentation</span>
         </h1>
         <p className="text-lg text-fd-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          Learn how to govern AI computation with immutable foundations.
-          4 effect primitives, 5 data shapes, 4 hash levels, and a 10-check governance pipeline
-          that makes trust mathematical and autonomy bounded.
+          A programmable substrate for computation that gets smarter from everything
+          flowing through it. Observe what happened. Validate what should happen.
+          Learn what works.
         </p>
 
         {/* CTA */}
@@ -114,7 +147,7 @@ export default function HomePage() {
         {/* Install */}
         <div className="mt-8">
           <code className="px-4 py-2 rounded-lg bg-fd-muted text-sm font-mono text-fd-foreground">
-            pip install syncropel-cli[serve]
+            curl -fsSL https://get.syncropic.com/spl | sh
           </code>
         </div>
       </section>
@@ -124,13 +157,81 @@ export default function HomePage() {
         <div className="h-px bg-fd-border" />
       </div>
 
-      {/* Start Here Cards */}
+      {/* The Substrate */}
+      <section className="w-full max-w-5xl mx-auto px-6 py-16">
+        <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-2">
+          The Substrate
+        </h2>
+        <p className="text-xl font-semibold mb-2">
+          Not another monitoring tool.
+        </p>
+        <p className="text-sm text-fd-muted-foreground mb-8 max-w-2xl">
+          A substrate where computation flows through structured traces, gets validated against
+          your rules, and continuously improves. Built on patent-pending protocol technology.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {capabilities.map((cap) => (
+            <div
+              key={cap.title}
+              className="rounded-xl border border-fd-border bg-fd-card p-5"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base font-semibold">{cap.title}</span>
+                {cap.ready ? (
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    ready
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-fd-muted text-fd-muted-foreground">
+                    roadmap
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-fd-muted-foreground">{cap.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* What Flows Through */}
+      <section className="w-full max-w-5xl mx-auto px-6 pb-16">
+        <div className="rounded-xl border border-fd-border bg-fd-card p-8">
+          <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-1">
+            Not Just AI
+          </h2>
+          <p className="text-xl font-semibold mb-6">
+            Everything.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            {[
+              { label: 'AI Agent Sessions', examples: 'Claude Code, LangChain, GPT tool calls' },
+              { label: 'Developer Activity', examples: 'Git workflows, CLI commands, build pipelines' },
+              { label: 'API & Service Traffic', examples: 'Internal APIs, webhooks, scheduled jobs' },
+              { label: 'Human Actions', examples: 'Admin operations, approval workflows, data queries' },
+              { label: 'Historical Data', examples: 'Log archives, session replays, audit trails' },
+              { label: 'Custom Integrations', examples: 'Any computation you want to observe and govern' },
+            ].map((item) => (
+              <div key={item.label}>
+                <span className="font-medium">{item.label}</span>
+                <p className="text-fd-muted-foreground text-xs mt-0.5">{item.examples}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="w-full max-w-5xl mx-auto px-6">
+        <div className="h-px bg-fd-border" />
+      </div>
+
+      {/* Start Here */}
       <section className="w-full max-w-5xl mx-auto px-6 py-16">
         <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-6">
           Start Here
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {navCards.map((card) => (
+          {startCards.map((card) => (
             <Link
               key={card.href}
               href={card.href}
@@ -155,13 +256,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Deep Dive */}
+      {/* Concepts */}
       <section className="w-full max-w-5xl mx-auto px-6 pb-16">
         <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-6">
-          Deep Dive
+          Concepts
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {deepDiveCards.map((card) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {conceptCards.map((card) => (
             <Link
               key={card.href}
               href={card.href}
@@ -178,55 +279,31 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Frozen Foundations */}
+      {/* The Flywheel */}
       <section className="w-full max-w-5xl mx-auto px-6 pb-16">
         <div className="rounded-xl border border-fd-border bg-fd-card p-8">
           <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-1">
-            Protocol Constants
+            The Flywheel
           </h2>
           <p className="text-xl font-semibold mb-2">
-            Frozen Foundations
+            Monitoring tells you what broke. Syncropel learns what works.
           </p>
-          <p className="text-sm text-fd-muted-foreground mb-6">
-            These never change. Any implementation that contradicts them is wrong.{' '}
-            <Link href="/docs/reference/frozen-foundations" className="text-[#b45309] dark:text-[#d97706] hover:underline">
-              Full reference &rarr;
-            </Link>
+          <p className="text-sm text-fd-muted-foreground mb-6 max-w-2xl">
+            Every action that flows through the substrate makes it smarter. Patterns learned
+            by one team benefit everyone in the network. Privacy-preserving by construction.
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-fd-border">
-                  <th className="text-left py-2 pr-4 font-mono text-fd-muted-foreground font-normal w-12">
-                    #
-                  </th>
-                  <th className="text-left py-2 pr-4 font-medium">
-                    Foundation
-                  </th>
-                  <th className="text-left py-2 font-mono text-fd-muted-foreground font-normal hidden md:table-cell">
-                    Value
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {foundations.map((f) => (
-                  <tr key={f.id} className="border-b border-fd-border/50 last:border-0">
-                    <td className="py-2.5 pr-4 font-mono text-[#b45309] dark:text-[#d97706] text-xs">
-                      {f.id}
-                    </td>
-                    <td className="py-2.5 pr-4">{f.name}</td>
-                    <td className="py-2.5 font-mono text-xs text-fd-muted-foreground hidden md:table-cell">
-                      {f.value}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-wrap justify-center gap-2 text-sm font-mono">
+            {['Ingest', 'Validate', 'Observe', 'Learn', 'Share'].map((step, i) => (
+              <span key={step} className="flex items-center gap-2">
+                <span className="px-3 py-1.5 rounded-lg bg-fd-muted">{step}</span>
+                {i < 4 && <span className="text-fd-muted-foreground">&rarr;</span>}
+              </span>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Axioms Section */}
+      {/* Axioms */}
       <section className="w-full max-w-5xl mx-auto px-6 pb-16">
         <div className="rounded-xl border border-fd-border bg-fd-card p-8">
           <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-1">
@@ -273,7 +350,7 @@ export default function HomePage() {
         <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-6">
           Guides & Reference
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/docs/guides/local-registry"
             className="group rounded-xl border border-fd-border bg-fd-card p-5 transition-all hover:border-[#b45309]/40 dark:hover:border-[#d97706]/40 hover:shadow-sm"
@@ -297,6 +374,17 @@ export default function HomePage() {
             </p>
           </Link>
           <Link
+            href="/docs/guides/policy-management"
+            className="group rounded-xl border border-fd-border bg-fd-card p-5 transition-all hover:border-[#b45309]/40 dark:hover:border-[#d97706]/40 hover:shadow-sm"
+          >
+            <span className="text-base font-semibold group-hover:text-[#b45309] dark:group-hover:text-[#d97706] transition-colors">
+              Policy Management
+            </span>
+            <p className="text-sm text-fd-muted-foreground mt-1">
+              Capability envelopes, deny rules, budget constraints.
+            </p>
+          </Link>
+          <Link
             href="/docs/reference/cli"
             className="group rounded-xl border border-fd-border bg-fd-card p-5 transition-all hover:border-[#b45309]/40 dark:hover:border-[#d97706]/40 hover:shadow-sm"
           >
@@ -304,7 +392,7 @@ export default function HomePage() {
               CLI Reference
             </span>
             <p className="text-sm text-fd-muted-foreground mt-1">
-              All spl commands, flags, exit codes, and environment variables.
+              All spl commands, flags, exit codes, and env vars.
             </p>
           </Link>
         </div>
@@ -323,7 +411,7 @@ export default function HomePage() {
             href="https://app.syncropel.com"
             className="text-sm text-fd-muted-foreground hover:text-[#b45309] dark:hover:text-[#d97706] transition-colors"
           >
-            Studio &rarr;
+            Trace Inspector &rarr;
           </a>
           <a
             href="https://syncropel.org"
