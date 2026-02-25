@@ -1,0 +1,326 @@
+---
+title: Governance Checks
+description: "Complete reference for the 10-check governance validator — what each check validates, denial kinds, per-effect vs per-session scope, and the two-tier pipeline."
+---
+
+The governance validator runs 10 checks against every session and its effects. These checks enforce the [Session Capability Token (SCT)](/docs/concepts/governance) constraints. A single check failure blocks the operation.
+
+## Check Summary
+
+| # | Name | Scope | Store | DenialKind |
+|---|------|-------|-------|------------|
+| 1 | CRL | Session | Yes | `SctRevoked` |
+| 2 | Policy Freshness | Session | Yes | `PolicyStale` |
+| 3 | Capability | Effect | No | `CapabilityViolation` |
+| 4 | Deny Rules | Effect | No | `DenyConstraint` |
+| 5 | Budget Ceiling | Session | No | `BudgetExceeded` |
+| 6 | Dial Position | Session | No | `DialCeilingExceeded` |
+| 7 | Hash Level | Session | No | `CapabilityViolation` |
+| 8 | Budget Guard | Effect | No | `BudgetExceeded` |
+| 9 | Structural | Mixed | No | Multiple |
+| 10 | HITL | Effect | Yes | `HitlRequired` |
+
+**Store** = requires registry access (not purely stateless).
+**Scope** = whether the check runs once per session or once per effect.
+
+---
+
+## Check 1: CRL (Certificate Revocation List)
+
+**Scope**: Per-session | **Store**: Required
+
+Verifies that neither the SCT hash nor the principal DID appears in the Certificate Revocation List.
+
+| What's Checked | Denial If |
+|---------------|-----------|
+| SCT content hash | Hash is in CRL |
+| Principal DID | DID has a HARD revocation entry |
+
+Soft revocation generates a warning but allows existing sessions to continue. Hard revocation blocks immediately.
+
+```json
+{
+  "check": 1,
+  "name": "crl.principal_did",
+  "kind": "SctRevoked",
+  "detail": "Principal did:sync:sa:agent-1 is hard-revoked: service account deactivated"
+}
+```
+
+---
+
+## Check 2: Policy Freshness
+
+**Scope**: Per-session | **Store**: Required
+
+Compares the SCT's `policy_version` hash against the current policy version in the registry. If they differ, the SCT was computed against stale policies.
+
+| What's Checked | Denial If |
+|---------------|-----------|
+| `sct.policy_version` vs current | Hashes don't match |
+
+When denied, the client must request a fresh SCT.
+
+```json
+{
+  "check": 2,
+  "name": "policy_freshness",
+  "kind": "PolicyStale",
+  "detail": "SCT policy version a1b2c3d4... does not match current e5f6g7h8... — request a new SCT"
+}
+```
+
+---
+
+## Check 3: Capability Envelope
+
+**Scope**: Per-effect | **Store**: Not required
+
+Validates each effect against the SCT's capability envelope. Four sub-checks:
+
+| Sub-check | What's Validated | Empty List Means |
+|-----------|-----------------|------------------|
+| 3a: Primitives | Effect primitive in `capability.primitives` | All allowed |
+| 3b: Shapes | Effect shape in `capability.shapes` | All allowed |
+| 3c: Operations | Effect operation matches `capability.operations` globs | All allowed |
+| 3d: Resources | Effect resource matches `capability.resources` globs | All allowed |
+
+```json
+{
+  "check": 3,
+  "name": "capability.primitives",
+  "kind": "CapabilityViolation",
+  "detail": "Primitive 'PUT' not in ['CALL', 'GET']",
+  "effect_index": 2
+}
+```
+
+---
+
+## Check 4: Deny Rules
+
+**Scope**: Per-effect | **Store**: Not required
+
+Tests each effect against the SCT's deny rules. Deny rules follow **forbid-wins** semantics: any match blocks the effect, regardless of what the capability envelope allows.
+
+Deny rules can match on:
+- `primitives` — which primitive types to block
+- `operations` — glob patterns for operations to block
+- `resources` — glob patterns for resources to block
+
+```json
+{
+  "check": 4,
+  "name": "deny_constraint",
+  "kind": "DenyConstraint",
+  "detail": "Effect GET MANY on '/secret/api-key' matches deny rule",
+  "effect_index": 0
+}
+```
+
+---
+
+## Check 5: Budget Ceiling (Session Aggregate)
+
+**Scope**: Per-session | **Store**: Not required
+
+Sums estimated costs and latencies across all effects in the trace and compares against the SCT's budget.
+
+| Dimension | Checked Against | Zero Means |
+|-----------|----------------|------------|
+| `estimated_cost` sum | `budget.compute` | Unlimited |
+| `estimated_latency` sum | `budget.latency` | Unlimited |
+
+Issues a **warning** at 80% utilization before hitting the hard limit.
+
+All arithmetic uses Decimal precision — no floating-point drift.
+
+```json
+{
+  "check": 5,
+  "name": "budget.compute",
+  "kind": "BudgetExceeded",
+  "detail": "Total cost 0.12 exceeds budget 0.10"
+}
+```
+
+---
+
+## Check 6: Dial Position
+
+**Scope**: Per-session | **Store**: Not required
+
+Validates that the current dial position does not exceed the SCT's dial ceiling.
+
+| What's Checked | Denial If |
+|---------------|-----------|
+| `dial_position` vs `sct.dial_ceiling` | Position > ceiling |
+
+The [dial](/docs/concepts/the-dial) zones are:
+
+| Zone | Range |
+|------|-------|
+| REPLAY | \[0, 1/3) |
+| ADAPT | \[1/3, 1/2) |
+| EXPLORE | \[1/2, 2/3) |
+| CREATE | \[2/3, 1\] |
+
+```json
+{
+  "check": 6,
+  "name": "dial_ceiling",
+  "kind": "DialCeilingExceeded",
+  "detail": "Dial position 0.75 exceeds SCT dial ceiling 0.5"
+}
+```
+
+---
+
+## Check 7: Hash Level Access
+
+**Scope**: Per-session | **Store**: Not required
+
+Validates that the requested hash level is in the SCT's `hash_access` set. [L0 hashes never leave the local namespace](/docs/reference/frozen-foundations) (F8).
+
+```json
+{
+  "check": 7,
+  "name": "hash_level_access",
+  "kind": "CapabilityViolation",
+  "detail": "Hash level 'L0' not in SCT hash_access ['L1', 'L2', 'L3']"
+}
+```
+
+---
+
+## Check 8: Budget Guard (Per-Effect)
+
+**Scope**: Per-effect | **Store**: Not required
+
+Validates quality and risk bounds for each individual effect, unlike Check 5 which validates session aggregates.
+
+| Dimension | Checked Against | Zero Means |
+|-----------|----------------|------------|
+| `quality` | `budget.quality` (floor) | No minimum |
+| `risk` | `budget.risk` (ceiling) | No maximum |
+
+```json
+{
+  "check": 8,
+  "name": "budget.risk",
+  "kind": "BudgetExceeded",
+  "detail": "Risk 0.45 exceeds ceiling 0.3",
+  "effect_index": 1
+}
+```
+
+---
+
+## Check 9: Structural Limits
+
+**Scope**: Mixed | **Store**: Not required
+
+Four sub-checks for structural integrity:
+
+### 9a: Max Effects (Per-session)
+
+Number of effects in trace must not exceed `capability.max_effects`.
+
+### 9b: Output Constraints (Per-effect)
+
+- `max_many_cardinality`: limits MANY shape cardinality
+- `deny_shapes_on_resources`: forbidden shape+resource combinations
+
+DenialKind: `ShapeConstraintViolation`
+
+### 9c: Lineage Integrity (Per-effect)
+
+Effects with `content_hash` fields must not have empty values.
+
+DenialKind: `LineageIntegrityFailure`
+
+### 9d: Federation Consent (Per-effect)
+
+Cross-namespace resource access requires a [consent edge](/docs/concepts/federation). Resources targeting a different namespace without consent are denied.
+
+DenialKind: `FederationConsentDenied`
+
+```json
+{
+  "check": 9,
+  "name": "federation_consent",
+  "kind": "FederationConsentDenied",
+  "detail": "No consent edge from 'partner' to 'acme'",
+  "effect_index": 3
+}
+```
+
+---
+
+## Check 10: HITL (Human-in-the-Loop)
+
+**Scope**: Per-effect | **Store**: Required
+
+Determines if any effect requires human approval based on dial position, namespace policy, and the effect's primitive and resource.
+
+When triggered, the governance result is `HitlRequired` — execution pauses until a human approves or denies the request.
+
+```bash
+# View pending HITL requests
+spl hitl pending -j
+
+# Approve a request
+spl hitl approve <request-id> -j
+
+# Deny a request
+spl hitl deny <request-id> --reason "not authorized" -j
+```
+
+---
+
+## DenialKind Enum
+
+The 11 denial reasons returned by the validator:
+
+| DenialKind | Meaning | Checks |
+|------------|---------|--------|
+| `CapabilityViolation` | Effect outside capability envelope | 3, 7, 9a |
+| `BudgetExceeded` | Cost, latency, quality, or risk out of bounds | 5, 8 |
+| `DenyConstraint` | Effect matches a deny rule | 4 |
+| `DialCeilingExceeded` | Dial position above SCT ceiling | 6 |
+| `SctExpired` | SCT past its TTL | — |
+| `SctRevoked` | SCT or principal in CRL | 1 |
+| `PolicyStale` | SCT policy version outdated | 2 |
+| `HitlRequired` | Human approval needed | 10 |
+| `LineageIntegrityFailure` | Empty content hash | 9c |
+| `FederationConsentDenied` | No consent edge for cross-namespace access | 9d |
+| `ShapeConstraintViolation` | Output shape constraint violated | 9b |
+
+## GovernanceResultType
+
+The 4 possible outcomes of governance validation:
+
+| Result | Meaning | What Happens |
+|--------|---------|-------------|
+| `Allowed` | All checks passed | Execution proceeds |
+| `Denied` | One or more checks failed | Execution blocked |
+| `ElevatedRequired` | Policy changed mid-session | Client must request fresh SCT |
+| `HitlRequired` | Human approval needed | Execution paused, awaiting approval |
+
+## Two-Tier Pipeline
+
+The governance depth depends on the dial position:
+
+| Tier | Dial Range | Zones | Checks |
+|------|-----------|-------|--------|
+| **STANDARD** | \[0, 1/2) | REPLAY + ADAPT | Base checks (3-7) |
+| **ELEVATED** | \[1/2, 1\] | EXPLORE + CREATE | Full checks (1-10) + federation consent + lineage audit |
+
+Lower dial = more constrained operations = lighter governance overhead. Higher dial = more creative freedom = deeper governance scrutiny.
+
+## Related
+
+- [Governance](/docs/concepts/governance) — SCT structure and computation
+- [Policy Management](/docs/guides/policy-management) — Setting capability and deny rules
+- [The Dial](/docs/concepts/the-dial) — How dial position affects governance tier
+- [Federation](/docs/concepts/federation) — Consent edges enforced by Check 9d

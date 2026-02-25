@@ -1,0 +1,166 @@
+---
+title: Federation
+description: "Consent-gated evidence sharing — how registries exchange observations using hash levels, CRDT counters, and consent edges without revealing private data."
+---
+
+Federation is how Syncropel registries share evidence across trust boundaries. The hash hierarchy **is** the protocol: L1-L3 hashes carry enough structure to prove a pattern works, while L0 (exact parameters) never leaves the local namespace.
+
+## The Core Idea
+
+A registry that has seen a pattern succeed 200 times can share that evidence with a peer — without revealing the private data that flowed through it. The receiving registry gets **statistical proof** of reliability, not raw data.
+
+```
+Registry A (acme)                    Registry B (partner)
+┌──────────────────┐                ┌──────────────────┐
+│ Pattern: db.query │  consent edge  │                  │
+│ L0: a1b2c3... ✗  │ ──────────→   │ Pattern: db.query │
+│ L1: d4e5f6... ✓  │  L1,L2,L3     │ L1: d4e5f6... ✓  │
+│ L2: g7h8i9... ✓  │  only          │ L2: g7h8i9... ✓  │
+│ L3: j0k1l2... ✓  │               │ L3: j0k1l2... ✓  │
+│                  │               │                  │
+│ Observations:    │               │ Observations:    │
+│  success=200     │ ──────────→   │  success=200     │
+│  failure=3       │               │  failure=3       │
+└──────────────────┘               └──────────────────┘
+```
+
+## Consent Edges
+
+A **consent edge** is a directed relationship: "I grant you permission to query my patterns."
+
+```json
+{
+  "from_namespace": "acme",
+  "to_namespace": "partner-corp",
+  "hash_levels": ["L1", "L2", "L3"],
+  "trust_threshold": 0.5,
+  "rate_limit": 100,
+  "purpose": "Q1 2026 data sharing agreement",
+  "active": true,
+  "expires_at": "2026-06-30T00:00:00Z",
+  "granted_by": "did:sync:sa:acme-admin"
+}
+```
+
+| Field | Type | What It Controls |
+|-------|------|-----------------|
+| `from_namespace` | string | Source namespace (data owner) |
+| `to_namespace` | string | Target namespace (data consumer), or `*` for all |
+| `hash_levels` | string set | Which levels to share — only L1, L2, L3 |
+| `trust_threshold` | decimal | Requester must have this trust score or higher |
+| `rate_limit` | integer | Maximum queries per time period |
+| `purpose` | string | Human-readable reason for the consent |
+| `active` | boolean | Enable/disable without deleting the edge |
+| `expires_at` | ISO 8601 | Optional TTL — expired edges are inactive |
+| `granted_by` | DID | Principal who authorized the consent |
+
+### Consent Direction
+
+The edge is **from → to**, meaning "from grants access to to":
+
+- `from: acme, to: partner` means partner can query acme's patterns
+- The reverse is not implied — acme cannot query partner unless partner creates a separate edge
+
+### L0 Never Leaves
+
+[Frozen Foundation F8](/docs/reference/frozen-foundations): L0 hashes contain exact parameters and must **never** leave the local namespace. This is enforced structurally:
+
+```
+Requested: L0  →  Denied (always, regardless of consent)
+Requested: L1  →  Check consent edge → allowed if present
+Requested: L2  →  Check consent edge → allowed if present
+Requested: L3  →  Check consent edge → allowed if present
+```
+
+The federation check in the [governance validator](/docs/reference/governance-checks) (Check 9d) enforces this — any cross-namespace access without a consent edge is denied.
+
+## Observation Sync
+
+Observations sync between registries using **CRDT G-Counter** semantics:
+
+- **G-Counter** = growth-only counter. It can only increase, never decrease.
+- **Merge** = take the maximum of each counter. No conflicts, ever.
+- **Eventually consistent** = all registries converge to the same totals.
+
+```
+Registry A: success=200, failure=3
+Registry B: success=150, failure=5
+                 ↓ merge
+Result:    success=200, failure=5  (max of each)
+```
+
+This means:
+- No coordination needed between registries
+- No ordering problems or race conditions
+- Observations can arrive in any order and still converge
+- A pattern that has been proven reliable in one registry automatically benefits all federated peers
+
+## Managing Federation
+
+### Grant Consent
+
+```bash
+spl federation grant \
+  --from acme \
+  --to partner-corp \
+  --levels L1,L2,L3 \
+  --trust 0.6 \
+  --rate-limit 100 \
+  --purpose "Analytics data sharing" -j
+```
+
+### View Consent Edges
+
+```bash
+spl federation show acme -j
+```
+
+### Revoke Consent
+
+```bash
+spl federation revoke \
+  --from acme \
+  --to partner-corp -j
+```
+
+Revocation is immediate. The receiving registry keeps any observations it already has (they're G-Counters — they don't "un-sync"), but it can no longer query for new patterns.
+
+## The "One Donor Teaches All" Property
+
+Because hash containment is monotonic ([F9](/docs/reference/frozen-foundations)), a single federated observation teaches at multiple levels:
+
+1. Organization A proves a pattern works (200 successes at L1)
+2. Organization B receives this via federation
+3. Organization B now knows: any L2 or L3 match to this pattern also has 200 successes behind it
+
+The [hash hierarchy](/docs/concepts/hash-levels) ensures that evidence flows upward automatically — from specific to abstract — without any additional synchronization.
+
+## Federation and Governance
+
+Federation integrates with the governance pipeline at two points:
+
+| Check | What It Does |
+|-------|-------------|
+| [Check 7](/docs/reference/governance-checks) | Validates that the SCT's `hash_access` set includes the requested hash level |
+| [Check 9d](/docs/reference/governance-checks) | Validates that cross-namespace resource access has a consent edge |
+
+Both checks use **forbid-wins** semantics: if any check denies, the effect is blocked regardless of what other checks allow.
+
+## Current Status
+
+| Feature | Status |
+|---------|--------|
+| Consent edge CRUD | Implemented (API + CLI) |
+| Consent enforcement in validator | Implemented (Check 9d) |
+| L0 sharing prevention | Implemented (structural block) |
+| Observation sync (local) | Implemented (G-Counter merge) |
+| Remote registry discovery | Roadmap (Phase 3) |
+| Cross-registry sync protocol | Roadmap (Phase 3) |
+| CRDT conflict resolution | Not needed (G-Counters are conflict-free) |
+
+## Related
+
+- [Hash Levels](/docs/concepts/hash-levels) — The 4-level hierarchy that makes federation possible
+- [Trust](/docs/concepts/trust) — Wilson score that gates consent threshold
+- [Governance Checks](/docs/reference/governance-checks) — Checks 7 and 9d enforce federation rules
+- [Frozen Foundations](/docs/reference/frozen-foundations) — F8 (L0 never leaves) and F9 (hash containment)

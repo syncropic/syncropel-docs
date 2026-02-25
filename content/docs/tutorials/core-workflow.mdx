@@ -1,0 +1,302 @@
+---
+title: Core Workflow
+description: "End-to-end walkthrough — from starting a local registry to creating namespaces, setting policies, recording observations, checking trust, and querying the audit trail."
+---
+
+This tutorial walks through the complete Syncropel governance lifecycle using the `spl` CLI. By the end, you'll have a running registry with namespaces, policies, observations, trust scores, and an audit trail.
+
+**Prerequisites**: `pip install syncropel-cli[serve]`
+
+## 1. Start the Registry
+
+```bash
+spl serve
+```
+
+```
+Syncropel registry starting...
+  Database: ~/.syncropel/registry.duckdb (persistent)
+  API: http://localhost:9100
+  Namespace: default
+
+Registry ready.
+```
+
+The registry creates a persistent DuckDB database and a `default` namespace. All `spl` commands automatically connect to `localhost:9100`.
+
+## 2. Create a Namespace Hierarchy
+
+```bash
+# Create an org namespace
+spl namespace create acme -j
+
+# Create a project under it
+spl namespace create acme/analytics -j
+
+# Create an environment
+spl namespace create acme/analytics/prod -j
+```
+
+Verify the hierarchy:
+
+```bash
+spl namespace ls -j
+```
+
+```json
+{
+  "status": "ok",
+  "data": [
+    {"id": "default", "level": "DEFAULT", "parent": null},
+    {"id": "acme", "level": "ORG", "parent": "default"},
+    {"id": "acme/analytics", "level": "PROJECT", "parent": "acme"},
+    {"id": "acme/analytics/prod", "level": "ENV", "parent": "acme/analytics"}
+  ]
+}
+```
+
+Each level inherits from its parent via [monotonic narrowing](/docs/concepts/namespaces) — child policies can only restrict, never expand.
+
+## 3. Set a Policy
+
+Create a policy file that restricts the production environment:
+
+```json title="policy.json"
+{
+  "capability": {
+    "primitives": ["GET", "CALL"],
+    "operations": ["db.query", "llm.generate"],
+    "max_effects": 100
+  },
+  "deny": {
+    "rules": [
+      {
+        "operations": ["db.drop_*", "db.truncate_*"],
+        "primitives": ["CALL"]
+      },
+      {
+        "resources": ["/secret/*"],
+        "primitives": ["GET"]
+      }
+    ]
+  },
+  "budget": {
+    "compute_usd": 0.01,
+    "latency_ms": 10000,
+    "risk_ceiling": 0.2
+  },
+  "dial_ceiling": 0.3333
+}
+```
+
+Apply it:
+
+```bash
+spl policy set acme/analytics/prod policy.json -j
+```
+
+This policy:
+- Allows only GET and CALL (no writes)
+- Restricts operations to `db.query` and `llm.generate`
+- Blocks destructive operations (`db.drop_*`) and secret access (`/secret/*`)
+- Caps the dial at 0.3333 (REPLAY zone only)
+- Limits budget to $0.01 compute, 10s latency, 0.2 risk ceiling
+
+### Test the Policy
+
+Before going live, test that specific effects would be allowed:
+
+```bash
+# This should be allowed
+spl policy test acme/analytics/prod \
+  --primitive GET \
+  --operation db.query \
+  --resource /sync/database/users \
+  --dial 0.2 -j
+```
+
+```json
+{"status": "ok", "allowed": true}
+```
+
+```bash
+# This should be denied (PUT not in capability)
+spl policy test acme/analytics/prod \
+  --primitive PUT \
+  --operation db.insert \
+  --resource /sync/database/users \
+  --dial 0.2 -j
+```
+
+```json
+{"status": "ok", "allowed": false, "reason": "Primitive 'PUT' not in ['CALL', 'GET']"}
+```
+
+## 4. View the Resolved Policy
+
+The **resolved** policy is what governance actually uses — it's the result of composing policies from the entire ancestor chain:
+
+```bash
+spl namespace resolve acme/analytics/prod -j
+```
+
+This walks `default → acme → acme/analytics → acme/analytics/prod`, applying [composition rules](/docs/guides/policy-management):
+- Primitives: intersection
+- Deny rules: union (accumulate)
+- Budget: tighter bound (min per dimension)
+- Dial ceiling: min()
+
+## 5. Record Observations
+
+As your agents execute effects, record the outcomes:
+
+```bash
+# Successful database query
+spl observe record \
+  --principal did:sync:sa:analytics-agent \
+  --namespace acme/analytics/prod \
+  --primitive GET \
+  --resource /sync/database/events \
+  --outcome SUCCESS \
+  --quality 0.95 \
+  --latency 120 -j
+
+# Another success
+spl observe record \
+  --principal did:sync:sa:analytics-agent \
+  --namespace acme/analytics/prod \
+  --primitive CALL \
+  --resource /sync/llm/generate \
+  --outcome SUCCESS \
+  --quality 0.88 \
+  --latency 2500 -j
+
+# A failure
+spl observe record \
+  --principal did:sync:sa:analytics-agent \
+  --namespace acme/analytics/prod \
+  --primitive GET \
+  --resource /sync/database/orders \
+  --outcome FAILURE \
+  --quality 0.5 \
+  --latency 5000 -j
+```
+
+Each observation feeds the [trust model](/docs/concepts/trust) — Wilson score with 30-day exponential decay.
+
+## 6. Check the Trust Score
+
+```bash
+spl trust show \
+  --principal did:sync:sa:analytics-agent \
+  --namespace acme/analytics/prod -j
+```
+
+```json
+{
+  "principal": "did:sync:sa:analytics-agent",
+  "namespace": "acme/analytics/prod",
+  "raw_score": 0.6389,
+  "effective_score": 0.6389,
+  "success_count": 2,
+  "failure_count": 1,
+  "dial_ceiling": 0.6389
+}
+```
+
+With 2 successes and 1 failure, plus the cold-start prior of Beta(7,10), the trust score is moderate. More successful observations will increase it.
+
+The `dial_ceiling` is the maximum dial position this principal can use in this namespace — governance enforces this at [Check 6](/docs/reference/governance-checks).
+
+## 7. Query the Audit Trail
+
+Every governance action is recorded immutably:
+
+```bash
+spl audit log --namespace acme/analytics/prod --limit 10 -j
+```
+
+Filter by action type:
+
+```bash
+# Find all policy changes
+spl audit log --action POLICY_SET -j
+
+# Find all denied effects
+spl audit log --action EFFECT_DENIED -j
+
+# Find all session creations
+spl audit log --action SESSION_CREATED -j
+```
+
+## 8. Set Up Federation (Optional)
+
+Grant a partner namespace permission to query your patterns:
+
+```bash
+spl federation grant \
+  --from acme/analytics \
+  --to partner/data-team \
+  --levels L1,L2,L3 \
+  --trust 0.6 \
+  --rate-limit 100 \
+  --purpose "Shared analytics patterns" -j
+```
+
+View active consent edges:
+
+```bash
+spl federation show acme/analytics -j
+```
+
+Revoke if needed:
+
+```bash
+spl federation revoke \
+  --from acme/analytics \
+  --to partner/data-team -j
+```
+
+See [Federation](/docs/concepts/federation) for how L1-L3 hashes and observations sync across registries.
+
+## 9. Connect an AI Agent
+
+Install the Claude Code integration:
+
+```bash
+spl setup --all
+```
+
+This installs a skill file, tracer script, and hook config. The tracer captures every tool call as a Syncropel effect and writes traces to `~/.syncropel/traces/`.
+
+Set the actor identity:
+
+```bash
+export SPL_ACTOR=claude-agent
+```
+
+Now every operation the agent performs is traced, governed, and auditable. See [Agent Integration](/docs/guides/agent-integration) for details.
+
+## What You've Built
+
+```
+default (all primitives, $0.10 budget)
+  └── acme (inherits default)
+      └── acme/analytics (inherits acme)
+          └── acme/analytics/prod
+              ├── Capability: GET + CALL only
+              ├── Deny: db.drop_*, /secret/*
+              ├── Budget: $0.01, 10s, risk ≤ 0.2
+              ├── Dial: REPLAY only (≤ 0.3333)
+              ├── Trust: 0.64 (2 success, 1 failure)
+              └── Audit: every action recorded
+```
+
+Every namespace in this hierarchy is governed. Every effect is validated against the SCT. Every outcome feeds trust. Every action is audited.
+
+## Next Steps
+
+- [Governance](/docs/concepts/governance) — How SCTs are computed and validated
+- [Governance Checks](/docs/reference/governance-checks) — All 10 checks in detail
+- [Policy Management](/docs/guides/policy-management) — Policy composition and common patterns
+- [Local Registry](/docs/guides/local-registry) — DuckDB storage, 68 API routes, persistence
