@@ -1,0 +1,194 @@
+---
+title: Frozen Foundations
+description: "15 immutable protocol constants that will never change. Any implementation that contradicts these is wrong."
+---
+
+The Frozen Foundations are **15 immutable constants** that define the Syncropel protocol. They will never change. Any document, implementation, or specification that contradicts these is wrong — the foundations win.
+
+These constants are defined in `syncropel-registry-core/src/syncropel_registry_core/constants.py` and enforced by 915+ tests across the platform.
+
+## F1: Effect Primitives
+
+**Exactly 4**: GET, PUT, CALL, MAP.
+
+```python
+VALID_PRIMITIVES = {"GET", "PUT", "CALL", "MAP"}
+```
+
+No 5th primitive will ever be added. The set is closed under composition, hashable, and verifiable. Adding a primitive would break all existing hashes across every registry.
+
+See: [The Effect Algebra](/docs/concepts/effects)
+
+## F2: Data Shapes
+
+**Exactly 5**: VOID, ONE, OPTIONAL, MANY, KEYED.
+
+```python
+VALID_SHAPES = {"VOID", "ONE", "OPTIONAL", "MANY", "KEYED"}
+```
+
+Every effect has an input shape and an output shape from this set.
+
+See: [The Effect Algebra](/docs/concepts/effects)
+
+## F3: Dial Range
+
+**Continuous scalar d in \[0, 1\]**.
+
+```python
+DIAL_MIN = 0.0
+DIAL_MAX = 1.0
+```
+
+The dial is not discrete. It's a continuous parameter on the closed unit interval.
+
+See: [The Dial](/docs/concepts/the-dial)
+
+## F4: Dial Zone Thresholds
+
+**T1 = 1/3, T2 = 1/2, T3 = 2/3**.
+
+```python
+DIAL_T1 = 1/3    # 0.333...
+DIAL_T2 = 1/2    # 0.5
+DIAL_T3 = 2/3    # 0.666...
+```
+
+These are exact fractions, not decimal approximations. Not 0.25/0.5/0.75. Not 0.33/0.5/0.67. The fractions are the spec.
+
+See: [The Dial](/docs/concepts/the-dial)
+
+## F5: Dial Zone Names
+
+**REPLAY \[0, 1/3), ADAPT \[1/3, 1/2), EXPLORE \[1/2, 2/3), CREATE \[2/3, 1\]**.
+
+```python
+DIAL_ZONES = {
+    "REPLAY":  (0, 1/3),
+    "ADAPT":   (1/3, 1/2),
+    "EXPLORE": (1/2, 2/3),
+    "CREATE":  (2/3, 1),
+}
+```
+
+REPLAY is half-open on the right. CREATE is closed on the right (includes 1.0). REPLAY includes 0.0.
+
+See: [The Dial](/docs/concepts/the-dial)
+
+## F6: Hash Levels
+
+**4 levels**: L0 (Exact), L1 (Structural), L2 (Flow), L3 (Intent).
+
+```python
+ALL_HASH_LEVELS = ["L0", "L1", "L2", "L3"]
+```
+
+See: [Hash Levels](/docs/concepts/hash-levels)
+
+## F7: Hash Level Contents
+
+| Level | What's Included |
+|-------|----------------|
+| L0 | Primitive + shapes + operation + parameters |
+| L1 | Primitive + shapes + operation |
+| L2 | Primitive + shapes |
+| L3 | Shapes only |
+
+Each level strips one component from the level below, creating a privacy gradient.
+
+See: [Hash Levels](/docs/concepts/hash-levels)
+
+## F8: L0 Sharing Rule
+
+**L0 hashes MUST NEVER leave the local namespace.**
+
+L0 includes parameters — database names, API keys, user IDs. Sharing L0 would leak sensitive operational details. Federation queries on L0 return 403. Consent edges cannot include L0.
+
+See: [Hash Levels](/docs/concepts/hash-levels)
+
+## F9: Hash Containment
+
+**L0 match implies L1, L2, L3 match. Reverse is not true.**
+
+```
+L0 match  ⟹  L1 match  ⟹  L2 match  ⟹  L3 match
+L3 match  ⟹̸  L0 match
+```
+
+Two effects with the same L3 hash have the same shape flow but may differ in everything else.
+
+## F10: Hash Algorithm
+
+**SHA-256, lowercase hex, exactly 64 characters.**
+
+```python
+HASH_ALGORITHM = "sha256"
+```
+
+No truncation. No Base64. Always `hashlib.sha256(canonical_json.encode()).hexdigest()`.
+
+## F11: Shape Compatibility
+
+The compatibility matrix defines which output shapes can connect to which input shapes:
+
+| Output | Compatible Inputs |
+|--------|------------------|
+| VOID | VOID |
+| ONE | ONE, OPTIONAL, MANY, KEYED |
+| OPTIONAL | OPTIONAL, MANY, VOID |
+| MANY | MANY, OPTIONAL, ONE |
+| KEYED | KEYED, MANY, ONE |
+
+This is enforced by the validation pipeline (shape flow check).
+
+## F12: 9 Axioms
+
+| Axiom | Name | Definition |
+|-------|------|-----------|
+| A1 | Duality | Reality = Compression + Generation |
+| A2 | Convergence | Trust increases, cost decreases with repeated use |
+| A3 | Identity | `identity(x) = hash(canonical(x))` |
+| A4 | Conservation | Total inputs = total outputs + total costs |
+| A5 | Composability | Small components preserve properties when composed |
+| A6 | Observability | Every state change produces observable events |
+| A7 | Bounded Rationality | Finite context, finite resources |
+| A8 | The Dial | Single \[0,1\] parameter: deterministic to generative |
+| A9 | Grounding | Symbols connect to evidence via execution |
+
+## F13: Validation Pipeline
+
+**5 structural checks** (always run) plus **4 governance checks** (when SCT present):
+
+| Check | Name | Severity |
+|-------|------|----------|
+| 1 | DAG acyclicity | Error |
+| 2 | Primitive validity | Error |
+| 3 | Shape flow compatibility | Error |
+| 4 | VFS address rules | Error |
+| 5 | Connectivity | Warning |
+| 6-9 | Governance (capability, budget, dial, lineage) | Error |
+
+See: [Governance](/docs/concepts/governance)
+
+## F14: Canonical JSON Key Order
+
+**Alphabetical within each level object.**
+
+```json
+{"in":"ONE","op":"db.query","out":"MANY","p":"GET","params":{"limit":100,"table":"users"}}
+```
+
+Keys: `in`, `op`, `out`, `p`, `params` — alphabetical. Parameter keys sorted recursively.
+
+Separators: `(",", ":")` — no whitespace.
+
+## F15: Operation Fallback
+
+**Empty operation falls back to lowercase primitive.**
+
+```python
+operation = effect.get("operation") or effect["primitive"].lower()
+# GET → "get", PUT → "put", CALL → "call", MAP → "map"
+```
+
+This ensures every effect has a resolved operation for L1 hashing.

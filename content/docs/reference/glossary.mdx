@@ -1,116 +1,155 @@
 ---
 title: Glossary
-description: The canonical Syncropel lexicon — 30 essential terms.
+description: "Essential Syncropel terminology — every term grounded in shipping code."
 ---
 
-This glossary defines the core terminology used throughout the Syncropel Protocol. For the complete glossary of 111+ terms, see the [full protocol specification](https://syncropel.org/spec).
+## B
 
-## A
-
-### Accord
-Logic bound to a relationship defining exchange terms between two principals. An Accord governs how value, data, and authority flow between parties.
-
-### Asset
-An encrypted data object with associated owner, lineage, and covenant. Assets are the fundamental units of ownership in Syncropel.
-
-### Axiom
-One of the 9 foundational mathematical principles that govern all Syncropel behavior. See [the protocol overview](/docs) for the complete list.
+### Budget Envelope
+A 4-dimensional constraint on session cost: compute (USD), latency (ms), quality floor \[0,1\], and risk ceiling \[0,1\]. Zero means unlimited. Budget is tracked with Decimal precision. Part of the [SCT](/docs/concepts/governance).
 
 ## C
 
-### Cortex
-The 7-million parameter recursive reasoning engine at L3 (Intelligence). Not an LLM — a deterministic reasoning system that translates natural language goals into executable traces.
+### Capability Envelope
+The set of effects a session is allowed to execute: primitives, shapes, operations (glob patterns), resources (glob patterns), max effects, and max depth. Resolved through [namespace hierarchy](/docs/concepts/namespaces) via set intersection.
 
-### Covenant
-A usage rule bound to an asset. Covenants are self-enforcing — they travel with the data and execute automatically. Similar to real property covenants that "run with the land."
+### Cold-Start Prior
+The trust baseline for new principals: Beta(7, 10), giving a Wilson lower bound of approximately 0.47. Places new entities in the ADAPT [dial zone](/docs/concepts/the-dial), where they can replay and adapt patterns but must earn trust before exploring or creating.
+
+### Consent Edge
+A directed permission from one [namespace](/docs/concepts/namespaces) to another, allowing the target to see the source's observations at specified [hash levels](/docs/concepts/hash-levels) (L1-L3 only, never L0). The unit of federation.
+
+### Content Hash
+SHA-256 of the canonical JSON representation of an object. Used for identity (F10), integrity verification, and deduplication. Always 64 lowercase hex characters.
+
+### CRL (Certificate Revocation List)
+A list of revoked principal DIDs and SCT hashes. [Check 1](/docs/concepts/governance) in the governance pipeline. When a service account is deactivated, its DID is added to the CRL.
 
 ### Crystallization
-The process of compressing a successful execution pattern into a reusable engram. Operates via Minimum Description Length (MDL) compression.
+The process by which a repeatedly successful pattern becomes a permanent, trusted entry in the registry. Requires 100+ observations, Wilson score above 0.90, and positive MDL (Minimum Description Length) gain.
 
 ## D
 
-### Dial
-A single continuous parameter on \[0, 1\] that controls the tradeoff between deterministic replay and generative creation. See [The Dial](/docs/concepts/the-dial).
+### Deny Rule
+An explicit prohibition matching effects by resource patterns and/or primitives. Deny rules follow **forbid-wins** semantics: any deny at any [namespace](/docs/concepts/namespaces) level blocks the effect. No capability grant can override a deny.
 
 ### DID (Decentralized Identifier)
-A portable, self-sovereign identity that travels with its owner. Used at L5 (Sovereignty) for identity management.
+A portable identity string for principals. Format: `did:sync:user:<id>`, `did:sync:sa:<id>`, `did:sync:runner:<id>`.
+
+### Dial
+A single continuous parameter on \[0, 1\] that controls the balance between deterministic replay and creative generation. Divided into 4 zones at exact fractional thresholds (F4, F5). See [The Dial](/docs/concepts/the-dial).
+
+### Dial Ceiling
+The maximum dial position a session can use. Derived as `min(identity_max, namespace_ceiling, trust_to_dial, budget_to_dial)`. Encoded in the [SCT](/docs/concepts/governance).
 
 ## E
 
 ### Effect
-The fundamental unit of computation in Syncropel. An effect combines a primitive (GET, PUT, CALL, MAP), input shape, output shape, operation, and parameters. See [The Effect Algebra](/docs/concepts/effects).
+The atomic unit of computation. An effect combines a [primitive](/docs/concepts/effects) (GET, PUT, CALL, MAP), input [shape](/docs/concepts/effects), output shape, operation, and parameters. See [The Effect Algebra](/docs/concepts/effects).
 
-### Engram
-A compressed, reusable pattern crystallized from successful execution. Engrams are the units of learned knowledge in Syncropel, stored in the pattern registry.
+### Elevated Tier
+The governance tier for sessions with dial &ge; 2/3 (CREATE zone). Adds [HITL](#hitl) approval requirements for PUT and CALL effects on top of standard governance checks.
+
+## F
+
+### Federation
+Consent-gated sharing of observations across [namespace](/docs/concepts/namespaces) boundaries. Registries exchange `(hash, observation_count, cost)` tuples at L1-L3 levels. Observations are CRDT G-Counters — merges are commutative, associative, and idempotent.
+
+### Forbid-Wins
+The deny composition rule: if any deny rule at any level in the namespace chain matches an effect, the effect is blocked. No amount of ALLOW at a child level can override a DENY from a parent.
+
+### Freshness Factor
+Temporal decay applied to trust scores: `exp(-days * ln(2) / 30)`. After 30 days without observations, trust is halfway between the raw score and the [cold-start prior](#cold-start-prior).
+
+### Frozen Foundations
+15 immutable protocol constants (F1-F15) that will never change. See [Frozen Foundations](/docs/reference/frozen-foundations).
 
 ## G
 
-### Graph
-An immutable, topological definition of logic with zero state. The template from which Sessions and Runs are derived. Part of the Trinity (Graph → Session → Run).
+### Governance Tier
+Either STANDARD (dial \< 2/3) or ELEVATED (dial &ge; 2/3). Determines which [governance checks](/docs/concepts/governance) apply.
 
-### Grant
-A cryptographic permission token that authorizes a specific action. Grants can be delegated, revoked, and verified offline.
+## H
 
-### GTM (Generative Trace Model)
-The model that treats computation as autoregressive effect generation. Defines how traces are generated, matched, and executed across four abstraction levels.
+### Hash Access
+The set of [hash levels](/docs/concepts/hash-levels) a session can use for pattern matching. Determined by dial zone: REPLAY gets L0 only, CREATE gets L0-L3. Encoded in the SCT.
+
+### Hash Level
+One of 4 levels of content-addressed hashing: L0 (Exact), L1 (Structural), L2 (Flow), L3 (Intent). Each level strips more detail, enabling privacy-preserving sharing. See [Hash Levels](/docs/concepts/hash-levels).
+
+### HITL (Human-in-the-Loop)
+Check 10 in the governance pipeline. Required for PUT and CALL effects in the [ELEVATED tier](#elevated-tier) (dial &ge; 2/3). Blocks execution until a human approves or denies. Managed via `spl hitl pending/approve/deny`.
 
 ## L
 
 ### Lineage
-The cryptographic chain linking derived work to its source materials. Every output references the hashes of its inputs, creating an immutable attribution graph.
-
-### Lineage Cascade
-The mechanism by which value flows automatically through chains of derivation. Content-addressed hashes create an immutable attribution graph.
+The cryptographic chain linking derived work to its source materials. Every output references the content hashes of its inputs, creating an immutable attribution graph.
 
 ## M
 
-### Mandate
-Delegated authority to act on behalf of another principal. Mandates have explicit scope, constraints, and expiration — authority is always bounded.
+### Monotonic Narrowing
+The principle that child [namespaces](/docs/concepts/namespaces) can never have more permissions than their parent. Capabilities compose via set intersection, deny rules via union, budgets via min(). Governance can only get stricter as you go deeper.
 
 ## N
 
 ### Namespace
-An isolated container for data sources, variables, and bindings. Each namespace is a sandbox — no cross-namespace data access without explicit grants.
+The unit of governance, tenancy, federation, secrets, and budgets. Namespaces form a [5-level hierarchy](/docs/concepts/namespaces) (DEFAULT, ORG, PROJECT, ENV, JOB) where policies monotonically narrow.
+
+## O
+
+### Observation
+A record of successful or failed effect execution. Observations update [trust scores](/docs/concepts/trust) and are the unit of [federation](#federation) — registries share observation counts at L1-L3 hash levels.
+
+### Operation
+A specialization of a primitive: `db.query` is a GET operation, `llm.generate` is a CALL operation. Defaults to the lowercase primitive if not specified (F15). Matched via glob patterns in policies.
 
 ## P
 
 ### Pattern
-A reusable template for execution, stored in the pattern registry. Patterns exist at four abstraction levels (Intent, Flow, Structural, Exact).
+A reusable computation template stored in the registry, identified by content-addressed hashes at 4 levels. Patterns are discovered through observation and can be matched at varying granularity via the [dial](/docs/concepts/the-dial).
 
 ### Principal
-An entity with identity and liability — either an individual, organization, or agent. Every action in Syncropel traces back to a principal.
+An entity with identity: a user, service account, runner, or anonymous actor. Every governance decision traces back to a principal via their DID.
+
+### Primitive
+One of the 4 frozen effect types: GET (read), PUT (write), CALL (invoke), MAP (transform). See [The Effect Algebra](/docs/concepts/effects).
+
+## Q
+
+### QuadMetrics
+The 4-dimensional budget model: compute (USD), latency (ms), quality floor \[0,1\], risk ceiling \[0,1\]. Used in [budget envelopes](#budget-envelope).
 
 ## R
 
-### Run
-The immutable trace resulting from executing a Session. An append-only fossil record of everything that happened. Part of the Trinity (Graph → Session → Run).
+### Registry
+The governance engine: computes SCTs, manages policies, stores observations, coordinates federation, maintains audit trails. Runs locally via `spl serve` (DuckDB) or in production (PostgreSQL).
+
+### registry-core
+The shared governance library (`syncropel-registry-core`). Pure Python, zero dependencies, implements governance checks 3-9. Used by both the CLI and production registry.
 
 ## S
 
-### Session
-A mutable workspace formed by binding a Graph to an Environment. Sessions converge via CRDTs. Part of the Trinity (Graph → Session → Run).
+### SCT (Session Capability Token)
+The primary governance primitive. Computed once at session creation, encoding all constraints: capability, deny rules, budget, dial ceiling, hash access, trust score, and expiry. Validated at every effect execution. See [Governance](/docs/concepts/governance).
 
-### SIM (Syncropel Interaction Model)
-The unified concept: Surface + Intelligence + Memory = Graph + Dial + Registry. Every Syncropel experience is a SIM.
+### Service Account
+A machine identity with a DID, API key, and configured maximum dial. Managed via `spl auth sa-create/sa-list/sa-revoke/sa-rotate`.
 
-### Sovereign
-An entity at L5 with self-governing identity, delegatable authority, and self-enforcing rules. The highest level of autonomy in the protocol.
+### Shape
+One of the 5 frozen data types: VOID, ONE, OPTIONAL, MANY, KEYED. Every effect has an input shape and output shape. See [The Effect Algebra](/docs/concepts/effects).
+
+### spl
+The Syncropel CLI command. See [CLI Reference](/docs/reference/cli).
 
 ## T
 
-### Tender
-Any unit of value (currency, computational credit, asset, service) used in economic transactions within the protocol.
-
 ### Trace
-The complete record of an execution, including all effects, their inputs, outputs, and timing. Traces are the primary product of execution — not just the final return value.
-
-### Trait
-An inherent property of a host system (e.g., `trait:gpu`, `trait:filesystem`). Traits determine which effects can execute on which tiers.
+The complete record of an execution: all effects, their inputs, outputs, and timing. Traces are the primary output of execution — inspectable via `spl trace ls/show/stats`.
 
 ### Trust Score
-A mathematically computed confidence measure using Wilson-score intervals. Accounts for sample size: 3/3 successes rates lower than 95/100. Trust is a statistic, not a feeling.
+A mathematically computed confidence measure using Wilson score lower bound. Accounts for sample size, applies temporal decay, and bridges to the [dial ceiling](/docs/concepts/the-dial). See [Trust](/docs/concepts/trust).
 
-## V
+## W
 
-### VFS (Virtual File System)
-The universal I/O abstraction that lets the same code access data across T1 (Cloud), T2 (Edge), and T3 (Browser) through a uniform `sync://` protocol.
+### Wilson Score
+The statistical method used for trust computation. The Wilson score lower bound at 95% confidence accounts for both success rate and sample size. Combined with a [cold-start prior](#cold-start-prior) of Beta(7, 10) and 30-day half-life temporal decay. See [Trust](/docs/concepts/trust).

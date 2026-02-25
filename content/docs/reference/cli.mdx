@@ -1,0 +1,252 @@
+---
+title: CLI Reference
+description: "Complete reference for the spl command — 16 command groups, environment variables, exit codes, and output formats."
+---
+
+The `spl` command is the primary interface to Syncropel. It manages namespaces, policies, trust, federation, audit, and runs a local registry. Every command supports `-j` / `--json` for structured output.
+
+## Install
+
+```bash
+# With pip (includes local registry)
+pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+
+# With pipx (isolated)
+pipx install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+
+# With uv
+uv tool install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+
+# From source
+git clone https://github.com/syncropic/syncropel-cli.git
+cd syncropel-cli && uv sync --extra dev
+```
+
+Requires Python 3.12+.
+
+## Commands
+
+### serve — Local Registry
+
+| Command | Description |
+|---------|------------|
+| `spl serve` | Start local registry on port 9100 (DuckDB-backed, persistent) |
+| `spl serve --port 8080` | Use a custom port |
+| `spl serve --open` | Open browser to dashboard on start |
+
+The local registry stores data at `~/.syncropel/registry.duckdb` and auto-writes `~/.syncropel/config.yaml` so all CLI commands hit localhost.
+
+### namespace — Manage Namespaces
+
+| Command | Description |
+|---------|------------|
+| `spl namespace create <name> -j` | Create a namespace (child of parent derived from path) |
+| `spl namespace ls -j` | List all namespaces |
+| `spl namespace show <name> -j` | Show namespace details |
+| `spl namespace resolve <name> -j` | Show effective config (walks full 5-level hierarchy) |
+| `spl namespace delete <name> -j` | Delete a namespace |
+| `spl namespace use <name>` | Switch current namespace context |
+| `spl namespace bind <name> <key> <value> -j` | Add a binding to a namespace |
+| `spl namespace unbind <name> <key> -j` | Remove a binding |
+
+Namespace IDs are slash-separated: `acme`, `acme/analytics`, `acme/analytics/prod`.
+
+### policy — Governance Policies
+
+| Command | Description |
+|---------|------------|
+| `spl policy set <ns> -j` | Set capability/deny/budget policy for a namespace |
+| `spl policy show <ns> -j` | Show current policy for a namespace |
+
+Policies support `--primitives`, `--operations`, `--resources`, `--deny-*`, and `--budget-*` flags.
+
+### trust — Trust Scores
+
+| Command | Description |
+|---------|------------|
+| `spl trust show -j` | Show Wilson-score trust with temporal decay |
+| `spl trust compute -j` | Recompute trust for current context |
+
+### observe — Record Observations
+
+| Command | Description |
+|---------|------------|
+| `spl observe record -j` | Record a governance observation (success/failure) |
+
+Observations update the trust score for the (principal, namespace domain) pair.
+
+### auth — Authentication & Service Accounts
+
+| Command | Description |
+|---------|------------|
+| `spl auth sa-create -j` | Create a service account |
+| `spl auth sa-list -j` | List service accounts |
+| `spl auth sa-revoke -j` | Revoke a service account (adds to CRL) |
+| `spl auth sa-rotate -j` | Rotate service account API key |
+| `spl auth whoami -j` | Show current identity |
+
+### federation — Federation Consent
+
+| Command | Description |
+|---------|------------|
+| `spl federation consent-add -j` | Add a consent edge between namespaces |
+| `spl federation consent-list -j` | List consent edges |
+| `spl federation consent-revoke -j` | Revoke a consent edge |
+
+Consent edges control which namespaces can share L1-L3 observations.
+
+### hitl — Human-in-the-Loop
+
+| Command | Description |
+|---------|------------|
+| `spl hitl pending -j` | List pending HITL approval requests |
+| `spl hitl approve <id> -j` | Approve a request |
+| `spl hitl deny <id> -j` | Deny a request |
+
+HITL is triggered for PUT and CALL effects when the dial is in the CREATE zone (d &ge; 2/3).
+
+### settlement — Governance Settlement
+
+| Command | Description |
+|---------|------------|
+| `spl settlement execute -j` | Execute a governance settlement |
+| `spl settlement verify -j` | Verify a settlement |
+
+### audit — Audit Trail
+
+| Command | Description |
+|---------|------------|
+| `spl audit query -j` | Query the immutable governance audit trail |
+
+Supports filtering by namespace, action type, principal, and time range.
+
+### trace — Session Traces
+
+| Command | Description |
+|---------|------------|
+| `spl trace ls -j` | List recent sessions |
+| `spl trace show <session> -j` | Show effects in a session |
+| `spl trace stats -j` | Aggregate statistics across traces |
+| `spl trace risk -j` | Identify high-risk operations |
+| `spl trace pattern <session> -j` | Extract workflow patterns from a session |
+
+Traces are read from `~/.syncropel/traces/` (populated by integration hooks).
+
+### config — Configuration
+
+| Command | Description |
+|---------|------------|
+| `spl config show -j` | View current configuration |
+| `spl config path` | Show config file location |
+| `spl config validate -j` | Validate config schema |
+
+### setup — Integrations
+
+| Command | Description |
+|---------|------------|
+| `spl setup --all` | Install Claude Code skill file + trace hooks |
+| `spl setup --claude-code` | Install skill file only |
+| `spl setup --hooks` | Install trace hooks only |
+| `spl setup --list` | List installed integrations |
+| `spl setup --remove` | Remove installed integrations |
+
+### init — Project Discovery
+
+| Command | Description |
+|---------|------------|
+| `spl init` | Generate `.syncropel/ABOUT.md` and `CONVENTIONS.md` |
+| `spl init --force` | Overwrite existing discovery files |
+| `spl init --dir <path>` | Generate in a specific directory |
+
+Discovery files help AI agents understand the project's Syncropel configuration.
+
+### help-agent — Progressive Discovery
+
+| Command | Description |
+|---------|------------|
+| `spl help-agent -j` | Tier 0: Command overview (~200 tokens) |
+| `spl help-agent <group> -j` | Tier 1: Group detail (~400 tokens) |
+| `spl help-agent --conventions -j` | Tier 2: Governance model (~500 tokens) |
+
+Designed for AI agents — token-budgeted responses in structured JSON.
+
+### version
+
+| Command | Description |
+|---------|------------|
+| `spl version` | Show version |
+| `spl version --json` | Show version as JSON |
+
+## Global Flags
+
+| Flag | Description |
+|------|------------|
+| `-j` / `--json` | Structured JSON output (on every command) |
+| `-V` / `--version` | Show version and exit |
+| `--help` | Show help text |
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|------------|
+| `SPL_REGISTRY_URL` | Auto-configured by `spl serve` | Registry URL (highest priority override) |
+| `SPL_HOME` | `~/.syncropel` | Home directory for config, DB, traces |
+| `SPL_NAMESPACE` | `default` | Override current namespace |
+| `SPL_ACTOR` | — | Caller identity for audit logs (sent as `X-SPL-Actor` header) |
+| `AUTH_PROVIDER` | — | Set to `dev` for local development |
+
+## Exit Codes
+
+| Code | Name | Meaning |
+|------|------|---------|
+| 0 | `EXIT_SUCCESS` | Command succeeded |
+| 1 | `EXIT_GENERAL_ERROR` | Generic failure |
+| 3 | `EXIT_NOT_FOUND` | Resource not found (namespace, policy, trace) |
+| 4 | `EXIT_VALIDATION_ERROR` | Governance or schema validation failure |
+| 5 | `EXIT_CONNECTION_ERROR` | Registry not reachable (`spl serve` not running) |
+| 6 | `EXIT_AUTH_ERROR` | Authentication or authorization failure |
+
+## Configuration
+
+Configuration is layered (lowest to highest priority):
+
+1. **Built-in defaults** — sensible out of the box
+2. **Config file** — `~/.syncropel/config.yaml` (preferred) or `config.json` (legacy)
+3. **Environment variables** — `SPL_REGISTRY_URL`, `SPL_HOME`, etc.
+
+Default configuration values:
+
+| Key | Default |
+|-----|---------|
+| `trace_dir` | `~/.syncropel/traces` |
+| `registry_url` | `https://registry.syncropel.com` |
+| `registry.db_path` | `~/.syncropel/registry.duckdb` |
+| `registry.port` | `9100` |
+| `current_namespace` | `default` |
+
+When `spl serve` starts, it writes `registry_url: http://localhost:9100` to the config file so all CLI commands automatically hit the local registry.
+
+## Output Modes
+
+Every command supports two output modes:
+
+**Human mode** (default): Rich-formatted tables and text for terminal use.
+
+**JSON mode** (`-j`): Structured JSON for programmatic consumption. Every response includes consistent fields for error detection:
+
+```json
+{
+  "status": "ok",
+  "data": { ... }
+}
+```
+
+On error:
+
+```json
+{
+  "status": "error",
+  "error": "Namespace 'foo' not found",
+  "exit_code": 3
+}
+```
