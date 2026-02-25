@@ -38,7 +38,7 @@ A portable, self-sovereign identity that travels with its owner. Used at L5 (Sov
 ## E
 
 ### Effect
-The fundamental unit of computation in Syncropel. There are 12 effect kinds (READ, WRITE, TRANSFORM, CALL, SEQUENCE, PARALLEL, BRANCH, LOOP, INVOKE, COMPOSE, OBSERVE, HALT). See [Effect Vocabulary](/docs/reference/effects).
+The fundamental unit of computation in Syncropel. An effect combines a primitive (GET, PUT, CALL, MAP), input shape, output shape, operation, and parameters. See [The Effect Algebra](/docs/concepts/effects).
 
 ### Engram
 A compressed, reusable pattern crystallized from successful execution. Engrams are the units of learned knowledge in Syncropel, stored in the pattern registry.
@@ -60,7 +60,7 @@ The model that treats computation as autoregressive effect generation. Defines h
 The cryptographic chain linking derived work to its source materials. Every output references the hashes of its inputs, creating an immutable attribution graph.
 
 ### Lineage Cascade
-The mechanism by which value flows automatically through chains of derivation. See [Lineage Cascade](/docs/concepts/lineage-cascade).
+The mechanism by which value flows automatically through chains of derivation. Content-addressed hashes create an immutable attribution graph.
 
 ## M
 

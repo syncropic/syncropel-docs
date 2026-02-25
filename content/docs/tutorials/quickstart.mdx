@@ -1,78 +1,137 @@
 ---
 title: Quick Start
-description: Build your first trace in 5 minutes.
+description: Install the spl CLI, start your local registry, and create your first governed namespace in 5 minutes.
 ---
 
-This tutorial walks you through describing a goal, executing a trace, and inspecting the results — all in under 5 minutes.
+This tutorial gets you from zero to a running local registry with governance in 5 minutes.
 
 ## Prerequisites
 
-- A modern web browser (Chrome, Firefox, Safari, or Edge)
-- No installation required — everything runs in the browser
+- Python 3.12 or later
+- pip, pipx, or uv
 
-## Step 1: Open Studio
+## Step 1: Install the CLI
 
-Navigate to [app.syncropel.com](https://app.syncropel.com) and sign in (or use the demo without signing in).
+```bash
+# With pip (includes local registry support)
+pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
 
-## Step 2: Describe Your Goal
+# Or with pipx (isolated install)
+pipx install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
 
-In the goal input, type a natural language description of what you want to accomplish:
+# Or with uv
+uv tool install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+```
+
+Verify the installation:
+
+```bash
+spl version
+# syncropel-cli 0.3.0
+```
+
+## Step 2: Start Your Local Registry
+
+```bash
+spl serve
+```
+
+This starts a full governance-aware registry on your machine:
 
 ```
-Find customers at risk of churn based on purchase frequency and support ticket patterns
+Registry started at http://localhost:9100
+Database: ~/.syncropel/registry.duckdb (persistent)
 ```
 
-## Step 3: Set the Dial
+The local registry is DuckDB-backed and persistent — your data survives restarts. It exposes the same API as the production registry, so SDKs connect identically.
 
-Use the Dial slider to set your desired autonomy level:
+**Leave this running** and open a new terminal for the remaining steps.
 
-- **REPLAY (0.0)** — Use an exact match from the pattern registry
-- **ADAPT (0.3)** — Adapt an existing pattern to your goal
-- **EXPLORE (0.5)** — Explore variations and alternatives
-- **CREATE (0.8)** — Generate a novel approach
+## Step 3: Create a Namespace
 
-For your first trace, try **EXPLORE (0.5)** — a good balance between predictability and creativity.
+Namespaces are the unit of governance. Every policy, budget, and trust score lives within a namespace.
 
-## Step 4: Select a Namespace
+```bash
+spl namespace create myproject -j
+```
 
-Choose a data source (namespace) that contains the data you want to work with. For the demo, select **demo-retail**.
+```json
+{
+  "id": "myproject",
+  "parent": "default",
+  "created_at": "2026-02-24T10:00:00Z"
+}
+```
 
-## Step 5: Run
+This creates `myproject` as a child of `default`. Governance monotonically narrows: `myproject` can never have more permissions than `default`.
 
-Click **Run**. The system will:
+## Step 4: Set a Policy
 
-1. Parse your natural language goal into structured intent
-2. Search the pattern registry for matching traces
-3. Generate or adapt a trace based on the Dial setting
-4. Execute each effect in sequence, showing you the results
+Restrict what effects are allowed in your namespace:
 
-## Step 6: Inspect the Trace
+```bash
+spl policy set myproject --primitives GET,CALL -j
+```
 
-As the trace executes, you'll see each **effect** in the pipeline:
+Now `myproject` only allows GET and CALL effects — no PUT or MAP. Any attempt to write data or transform it will be denied by the governance validator.
 
-- **READ** — Load data from the namespace
-- **TRANSFORM** — Apply transformations to the data
-- **CALL** — Invoke external services or computations
-- **WRITE** — Produce output
+## Step 5: Check Trust
 
-Each effect shows its inputs, outputs, and intermediate state. Nothing is hidden.
+```bash
+spl trust show -j
+```
 
-## What's Next?
+New principals start with a **cold-start prior** — a Wilson score based on Beta(7, 10), giving an effective score around 0.47. This places you in the ADAPT dial zone: you can replay and adapt known patterns, but you need to earn trust before creating novel ones.
+
+Trust grows through successful observations and decays with a 30-day half-life.
+
+## Step 6: View the Audit Trail
+
+Every governance action is recorded:
+
+```bash
+spl audit query -j
+```
+
+You'll see audit records for the namespace creation and policy changes. Nothing happens in Syncropel without a trail.
+
+## What Just Happened
+
+In 5 minutes, you set up:
+
+1. **A local registry** — persistent DuckDB store at `~/.syncropel/registry.duckdb`
+2. **A governed namespace** — `myproject` inheriting from `default`, with a restrictive policy
+3. **A trust baseline** — cold-start prior that unlocks more autonomy as you prove reliability
+4. **An audit trail** — immutable record of every governance decision
+
+The governance stack running locally is identical to what runs in production. Every check, every threshold, every enforcement — the same.
+
+## What's Next
 
 <Cards>
   <Card
+    title="The Effect Algebra"
+    description="Understand the 4 primitives and 5 shapes that form the vocabulary of all computation."
+    href="/docs/concepts/effects"
+  />
+  <Card
     title="The Dial"
-    description="Understand how the Dial controls the tradeoff between replay and generation."
+    description="How one parameter controls the spectrum from replay to creation — and how trust unlocks it."
     href="/docs/concepts/the-dial"
   />
   <Card
-    title="The Six-Layer Stack"
-    description="Learn about the architecture that makes this possible."
-    href="/docs/concepts/the-stack"
-  />
-  <Card
-    title="Effect Vocabulary"
-    description="Explore the 12 effect kinds that form the computational vocabulary."
-    href="/docs/reference/effects"
+    title="Physics, Not Policy"
+    description="Why governance is enforced by mathematical structure, not human promises."
+    href="/docs/concepts/physics-not-policy"
   />
 </Cards>
+
+## All Commands
+
+Every `spl` command supports `-j` / `--json` for structured output. Run `spl --help` for the full list, or use progressive discovery:
+
+```bash
+spl help-agent -j              # Overview (~200 tokens)
+spl help-agent namespace -j    # Namespace commands (~400 tokens)
+spl help-agent --conventions -j # Governance model (~500 tokens)
+```

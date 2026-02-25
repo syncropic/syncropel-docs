@@ -1,66 +1,139 @@
 ---
 title: The Dial
-description: A single parameter [0,1] that governs the tradeoff between deterministic replay and generative creation.
+description: "A single parameter [0,1] that governs the spectrum from deterministic replay to creative generation, bounded by trust."
 ---
 
-The Dial is Syncropel's most distinctive innovation — a single continuous parameter on the interval \[0, 1\] that controls how the system balances between **exact replay** of known patterns and **novel generation** of new solutions.
+The Dial is a single continuous parameter on the interval \[0, 1\] that controls how much autonomy a session has. Low values replay known patterns exactly. High values generate novel solutions. The system enforces this with mathematical precision — not guidelines, not guardrails, but structural bounds that cannot be bypassed.
 
-## Why One Parameter?
+This is **Axiom A8**.
 
-Most systems force a binary choice: either run a fixed script or let an AI improvise. The Dial replaces this with a continuous spectrum. You express *how much autonomy* you're willing to grant, and the system responds accordingly.
+## 4 Zones
 
-This is **Axiom A8**: a single scalar that interpolates between deterministic and generative behavior.
+The Dial divides into four zones at exact fractional boundaries. These are **Frozen Foundations F4 and F5** — they will never change.
 
-## The Spectrum
+| Zone | Range | What Happens |
+|------|-------|-------------|
+| **REPLAY** | \[0, 1/3) | Exact pattern match from the registry. Zero generation, zero risk, lowest cost. |
+| **ADAPT** | \[1/3, 1/2) | Adapt a known pattern — modify parameters, keep structure. |
+| **EXPLORE** | \[1/2, 2/3) | Vary operations and discover alternatives. Hybrid approach. |
+| **CREATE** | \[2/3, 1\] | Full generation from intent. Most creative, highest cost. |
 
-| Range | Mode | Behavior | Trust | Cost |
-|-------|------|----------|-------|------|
-| **0.0 – 0.1** | REPLAY | Exact pattern match — fastest, most predictable | Highest | Lowest |
-| **0.1 – 0.4** | ADAPT | Adapt existing patterns to your goal | High | Low |
-| **0.4 – 0.7** | EXPLORE | Explore variations and alternatives | Medium | Medium |
-| **0.7 – 1.0** | CREATE | Generate novel traces — most creative | Lower | Higher |
+The thresholds are **exact fractions**: T1 = 1/3, T2 = 1/2, T3 = 2/3. Not 0.25, not 0.33, not 0.75. The fractions are the spec.
 
-## How It Works
+```
+0         1/3        1/2        2/3         1
+|─────────|──────────|──────────|───────────|
+  REPLAY     ADAPT     EXPLORE     CREATE
+```
 
-Under the hood, the Dial controls **diffusion depth** in the Generative Trace Model (GTM):
+## How Trust Controls the Dial
 
-- **Dial = 0**: Pure replay. The system finds an exact match in the pattern registry and replays it. Zero generation, zero risk, zero cost.
-- **Dial < 1/3**: Parameter exploration. The system matches a known pattern but explores different parameter values (one diffusion step).
-- **Dial < 2/3**: Operation exploration. The system matches the shape of a pattern but may substitute operations (two diffusion steps).
-- **Dial ≥ 2/3**: Full generation. The system generates novel traces from intent alone (three diffusion steps).
+You don't pick any dial position you want. Your **trust score** determines a **dial ceiling** — the maximum position you're allowed to request.
 
-## The Trust-Dial Feedback Loop
+| Wilson Score | Dial Ceiling | Zones Available |
+|-------------|-------------|-----------------|
+| \< 0.30 | 1/3 | REPLAY only |
+| \< 0.50 | 1/2 | REPLAY + ADAPT |
+| \< 0.70 | 2/3 | REPLAY + ADAPT + EXPLORE |
+| &ge; 0.70 | 1.0 | All zones |
 
-The Dial doesn't exist in isolation — it interacts with the **trust score** of patterns:
+**New principals start with a cold-start prior** of Beta(7, 10), giving a Wilson lower bound of approximately 0.47. This places them in the second tier: REPLAY + ADAPT. They can use known patterns and adapt them, but must earn trust before exploring or creating.
 
-- **High trust (> 0.9)** → System recommends low Dial (< 1/3) → Deterministic, cheap, fast
-- **Low trust (< 0.3)** → System recommends high Dial (> 2/3) → More careful, more creative, more expensive
+Trust grows through successful observations and decays with a **30-day half-life**. Use a pattern successfully, your trust increases. Stop using it, your trust decays back toward the cold-start prior. This is **Axiom A2** (Convergence) in action — reliable behavior is rewarded with more autonomy.
 
-As patterns prove themselves through successful execution, trust increases and the Dial naturally drifts toward zero — the system gets cheaper and more reliable over time. This is **Axiom A2** (Convergence) in action.
+## Hash Access by Zone
+
+The dial zone also determines which hash levels the session can access:
+
+| Zone | Hash Access | What This Means |
+|------|------------|-----------------|
+| REPLAY | L0 | Exact replay only — you see full detail |
+| ADAPT | L0, L1 | Can match structural patterns (strip parameters) |
+| EXPLORE | L0, L1, L2 | Can match flow patterns (strip operations) |
+| CREATE | L0, L1, L2, L3 | Can match intent patterns (shapes only) |
+
+Higher dial positions unlock coarser hash levels, enabling broader pattern discovery. But L0 hashes **never leave your namespace** regardless of zone (F8).
+
+## Governance Tiers
+
+The dial determines the governance tier for the session:
+
+| Tier | Dial Range | Additional Enforcement |
+|------|-----------|----------------------|
+| **STANDARD** | d \< 2/3 | Normal capability + budget + structural checks |
+| **ELEVATED** | d &ge; 2/3 | All standard checks **plus** HITL (human-in-the-loop) approval required for PUT and CALL effects |
+
+In the CREATE zone, writing data or invoking external services requires explicit human approval. The system doesn't just warn — it blocks execution until approval is granted.
+
+## The Feedback Loop
+
+The dial creates a virtuous cycle:
+
+```
+Execute effect → Record observation → Update trust score
+                                           ↓
+                    Trust grows → Dial ceiling rises
+                                           ↓
+                    More autonomy → Better patterns discovered
+                                           ↓
+                    Better patterns → Higher success rate → back to trust grows
+```
+
+Over time, reliable workflows naturally drift toward lower dial positions — cheaper, faster, more deterministic. Novel workflows start in CREATE and crystallize into REPLAY as they prove themselves. This is the convergence guarantee.
+
+## The Dial Ceiling Derivation
+
+The actual dial ceiling for a session is the **minimum** of four values:
+
+```
+dial_ceiling = min(
+    identity_max_dial,       # Service account's configured limit
+    namespace_dial_ceiling,  # Namespace policy limit
+    trust_to_dial(wilson),   # Trust score → ceiling mapping
+    budget_to_dial(ratio),   # Budget remaining → ceiling
+)
+```
+
+The session can never exceed the most restrictive constraint. This is monotonic narrowing — the same principle as [namespace governance](/docs/concepts/namespaces).
 
 ## Example
 
+```bash
+# Check your current trust and dial ceiling
+spl trust show -j
+
+# Output:
+# {
+#   "wilson_lower_bound": 0.47,
+#   "dial_ceiling": 0.50,
+#   "zones_available": ["REPLAY", "ADAPT"],
+#   "freshness": 1.0,
+#   "observations": 0
+# }
 ```
-Goal: "Find customers at risk of churn based on purchase frequency"
 
-Dial = 0.0  →  Exact replay of a crystallized churn-analysis pattern
-                Cost: $0.00 | Latency: 200ms | Auditability: 100%
+After 20 successful observations:
 
-Dial = 0.5  →  Adapt the churn pattern with different feature weights
-                Cost: $0.001 | Latency: 2s | Auditability: 70%
+```bash
+spl trust show -j
 
-Dial = 1.0  →  Generate a novel approach from scratch using available data
-                Cost: $0.01 | Latency: 10s | Auditability: 30%
+# {
+#   "wilson_lower_bound": 0.72,
+#   "dial_ceiling": 1.0,
+#   "zones_available": ["REPLAY", "ADAPT", "EXPLORE", "CREATE"],
+#   "freshness": 0.98,
+#   "observations": 20
+# }
 ```
 
 ## Design Philosophy
 
-The Dial embodies a core Syncropel principle: **bounded autonomy**. Rather than choosing between "human does everything" and "AI does everything," the Dial gives you a knob. You decide the tradeoff. The system respects your decision with mathematical precision.
+The Dial embodies **bounded autonomy**. Rather than choosing between "human does everything" and "AI does everything," you express how much freedom you're willing to grant. The system enforces your choice structurally — not through a safety filter that can be bypassed, but through mathematical constraints baked into the governance token.
 
-> "Like gravity cannot be bypassed, bribed, or forgotten, neither can the constraints encoded in the Dial."
+> Like gravity, the Dial cannot be bypassed, bribed, or forgotten.
 
 ## Related Concepts
 
-- [The Six-Layer Stack](/docs/concepts/the-stack) — The Dial operates primarily at L3 (Intelligence) and L4 (Evolution)
-- [Physics, Not Policy](/docs/concepts/physics-not-policy) — The Dial enforces constraints structurally
-- [Lineage Cascade](/docs/concepts/lineage-cascade) — The Dial affects how value flows through generated traces
+- [The Effect Algebra](/docs/concepts/effects) — The 4 primitives and 5 shapes that the Dial governs
+- [Hash Levels](/docs/concepts/hash-levels) — How the Dial controls pattern matching granularity
+- [Physics, Not Policy](/docs/concepts/physics-not-policy) — Why structural enforcement matters

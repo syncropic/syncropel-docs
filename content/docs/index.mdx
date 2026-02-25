@@ -1,27 +1,41 @@
 ---
-title: Welcome to Syncropel
-description: The substrate for digital sovereignty and economic agency.
+title: Syncropel Documentation
+description: Formal verification infrastructure for AI computation. Install the CLI, start your local registry, and govern AI agents with mathematical precision.
 ---
 
-Syncropel is an open protocol for **deterministic causal orchestration** — a universal language for expressing intent, executing computation, and settling value. It enables trust-minimized applications where every action produces cryptographic proof, every value exchange settles atomically, and every person retains ownership of their digital existence.
+Syncropel is **verification infrastructure for AI computation** — a formal algebra and governance protocol that any AI system can embed to become trustworthy. Like TLS for the web, Syncropel is invisible infrastructure: your agents run, Syncropel verifies.
 
-## Core Concepts
+The protocol is built on immutable foundations: **4 effect primitives**, **5 data shapes**, **4 hash levels**, and a **10-check governance pipeline** — all enforced by mathematics, not promises.
+
+## What Ships Today
+
+Two production-ready packages, 915 tests:
+
+- **`spl` CLI** — A local developer registry. `spl serve` runs the full governance stack on your machine (DuckDB-backed, persistent, offline-first). Same API as the production registry.
+- **`syncropel-registry-core`** — Shared governance library (pure Python, zero dependencies). Used by both the CLI and production registry to ensure identical governance decisions.
+
+```bash
+pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+spl serve
+```
+
+## Start Here
 
 <Cards>
   <Card
+    title="Quick Start (5 min)"
+    description="Install spl, start your local registry, create your first governed namespace."
+    href="/docs/tutorials/quickstart"
+  />
+  <Card
+    title="The Effect Algebra"
+    description="4 primitives and 5 shapes — the atomic vocabulary of all computation."
+    href="/docs/concepts/effects"
+  />
+  <Card
     title="The Dial"
-    description="One parameter [0,1] that interpolates between deterministic replay and generative creation."
+    description="One parameter [0,1] controlling the spectrum from deterministic replay to creative generation."
     href="/docs/concepts/the-dial"
-  />
-  <Card
-    title="The Six-Layer Stack"
-    description="L0 Truth through L5 Sovereignty — six layers of emergent capability."
-    href="/docs/concepts/the-stack"
-  />
-  <Card
-    title="Lineage Cascade"
-    description="How value flows automatically through chains of creation and derivation."
-    href="/docs/concepts/lineage-cascade"
   />
   <Card
     title="Physics, Not Policy"
@@ -30,45 +44,52 @@ Syncropel is an open protocol for **deterministic causal orchestration** — a u
   />
 </Cards>
 
-## Get Started
-
-<Cards>
-  <Card
-    title="Quick Start"
-    description="Build your first trace in 5 minutes."
-    href="/docs/tutorials/quickstart"
-  />
-  <Card
-    title="Glossary"
-    description="111 precisely defined terms — the canonical Syncropel lexicon."
-    href="/docs/reference/glossary"
-  />
-</Cards>
-
 ## The Protocol at a Glance
 
-Syncropel is built on **9 axioms** and **5 primitives** that form the mathematical foundation for all system behavior:
+| Foundation | What | Frozen? |
+|-----------|------|---------|
+| **4 Primitives** | GET, PUT, CALL, MAP | Yes (F1) |
+| **5 Shapes** | VOID, ONE, OPTIONAL, MANY, KEYED | Yes (F2) |
+| **4 Hash Levels** | L0 Exact, L1 Structural, L2 Flow, L3 Intent | Yes (F6) |
+| **4 Dial Zones** | REPLAY \[0,1/3), ADAPT \[1/3,1/2), EXPLORE \[1/2,2/3), CREATE \[2/3,1\] | Yes (F5) |
+| **5 Namespace Levels** | DEFAULT, ORG, PROJECT, ENV, JOB | Yes |
+| **10 Governance Checks** | CRL, Policy freshness, Capability, Deny, Budget, Dial, Hash level, Budget guard, Structural, HITL | Yes |
+
+These are **Frozen Foundations** — they will never change. Any computation decomposes into these primitives. Any governance decision reduces to these checks.
+
+## 9 Axioms
 
 | Axiom | Name | One-Line |
 |-------|------|----------|
-| A1 | Duality | Reality = Matter (compression) + Causality (generation) |
+| A1 | Duality | Reality = Compression + Generation |
 | A2 | Convergence | Trust increases, cost decreases with repeated use |
 | A3 | Identity | `identity(x) = hash(canonical(x))` — content, not location |
 | A4 | Conservation | Total inputs = total outputs + total costs |
 | A5 | Composability | Small components preserve properties when composed |
 | A6 | Observability | Every state change produces observable events |
 | A7 | Bounded Rationality | Finite context, finite resources |
-| A8 | The Dial | Single \[0,1\] parameter: deterministic ↔ generative |
-| A9 | Grounding | Symbols connect to neural evidence via abstract ports |
+| A8 | The Dial | Single \[0,1\] parameter: deterministic to generative |
+| A9 | Grounding | Symbols connect to evidence via execution |
 
-## Products
+## How It Works
 
-Three products are built on the Syncropel Protocol:
+```
+Session Creation (Registry)          Effect Execution (Validator)
+═══════════════════════════          ═══════════════════════════
+1. Authenticate principal            1. Check SCT signature
+2. Resolve namespace hierarchy       2. Check CRL (not revoked)
+3. Compute capability envelope       3. Check capability envelope
+4. Apply deny constraints            4. Check deny constraints
+5. Compute trust score               5. Check session budget
+6. Derive dial ceiling               6. Check dial ceiling
+7. Build budget envelope             7. Check hash level access
+8. Determine hash access             8. Check per-effect budget
+9. Issue SCT (signed token)          9. Check structural limits
+10. Record audit event               10. Check HITL approval
+```
 
-- **[Studio](https://app.syncropel.com)** — The Glass Control Room. A spatial operating system for composing, executing, and observing computational workflows.
-- **Cloud** — Sovereign enterprise hosting with compliance built in, enclaves included, and AI with bounded autonomy.
-- **Cortex** — A 7-million parameter recursive reasoning engine. Not an LLM — a deterministic, verifiable reasoning system that shows its work.
+Governance is computed **once** at session creation, encoded in a Session Capability Token (SCT), then enforced at every effect execution through pure arithmetic and set membership — no database lookups, no rule evaluation.
 
 ---
 
-*Syncropel is developed by [Syncropic Inc.](https://syncropic.com), a Delaware Public Benefit Corporation advancing digital autonomy and economic agency.*
+*Syncropel is developed by [Syncropic Inc.](https://syncropic.com), a Delaware Public Benefit Corporation. The protocol is [Apache-2.0 licensed](https://github.com/syncropic). What's yours stays yours.*
