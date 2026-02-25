@@ -1,0 +1,182 @@
+---
+title: Agent Integration
+description: "How to integrate Syncropel with AI agents — Claude Code hooks, progressive discovery, actor identity, and project discovery files."
+---
+
+Syncropel is designed for AI agents. Every command outputs structured JSON. Discovery is token-budgeted. Integrations self-install. The entire governance stack is available via a single CLI.
+
+## Self-Installing Integrations
+
+```bash
+spl setup --all
+```
+
+This installs three components:
+
+| Component | Location | What It Does |
+|-----------|----------|-------------|
+| **Skill file** | `~/.claude/skills/managing-syncropel/SKILL.md` | Teaches Claude Code what `spl` commands are available |
+| **Tracer script** | `~/.syncropel/hooks/syncropel_trace.py` | Captures tool calls as Syncropel effects (stdlib-only, 1,107 lines) |
+| **Hook config** | `~/.claude/settings.json` | Registers 4 hook events in Claude Code |
+
+### Selective Installation
+
+```bash
+spl setup --claude-code    # Skill file only
+spl setup --hooks          # Tracer + hook config only
+spl setup --list           # Show what's installed
+spl setup --remove         # Remove all integrations
+```
+
+### Hook Events
+
+The tracer hooks into 4 Claude Code events:
+
+| Event | Matcher | Timeout | What It Does |
+|-------|---------|---------|-------------|
+| `SessionStart` | `startup\|resume` | 5s | Initialize trace session |
+| `PostToolUse` | (all tools) | 10s | Record each tool call as an effect |
+| `Stop` | — | 10s | Finalize and flush session |
+| `SessionEnd` | (all) | 5s | Clean up resources |
+
+The tracer is **stdlib-only** — no pip install needed, no dependency conflicts. It maps Claude Code tool calls to the [effect algebra](/docs/concepts/effects) (GET, PUT, CALL, MAP) and writes traces to `~/.syncropel/traces/`.
+
+## Progressive Discovery
+
+AI agents don't need to read this documentation. They can discover `spl` capabilities through token-budgeted help:
+
+### Tier 0: Command Overview (~200 tokens)
+
+```bash
+spl help-agent -j
+```
+
+Returns a JSON object with all command groups, standalone commands, global flags, and environment variables. Enough for an agent to know what's available.
+
+### Tier 1: Group Detail (~400 tokens)
+
+```bash
+spl help-agent namespace -j
+```
+
+Returns subcommands, their flags, and usage examples for a specific group. The agent only fetches detail for the groups it needs.
+
+### Tier 2: Governance Conventions (~500 tokens)
+
+```bash
+spl help-agent --conventions -j
+```
+
+Returns the governance model: 4 primitives, 5 shapes, dial zones with correct thresholds, hash levels, and the 9-check validator. Everything an agent needs to reason about governance.
+
+### Token Budget
+
+The three tiers total ~1,100 tokens for full knowledge of the CLI. By contrast, this documentation is ~20,000 tokens. Progressive discovery gives agents exactly what they need without flooding context.
+
+## Actor Identity
+
+Set the `SPL_ACTOR` environment variable to identify the agent in audit logs:
+
+```bash
+export SPL_ACTOR=claude-agent
+```
+
+This value is sent as the `X-SPL-Actor` header on every registry request. Audit records then show which actor performed each action — essential for tracing governance decisions back to their source.
+
+```bash
+spl audit query -j
+# Shows: {"actor": "claude-agent", "action": "NAMESPACE_CREATED", ...}
+```
+
+## Project Discovery Files
+
+```bash
+spl init
+```
+
+Generates two files in `.syncropel/` at the project root:
+
+### `.syncropel/ABOUT.md`
+
+```markdown
+# Syncropel
+This project uses Syncropel for governed AI computation.
+- CLI: `spl` (v0.3.0)
+- Registry: `spl serve` starts local registry on port 9100
+- Discovery: `spl help-agent --json` for agent reference
+```
+
+### `.syncropel/CONVENTIONS.md`
+
+Contains the governance reference:
+- **Effect Algebra**: 4 primitives (GET, PUT, CALL, MAP), 5 shapes
+- **Dial Zones**: REPLAY \[0,1/3), ADAPT \[1/3,1/2), EXPLORE \[1/2,2/3), CREATE \[2/3,1\]
+- **Hash Hierarchy**: L0 (Exact, never shared), L1 (Structural), L2 (Flow), L3 (Intent)
+- **9-Check Validator**: Capability, deny, budget, dial, hash level, budget guard, output, lineage, federation
+
+These files are designed to be committed to the repository. When an AI agent opens the project, it finds `ABOUT.md` and knows `spl` is available, then reads `CONVENTIONS.md` to understand the governance model.
+
+```bash
+spl init --force     # Overwrite existing files
+spl init --dir ./    # Generate in a specific directory
+```
+
+## JSON Output
+
+Every `spl` command supports `-j` / `--json`. Agents should always use this flag:
+
+```bash
+# Human output (default)
+spl namespace ls
+# ┌──────────────────┬─────────┬───────────────┐
+# │ ID               │ Level   │ Parent        │
+# ├──────────────────┼─────────┼───────────────┤
+# │ default          │ DEFAULT │ —             │
+# │ acme             │ ORG     │ default       │
+# └──────────────────┴─────────┴───────────────┘
+
+# JSON output (for agents)
+spl namespace ls -j
+# {"status":"ok","data":[{"id":"default","level":"DEFAULT","parent":null}, ...]}
+```
+
+Error responses include exit codes for programmatic detection:
+
+```json
+{"status": "error", "error": "Namespace 'foo' not found", "exit_code": 3}
+```
+
+| Exit Code | Meaning |
+|-----------|---------|
+| 0 | Success |
+| 1 | Generic error |
+| 3 | Resource not found |
+| 4 | Validation failure |
+| 5 | Registry not reachable |
+| 6 | Auth failure |
+
+## Integration Architecture
+
+The integration model is lightweight — thin wrappers that intercept tool calls:
+
+```
+AI Agent (Claude Code, LangChain, etc.)
+    ↓ tool call
+Integration Hook (syncropel_trace.py)
+    ├─ INTERCEPT: Capture tool call
+    ├─ PARSE: Map to effect (primitive, shapes, operation)
+    ├─ HASH: Compute L0-L3 hashes
+    └─ RECORD: Write to ~/.syncropel/traces/
+    ↓
+spl trace ls/show    ← inspect traces
+spl observe record   ← feed trust model
+```
+
+Syncropel doesn't wrap the AI. It observes the AI and governs through validated tokens. The agent runs normally; governance is a sidecar.
+
+## Related
+
+- [CLI Reference](/docs/reference/cli) — All commands with flags and exit codes
+- [Quick Start](/docs/tutorials/quickstart) — Get running in 5 minutes
+- [Governance](/docs/concepts/governance) — The SCT pipeline that agents are governed by
+- [The Dial](/docs/concepts/the-dial) — How trust unlocks agent autonomy

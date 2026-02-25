@@ -1,0 +1,155 @@
+---
+title: Local Registry
+description: "Deep dive into spl serve — DuckDB storage, 68 API routes, schema, persistence, and how it matches the production registry."
+---
+
+`spl serve` starts a full governance-aware registry on your machine. It's not a mock or a dev stub — it runs the same governance logic, the same API surface, and the same validation pipeline as the production registry. The only difference is the backing store: DuckDB instead of PostgreSQL.
+
+## Starting the Registry
+
+```bash
+spl serve
+```
+
+```
+Registry started at http://localhost:9100
+Database: ~/.syncropel/registry.duckdb (persistent)
+```
+
+The registry auto-configures the CLI: it writes `registry_url: http://localhost:9100` to `~/.syncropel/config.yaml` so all `spl` commands automatically hit your local instance.
+
+### Options
+
+| Flag | Description |
+|------|------------|
+| `--port N` | Use a custom port (default: 9100) |
+| `--open` | Open a browser to the dashboard on start |
+
+## What's Inside
+
+### DuckDB Storage (Schema v4)
+
+All data persists at `~/.syncropel/registry.duckdb` — a single file. It survives restarts, and you can back it up by copying the file.
+
+**16 tables:**
+
+| Table | What It Stores |
+|-------|---------------|
+| `namespaces` | Namespace hierarchy (id, parent, level, config) |
+| `policies` | Capability/deny/budget policies per namespace |
+| `sessions` | Session records with SCT references |
+| `effects` | Individual effects within sessions |
+| `scts` | Session Capability Tokens (frozen governance snapshots) |
+| `patterns` | Discovered computation patterns (L0-L3 hashes, stats) |
+| `observations` | Execution outcomes (success/failure/timeout) |
+| `governance_observations` | Governance-specific observation records |
+| `governance_trust_scores` | Wilson scores per (principal, domain) pair |
+| `consent_edges` | Federation consent between namespaces |
+| `crl_entries` | Certificate Revocation List entries |
+| `hitl_requests` | Human-in-the-loop approval requests |
+| `settlements` | Governance settlement records |
+| `audit_log` | Immutable audit trail |
+| `remotes` | Peer registry configurations |
+| `_schema_version` | Schema migration tracking (currently v4) |
+
+Schema migrations are automatic — the registry checks `_schema_version` on startup and applies any needed migrations.
+
+### 68 API Routes
+
+The server exposes 68 routes via Starlette, covering:
+
+| Group | Example Routes | Purpose |
+|-------|---------------|---------|
+| Namespaces | `GET/POST/DELETE /api/namespaces/...` | CRUD + hierarchy resolution |
+| Policies | `GET/PUT/DELETE /api/policies/...` | Capability/deny/budget management |
+| Trust | `GET /api/trust/...` | Trust scores and computation |
+| Observations | `POST /api/observations/...` | Record execution outcomes |
+| Governance | `GET/POST /api/governance/...` | SCT computation, validation |
+| Federation | `GET/POST /api/federation/...` | Consent edges, observation sync |
+| HITL | `GET/POST /api/hitl/...` | Approval workflow |
+| Settlements | `POST /api/settlements/...` | Settlement execution |
+| Audit | `GET /api/audit/...` | Audit trail queries |
+| Auth | `POST /api/auth/...` | Service account management |
+| Traces | `GET/POST /api/traces/...` | Session trace management |
+| Health | `GET /health` | Liveness check |
+
+These are the same URLs as the production registry. An SDK configured with `registry_url="http://localhost:9100"` works identically against `registry.syncropel.com`.
+
+## The Governance Stack
+
+Everything that runs in production runs locally:
+
+| Component | What It Does |
+|-----------|-------------|
+| **SCT issuance** | Computes Session Capability Tokens from namespace chain + trust + budget |
+| **9-check validator** | Checks 1-2 (CRL, policy freshness) locally + checks 3-9 via registry-core |
+| **Trust computation** | Wilson score with cold-start Beta(7,10) and 30-day decay |
+| **Namespace resolution** | 5-level hierarchy walk with monotonic narrowing |
+| **Observation recording** | Auto-populates dial zone from dial position |
+| **Audit trail** | Every governance action recorded immutably |
+| **CRL management** | Service account revocation |
+| **Federation consent** | Consent edge management (local — no remote sync yet) |
+| **HITL workflow** | Human approval for ELEVATED tier effects |
+
+## Persistence
+
+| Item | Location | Behavior |
+|------|----------|----------|
+| Database | `~/.syncropel/registry.duckdb` | Persistent, survives restarts |
+| Config | `~/.syncropel/config.yaml` | Written by `spl serve`, read by all commands |
+| Traces | `~/.syncropel/traces/` | Populated by integration hooks |
+| Seeds | `~/.syncropel/seeds/` | Loaded on startup if present |
+
+### Backup
+
+```bash
+# Stop the registry, then copy the database
+cp ~/.syncropel/registry.duckdb ~/.syncropel/registry.duckdb.backup
+```
+
+### Reset
+
+```bash
+# Delete the database to start fresh
+rm ~/.syncropel/registry.duckdb
+spl serve  # Creates a new empty database
+```
+
+## Connecting SDKs
+
+Any Syncropel SDK can connect to your local registry:
+
+```python
+# Python SDK
+from syncropel import Client
+client = Client(registry_url="http://localhost:9100")
+```
+
+```typescript
+// TypeScript SDK
+import { SyncropelClient } from '@syncropic/syncropel-js';
+const client = new SyncropelClient({ registryUrl: 'http://localhost:9100' });
+```
+
+When `spl serve` is running, the `SPL_REGISTRY_URL` environment variable is automatically set, so many tools detect the local registry without explicit configuration.
+
+## Production Parity
+
+| Feature | Local (`spl serve`) | Production |
+|---------|-------------------|------------|
+| Governance checks | All 10 | All 10 |
+| SCT computation | Full 10-step algorithm | Same |
+| Trust model | Wilson + decay | Same |
+| API surface | 68 routes | Same + scaling endpoints |
+| Backing store | DuckDB (single file) | PostgreSQL |
+| Federation | Consent edges (local) | Full peer sync |
+| Authentication | `AUTH_PROVIDER=dev` | Clerk JWT |
+
+The governance logic is identical because both environments import `syncropel-registry-core` — the same pure Python library with the same checks, same thresholds, same math.
+
+## Related
+
+- [Quick Start](/docs/tutorials/quickstart) — Get the registry running in 5 minutes
+- [CLI Reference](/docs/reference/cli) — All `spl` commands
+- [Namespaces](/docs/concepts/namespaces) — The 5-level hierarchy managed by the registry
+- [Governance](/docs/concepts/governance) — The SCT pipeline running inside the registry
