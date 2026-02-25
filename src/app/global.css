@@ -53,6 +53,13 @@
   background-color: #231f1d;
 }
 
+/* Solid navbar — no glassmorphism */
+#nd-nav > div {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: var(--color-fd-background) !important;
+}
+
 /* Selection color */
 ::selection {
   background: #b45309;
