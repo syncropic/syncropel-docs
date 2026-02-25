@@ -67,7 +67,7 @@ Returns subcommands, their flags, and usage examples for a specific group. The a
 spl help-agent --conventions -j
 ```
 
-Returns the governance model: 4 primitives, 5 shapes, dial zones with correct thresholds, hash levels, and the 9-check validator. Everything an agent needs to reason about governance.
+Returns the governance model: 4 primitives, 5 shapes, dial zones with correct thresholds, hash levels, and the 10-check validator. Everything an agent needs to reason about governance.
 
 ### Token Budget
 
@@ -112,7 +112,7 @@ Contains the governance reference:
 - **Effect Algebra**: 4 primitives (GET, PUT, CALL, MAP), 5 shapes
 - **Dial Zones**: REPLAY \[0,1/3), ADAPT \[1/3,1/2), EXPLORE \[1/2,2/3), CREATE \[2/3,1\]
 - **Hash Hierarchy**: L0 (Exact, never shared), L1 (Structural), L2 (Flow), L3 (Intent)
-- **9-Check Validator**: Capability, deny, budget, dial, hash level, budget guard, output, lineage, federation
+- **10-Check Validator**: CRL, policy freshness, capability, deny, budget, dial, hash level, budget guard, structural, HITL
 
 These files are designed to be committed to the repository. When an AI agent opens the project, it finds `ABOUT.md` and knows `spl` is available, then reads `CONVENTIONS.md` to understand the governance model.
 

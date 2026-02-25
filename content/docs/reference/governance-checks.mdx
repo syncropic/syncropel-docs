@@ -313,10 +313,10 @@ The governance depth depends on the dial position:
 
 | Tier | Dial Range | Zones | Checks |
 |------|-----------|-------|--------|
-| **STANDARD** | \[0, 1/2) | REPLAY + ADAPT | Base checks (3-7) |
-| **ELEVATED** | \[1/2, 1\] | EXPLORE + CREATE | Full checks (1-10) + federation consent + lineage audit |
+| **STANDARD** | \[0, 2/3) | REPLAY + ADAPT + EXPLORE | Checks 1-9 |
+| **ELEVATED** | \[2/3, 1\] | CREATE | Checks 1-10 (adds HITL for PUT and CALL effects) |
 
-Lower dial = more constrained operations = lighter governance overhead. Higher dial = more creative freedom = deeper governance scrutiny.
+In the CREATE zone, writing data or invoking external services requires explicit human approval (Check 10). GET and MAP effects don't trigger HITL — they're read-only and pure transformation.
 
 ## Related
 

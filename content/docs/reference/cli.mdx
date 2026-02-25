@@ -8,18 +8,20 @@ The `spl` command is the primary interface to Syncropel. It manages namespaces, 
 ## Install
 
 ```bash
-# With pip (includes local registry)
-pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+curl -fsSL https://get.syncropic.com/spl | sh
+```
 
-# With pipx (isolated)
+The installer detects your package manager (pipx, uv, or pip) and installs `spl` with local registry support. You can also install manually:
+
+```bash
+# With pipx (recommended — isolated install)
 pipx install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
 
 # With uv
 uv tool install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
 
-# From source
-git clone https://github.com/syncropic/syncropel-cli.git
-cd syncropel-cli && uv sync --extra dev
+# With pip
+pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
 ```
 
 Requires Python 3.12+.
@@ -89,11 +91,11 @@ Observations update the trust score for the (principal, namespace domain) pair.
 
 | Command | Description |
 |---------|------------|
-| `spl federation consent-add -j` | Add a consent edge between namespaces |
-| `spl federation consent-list -j` | List consent edges |
-| `spl federation consent-revoke -j` | Revoke a consent edge |
+| `spl federation grant -j` | Grant a consent edge between namespaces |
+| `spl federation show <ns> -j` | Show consent edges for a namespace |
+| `spl federation revoke -j` | Revoke a consent edge |
 
-Consent edges control which namespaces can share L1-L3 observations.
+Consent edges control which namespaces can share L1-L3 observations. See [Federation](/docs/concepts/federation) for details.
 
 ### hitl — Human-in-the-Loop
 

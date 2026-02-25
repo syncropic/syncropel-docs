@@ -5,7 +5,7 @@ description: "End-to-end walkthrough — from starting a local registry to creat
 
 This tutorial walks through the complete Syncropel governance lifecycle using the `spl` CLI. By the end, you'll have a running registry with namespaces, policies, observations, trust scores, and an audit trail.
 
-**Prerequisites**: `pip install syncropel-cli[serve]`
+**Prerequisites**: Install the CLI with `curl -fsSL https://get.syncropic.com/spl | sh` (see [Quick Start](/docs/tutorials/quickstart) for alternatives).
 
 ## 1. Start the Registry
 
@@ -213,20 +213,20 @@ The `dial_ceiling` is the maximum dial position this principal can use in this n
 Every governance action is recorded immutably:
 
 ```bash
-spl audit log --namespace acme/analytics/prod --limit 10 -j
+spl audit query --namespace acme/analytics/prod --limit 10 -j
 ```
 
 Filter by action type:
 
 ```bash
 # Find all policy changes
-spl audit log --action POLICY_SET -j
+spl audit query --action POLICY_SET -j
 
 # Find all denied effects
-spl audit log --action EFFECT_DENIED -j
+spl audit query --action EFFECT_DENIED -j
 
 # Find all session creations
-spl audit log --action SESSION_CREATED -j
+spl audit query --action SESSION_CREATED -j
 ```
 
 ## 8. Set Up Federation (Optional)

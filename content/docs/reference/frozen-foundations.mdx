@@ -157,7 +157,7 @@ This is enforced by the validation pipeline (shape flow check).
 
 ## F13: Validation Pipeline
 
-**5 structural checks** (always run) plus **4 governance checks** (when SCT present):
+**5 structural checks** that always run on effect traces:
 
 | Check | Name | Severity |
 |-------|------|----------|
@@ -166,9 +166,8 @@ This is enforced by the validation pipeline (shape flow check).
 | 3 | Shape flow compatibility | Error |
 | 4 | VFS address rules | Error |
 | 5 | Connectivity | Warning |
-| 6-9 | Governance (capability, budget, dial, lineage) | Error |
 
-See: [Governance](/docs/concepts/governance)
+These are separate from the [10-check governance validator](/docs/reference/governance-checks), which runs when an SCT is present.
 
 ## F14: Canonical JSON Key Order
 

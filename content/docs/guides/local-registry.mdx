@@ -82,7 +82,7 @@ Everything that runs in production runs locally:
 | Component | What It Does |
 |-----------|-------------|
 | **SCT issuance** | Computes Session Capability Tokens from namespace chain + trust + budget |
-| **9-check validator** | Checks 1-2 (CRL, policy freshness) locally + checks 3-9 via registry-core |
+| **10-check validator** | Checks 1-2, 10 (CRL, policy freshness, HITL) in registry + checks 3-9 via registry-core |
 | **Trust computation** | Wilson score with cold-start Beta(7,10) and 30-day decay |
 | **Namespace resolution** | 5-level hierarchy walk with monotonic narrowing |
 | **Observation recording** | Auto-populates dial zone from dial position |
