@@ -14,6 +14,7 @@ const learnLinks = [
 const buildLinks = [
   { title: 'Quick Start', href: '/docs/tutorials/quickstart' },
   { title: 'Core Workflow', href: '/docs/tutorials/core-workflow' },
+  { title: 'Syncropel Studio', href: '/docs/guides/studio' },
   { title: 'Agent Integration', href: '/docs/guides/agent-integration' },
   { title: 'Local Registry', href: '/docs/guides/local-registry' },
   { title: 'Policy Management', href: '/docs/guides/policy-management' },
@@ -150,6 +151,13 @@ export default function HomePage() {
             <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">spl</code>
             <span className="text-fd-muted-foreground">
               CLI + local registry. Governance, trust, audit, namespaces, policies. Offline-first.
+            </span>
+          </div>
+          <div className="flex gap-3">
+            <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">studio</code>
+            <span className="text-fd-muted-foreground">
+              Browser interface for operating registries. Traces, governance, namespaces, patterns, federation.{' '}
+              <a href="https://app.syncropel.com" className="text-[#b45309] dark:text-[#d97706] hover:underline">app.syncropel.com</a>
             </span>
           </div>
           <div className="flex gap-3">

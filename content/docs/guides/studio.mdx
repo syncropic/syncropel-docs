@@ -1,0 +1,117 @@
+---
+title: Syncropel Studio
+description: Browser interface for operating Syncropel registries — traces, governance, namespaces, patterns, federation.
+---
+
+# Syncropel Studio
+
+Syncropel Studio is a browser interface for operating Syncropel registries. It connects directly to `spl serve` (local) or production registries via HTTP. No server-side proxy — all data stays on the connected registry.
+
+**Architecture**: "Hosted Shell, Local Data" — the SPA is hosted at `app.syncropel.com`, but your data never leaves the connected registry.
+
+## Getting Started
+
+### Connect to a Local Registry
+
+The fastest way to use Studio:
+
+```bash
+# Install and start the local registry
+pip install syncropel-cli[serve]
+spl serve --open
+```
+
+Then visit:
+
+```
+https://app.syncropel.com/?api=localhost:9100
+```
+
+Studio detects the localhost connection and bypasses cloud authentication — if you can reach localhost, you own the machine.
+
+### Connect to a Remote Registry
+
+For production registries, sign in with your Syncropic account at [app.syncropel.com](https://app.syncropel.com) and configure a connection profile pointing to your registry URL.
+
+## Pages
+
+Studio has 6 main pages, each covering a different domain of registry operation.
+
+### Traces
+
+Browse execution sessions, view aggregate statistics, and query trace data using ETQI (the Effect Trace Query Interface).
+
+- **Stats bar**: Session count, success rate, effect count, risk alerts
+- **Charts**: Primitive distribution, category breakdown, risk levels
+- **ETQI query bar**: SQL-like queries against the trace store
+- **Session drill-down**: Click any session to inspect individual effects
+
+### Patterns
+
+Browse and search the pattern registry. Patterns are content-addressed computation templates identified by their hash hierarchy (L0 Exact, L1 Structural, L2 Flow, L3 Intent).
+
+- **Tabs**: All patterns, crystallized patterns
+- **Search**: Filter by hash, name, category, or primitive type
+- **Virtualized list**: Handles thousands of patterns efficiently
+
+### Namespaces
+
+Manage the namespace hierarchy — the unit of tenancy, governance, federation, and secrets in Syncropel.
+
+- **Namespace tree**: Visual tree of your namespace hierarchy
+- **Detail panel**: View and edit namespace properties
+- **Policy management**: Set capability policies per namespace
+- **Bindings & variables**: Manage namespace bindings and configuration
+
+### Governance
+
+Four-tab governance hub covering trust, audit, human-in-the-loop, and revocation.
+
+| Tab | Purpose |
+|-----|---------|
+| **Trust** | Trust scores computed from statistical evidence (Wilson interval + time decay) |
+| **Audit Trail** | Filterable log of all governance events (SESSION_CREATED, POLICY_SET, SA_CREATED, etc.) |
+| **HITL Queue** | Human-in-the-loop approval queue for operations requiring human review |
+| **CRL** | Certificate Revocation List — revoked credentials and deactivated service accounts |
+
+### Federation
+
+Manage connections to remote registries and consent grants for cross-registry evidence sharing.
+
+- **Remotes**: Add and manage remote registry connections
+- **Consent**: Grant federation consent between namespaces (L1-L3 only — L0 exact hashes never leave the local namespace per Foundation F8)
+
+### Service Accounts
+
+Create and manage API keys for programmatic access to the registry.
+
+- **Create**: Generate new service accounts with optional names
+- **Key management**: Secure key reveal with show/hide toggle
+- **Lifecycle**: Rotate keys and deactivate accounts (deactivation adds to CRL)
+
+## Connection Profiles
+
+Studio stores connection profiles locally in your browser (localStorage). Each profile specifies:
+
+- **Name**: Human-readable label (e.g., "Local Dev", "Production")
+- **Tracer URL**: The registry API endpoint (e.g., `localhost:9100`, `registry.syncropel.com`)
+- **Type**: Local or remote (determines auth behavior)
+
+Switch between profiles from the connection settings panel. Local profiles bypass authentication; remote profiles require Clerk sign-in.
+
+## Local Mode
+
+When connecting to localhost, Studio operates in **local mode**:
+
+1. No authentication required
+2. A `syncropel-local-mode` cookie is set for subsequent visits
+3. All API calls go directly to your local `spl serve` instance
+4. Data never leaves your machine
+
+## PWA Support
+
+Studio is a Progressive Web App. Install it from your browser for:
+
+- Standalone window (no browser chrome)
+- Offline-first static asset caching
+- App icon on your desktop/dock
