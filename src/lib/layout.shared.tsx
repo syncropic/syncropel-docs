@@ -14,25 +14,9 @@ export function baseOptions(): BaseLayoutProps {
           Syncropel Docs
         </span>
       ),
-      url: '/docs',
+      url: '/',
+      transparentMode: 'none',
     },
-    links: [
-      {
-        text: 'syncropic.com',
-        url: 'https://syncropic.com',
-        external: true,
-      },
-      {
-        text: 'Studio',
-        url: 'https://app.syncropel.com',
-        external: true,
-      },
-      {
-        text: 'Protocol',
-        url: 'https://syncropel.org',
-        external: true,
-      },
-    ],
     githubUrl: 'https://github.com/syncropic/syncropel-docs',
   };
 }
