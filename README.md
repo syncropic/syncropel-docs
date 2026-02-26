@@ -36,7 +36,3 @@ Cloudflare Pages via GitHub Actions. Pushes to `main` auto-deploy.
 - [syncropel-cli](https://github.com/syncropic/syncropel-cli) — `spl` CLI
 - [syncropel-core](https://github.com/syncropic/syncropel-core) — Rust verification engine
 - [syncropel-registry](https://github.com/syncropic/syncropel-registry) — Production registry
-
-## License
-
-Apache-2.0
