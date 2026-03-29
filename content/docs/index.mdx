@@ -1,32 +1,54 @@
 ---
 title: Syncropel Documentation
-description: Formal verification infrastructure for AI computation. Install the CLI, start your local registry, and govern AI agents with mathematical precision.
+description: The coordination protocol for hybrid human-AI teams. Observe every LLM call — model, tokens, cost, latency.
 ---
+
+## What is Syncropel?
+
+Syncropel sits between your code and your LLM. Change one line — your `base_url` — and get full observability on every API call: model, tokens, cost, and latency, all recorded automatically.
+
+```bash
+curl -sSf https://get.syncropic.com/spl | sh
+spl init
+spl serve
+```
+
+Then point your SDK to `http://localhost:9100`. Every call is now recorded.
+
+## Get Started
+
+<Cards>
+  <Card
+    title="Quick Start (60 sec)"
+    description="Install, configure, and see your first dashboard."
+    href="/docs/tutorials/quickstart"
+  />
+  <Card
+    title="API Proxy Guide"
+    description="Endpoints, metadata, cost tracking, streaming support."
+    href="/docs/guides/proxy"
+  />
+  <Card
+    title="Console Dashboard"
+    description="Real-time feed, filters, saved views."
+    href="/docs/guides/console"
+  />
+  <Card
+    title="Integration Status"
+    description="What works, what's preview, what's planned."
+    href="/docs/reference/integrations"
+  />
+</Cards>
+
+## The Protocol
 
 Syncropel is **verification infrastructure for AI computation** — a formal algebra and governance protocol that any AI system can embed to become trustworthy. Like TLS for the web, Syncropel is invisible infrastructure: your agents run, Syncropel verifies.
 
 The protocol is built on immutable foundations: **effect primitives** (GET, PUT, CALL, MAP), **data shapes** (VOID, ONE, OPTIONAL, MANY, KEYED), **hash levels** (Exact, Structural, Flow, Intent), and a **deterministic governance pipeline** — all enforced by mathematics, not promises.
 
-## What Ships Today
-
-Two production-ready packages:
-
-- **`spl` CLI** — A local developer registry. `spl serve` runs the full governance stack on your machine (persistent, offline-first). Same API as the production registry.
-- **`syncropel-registry-core`** — Shared governance library (zero dependencies). Used by both the CLI and production registry to ensure identical governance decisions.
-
-```bash
-curl -fsSL https://get.syncropic.com/spl | sh
-spl serve
-```
-
-## Start Here
+## Concepts
 
 <Cards>
-  <Card
-    title="Quick Start (5 min)"
-    description="Install spl, start your local registry, create your first governed namespace."
-    href="/docs/tutorials/quickstart"
-  />
   <Card
     title="The Effect Algebra"
     description="GET, PUT, CALL, MAP and VOID, ONE, OPTIONAL, MANY, KEYED — the atomic vocabulary of all computation."

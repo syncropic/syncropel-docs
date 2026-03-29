@@ -1,0 +1,55 @@
+---
+title: Console
+description: Real-time dashboard at localhost:9100/console
+---
+
+## Overview
+
+The console is a web dashboard at `http://localhost:9100/console`. It shows:
+- Live record stream (every LLM call, every action)
+- Mini dashboard (acts, threads, actors, costs, evidence)
+- Interactive filters (click to toggle, All/Inv controls)
+- Sidebar with live thread list and search
+- Saved views (persist filter states)
+
+## Dashboard
+
+The main view shows records streaming in real-time with proxy metadata:
+
+```
+●  proxy-client › Hello!
+│●  Hi there! How can I help?
+     sonnet-4-6 · 142→38 tok · $0.001 · 1.2s
+```
+
+Each record shows:
+- Act glyph (○ INTEND, ◑ DO, ◕ KNOW, ● LEARN)
+- Actor name and message excerpt
+- Proxy metadata: model, tokens, cost, latency
+
+## Mini Dashboard
+
+Below the feed, 5 summary rows update every 10 seconds:
+
+```
+ACTS 63        ○ intend 12 · ◑ do 8 · ◕ know 4 · ● learn 18 · ...
+THREADS 10     2 open · 8 closed · avg 4.2 records
+ACTORS 6       architect 24 · developer 8 · proxy-client 4
+WORKFLOWS 0    no workflows configured
+COST $4.20     142 calls · avg $0.030/call · sonnet-4-6: 89%
+```
+
+## Filters
+
+Click any act or actor chip to toggle it. Dimmed items are filtered out. Controls:
+- **All**: show everything (reset)
+- **Inv**: invert selection
+- **sys**: toggle system actors
+
+## Saved Views
+
+Save your current filter state as a named view. Views persist in your browser across sessions.
+
+## Threads
+
+The sidebar shows active threads with search. Click a thread to see its full record timeline.

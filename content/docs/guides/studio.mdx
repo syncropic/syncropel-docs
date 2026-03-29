@@ -13,11 +13,13 @@ Syncropel Studio is a browser interface for operating Syncropel registries. It c
 
 ### Connect to a Local Registry
 
-The fastest way to use Studio:
+For local development, use the **Console** at `http://localhost:9100/console` — it's built into `spl serve` and requires no separate install. See the [Console Guide](/docs/guides/console).
+
+For the full Studio experience:
 
 ```bash
-# Install and start the local registry
-pip install syncropel-cli[serve]
+curl -sSf https://get.syncropic.com/spl | sh
+spl init
 spl serve --open
 ```
 

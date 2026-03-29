@@ -1,0 +1,74 @@
+---
+title: API Proxy
+description: Observe every LLM call — model, tokens, cost, latency
+---
+
+## Overview
+
+`spl serve` includes a transparent API proxy that records every LLM call. Point any SDK at `localhost:9100` and get full observability.
+
+### Supported APIs
+
+| API | Endpoint | Status |
+|-----|----------|--------|
+| Anthropic Messages | `POST /v1/messages` | Production |
+| Anthropic Token Count | `POST /v1/messages/count_tokens` | Production |
+| OpenAI Chat Completions | `POST /v1/chat/completions` | Production |
+
+## What gets recorded
+
+Each API call produces two SURE records:
+
+**INTEND** (from your prompt):
+- `body.goal`: first 2000 chars of your message
+- `body.proxy.model`: model name
+- `body.proxy.message_count`: messages in context
+
+**LEARN** (from the response):
+- `body.insight`: first 2000 chars of the response
+- `body.proxy.model`: model used
+- `body.proxy.input_tokens`: tokens in
+- `body.proxy.output_tokens`: tokens out
+- `body.proxy.cost_usd`: estimated cost
+- `body.proxy.latency_ms`: round-trip time
+
+## Cost estimation
+
+Costs are estimated per-model:
+
+| Model | Input ($/1M tok) | Output ($/1M tok) |
+|-------|-------------------|---------------------|
+| claude-opus-4-6 | $15.00 | $75.00 |
+| claude-sonnet-4-6 | $3.00 | $15.00 |
+| claude-haiku-4-5 | $0.80 | $4.00 |
+| gpt-4o | $2.50 | $10.00 |
+| gpt-4o-mini | $0.15 | $0.60 |
+
+## Health endpoint
+
+`GET /health` includes proxy statistics:
+
+```json
+{
+  "proxy": {
+    "total_calls": 142,
+    "total_cost_usd": 4.20,
+    "total_input_tokens": 45230,
+    "total_output_tokens": 12840,
+    "models_used": ["claude-sonnet-4-6"],
+    "last_call_at": "2026-03-29T00:01:23Z"
+  }
+}
+```
+
+## Streaming
+
+Both streaming and non-streaming calls are supported. Streaming responses are forwarded immediately — the proxy never buffers the full response.
+
+## Security
+
+- The proxy runs on localhost only (not exposed to the network)
+- Your API key is forwarded via `x-api-key` header (never stored in records)
+- Records truncate prompt/response to 2000 chars
+- Daemon requires Bearer token for mutating endpoints
+- Rate limited: 120 requests/minute per client IP

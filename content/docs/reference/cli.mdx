@@ -8,20 +8,7 @@ The `spl` command is the primary interface to Syncropel. It manages namespaces, 
 ## Install
 
 ```bash
-curl -fsSL https://get.syncropic.com/spl | sh
-```
-
-The installer detects your package manager (pipx, uv, or pip) and installs `spl` with local registry support. You can also install manually:
-
-```bash
-# With pipx (recommended — isolated install)
-pipx install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
-
-# With uv
-uv tool install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
-
-# With pip
-pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+curl -sSf https://get.syncropic.com/spl | sh
 ```
 
 Requires Python 3.12+.

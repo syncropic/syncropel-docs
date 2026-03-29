@@ -1,142 +1,82 @@
 ---
 title: Quick Start
-description: Install the spl CLI, start your local registry, and create your first governed namespace in 5 minutes.
+description: Get Syncropel running in 60 seconds
 ---
 
-This tutorial gets you from zero to a running local registry with governance in 5 minutes.
-
-## Prerequisites
-
-- Python 3.12 or later
-
-## Step 1: Install the CLI
+## Install
 
 ```bash
-curl -fsSL https://get.syncropic.com/spl | sh
+curl -sSf https://get.syncropic.com/spl | sh
 ```
 
-The installer detects your package manager (pipx, uv, or pip) and installs `spl` with local registry support. You can also install manually:
+## Configure
 
 ```bash
-# With pipx (recommended — isolated install)
-pipx install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
-
-# Or with uv
-uv tool install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
-
-# Or with pip
-pip install "syncropel-cli[serve] @ git+https://github.com/syncropic/syncropel-cli.git@v0.3.0"
+spl init
 ```
 
-Verify the installation:
+The wizard creates `~/.syncro/`, detects your editors, and sets up your API key.
 
-```bash
-spl version
-# syncropel-cli 0.3.0
-```
-
-## Step 2: Start Your Local Registry
+## Start the registry
 
 ```bash
 spl serve
 ```
 
-This starts a full governance-aware registry on your machine:
+Your local registry is running at `http://localhost:9100`.
 
-```
-Registry started at http://localhost:9100
-Database: ~/.syncropel/registry.duckdb (persistent)
-```
+## Point your SDK at the proxy
 
-The local registry is persistent — your data survives restarts. It exposes the same API as the production registry, so SDKs connect identically.
+Change one line in your code:
 
-**Leave this running** and open a new terminal for the remaining steps.
+```python
+import anthropic
 
-## Step 3: Create a Namespace
+# Before:
+# client = anthropic.Client()
 
-Namespaces are the unit of governance. Every policy, budget, and trust score lives within a namespace.
+# After:
+client = anthropic.Client(base_url="http://localhost:9100")
 
-```bash
-spl namespace create myproject -j
-```
-
-```json
-{
-  "id": "myproject",
-  "parent": "default",
-  "created_at": "2026-02-24T10:00:00Z"
-}
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=100,
+    messages=[{"role": "user", "content": "Hello!"}]
+)
 ```
 
-This creates `myproject` as a child of `default`. Governance monotonically narrows: `myproject` can never have more permissions than `default`.
+Every API call is now recorded with model, tokens, cost, and latency.
 
-## Step 4: Set a Policy
+## See the dashboard
 
-Restrict what effects are allowed in your namespace:
+Open [http://localhost:9100/console](http://localhost:9100/console) in your browser.
 
-```bash
-spl policy set myproject --primitives GET,CALL -j
-```
+You'll see every LLM call with:
+- Model and tokens used
+- Cost estimate
+- Latency
+- Full audit trail
 
-Now `myproject` only allows GET and CALL effects — no PUT or MAP. Any attempt to write data or transform it will be denied by the governance validator.
+## What's happening
 
-## Step 5: Check Trust
+Syncropel sits between your code and the LLM API. Every call flows through the proxy, gets recorded as a SURE record, and becomes part of your trust history. The more you use it, the smarter it gets.
 
-```bash
-spl trust show -j
-```
-
-New principals start with a **cold-start prior** — a mathematically computed trust score around 0.47. This places you in the ADAPT dial zone: you can replay and adapt known patterns, but you need to earn trust before creating novel ones.
-
-Trust grows through successful observations and decays over time.
-
-## Step 6: View the Audit Trail
-
-Every governance action is recorded:
-
-```bash
-spl audit query -j
-```
-
-You'll see audit records for the namespace creation and policy changes. Nothing happens in Syncropel without a trail.
-
-## What Just Happened
-
-In 5 minutes, you set up:
-
-1. **A local registry** — persistent store at `~/.syncropel/`
-2. **A governed namespace** — `myproject` inheriting from `default`, with a restrictive policy
-3. **A trust baseline** — cold-start prior that unlocks more autonomy as you prove reliability
-4. **An audit trail** — immutable record of every governance decision
-
-The governance stack running locally is identical to what runs in production. Every check, every threshold, every enforcement — the same.
-
-## What's Next
+## Next steps
 
 <Cards>
   <Card
-    title="The Effect Algebra"
-    description="Understand the primitives and shapes that form the vocabulary of all computation."
-    href="/docs/concepts/effects"
+    title="API Proxy Guide"
+    description="Smart routing, cost tracking, multi-model support."
+    href="/docs/guides/proxy"
   />
   <Card
-    title="The Dial"
-    description="How one parameter controls the spectrum from replay to creation — and how trust unlocks it."
-    href="/docs/concepts/the-dial"
+    title="Console Guide"
+    description="Dashboard, filters, saved views."
+    href="/docs/guides/console"
   />
   <Card
-    title="Physics, Not Policy"
-    description="Why governance is enforced by mathematical structure, not human promises."
-    href="/docs/concepts/physics-not-policy"
+    title="Agent Integration"
+    description="Claude Code hooks, actor identity."
+    href="/docs/guides/agent-integration"
   />
 </Cards>
-
-## All Commands
-
-Every `spl` command supports `-j` / `--json` for structured output. Run `spl --help` for the full list, or use progressive discovery:
-
-```bash
-spl help-agent -j              # Overview (~200 tokens)
-spl help-agent namespace -j    # Namespace commands (~400 tokens)
-spl help-agent --conventions -j # Governance model (~500 tokens)
-```
