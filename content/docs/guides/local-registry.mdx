@@ -1,122 +1,63 @@
 ---
 title: Local Registry
-description: "Deep dive into spl serve — storage, API routes, schema, persistence, and how it matches the production registry."
+description: How spl serve works — your local LLM proxy and data store
 ---
 
-`spl serve` starts a full governance-aware registry on your machine. It's not a mock or a dev stub — it runs the same governance logic, the same API surface, and the same validation pipeline as the production registry.
+## What is spl serve?
 
-## Starting the Registry
+`spl serve` starts a local server on port 9100 that:
 
-```bash
-spl serve
-```
+1. **Proxies LLM calls** — Anthropic and OpenAI compatible endpoints
+2. **Records everything** — every call stored in a local DuckDB database
+3. **Serves the console** — real-time dashboard at localhost:9100/console
+4. **Computes trust** — reliability scores from your usage history
+5. **Runs offline** — no internet required after install
 
-```
-Registry started at http://localhost:9100
-Database: ~/.syncro/hub.db (persistent)
-```
+## Storage
 
-The registry auto-configures the CLI: it writes `registry_url: http://localhost:9100` to `~/.syncro/config.yaml` so all `spl` commands automatically hit your local instance.
+All data is stored locally at `~/.syncro/hub.db` (DuckDB). The database is persistent — records survive restarts.
 
-### Options
+## API
 
-| Flag | Description |
-|------|------------|
-| `--port N` | Use a custom port (default: 9100) |
-| `--open` | Open a browser to the dashboard on start |
+The registry exposes 160+ HTTP endpoints matching the production API. Key endpoints:
 
-## What's Inside
+| Endpoint | Method | What |
+|----------|--------|------|
+| `/v1/messages` | POST | Anthropic API proxy |
+| `/v1/chat/completions` | POST | OpenAI API proxy |
+| `/v1/records` | GET | Query stored records |
+| `/health` | GET | Server status + proxy stats |
+| `/console` | GET | Web dashboard |
 
-### Storage
+## Configuration
 
-All data persists at `~/.syncro/hub.db` — a single file. It survives restarts, and you can back it up by copying the file.
+| Setting | Default | How to change |
+|---------|---------|---------------|
+| Port | 9100 | `spl serve --port N` |
+| Database | `~/.syncro/hub.db` | Config file |
+| Auth | Bearer token (auto-generated) | `~/.syncro/secrets/daemon_token` |
 
-The database stores namespaces, policies, sessions, effects, governance tokens, patterns, observations, trust scores, consent edges, revocation lists, approval requests, settlements, audit logs, and peer registry configurations. Schema migrations are automatic on startup.
-
-### 160+ API Routes
-
-The server exposes a full API surface covering:
-
-| Group | Example Routes | Purpose |
-|-------|---------------|---------|
-| Namespaces | `GET/POST/DELETE /api/namespaces/...` | CRUD + hierarchy resolution |
-| Policies | `GET/PUT/DELETE /api/policies/...` | Capability/deny/budget management |
-| Trust | `GET /api/trust/...` | Trust scores and computation |
-| Observations | `POST /api/observations/...` | Record execution outcomes |
-| Governance | `GET/POST /api/governance/...` | SCT computation, validation |
-| Federation | `GET/POST /api/federation/...` | Consent edges, observation sync |
-| HITL | `GET/POST /api/hitl/...` | Approval workflow |
-| Settlements | `POST /api/settlements/...` | Settlement execution |
-| Audit | `GET /api/audit/...` | Audit trail queries |
-| Auth | `POST /api/auth/...` | Service account management |
-| Traces | `GET/POST /api/traces/...` | Session trace management |
-| Health | `GET /health` | Liveness check |
-
-These are the same URLs as the production registry. An SDK configured with `registry_url="http://localhost:9100"` works identically against `api.syncropel.com`.
-
-## The Governance Stack
-
-Everything that runs in production runs locally: session capability token issuance, the full governance validation pipeline, trust computation, namespace resolution with monotonic narrowing, observation recording, immutable audit trail, service account revocation, federation consent management, and human-in-the-loop approval workflows.
-
-## Persistence
-
-| Item | Location | Behavior |
-|------|----------|----------|
-| Database | `~/.syncro/hub.db` | Persistent, survives restarts |
-| Config | `~/.syncro/config.yaml` | Written by `spl serve`, read by all commands |
-| Traces | `~/.syncro/traces/` | Populated by integration hooks |
-| Seeds | `~/.syncro/seeds/` | Loaded on startup if present |
-
-### Backup
+## Starting and Stopping
 
 ```bash
-# Stop the registry, then copy the database
+spl serve          # Start in foreground
+spl serve &        # Start in background
+spl serve --stop   # Stop the daemon
+spl serve --status # Check if running
+```
+
+## Backup and Reset
+
+```bash
+# Backup (stop server first)
 cp ~/.syncro/hub.db ~/.syncro/hub.db.backup
-```
 
-### Reset
-
-```bash
-# Delete the database to start fresh
+# Reset (delete database to start fresh)
 rm ~/.syncro/hub.db
 spl serve  # Creates a new empty database
 ```
 
-## Connecting SDKs
-
-Any Syncropel SDK can connect to your local registry:
-
-```python
-# Python SDK
-from syncropel import Client
-client = Client(registry_url="http://localhost:9100")
-```
-
-```typescript
-// TypeScript SDK
-import { SyncropelClient } from '@syncropic/syncropel-js';
-const client = new SyncropelClient({ registryUrl: 'http://localhost:9100' });
-```
-
-When `spl serve` is running, the `SPL_REGISTRY_URL` environment variable is automatically set, so many tools detect the local registry without explicit configuration.
-
-## Production Parity
-
-| Feature | Local (`spl serve`) | Production |
-|---------|-------------------|------------|
-| Governance checks | All 10 | All 10 |
-| SCT computation | Full 10-step algorithm | Same |
-| Trust model | Full trust score computation | Same |
-| API surface | Full | Same + scaling endpoints |
-| Backing store | Single-file (persistent) | Managed database |
-| Federation | Consent edges (local) | Full peer sync |
-| Authentication | `AUTH_PROVIDER=dev` | Clerk JWT |
-
-The governance logic is identical because both environments use `syncropel-hub-core` — the same shared governance library with the same checks, same thresholds, same math.
-
 ## Related
 
-- [Quick Start](/docs/tutorials/quickstart) — Get the registry running in 5 minutes
+- [Quick Start](/docs/tutorials/quickstart) — Get running in 60 seconds
 - [CLI Reference](/docs/reference/cli) — All `spl` commands
-
-

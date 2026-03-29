@@ -3,35 +3,33 @@ title: Integration Status
 description: What works, what's preview, what's planned
 ---
 
-## Status Matrix
+## Proxy Integrations (Production)
 
-| Integration | Status | How |
-|-------------|--------|-----|
-| **API Proxy (Anthropic)** | Production | `base_url="http://localhost:9100"` |
-| **API Proxy (OpenAI)** | Production | `base_url="http://localhost:9100"` |
-| **Console Dashboard** | Production | `http://localhost:9100/console` |
-| **Claude Code Hooks** | Preview | `spl setup --claude` |
-| **VS Code MCP** | Preview | `spl setup --skills` |
-| **Zed** | Preview | `spl setup --zed` (detected by spl init) |
-| **Cursor** | Preview | `spl setup --cursor` (detected by spl init) |
-| **Python SDK** | Planned | Coming soon |
-| **TypeScript SDK** | Planned | Coming soon |
-| **LangChain** | Planned | Coming soon |
-| **CrewAI** | Planned | Coming soon |
-| **Vercel AI** | Planned | Coming soon |
+Works with any SDK or tool that supports custom API base URLs:
+
+| SDK / Tool | How to Connect |
+|------------|----------------|
+| Anthropic Python | `client = anthropic.Client(base_url="http://localhost:9100")` |
+| Anthropic TypeScript | `new Anthropic({ baseURL: "http://localhost:9100" })` |
+| OpenAI Python | `client = OpenAI(base_url="http://localhost:9100/v1")` |
+| LangChain | Set `ANTHROPIC_BASE_URL=http://localhost:9100` |
+| Any HTTP client | `POST http://localhost:9100/v1/messages` |
+
+## Editor Integrations (Preview)
+
+| Editor | Setup | What It Does |
+|--------|-------|-------------|
+| Claude Code | `spl setup --claude` | Hooks into session events, records tool calls |
+| VS Code | `spl setup --skills` | MCP server for extensions |
+| Zed | Detected by `spl init` | MCP config |
+| Cursor | Detected by `spl init` | MCP config |
+
+## SDK Integrations (Planned)
+
+Python SDK, TypeScript SDK, LangChain adapter, CrewAI adapter, Vercel AI adapter — coming soon.
 
 ## Status Definitions
 
 - **Production**: Tested, security-hardened, recommended for use
 - **Preview**: Works but may change, use with awareness
 - **Planned**: Designed but not yet implemented
-
-## Install
-
-All integrations ship with the `spl` CLI:
-
-```bash
-curl -sSf https://get.syncropic.com/spl | sh
-spl init
-spl serve
-```

@@ -1,0 +1,82 @@
+- main [ref=e2]:
+  - generic "Main" [ref=e3]:
+    - navigation [ref=e6]:
+      - link "S Syncropel Docs" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]:
+          - generic [ref=e9]: S
+          - text: Syncropel Docs
+      - list
+      - list [ref=e10]:
+        - button "Open Search" [ref=e11]:
+          - img [ref=e12]
+        - listitem [ref=e15]:
+          - button "Toggle Menu" [ref=e16]:
+            - img [ref=e17]
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - heading "Infrastructure that learns, governs & coordinates." [level=1] [ref=e21]
+      - paragraph [ref=e22]: The coordination layer for teams and AI agents. Prevents what shouldn't happen, records what did, extracts what works, shares what was learned.
+    - generic [ref=e23]:
+      - paragraph [ref=e24]: Start in 60 seconds
+      - generic [ref=e25]:
+        - generic [ref=e30]: terminal
+        - generic [ref=e31]:
+          - paragraph [ref=e32]: $ curl -sSf https://get.syncropic.com/spl | sh
+          - paragraph [ref=e33]: $ spl init && spl serve
+          - paragraph [ref=e34]: ✓ Registry ready at localhost:9100
+          - paragraph [ref=e35]: "# Point your SDK here:"
+          - paragraph [ref=e36]: client = anthropic.Client(base_url="http://localhost:9100")
+      - paragraph [ref=e37]:
+        - text: Every LLM call is recorded with model, tokens, cost, and latency. Open
+        - code [ref=e38]: localhost:9100/console
+        - text: to see the dashboard.
+      - generic [ref=e39]:
+        - link "Quick Start" [ref=e40] [cursor=pointer]:
+          - /url: /docs/tutorials/quickstart
+          - text: Quick Start
+          - generic [ref=e41]: →
+        - link "API Proxy Guide" [ref=e42] [cursor=pointer]:
+          - /url: /docs/guides/proxy
+        - link "Console" [ref=e43] [cursor=pointer]:
+          - /url: /docs/guides/console
+    - generic [ref=e46]:
+      - paragraph [ref=e47]: Coming Next
+      - paragraph [ref=e48]: Trust computed from evidence. Work routed to the most reliable actor — human, agent, or automation. Patterns crystallize. Value cascades to every contributor.
+      - paragraph [ref=e49]: Smart routing · Federation · SDK integrations
+    - generic [ref=e52]:
+      - paragraph [ref=e53]: Documentation
+      - generic [ref=e54]:
+        - link "Quick Start Install, configure, and see your first dashboard" [ref=e55] [cursor=pointer]:
+          - /url: /docs/tutorials/quickstart
+          - text: Quick Start
+          - generic [ref=e56]: Install, configure, and see your first dashboard
+        - link "API Proxy Endpoints, metadata, cost tracking, streaming" [ref=e57] [cursor=pointer]:
+          - /url: /docs/guides/proxy
+          - text: API Proxy
+          - generic [ref=e58]: Endpoints, metadata, cost tracking, streaming
+        - link "Console Real-time feed, filters, saved views" [ref=e59] [cursor=pointer]:
+          - /url: /docs/guides/console
+          - text: Console
+          - generic [ref=e60]: Real-time feed, filters, saved views
+        - link "Local Registry How spl serve works under the hood" [ref=e61] [cursor=pointer]:
+          - /url: /docs/guides/local-registry
+          - text: Local Registry
+          - generic [ref=e62]: How spl serve works under the hood
+        - link "Agent Integration Claude Code, VS Code, Zed, Cursor" [ref=e63] [cursor=pointer]:
+          - /url: /docs/guides/agent-integration
+          - text: Agent Integration
+          - generic [ref=e64]: Claude Code, VS Code, Zed, Cursor
+        - link "CLI Reference All spl commands" [ref=e65] [cursor=pointer]:
+          - /url: /docs/reference/cli
+          - text: CLI Reference
+          - generic [ref=e66]: All spl commands
+      - link "Integration status →" [ref=e68] [cursor=pointer]:
+        - /url: /docs/reference/integrations
+    - generic [ref=e71]:
+      - generic [ref=e72]: © 2026 Syncropic Inc. Delaware Public Benefit Corporation.
+      - generic [ref=e73]:
+        - link "syncropic.com" [ref=e74] [cursor=pointer]:
+          - /url: https://syncropic.com
+        - link "syncropel.com" [ref=e75] [cursor=pointer]:
+          - /url: https://syncropel.com

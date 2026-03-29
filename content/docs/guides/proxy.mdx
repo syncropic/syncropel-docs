@@ -17,20 +17,33 @@ description: Observe every LLM call — model, tokens, cost, latency
 
 ## What gets recorded
 
-Each API call produces two records:
+Each API call produces two records. The proxy stores metadata in each record's `proxy` field:
 
-**Request record:**
-- `body.goal`: first 2000 chars of your message
-- `body.proxy.model`: model name
-- `body.proxy.message_count`: messages in context
+**Request record** (when you send a prompt):
+- Your message (first 2000 chars)
+- Model name
+- Message count in context
 
-**Response record:**
-- `body.insight`: first 2000 chars of the response
-- `body.proxy.model`: model used
-- `body.proxy.input_tokens`: tokens in
-- `body.proxy.output_tokens`: tokens out
-- `body.proxy.cost_usd`: estimated cost
-- `body.proxy.latency_ms`: round-trip time
+**Response record** (when the LLM responds):
+- The response (first 2000 chars)
+- Model used
+- Input and output token counts
+- Estimated cost in USD
+- Round-trip latency in milliseconds
+
+## Try it
+
+```bash
+# With curl (Anthropic format)
+curl http://localhost:9100/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "content-type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{"model":"claude-sonnet-4-6","max_tokens":100,"messages":[{"role":"user","content":"Hello"}]}'
+
+# Check the console
+open http://localhost:9100/console
+```
 
 ## Cost estimation
 

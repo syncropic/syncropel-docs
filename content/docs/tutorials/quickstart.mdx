@@ -17,6 +17,8 @@ spl init
 
 The wizard creates `~/.syncro/`, detects your editors, and sets up your API key.
 
+No API key? Use test mode: `spl init --key test`
+
 ## Start the registry
 
 ```bash
@@ -46,6 +48,8 @@ response = client.messages.create(
 ```
 
 Every API call is now recorded with model, tokens, cost, and latency.
+
+Works with any SDK that supports custom base URLs — Anthropic, OpenAI, LangChain, etc.
 
 ## See the dashboard
 

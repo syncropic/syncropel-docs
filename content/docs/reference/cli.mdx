@@ -3,7 +3,9 @@ title: CLI Reference
 description: "Complete reference for the spl command — 16 command groups, environment variables, exit codes, and output formats."
 ---
 
-The `spl` command is the primary interface to Syncropel. It manages namespaces, policies, trust, federation, audit, and runs a local registry. Every command supports `-j` / `--json` for structured output.
+The `spl` command is the primary interface to Syncropel. It runs your local LLM proxy, tracks costs, executes goals, and manages governance. Every command supports `-j` / `--json` for structured output.
+
+## Essential Commands
 
 ## Install
 
@@ -13,9 +15,7 @@ curl -sSf https://get.syncropic.com/spl | sh
 
 Requires Python 3.12+.
 
-## Commands
-
-### serve — Local Registry
+### serve — Local Registry + Proxy
 
 | Command | Description |
 |---------|------------|
@@ -24,6 +24,8 @@ Requires Python 3.12+.
 | `spl serve --open` | Open browser to dashboard on start |
 
 The local registry stores data at `~/.syncro/` and auto-writes `~/.syncro/config.yaml` so all CLI commands hit localhost.
+
+## Advanced
 
 ### namespace — Manage Namespaces
 
@@ -155,6 +157,8 @@ Traces are read from `~/.syncro/traces/` (populated by integration hooks).
 |---------|------------|
 | `spl run "goal"` | Execute a goal with the configured agent |
 | `spl run "goal" --timeout 30` | Set execution timeout |
+
+## Observability
 
 ### thread — Thread Management
 

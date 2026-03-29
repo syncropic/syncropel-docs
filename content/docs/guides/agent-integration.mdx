@@ -39,7 +39,7 @@ The tracer hooks into 4 Claude Code events:
 | `Stop` | — | 10s | Finalize and flush session |
 | `SessionEnd` | (all) | 5s | Clean up resources |
 
-The tracer is **stdlib-only** — no pip install needed, no dependency conflicts. It maps Claude Code tool calls to the effect algebra (GET, PUT, CALL, MAP) and writes traces to `~/.syncro/traces/`.
+The tracer is **stdlib-only** — no pip install needed, no dependency conflicts. It maps Claude Code tool calls to categories (Read → GET, Edit → PUT, Bash → CALL) and writes traces to `~/.syncro/traces/`.
 
 ## Progressive Discovery
 
@@ -101,7 +101,7 @@ Generates two files in `.syncro/` at the project root:
 ```markdown
 # Syncropel
 This project uses Syncropel for governed AI computation.
-- CLI: `spl` (v0.7.1)
+- CLI: `spl` (v0.8.0)
 - Registry: `spl serve` starts local registry on port 9100
 - Discovery: `spl help-agent --json` for agent reference
 ```
@@ -109,10 +109,9 @@ This project uses Syncropel for governed AI computation.
 ### `.syncro/CONVENTIONS.md`
 
 Contains the governance reference:
-- **Effect Algebra**: 4 primitives (GET, PUT, CALL, MAP), 5 shapes
-- **Dial Zones**: REPLAY \[0,1/3), ADAPT \[1/3,1/2), EXPLORE \[1/2,2/3), CREATE \[2/3,1\]
-- **Hash Hierarchy**: L0 (Exact, never shared), L1 (Structural), L2 (Flow), L3 (Intent)
-- **10-Check Validator**: CRL, policy freshness, capability, deny, budget, dial, hash level, budget guard, structural, HITL
+- **Tool categories**: Read (GET), Write (PUT), Execute (CALL), Transform (MAP)
+- **Trust levels**: How much autonomy is granted based on track record
+- **10 governance checks**: What gets validated on every action
 
 These files are designed to be committed to the repository. When an AI agent opens the project, it finds `ABOUT.md` and knows `spl` is available, then reads `CONVENTIONS.md` to understand the governance model.
 
@@ -164,15 +163,15 @@ AI Agent (Claude Code, LangChain, etc.)
     ↓ tool call
 Integration Hook (syncropel_trace.py)
     ├─ INTERCEPT: Capture tool call
-    ├─ PARSE: Map to effect (primitive, shapes, operation)
-    ├─ HASH: Compute L0-L3 hashes
+    ├─ PARSE: Categorize (Read→GET, Edit→PUT, Bash→CALL)
+    ├─ HASH: Compute content hashes
     └─ RECORD: Write to ~/.syncro/traces/
     ↓
 spl trace ls/show    ← inspect traces
 spl observe record   ← feed trust model
 ```
 
-Syncropel doesn't wrap the AI. It observes the AI and governs through validated tokens. The agent runs normally; governance is a sidecar.
+Syncropel doesn't wrap the AI. It observes the AI and records what it does. The agent runs normally; observability is a sidecar.
 
 ## Related
 
