@@ -144,20 +144,16 @@ curl -s http://localhost:9100/health | python3 -m json.tool
 
 **Fix:** Wait 1 second and retry. The `Retry-After` header tells you when to retry. If you need higher limits, this is a daemon setting (not yet configurable).
 
-## Claude Code hooks not firing
+## Claude Code calls not recorded
 
-**Symptom:** Claude Code sessions aren't being recorded.
+**Symptom:** Claude Code sessions aren't showing in the console.
 
-**Cause:** `spl setup --claude` hasn't been run, or hooks weren't installed correctly.
+**Cause:** Claude Code isn't using the proxy. You need to set `base_url` in your Claude Code configuration.
 
-**Fix:**
+**Fix:** Point Claude Code at the proxy by setting the Anthropic base URL:
 
 ```bash
-# Reinstall hooks
-spl setup --claude
-
-# Verify
-cat ~/.claude/settings.json | python3 -m json.tool | grep syncropel
+export ANTHROPIC_BASE_URL=http://localhost:9100
 ```
 
 ## API key not accepted

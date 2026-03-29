@@ -5,31 +5,31 @@ description: What works, what's preview, what's planned
 
 ## Proxy Integrations (Production)
 
-Works with any SDK or tool that supports custom API base URLs:
+Any SDK or tool that supports custom API base URLs works:
 
 | SDK / Tool | How to Connect |
 |------------|----------------|
-| Anthropic Python | `client = anthropic.Client(base_url="http://localhost:9100")` |
+| Anthropic Python | `anthropic.Client(base_url="http://localhost:9100")` |
 | Anthropic TypeScript | `new Anthropic({ baseURL: "http://localhost:9100" })` |
-| OpenAI Python | `client = OpenAI(base_url="http://localhost:9100/v1")` |
-| LangChain | Set `ANTHROPIC_BASE_URL=http://localhost:9100` |
+| OpenAI Python | `OpenAI(base_url="http://localhost:9100/v1")` |
+| LangChain | `ANTHROPIC_BASE_URL=http://localhost:9100` |
 | Any HTTP client | `POST http://localhost:9100/v1/messages` |
 
-## Editor Integrations (Preview)
+The proxy captures everything — prompts, responses, tool calls, model, tokens, cost, and latency.
 
-| Editor | Setup | What It Does |
-|--------|-------|-------------|
-| Claude Code | `spl setup --claude` | Hooks into session events, records tool calls |
-| VS Code | `spl setup --skills` | MCP server for extensions |
-| Zed | Detected by `spl init` | MCP config |
-| Cursor | Detected by `spl init` | MCP config |
+## Agent Discovery (Production)
 
-## SDK Integrations (Planned)
+| Feature | Setup | What It Does |
+|---------|-------|-------------|
+| Skill file | `spl setup --claude` | Teaches Claude Code about spl commands |
+| Project discovery | `spl init --project` | `.syncro/ABOUT.md` for agent auto-detection |
+| Progressive help | `spl help-agent -j` | Token-budgeted command discovery |
 
-Python SDK, TypeScript SDK, LangChain adapter, CrewAI adapter, Vercel AI adapter — coming soon.
+## Planned
+
+Python SDK, TypeScript SDK, LangChain adapter, CrewAI adapter.
 
 ## Status Definitions
 
 - **Production**: Tested, security-hardened, recommended for use
-- **Preview**: Works but may change, use with awareness
 - **Planned**: Designed but not yet implemented

@@ -121,7 +121,7 @@ Supports filtering by namespace, action type, principal, and time range.
 | `spl trace risk -j` | Identify high-risk operations |
 | `spl trace pattern <session> -j` | Extract workflow patterns from a session |
 
-Traces are read from `~/.syncro/traces/` (populated by integration hooks).
+Traces are read from `~/.syncro/traces/`.
 
 ### config — Configuration
 
@@ -135,9 +135,8 @@ Traces are read from `~/.syncro/traces/` (populated by integration hooks).
 
 | Command | Description |
 |---------|------------|
-| `spl setup --all` | Install Claude Code skill file + trace hooks |
-| `spl setup --claude-code` | Install skill file only |
-| `spl setup --hooks` | Install trace hooks only |
+| `spl setup --claude` | Install Claude Code skill file |
+| `spl setup --skills` | Install skill files for all detected editors |
 | `spl setup --list` | List installed integrations |
 | `spl setup --remove` | Remove installed integrations |
 

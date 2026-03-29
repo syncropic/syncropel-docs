@@ -1,183 +1,112 @@
 ---
 title: Agent Integration
-description: "How to integrate Syncropel with AI agents — Claude Code hooks, progressive discovery, actor identity, and project discovery files."
+description: How to connect any AI agent to Syncropel — one line change.
 ---
 
-Syncropel is designed for AI agents. Every command outputs structured JSON. Discovery is token-budgeted. Integrations self-install. The entire governance stack is available via a single CLI.
+## The Proxy Path (Universal)
 
-## Self-Installing Integrations
+Any AI agent that makes LLM API calls can use Syncropel. Change one line:
 
-```bash
-spl setup --all
+```python
+# Anthropic
+client = anthropic.Client(base_url="http://localhost:9100")
+
+# OpenAI
+client = OpenAI(base_url="http://localhost:9100/v1")
+
+# Any HTTP client
+# POST http://localhost:9100/v1/messages
 ```
 
-This installs three components:
+The proxy records every call — including tool calls within the conversation. No hooks, no tracer, no configuration beyond the base_url.
 
-| Component | Location | What It Does |
-|-----------|----------|-------------|
-| **Skill file** | `~/.claude/skills/syncropel/SKILL.md` | Teaches Claude Code what `spl` commands are available |
-| **Tracer script** | `~/.syncro/hooks/syncropel_trace.py` | Captures tool calls as Syncropel effects (stdlib-only, 1,107 lines) |
-| **Hook config** | `~/.claude/settings.json` | Registers 4 hook events in Claude Code |
+## Agent Onboarding Prompt
 
-### Selective Installation
+Copy this into any AI agent to set up Syncropel:
 
-```bash
-spl setup --claude-code    # Skill file only
-spl setup --hooks          # Tracer + hook config only
-spl setup --list           # Show what's installed
-spl setup --remove         # Remove all integrations
+```text
+Install and configure Syncropel — an LLM API proxy that records every call.
+
+1. Check Python: python3 --version (need 3.12+)
+2. Install: curl -sSf https://get.syncropic.com/spl | sh
+3. Add to PATH: export PATH="$HOME/.local/bin:$PATH"
+4. Verify: spl --version
+5. Initialize: spl init --yes
+6. Start: spl serve &
+7. Wait 5s, verify: curl -s http://localhost:9100/health
+
+Proxy is ready. Set base_url="http://localhost:9100" in your SDK.
+Dashboard: http://localhost:9100/console
+Troubleshooting: https://docs.syncropel.com/docs/reference/troubleshooting
 ```
 
-### Hook Events
+### With API key
 
-The tracer hooks into 4 Claude Code events:
+```text
+Install Syncropel with API key for real proxy usage:
 
-| Event | Matcher | Timeout | What It Does |
-|-------|---------|---------|-------------|
-| `SessionStart` | `startup\|resume` | 5s | Initialize trace session |
-| `PostToolUse` | (all tools) | 10s | Record each tool call as an effect |
-| `Stop` | — | 10s | Finalize and flush session |
-| `SessionEnd` | (all) | 5s | Clean up resources |
+1. curl -sSf https://get.syncropic.com/spl | sh
+2. export PATH="$HOME/.local/bin:$PATH"
+3. spl init --key YOUR_ANTHROPIC_KEY --yes
+4. spl serve &
+5. curl -s http://localhost:9100/health
 
-The tracer is **stdlib-only** — no pip install needed, no dependency conflicts. It maps Claude Code tool calls to categories (Read → GET, Edit → PUT, Bash → CALL) and writes traces to `~/.syncro/traces/`.
+Set base_url="http://localhost:9100" in your code. Every call recorded at localhost:9100/console.
+```
+
+## Skill File (Claude Code)
+
+Install a skill file that teaches Claude Code about spl commands:
+
+```bash
+spl setup --claude
+```
+
+This installs `~/.claude/skills/syncropel/SKILL.md` — a thin pointer that directs Claude Code to use `spl help-agent` for command discovery.
 
 ## Progressive Discovery
 
-AI agents don't need to read this documentation. They can discover `spl` capabilities through token-budgeted help:
+AI agents discover spl capabilities through token-budgeted help:
 
-### Tier 0: Command Overview (~200 tokens)
+| Tier | Command | Tokens | What It Returns |
+|------|---------|--------|-----------------|
+| 0 | `spl help-agent -j` | ~200 | All command groups and flags |
+| 1 | `spl help-agent <group> -j` | ~400 | Subcommands and usage for a group |
+| 2 | `spl help-agent --conventions -j` | ~500 | Governance model reference |
 
-```bash
-spl help-agent -j
-```
+Total: ~1,100 tokens for full CLI knowledge (vs ~20,000 tokens for full docs).
 
-Returns a JSON object with all command groups, standalone commands, global flags, and environment variables. Enough for an agent to know what's available.
-
-### Tier 1: Group Detail (~400 tokens)
-
-```bash
-spl help-agent namespace -j
-```
-
-Returns subcommands, their flags, and usage examples for a specific group. The agent only fetches detail for the groups it needs.
-
-### Tier 2: Governance Conventions (~500 tokens)
+## Project Discovery
 
 ```bash
-spl help-agent --conventions -j
+spl init --project
 ```
 
-Returns the governance model: primitives, shapes, dial zones with correct thresholds, hash levels, and the governance validator. Everything an agent needs to reason about governance.
-
-### Token Budget
-
-The three tiers total ~1,100 tokens for full knowledge of the CLI. By contrast, this documentation is ~20,000 tokens. Progressive discovery gives agents exactly what they need without flooding context.
-
-## Actor Identity
-
-Set the `SPL_ACTOR` environment variable to identify the agent in audit logs:
-
-```bash
-export SPL_ACTOR=claude-agent
-```
-
-This value is sent as the `X-SPL-Actor` header on every registry request. Audit records then show which actor performed each action — essential for tracing governance decisions back to their source.
-
-```bash
-spl audit query -j
-# Shows: {"actor": "claude-agent", "action": "NAMESPACE_CREATED", ...}
-```
-
-## Project Discovery Files
-
-```bash
-spl init
-```
-
-Generates two files in `.syncro/` at the project root:
-
-### `.syncro/ABOUT.md`
-
-```markdown
-# Syncropel
-This project uses Syncropel for governed AI computation.
-- CLI: `spl` (v0.8.0)
-- Registry: `spl serve` starts local registry on port 9100
-- Discovery: `spl help-agent --json` for agent reference
-```
-
-### `.syncro/CONVENTIONS.md`
-
-Contains the governance reference:
-- **Tool categories**: Read (GET), Write (PUT), Execute (CALL), Transform (MAP)
-- **Trust levels**: How much autonomy is granted based on track record
-- **10 governance checks**: What gets validated on every action
-
-These files are designed to be committed to the repository. When an AI agent opens the project, it finds `ABOUT.md` and knows `spl` is available, then reads `CONVENTIONS.md` to understand the governance model.
-
-```bash
-spl init --force     # Overwrite existing files
-spl init --dir ./    # Generate in a specific directory
-```
+Creates `.syncro/ABOUT.md` and `.syncro/CONVENTIONS.md` in your project root. When an AI agent opens the project, it finds these files and knows spl is available.
 
 ## JSON Output
 
-Every `spl` command supports `-j` / `--json`. Agents should always use this flag:
+Every spl command supports `-j` / `--json`:
 
 ```bash
-# Human output (default)
-spl namespace ls
-# ┌──────────────────┬─────────┬───────────────┐
-# │ ID               │ Level   │ Parent        │
-# ├──────────────────┼─────────┼───────────────┤
-# │ default          │ DEFAULT │ —             │
-# │ acme             │ ORG     │ default       │
-# └──────────────────┴─────────┴───────────────┘
-
-# JSON output (for agents)
 spl namespace ls -j
-# {"status":"ok","data":[{"id":"default","level":"DEFAULT","parent":null}, ...]}
+# {"status":"ok","data":[{"id":"default","level":"DEFAULT"}]}
 ```
 
-Error responses include exit codes for programmatic detection:
+Exit codes for programmatic detection:
 
-```json
-{"status": "error", "error": "Namespace 'foo' not found", "exit_code": 3}
-```
-
-| Exit Code | Meaning |
-|-----------|---------|
+| Code | Meaning |
+|------|---------|
 | 0 | Success |
 | 1 | Generic error |
-| 3 | Resource not found |
+| 3 | Not found |
 | 4 | Validation failure |
 | 5 | Registry not reachable |
 | 6 | Auth failure |
 
-## Integration Architecture
-
-The integration model is lightweight — thin wrappers that intercept tool calls:
-
-```
-AI Agent (Claude Code, LangChain, etc.)
-    ↓ tool call
-Integration Hook (syncropel_trace.py)
-    ├─ INTERCEPT: Capture tool call
-    ├─ PARSE: Categorize (Read→GET, Edit→PUT, Bash→CALL)
-    ├─ HASH: Compute content hashes
-    └─ RECORD: Write to ~/.syncro/traces/
-    ↓
-spl trace ls/show    ← inspect traces
-spl observe record   ← feed trust model
-```
-
-Syncropel doesn't wrap the AI. It observes the AI and records what it does. The agent runs normally; observability is a sidecar.
-
 ## What's Next
 
-- [CLI Reference](/docs/reference/cli) — All commands with flags and exit codes
-- [Quick Start](/docs/tutorials/quickstart) — Get running in 60 seconds
-- [Console Dashboard](/docs/guides/console) — See recorded tool calls
-- [Troubleshooting](/docs/reference/troubleshooting) — Hooks not firing?
-
-
+- [API Proxy Guide](/docs/guides/proxy) — endpoints, metadata, cost tracking
+- [Console Dashboard](/docs/guides/console) — real-time feed and filters
+- [CLI Reference](/docs/reference/cli) — all spl commands
+- [Troubleshooting](/docs/reference/troubleshooting) — common issues
