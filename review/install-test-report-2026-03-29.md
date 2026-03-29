@@ -10,7 +10,9 @@
 
 ## Summary
 
-The install pipeline is broken. A fresh `curl -sSf https://get.syncropic.com/spl | sh` fails with a dependency resolution error. Additionally, the actual CLI (v0.3.0) diverges significantly from the documentation — command flags, directory paths, and config file formats don't match what the docs describe.
+**UPDATE**: Re-inspection of the install script revealed that Issue 1 (install failure) was caused by a **stale v0.3.0 install colliding** with the fresh install attempt — NOT a broken pipeline for first-time users. The current install script uses `--extra-index-url https://releases.syncropic.com/spl/simple/` which likely has properly packaged dependencies. A truly clean install (no prior spl binary, no uv tool entry) may succeed. Issues 2-10 below were observed against v0.3.0 (the old cached version) and many may already be resolved in the latest release available on the private index. **A clean-room install test is needed to confirm.**
+
+The old v0.3.0 CLI diverges significantly from the documentation — command flags, directory paths, and config file formats don't match what the docs describe. This may be because v0.3.0 is an outdated version and the docs describe the current release.
 
 ---
 
@@ -34,15 +36,22 @@ Installing syncropel-cli via uv...
     your dependencies or constraints file.
 ```
 
-**Root cause**: `syncropel-cli` v0.3.0 has a dependency on `syncropel-registry-core` specified as a git URL. `uv tool install` doesn't support URL dependencies in this context.
+**Root cause**: A pre-existing v0.3.0 was already installed via uv. When the install script ran `uv tool install "syncropel-cli[serve]" --extra-index-url https://releases.syncropic.com/spl/simple/`, uv attempted to resolve against the already-cached v0.3.0 which has `syncropel-registry-core` as a git URL dependency — unsupported by `uv tool install`.
 
-**Impact**: No new user can install spl. The entire onboarding flow is dead at step 1.
+**UPDATE**: The current install script (fetched fresh from `get.syncropic.com/spl`) uses `--extra-index-url https://releases.syncropic.com/spl/simple/` which is a private package index. On a truly clean system (no prior spl install), this likely resolves correctly. The failure was a **stale install collision**, not a first-time install problem.
 
-**Fix needed**: Either:
-1. Publish `syncropel-registry-core` to PyPI so it resolves normally, or
-2. Bundle it into `syncropel-cli`, or
-3. Have the install script use `uv pip install` with `--extra-index-url` or explicit git constraints, or
-4. Pin to a working version that doesn't have this dependency issue
+**Impact**: Users upgrading from old versions hit this. First-time users may be fine.
+
+**Fix needed**:
+1. The install script should detect and remove old installations before running `uv tool install` (e.g., `uv tool uninstall syncropel-cli 2>/dev/null` first)
+2. Add upgrade instructions to the docs: "If upgrading from a previous version, run `uv tool uninstall syncropel-cli` first"
+3. **Verify**: Run a clean-room install test on a system with no prior spl to confirm the pipeline works
+
+---
+
+---
+
+> **NOTE on Issues 2-10**: These were all observed against **v0.3.0**, an old cached version. The current install script pulls from a private index (`releases.syncropic.com`) which may ship a newer version where these are fixed. Each issue below should be re-verified against a fresh install. However, they are documented here as-found because: (a) any user with a stale install will hit them, and (b) if the current release still has these mismatches, they need fixing.
 
 ---
 
@@ -308,13 +317,13 @@ When we uninstalled spl and removed `~/.syncropel/`, the Claude Code hooks in `~
 
 ## Recommendation
 
-The docs and CLI are out of sync. This appears to be a case where the documentation describes the **intended/planned** CLI behavior while the **shipped** CLI (v0.3.0) implements an earlier or different design.
+Issues 2-10 were observed against v0.3.0 (a stale cached version). The docs likely describe the **current** release available on the private index at `releases.syncropic.com`. The install failure (Issue 1) was caused by the old version colliding with the fresh install — not a broken pipeline.
 
 **Immediate priorities**:
-1. Fix the install script (Issue 1) — nothing else matters until new users can install
-2. Decide which is the source of truth — docs or CLI — and align them
-3. If the CLI is being updated to match docs: ship that update and re-test
-4. If the docs need to match the CLI: audit every command, flag, and path against `--help` output
+1. **Add upgrade handling to install script** — detect and remove old installs before `uv tool install` (e.g., `uv tool uninstall syncropel-cli 2>/dev/null` as the first step)
+2. **Run a clean-room install test** — fresh VM/container with no prior spl, run the full quickstart, verify every command and path matches docs
+3. **Re-verify all 10 issues** against the version that the current install script delivers — many may already be resolved
+4. **Add upgrade docs** — "If you have a previous version installed, run `uv tool uninstall syncropel-cli` before reinstalling"
 
 **Testing process**: Before publishing docs, run every documented command on a clean system and verify:
 - The command exists
