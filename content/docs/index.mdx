@@ -1,6 +1,6 @@
 ---
 title: Syncropel Documentation
-description: The coordination protocol for hybrid human-AI teams. Observe every LLM call — model, tokens, cost, latency.
+description: Observe every LLM call — model, tokens, cost, latency. One line change.
 ---
 
 ## What is Syncropel?
@@ -34,65 +34,37 @@ Then point your SDK to `http://localhost:9100`. Every call is now recorded.
     href="/docs/guides/console"
   />
   <Card
+    title="CLI Reference"
+    description="All spl commands — run, serve, init, thread, actor, and more."
+    href="/docs/reference/cli"
+  />
+</Cards>
+
+## Learn More
+
+<Cards>
+  <Card
     title="Integration Status"
     description="What works, what's preview, what's planned."
     href="/docs/reference/integrations"
   />
-</Cards>
-
-## The Protocol
-
-Syncropel is **verification infrastructure for AI computation** — a formal algebra and governance protocol that any AI system can embed to become trustworthy. Like TLS for the web, Syncropel is invisible infrastructure: your agents run, Syncropel verifies.
-
-The protocol is built on immutable foundations: **effect primitives** (GET, PUT, CALL, MAP), **data shapes** (VOID, ONE, OPTIONAL, MANY, KEYED), **hash levels** (Exact, Structural, Flow, Intent), and a **deterministic governance pipeline** — all enforced by mathematics, not promises.
-
-## Concepts
-
-<Cards>
   <Card
-    title="The Effect Algebra"
-    description="GET, PUT, CALL, MAP and VOID, ONE, OPTIONAL, MANY, KEYED — the atomic vocabulary of all computation."
-    href="/docs/concepts/effects"
+    title="Agent Integration"
+    description="Connect Claude Code, VS Code, Zed, and other tools."
+    href="/docs/guides/agent-integration"
   />
   <Card
-    title="The Dial"
-    description="One parameter [0,1] controlling the spectrum from deterministic replay to creative generation."
-    href="/docs/concepts/the-dial"
+    title="Local Registry"
+    description="How spl serve works — persistent DuckDB, 160+ API routes."
+    href="/docs/guides/local-registry"
   />
   <Card
-    title="Physics, Not Policy"
-    description="Why Syncropel enforces rules through mathematical structure, not human promises."
-    href="/docs/concepts/physics-not-policy"
+    title="Glossary"
+    description="Key terms and definitions."
+    href="/docs/reference/glossary"
   />
 </Cards>
-
-## Deep Dive
-
-<Cards>
-  <Card
-    title="Hash Levels"
-    description="Exact, Structural, Flow, Intent — privacy-preserving hashing from exact replay to intent matching."
-    href="/docs/concepts/hash-levels"
-  />
-  <Card
-    title="Namespaces"
-    description="DEFAULT, ORG, PROJECT, ENV, JOB — hierarchical governance that monotonically narrows."
-    href="/docs/concepts/namespaces"
-  />
-  <Card
-    title="Governance"
-    description="Session Capability Tokens and the deterministic governance validator."
-    href="/docs/concepts/governance"
-  />
-  <Card
-    title="Trust"
-    description="Mathematically computed confidence with cold-start prior and temporal decay."
-    href="/docs/concepts/trust"
-  />
-</Cards>
-
-For protocol details, see the [spec repository](https://github.com/syncropic/syncropel-spec).
 
 ---
 
-*Syncropel is developed by [Syncropic Inc.](https://syncropic.com), a Delaware Public Benefit Corporation. The protocol is [Apache-2.0 licensed](https://github.com/syncropic). What's yours stays yours.*
+*Syncropel is developed by [Syncropic Inc.](https://syncropic.com), a Delaware Public Benefit Corporation.*

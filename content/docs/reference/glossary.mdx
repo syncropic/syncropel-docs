@@ -6,24 +6,24 @@ description: "Essential Syncropel terminology — every term grounded in shippin
 ## B
 
 ### Budget Envelope
-A 4-dimensional constraint on session cost: compute (USD), latency (ms), quality floor \[0,1\], and risk ceiling \[0,1\]. Zero means unlimited. Budget is tracked with Decimal precision. Part of the [SCT](/docs/concepts/governance).
+A 4-dimensional constraint on session cost: compute (USD), latency (ms), quality floor \[0,1\], and risk ceiling \[0,1\]. Zero means unlimited. Budget is tracked with Decimal precision. Part of the SCT.
 
 ## C
 
 ### Capability Envelope
-The set of effects a session is allowed to execute: primitives, shapes, operations (glob patterns), resources (glob patterns), max effects, and max depth. Resolved through [namespace hierarchy](/docs/concepts/namespaces) via set intersection.
+The set of effects a session is allowed to execute: primitives, shapes, operations (glob patterns), resources (glob patterns), max effects, and max depth. Resolved through namespace hierarchy via set intersection.
 
 ### Default Starting Trust
-The trust baseline for new principals, giving a score of approximately 0.47. Places new entities in the ADAPT [dial zone](/docs/concepts/the-dial), where they can replay and adapt patterns but must earn trust before exploring or creating.
+The trust baseline for new principals, giving a score of approximately 0.47. Places new entities in the ADAPT dial zone, where they can replay and adapt patterns but must earn trust before exploring or creating.
 
 ### Consent Edge
-A directed permission from one [namespace](/docs/concepts/namespaces) to another, allowing the target to see the source's observations at specified [hash levels](/docs/concepts/hash-levels) (L1-L3 only, never L0). The unit of federation.
+A directed permission from one namespace to another, allowing the target to see the source's observations at specified hash levels (L1-L3 only, never L0). The unit of federation.
 
 ### Content Hash
 SHA-256 of the canonical JSON representation of an object. Used for identity, integrity verification, and deduplication. Always 64 lowercase hex characters.
 
 ### CRL (Certificate Revocation List)
-A list of revoked principal DIDs and SCT hashes. [Check 1](/docs/concepts/governance) in the governance pipeline. When a service account is deactivated, its DID is added to the CRL.
+A list of revoked principal DIDs and SCT hashes. Check 1 in the governance pipeline. When a service account is deactivated, its DID is added to the CRL.
 
 ### Crystallization
 The process by which a repeatedly successful pattern becomes a permanent, trusted entry in the registry. Requires consistent reliability across many observations and positive pattern efficiency.
@@ -31,21 +31,21 @@ The process by which a repeatedly successful pattern becomes a permanent, truste
 ## D
 
 ### Deny Rule
-An explicit prohibition matching effects by resource patterns and/or primitives. Deny rules follow **forbid-wins** semantics: any deny at any [namespace](/docs/concepts/namespaces) level blocks the effect. No capability grant can override a deny.
+An explicit prohibition matching effects by resource patterns and/or primitives. Deny rules follow **forbid-wins** semantics: any deny at any namespace level blocks the effect. No capability grant can override a deny.
 
 ### DID (Decentralized Identifier)
 A portable identity string for principals. Format: `did:sync:user:<id>`, `did:sync:sa:<id>`, `did:sync:runner:<id>`.
 
 ### Dial
-A single continuous parameter on \[0, 1\] that controls the balance between deterministic replay and creative generation. Divided into 4 zones at exact fractional thresholds. See [The Dial](/docs/concepts/the-dial).
+A single continuous parameter on \[0, 1\] that controls the balance between deterministic replay and creative generation. Divided into 4 zones at exact fractional thresholds. See The Dial.
 
 ### Dial Ceiling
-The maximum dial position a session can use. Derived as `min(identity_max, namespace_ceiling, trust_to_dial, budget_to_dial)`. Encoded in the [SCT](/docs/concepts/governance).
+The maximum dial position a session can use. Derived as `min(identity_max, namespace_ceiling, trust_to_dial, budget_to_dial)`. Encoded in the SCT.
 
 ## E
 
 ### Effect
-The atomic unit of computation. An effect combines a [primitive](/docs/concepts/effects) (GET, PUT, CALL, MAP), input [shape](/docs/concepts/effects), output shape, operation, and parameters. See [The Effect Algebra](/docs/concepts/effects).
+The atomic unit of computation. An effect combines a primitive (GET, PUT, CALL, MAP), input shape, output shape, operation, and parameters. See The Effect Algebra.
 
 ### Elevated Tier
 The governance tier for sessions with dial &ge; 2/3 (CREATE zone). Adds [HITL](#hitl) approval requirements for PUT and CALL effects on top of standard governance checks.
@@ -53,29 +53,29 @@ The governance tier for sessions with dial &ge; 2/3 (CREATE zone). Adds [HITL](#
 ## F
 
 ### Federation
-Consent-gated sharing of observations across [namespace](/docs/concepts/namespaces) boundaries. Registries exchange `(hash, observation_count, cost)` tuples at L1-L3 levels. Observations use automatic conflict-free merging — merging always produces the same result regardless of order.
+Consent-gated sharing of observations across namespace boundaries. Registries exchange `(hash, observation_count, cost)` tuples at L1-L3 levels. Observations use automatic conflict-free merging — merging always produces the same result regardless of order.
 
 ### Forbid-Wins
 The deny composition rule: if any deny rule at any level in the namespace chain matches an effect, the effect is blocked. No amount of ALLOW at a child level can override a DENY from a parent.
 
 ### Freshness Factor
-Temporal decay applied to trust scores. After 30 days without observations, trust decays halfway back toward the [default starting trust](#default-starting-trust).
+Temporal decay applied to trust scores. After 30 days without observations, trust decays halfway back toward the default starting trust.
 
 ### Frozen Foundations
-15 immutable protocol constants (F1-F15) that will never change. See [Frozen Foundations](/docs/reference/frozen-foundations).
+15 immutable protocol constants (F1-F15) that will never change. See Frozen Foundations.
 
 ## G
 
 ### Governance Tier
-Either STANDARD (dial \< 2/3) or ELEVATED (dial &ge; 2/3). Determines which [governance checks](/docs/concepts/governance) apply.
+Either STANDARD (dial \< 2/3) or ELEVATED (dial &ge; 2/3). Determines which governance checks apply.
 
 ## H
 
 ### Hash Access
-The set of [hash levels](/docs/concepts/hash-levels) a session can use for pattern matching. Determined by dial zone: REPLAY gets L0 only, CREATE gets L0-L3. Encoded in the SCT.
+The set of hash levels a session can use for pattern matching. Determined by dial zone: REPLAY gets L0 only, CREATE gets L0-L3. Encoded in the SCT.
 
 ### Hash Level
-One of 4 levels of content-addressed hashing: L0 (Exact), L1 (Structural), L2 (Flow), L3 (Intent). Each level strips more detail, enabling privacy-preserving sharing. See [Hash Levels](/docs/concepts/hash-levels).
+One of 4 levels of content-addressed hashing: L0 (Exact), L1 (Structural), L2 (Flow), L3 (Intent). Each level strips more detail, enabling privacy-preserving sharing. See Hash Levels.
 
 ### HITL (Human-in-the-Loop)
 Check 10 in the governance pipeline. Required for PUT and CALL effects in the [ELEVATED tier](#elevated-tier) (dial &ge; 2/3). Blocks execution until a human approves or denies. Managed via `spl hitl pending/approve/deny`.
@@ -88,17 +88,17 @@ The cryptographic chain linking derived work to its source materials. Every outp
 ## M
 
 ### Monotonic Narrowing
-The principle that child [namespaces](/docs/concepts/namespaces) can never have more permissions than their parent. Capabilities compose via set intersection, deny rules via union, budgets via min(). Governance can only get stricter as you go deeper.
+The principle that child namespaces can never have more permissions than their parent. Capabilities compose via set intersection, deny rules via union, budgets via min(). Governance can only get stricter as you go deeper.
 
 ## N
 
 ### Namespace
-The unit of governance, tenancy, federation, secrets, and budgets. Namespaces form a [5-level hierarchy](/docs/concepts/namespaces) (DEFAULT, ORG, PROJECT, ENV, JOB) where policies monotonically narrow.
+The unit of governance, tenancy, federation, secrets, and budgets. Namespaces form a 5-level hierarchy (DEFAULT, ORG, PROJECT, ENV, JOB) where policies monotonically narrow.
 
 ## O
 
 ### Observation
-A record of successful or failed effect execution. Observations update [trust scores](/docs/concepts/trust) and are the unit of [federation](#federation) — registries share observation counts at L1-L3 hash levels.
+A record of successful or failed effect execution. Observations update trust scores and are the unit of [federation](#federation) — registries share observation counts at L1-L3 hash levels.
 
 ### Operation
 A specialization of a primitive: `db.query` is a GET operation, `llm.generate` is a CALL operation. Defaults to the lowercase primitive if not specified. Matched via glob patterns in policies.
@@ -106,13 +106,13 @@ A specialization of a primitive: `db.query` is a GET operation, `llm.generate` i
 ## P
 
 ### Pattern
-A reusable computation template stored in the registry, identified by content-addressed hashes at 4 levels. Patterns are discovered through observation and can be matched at varying granularity via the [dial](/docs/concepts/the-dial).
+A reusable computation template stored in the registry, identified by content-addressed hashes at 4 levels. Patterns are discovered through observation and can be matched at varying granularity via the dial.
 
 ### Principal
 An entity with identity: a user, service account, runner, or anonymous actor. Every governance decision traces back to a principal via their DID.
 
 ### Primitive
-One of the 4 frozen effect types: GET (read), PUT (write), CALL (invoke), MAP (transform). See [The Effect Algebra](/docs/concepts/effects).
+One of the 4 frozen effect types: GET (read), PUT (write), CALL (invoke), MAP (transform). See The Effect Algebra.
 
 ## R
 
@@ -122,13 +122,13 @@ The governance engine: computes SCTs, manages policies, stores observations, coo
 ## S
 
 ### SCT (Session Capability Token)
-The primary governance primitive. Computed once at session creation, encoding all constraints: capability, deny rules, budget, dial ceiling, hash access, trust score, and expiry. Validated at every effect execution. See [Governance](/docs/concepts/governance).
+The primary governance primitive. Computed once at session creation, encoding all constraints: capability, deny rules, budget, dial ceiling, hash access, trust score, and expiry. Validated at every effect execution. See Governance.
 
 ### Service Account
 A machine identity with a DID, API key, and configured maximum dial. Managed via `spl auth sa-create/sa-list/sa-revoke/sa-rotate`.
 
 ### Shape
-One of the 5 frozen data types: VOID, ONE, OPTIONAL, MANY, KEYED. Every effect has an input shape and output shape. See [The Effect Algebra](/docs/concepts/effects).
+One of the 5 frozen data types: VOID, ONE, OPTIONAL, MANY, KEYED. Every effect has an input shape and output shape. See The Effect Algebra.
 
 ### spl
 The Syncropel CLI command. See [CLI Reference](/docs/reference/cli).
@@ -139,4 +139,4 @@ The Syncropel CLI command. See [CLI Reference](/docs/reference/cli).
 The complete record of an execution: all effects, their inputs, outputs, and timing. Traces are the primary output of execution — inspectable via `spl trace ls/show/stats`.
 
 ### Trust Score
-A confidence measure computed from your track record. Accounts for both success rate and sample size, combined with [default starting trust](#default-starting-trust) and temporal decay, and bridges to the [dial ceiling](/docs/concepts/the-dial). See [Trust](/docs/concepts/trust).
+A confidence measure computed from your track record. Accounts for both success rate and sample size, combined with default starting trust and temporal decay, and bridges to the dial ceiling. See Trust.

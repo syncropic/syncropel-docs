@@ -39,7 +39,7 @@ The tracer hooks into 4 Claude Code events:
 | `Stop` | — | 10s | Finalize and flush session |
 | `SessionEnd` | (all) | 5s | Clean up resources |
 
-The tracer is **stdlib-only** — no pip install needed, no dependency conflicts. It maps Claude Code tool calls to the [effect algebra](/docs/concepts/effects) (GET, PUT, CALL, MAP) and writes traces to `~/.syncro/traces/`.
+The tracer is **stdlib-only** — no pip install needed, no dependency conflicts. It maps Claude Code tool calls to the effect algebra (GET, PUT, CALL, MAP) and writes traces to `~/.syncro/traces/`.
 
 ## Progressive Discovery
 
@@ -178,5 +178,5 @@ Syncropel doesn't wrap the AI. It observes the AI and governs through validated 
 
 - [CLI Reference](/docs/reference/cli) — All commands with flags and exit codes
 - [Quick Start](/docs/tutorials/quickstart) — Get running in 5 minutes
-- [Governance](/docs/concepts/governance) — The SCT pipeline that agents are governed by
-- [The Dial](/docs/concepts/the-dial) — How trust unlocks agent autonomy
+
+
