@@ -71,7 +71,7 @@ Four-tab governance hub covering trust, audit, human-in-the-loop, and revocation
 
 | Tab | Purpose |
 |-----|---------|
-| **Trust** | Trust scores computed from statistical evidence (Wilson interval + time decay) |
+| **Trust** | Trust scores computed from statistical evidence |
 | **Audit Trail** | Filterable log of all governance events (SESSION_CREATED, POLICY_SET, SA_CREATED, etc.) |
 | **HITL Queue** | Human-in-the-loop approval queue for operations requiring human review |
 | **CRL** | Certificate Revocation List — revoked credentials and deactivated service accounts |
@@ -81,7 +81,7 @@ Four-tab governance hub covering trust, audit, human-in-the-loop, and revocation
 Manage connections to remote registries and consent grants for cross-registry evidence sharing.
 
 - **Remotes**: Add and manage remote registry connections
-- **Consent**: Grant federation consent between namespaces (L1-L3 only — L0 exact hashes never leave the local namespace per Foundation F8)
+- **Consent**: Grant federation consent between namespaces (L1-L3 only — L0 exact hashes never leave your local namespace)
 
 ### Service Accounts
 
@@ -96,7 +96,7 @@ Create and manage API keys for programmatic access to the registry.
 Studio stores connection profiles locally in your browser (localStorage). Each profile specifies:
 
 - **Name**: Human-readable label (e.g., "Local Dev", "Production")
-- **Tracer URL**: The registry API endpoint (e.g., `localhost:9100`, `registry.syncropel.com`)
+- **Tracer URL**: The registry API endpoint (e.g., `localhost:9100`, `api.syncropel.com`)
 - **Type**: Local or remote (determines auth behavior)
 
 Switch between profiles from the connection settings panel. Local profiles bypass authentication; remote profiles require Clerk sign-in.

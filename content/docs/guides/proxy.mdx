@@ -17,14 +17,14 @@ description: Observe every LLM call — model, tokens, cost, latency
 
 ## What gets recorded
 
-Each API call produces two SURE records:
+Each API call produces two records:
 
-**INTEND** (from your prompt):
+**Request record:**
 - `body.goal`: first 2000 chars of your message
 - `body.proxy.model`: model name
 - `body.proxy.message_count`: messages in context
 
-**LEARN** (from the response):
+**Response record:**
 - `body.insight`: first 2000 chars of the response
 - `body.proxy.model`: model used
 - `body.proxy.input_tokens`: tokens in

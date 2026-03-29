@@ -145,7 +145,7 @@ spl policy show acme/analytics -j
 spl namespace resolve acme/analytics/prod -j
 ```
 
-The resolved view is what the [SCT](/docs/concepts/governance) actually uses — it's the final result after walking the entire ancestor chain.
+The resolved view is what your [session permissions](/docs/concepts/governance) actually use — it's the final result after walking the entire ancestor chain.
 
 ## Testing Policies
 
@@ -222,6 +222,6 @@ Wide open for experimentation. All primitives, all operations, generous budget, 
 ## Related
 
 - [Namespaces](/docs/concepts/namespaces) — The hierarchy where policies live
-- [Governance](/docs/concepts/governance) — How policies become SCT constraints
+- [Governance](/docs/concepts/governance) — How policies become session permissions
 - [Frozen Foundations](/docs/reference/frozen-foundations) — The immutable primitives and shapes
 - [CLI Reference](/docs/reference/cli) — `spl policy` command details

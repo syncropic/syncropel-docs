@@ -13,14 +13,14 @@ A 4-dimensional constraint on session cost: compute (USD), latency (ms), quality
 ### Capability Envelope
 The set of effects a session is allowed to execute: primitives, shapes, operations (glob patterns), resources (glob patterns), max effects, and max depth. Resolved through [namespace hierarchy](/docs/concepts/namespaces) via set intersection.
 
-### Cold-Start Prior
-The trust baseline for new principals: Beta(7, 10), giving a Wilson lower bound of approximately 0.47. Places new entities in the ADAPT [dial zone](/docs/concepts/the-dial), where they can replay and adapt patterns but must earn trust before exploring or creating.
+### Default Starting Trust
+The trust baseline for new principals, giving a score of approximately 0.47. Places new entities in the ADAPT [dial zone](/docs/concepts/the-dial), where they can replay and adapt patterns but must earn trust before exploring or creating.
 
 ### Consent Edge
 A directed permission from one [namespace](/docs/concepts/namespaces) to another, allowing the target to see the source's observations at specified [hash levels](/docs/concepts/hash-levels) (L1-L3 only, never L0). The unit of federation.
 
 ### Content Hash
-SHA-256 of the canonical JSON representation of an object. Used for identity (F10), integrity verification, and deduplication. Always 64 lowercase hex characters.
+SHA-256 of the canonical JSON representation of an object. Used for identity, integrity verification, and deduplication. Always 64 lowercase hex characters.
 
 ### CRL (Certificate Revocation List)
 A list of revoked principal DIDs and SCT hashes. [Check 1](/docs/concepts/governance) in the governance pipeline. When a service account is deactivated, its DID is added to the CRL.
@@ -37,7 +37,7 @@ An explicit prohibition matching effects by resource patterns and/or primitives.
 A portable identity string for principals. Format: `did:sync:user:<id>`, `did:sync:sa:<id>`, `did:sync:runner:<id>`.
 
 ### Dial
-A single continuous parameter on \[0, 1\] that controls the balance between deterministic replay and creative generation. Divided into 4 zones at exact fractional thresholds (F4, F5). See [The Dial](/docs/concepts/the-dial).
+A single continuous parameter on \[0, 1\] that controls the balance between deterministic replay and creative generation. Divided into 4 zones at exact fractional thresholds. See [The Dial](/docs/concepts/the-dial).
 
 ### Dial Ceiling
 The maximum dial position a session can use. Derived as `min(identity_max, namespace_ceiling, trust_to_dial, budget_to_dial)`. Encoded in the [SCT](/docs/concepts/governance).
@@ -53,13 +53,13 @@ The governance tier for sessions with dial &ge; 2/3 (CREATE zone). Adds [HITL](#
 ## F
 
 ### Federation
-Consent-gated sharing of observations across [namespace](/docs/concepts/namespaces) boundaries. Registries exchange `(hash, observation_count, cost)` tuples at L1-L3 levels. Observations are CRDT G-Counters — merges are commutative, associative, and idempotent.
+Consent-gated sharing of observations across [namespace](/docs/concepts/namespaces) boundaries. Registries exchange `(hash, observation_count, cost)` tuples at L1-L3 levels. Observations use automatic conflict-free merging — merging always produces the same result regardless of order.
 
 ### Forbid-Wins
 The deny composition rule: if any deny rule at any level in the namespace chain matches an effect, the effect is blocked. No amount of ALLOW at a child level can override a DENY from a parent.
 
 ### Freshness Factor
-Temporal decay applied to trust scores: `exp(-days * ln(2) / 30)`. After 30 days without observations, trust is halfway between the raw score and the [cold-start prior](#cold-start-prior).
+Temporal decay applied to trust scores. After 30 days without observations, trust decays halfway back toward the [default starting trust](#default-starting-trust).
 
 ### Frozen Foundations
 15 immutable protocol constants (F1-F15) that will never change. See [Frozen Foundations](/docs/reference/frozen-foundations).
@@ -101,7 +101,7 @@ The unit of governance, tenancy, federation, secrets, and budgets. Namespaces fo
 A record of successful or failed effect execution. Observations update [trust scores](/docs/concepts/trust) and are the unit of [federation](#federation) — registries share observation counts at L1-L3 hash levels.
 
 ### Operation
-A specialization of a primitive: `db.query` is a GET operation, `llm.generate` is a CALL operation. Defaults to the lowercase primitive if not specified (F15). Matched via glob patterns in policies.
+A specialization of a primitive: `db.query` is a GET operation, `llm.generate` is a CALL operation. Defaults to the lowercase primitive if not specified. Matched via glob patterns in policies.
 
 ## P
 
@@ -114,18 +114,10 @@ An entity with identity: a user, service account, runner, or anonymous actor. Ev
 ### Primitive
 One of the 4 frozen effect types: GET (read), PUT (write), CALL (invoke), MAP (transform). See [The Effect Algebra](/docs/concepts/effects).
 
-## Q
-
-### QuadMetrics
-The 4-dimensional budget model: compute (USD), latency (ms), quality floor \[0,1\], risk ceiling \[0,1\]. Used in [budget envelopes](#budget-envelope).
-
 ## R
 
 ### Registry
 The governance engine: computes SCTs, manages policies, stores observations, coordinates federation, maintains audit trails. Runs locally via `spl serve` or in production.
-
-### registry-core
-The shared governance library (`syncropel-registry-core`). Zero dependencies, implements governance checks 3-9. Used by both the CLI and production registry.
 
 ## S
 
@@ -147,9 +139,4 @@ The Syncropel CLI command. See [CLI Reference](/docs/reference/cli).
 The complete record of an execution: all effects, their inputs, outputs, and timing. Traces are the primary output of execution — inspectable via `spl trace ls/show/stats`.
 
 ### Trust Score
-A mathematically computed confidence measure. Accounts for sample size, applies temporal decay, and bridges to the [dial ceiling](/docs/concepts/the-dial). See [Trust](/docs/concepts/trust).
-
-## W
-
-### Wilson Score
-The statistical method used for trust computation. Accounts for both success rate and sample size. Combined with a [cold-start prior](#cold-start-prior) and temporal decay. See [Trust](/docs/concepts/trust) for the full algorithm.
+A confidence measure computed from your track record. Accounts for both success rate and sample size, combined with [default starting trust](#default-starting-trust) and temporal decay, and bridges to the [dial ceiling](/docs/concepts/the-dial). See [Trust](/docs/concepts/trust).

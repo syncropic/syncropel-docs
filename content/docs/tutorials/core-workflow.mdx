@@ -15,7 +15,7 @@ spl serve
 
 ```
 Syncropel registry starting...
-  Database: ~/.syncropel/registry.duckdb (persistent)
+  Database: ~/.syncro/hub.db (persistent)
   API: http://localhost:9100
   Namespace: default
 
@@ -55,7 +55,7 @@ spl namespace ls -j
 }
 ```
 
-Each level inherits from its parent via [monotonic narrowing](/docs/concepts/namespaces) — child policies can only restrict, never expand.
+Each level inherits from its parent — child policies can only be stricter, never more permissive.
 
 ## 3. Set a Policy
 
@@ -267,7 +267,7 @@ Install the Claude Code integration:
 spl setup --all
 ```
 
-This installs a skill file, tracer script, and hook config. The tracer captures every tool call as a Syncropel effect and writes traces to `~/.syncropel/traces/`.
+This installs a skill file, tracer script, and hook config. The tracer captures every tool call as a Syncropel effect and writes traces to `~/.syncro/traces/`.
 
 Set the actor identity:
 
@@ -292,7 +292,7 @@ default (all primitives, $0.10 budget)
               └── Audit: every action recorded
 ```
 
-Every namespace in this hierarchy is governed. Every effect is validated against the SCT. Every outcome feeds trust. Every action is audited.
+Every namespace in this hierarchy is governed. Every effect is validated against your session's permissions. Every outcome feeds trust. Every action is audited.
 
 ## Next Steps
 

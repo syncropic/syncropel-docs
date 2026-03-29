@@ -123,29 +123,6 @@ spl namespace resolve acme/analytics/prod -j
 spl namespace use acme/analytics/prod
 ```
 
-## Using the Library
-
-The namespace resolver uses **callback injection** — you provide functions for fetching namespaces and policies from any backing store:
-
-```python
-from syncropel_registry_core.namespaces import resolve_namespace
-
-# Your storage callbacks (works with DuckDB, PostgreSQL, in-memory, anything)
-def get_ns(ns_id: str) -> dict | None:
-    return your_db.get_namespace(ns_id)
-
-def get_policy(ns_id: str) -> dict | None:
-    return your_db.get_policy(ns_id)
-
-# Resolve walks: DEFAULT → acme → acme/analytics → acme/analytics/prod
-effective = resolve_namespace("acme/analytics/prod", get_ns, get_policy)
-
-print(effective["capability"]["primitives"])  # {"GET", "CALL"}
-print(effective["budget"]["compute_usd"])     # 0.02
-print(effective["dial_ceiling"])              # 0.3333
-print(effective["deny"]["rules"])             # [{resources: ["/secret/*"], ...}]
-```
-
 ## Pattern Matching in Policies
 
 Operations and resources in capability envelopes use **glob patterns**:
@@ -163,7 +140,7 @@ When namespaces compose, patterns use **subsumption**: a child pattern must be s
 
 Namespaces are the federation boundary:
 
-- **L0 hashes never leave a namespace** (F8)
+- **L0 hashes never leave a namespace**
 - **Consent edges** define which namespaces can share L1-L3 observations
 - **Trust scores** are computed per principal per namespace domain
 - **Budget** is allocated and tracked per namespace
@@ -174,5 +151,5 @@ When you run `spl federation grant`, you're granting one namespace permission to
 
 - [Governance](/docs/concepts/governance) — How SCTs encode namespace-resolved policies
 - [The Dial](/docs/concepts/the-dial) — Dial ceiling is part of namespace policy
-- [Hash Levels](/docs/concepts/hash-levels) — L0 never crosses namespace boundaries (F8)
+- [Hash Levels](/docs/concepts/hash-levels) — L0 never crosses namespace boundaries
 - [Trust](/docs/concepts/trust) — Trust scores are scoped to namespace domains

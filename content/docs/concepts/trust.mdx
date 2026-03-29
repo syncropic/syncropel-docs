@@ -1,145 +1,39 @@
 ---
 title: Trust
-description: "Mathematically computed trust with cold-start prior and temporal decay — trust is a statistic, not a feeling."
+description: How reliability is measured and used
 ---
 
-Trust in Syncropel is computed mathematically using the **Wilson score lower bound** — a statistical method that accounts for both the success rate and the sample size. 3 successes out of 3 attempts scores lower than 95 out of 100, because the system rewards consistent evidence over small samples.
+## How Trust Works
 
-Trust is not a feeling. It is a statistic with a formula, a prior, and a decay function.
+Trust in Syncropel is computed automatically from your track record — not assigned by an administrator.
 
-## The Formula
+### Trust grows with success
 
-The Wilson score lower bound at 95% confidence:
+Every successful action adds evidence to your trust score. The more reliable you are in a domain, the higher your trust.
 
-```
-p̂ = (successes + 7) / (trials + 10)
+### Trust decays over time
 
-                p̂ + z²/2n - z × √(p̂(1-p̂)/n + z²/4n²)
-wilson_lower = ──────────────────────────────────────────
-                            1 + z²/n
+Trust is time-sensitive. Recent evidence matters more than old evidence. If you haven't used a pattern in a while, your trust in that area decreases.
 
-where z = 1.96, n = trials + 10
-```
+### Trust controls autonomy
 
-The `+7` successes and `+10` trials are the **cold-start prior** — a Beta(7, 10) distribution baked into every computation. This means:
+Your trust score directly affects what you can do:
 
-| State | Wilson Lower Bound | Dial Ceiling |
-|-------|-------------------|-------------|
-| Brand new (0 observations) | ~0.47 | 0.50 (REPLAY + ADAPT) |
-| 10 successes, 0 failures | ~0.63 | 0.6667 (+ EXPLORE) |
-| 50 successes, 2 failures | ~0.80 | 1.0 (full CREATE) |
-| 3 successes, 3 failures | ~0.41 | 0.50 (REPLAY + ADAPT) |
-| 0 successes, 5 failures | ~0.30 | 0.3333 (REPLAY only) |
+| Trust Level | What You Can Do |
+|-------------|-----------------|
+| Low (new user) | Basic operations, limited autonomy |
+| Medium | Standard operations, moderate autonomy |
+| High | Advanced operations, high autonomy |
+| Very high | Full autonomy, creative exploration |
 
-The cold-start prior is deliberately generous — new principals land in ADAPT, not locked out completely. But they can't access EXPLORE or CREATE until they prove reliability.
+### New users start with moderate trust
 
-## Temporal Decay
+You don't start at zero — the system gives new users enough trust to be productive immediately, then adjusts based on evidence.
 
-Trust decays over time. If you stop using a pattern, your trust in that domain gradually returns to the cold-start baseline.
+### Trust is per-domain
 
-**Decay formula** (30-day half-life):
+Trust is computed separately for different types of work. You might have high trust in "code editing" but low trust in "deployment." Each domain tracks independently.
 
-```
-freshness = exp(-days × ln(2) / 30)
+## Learn More
 
-effective_score = raw_score × freshness + 0.47 × (1 - freshness)
-```
-
-| Days Since Last Observation | Freshness | Effect |
-|----------------------------|-----------|--------|
-| 0 | 1.00 | Full trust score |
-| 15 | 0.71 | 71% current + 29% prior |
-| 30 | 0.50 | 50% current + 50% prior |
-| 60 | 0.25 | 25% current + 75% prior |
-| 90 | 0.13 | Nearly back to cold-start |
-
-The half-life of 30 days means: after 30 days without observations, your effective score is halfway between your raw score and the cold-start prior (0.47). After 90 days, you're nearly back to baseline.
-
-## Trust-to-Dial Ceiling Bridge
-
-Your effective trust score determines the maximum [dial](/docs/concepts/the-dial) position available:
-
-| Effective Trust | Dial Ceiling | Zones Unlocked |
-|----------------|-------------|----------------|
-| \< 0.30 | 1/3 (0.3333) | REPLAY only |
-| \< 0.50 | 1/2 (0.50) | REPLAY + ADAPT |
-| \< 0.70 | 2/3 (0.6667) | + EXPLORE |
-| &ge; 0.70 | 1.0 | + CREATE |
-
-These thresholds use **buffer zones** above the [dial zone boundaries](/docs/concepts/the-dial) (F4). You need trust of 0.70 to unlock CREATE, even though CREATE starts at 2/3 — the buffer ensures a principal has demonstrated reliability well above the zone boundary before gaining access.
-
-The actual session dial ceiling is the **minimum** of four values:
-
-```
-dial_ceiling = min(
-    identity_max_dial,       # Service account's configured maximum
-    namespace_dial_ceiling,  # Namespace policy limit
-    trust_to_dial(wilson),   # This mapping
-    budget_to_dial(ratio),   # Budget remaining ratio
-)
-```
-
-## Observations
-
-Trust grows through observations — records of successful or failed effect execution:
-
-```bash
-# Record a successful observation
-spl observe record --namespace acme/analytics --outcome success -j
-
-# Record a failure
-spl observe record --namespace acme/analytics --outcome failure -j
-```
-
-Each observation updates the Wilson score for the (principal, namespace domain) pair. Successes increase trust. Failures decrease it. The system accounts for sample size at every step.
-
-Observations are also the unit of **federation** — registries share observation counts (not raw data) to build cross-organizational trust.
-
-## Using the Library
-
-```python
-from syncropel_registry_core.trust import (
-    GovernanceTrustScore,
-    wilson_lower_bound,
-    trust_to_dial_ceiling,
-)
-
-# Compute a trust score
-trust = GovernanceTrustScore(
-    principal_did="did:sync:user:alice",
-    domain="db.query",
-    successes=45,
-    trials=50,
-    days_since_last_observation=5,
-).compute()
-
-print(trust.raw_score)          # Wilson lower bound (no decay)
-print(trust.freshness_factor)   # exp(-5 × ln(2) / 30) ≈ 0.891
-print(trust.effective_score)    # raw × freshness + 0.47 × (1 - freshness)
-print(trust.trust_dial_ceiling) # 1.0 (full CREATE access)
-
-# Or use the individual functions
-score = wilson_lower_bound(successes=10, trials=12)
-ceiling = trust_to_dial_ceiling(score)
-```
-
-## The Convergence Guarantee
-
-**Axiom A2**: Trust increases, cost decreases with repeated use.
-
-The trust model creates a natural progression:
-
-1. **Cold start**: Wilson ~0.47, ceiling 0.50 → REPLAY + ADAPT
-2. **Early success**: Score rises, EXPLORE unlocks → broader pattern matching
-3. **Proven reliability**: Score passes 0.70, CREATE unlocks → full autonomy
-4. **Crystallization**: High-trust patterns drift toward lower dial → cheaper, faster, deterministic
-5. **Staleness**: Without new observations, decay pulls back toward baseline
-
-This isn't policy — it's convergence driven by evidence. Reliable behavior is rewarded with more autonomy. Unreliable behavior naturally restricts. Stale trust gracefully degrades.
-
-## Related Concepts
-
-- [The Dial](/docs/concepts/the-dial) — Trust determines the dial ceiling
-- [Governance](/docs/concepts/governance) — Trust score is encoded in the SCT
-- [Namespaces](/docs/concepts/namespaces) — Trust is scoped to (principal, namespace domain) pairs
-- [The Effect Algebra](/docs/concepts/effects) — Trust is built from observing effect execution
+For the mathematical details, see the [Syncropel Spec](https://github.com/syncropic/syncropel-spec).

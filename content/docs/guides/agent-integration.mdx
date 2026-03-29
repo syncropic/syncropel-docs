@@ -16,7 +16,7 @@ This installs three components:
 | Component | Location | What It Does |
 |-----------|----------|-------------|
 | **Skill file** | `~/.claude/skills/managing-syncropel/SKILL.md` | Teaches Claude Code what `spl` commands are available |
-| **Tracer script** | `~/.syncropel/hooks/syncropel_trace.py` | Captures tool calls as Syncropel effects (stdlib-only, 1,107 lines) |
+| **Tracer script** | `~/.syncro/hooks/syncropel_trace.py` | Captures tool calls as Syncropel effects (stdlib-only, 1,107 lines) |
 | **Hook config** | `~/.claude/settings.json` | Registers 4 hook events in Claude Code |
 
 ### Selective Installation
@@ -39,7 +39,7 @@ The tracer hooks into 4 Claude Code events:
 | `Stop` | — | 10s | Finalize and flush session |
 | `SessionEnd` | (all) | 5s | Clean up resources |
 
-The tracer is **stdlib-only** — no pip install needed, no dependency conflicts. It maps Claude Code tool calls to the [effect algebra](/docs/concepts/effects) (GET, PUT, CALL, MAP) and writes traces to `~/.syncropel/traces/`.
+The tracer is **stdlib-only** — no pip install needed, no dependency conflicts. It maps Claude Code tool calls to the [effect algebra](/docs/concepts/effects) (GET, PUT, CALL, MAP) and writes traces to `~/.syncro/traces/`.
 
 ## Progressive Discovery
 
@@ -94,9 +94,9 @@ spl audit query -j
 spl init
 ```
 
-Generates two files in `.syncropel/` at the project root:
+Generates two files in `.syncro/` at the project root:
 
-### `.syncropel/ABOUT.md`
+### `.syncro/ABOUT.md`
 
 ```markdown
 # Syncropel
@@ -106,7 +106,7 @@ This project uses Syncropel for governed AI computation.
 - Discovery: `spl help-agent --json` for agent reference
 ```
 
-### `.syncropel/CONVENTIONS.md`
+### `.syncro/CONVENTIONS.md`
 
 Contains the governance reference:
 - **Effect Algebra**: 4 primitives (GET, PUT, CALL, MAP), 5 shapes
@@ -166,7 +166,7 @@ Integration Hook (syncropel_trace.py)
     ├─ INTERCEPT: Capture tool call
     ├─ PARSE: Map to effect (primitive, shapes, operation)
     ├─ HASH: Compute L0-L3 hashes
-    └─ RECORD: Write to ~/.syncropel/traces/
+    └─ RECORD: Write to ~/.syncro/traces/
     ↓
 spl trace ls/show    ← inspect traces
 spl observe record   ← feed trust model

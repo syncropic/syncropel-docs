@@ -23,7 +23,7 @@ Requires Python 3.12+.
 | `spl serve --port 8080` | Use a custom port |
 | `spl serve --open` | Open browser to dashboard on start |
 
-The local registry stores data at `~/.syncropel/` and auto-writes `~/.syncropel/config.yaml` so all CLI commands hit localhost.
+The local registry stores data at `~/.syncro/` and auto-writes `~/.syncro/config.yaml` so all CLI commands hit localhost.
 
 ### namespace — Manage Namespaces
 
@@ -119,7 +119,7 @@ Supports filtering by namespace, action type, principal, and time range.
 | `spl trace risk -j` | Identify high-risk operations |
 | `spl trace pattern <session> -j` | Extract workflow patterns from a session |
 
-Traces are read from `~/.syncropel/traces/` (populated by integration hooks).
+Traces are read from `~/.syncro/traces/` (populated by integration hooks).
 
 ### config — Configuration
 
@@ -139,15 +139,76 @@ Traces are read from `~/.syncropel/traces/` (populated by integration hooks).
 | `spl setup --list` | List installed integrations |
 | `spl setup --remove` | Remove installed integrations |
 
-### init — Project Discovery
+### init — Setup Wizard
 
 | Command | Description |
 |---------|------------|
-| `spl init` | Generate `.syncropel/ABOUT.md` and `CONVENTIONS.md` |
-| `spl init --force` | Overwrite existing discovery files |
-| `spl init --dir <path>` | Generate in a specific directory |
+| `spl init` | Interactive 4-step setup wizard (directory, integrations, model, daemon) |
+| `spl init --yes` | Non-interactive setup with defaults |
+| `spl init --key <key>` | Configure API key non-interactively |
+| `spl init --status` | Show current configuration status |
+| `spl init --project` | Generate `.syncro/` discovery files in current project |
 
-Discovery files help AI agents understand the project's Syncropel configuration.
+### run — Goal Execution
+
+| Command | Description |
+|---------|------------|
+| `spl run "goal"` | Execute a goal with the configured agent |
+| `spl run "goal" --timeout 30` | Set execution timeout |
+
+### thread — Thread Management
+
+| Command | Description |
+|---------|------------|
+| `spl thread list -j` | List open threads |
+| `spl thread show <id> -j` | Show thread details |
+| `spl thread watch <id>` | Watch thread progress in real-time |
+| `spl thread close <id>` | Close a thread |
+
+### actor — Actor Management
+
+| Command | Description |
+|---------|------------|
+| `spl actor create --did <did>` | Register an actor |
+| `spl actor list -j` | List all actors |
+| `spl actor show <did> -j` | Show actor details and trust |
+| `spl actor retire <did>` | Retire an actor |
+
+### skill — Skill Management
+
+| Command | Description |
+|---------|------------|
+| `spl skill list -j` | List available skills |
+| `spl skill show <name>` | Show skill details |
+
+### dashboard — Live Dashboard
+
+| Command | Description |
+|---------|------------|
+| `spl dashboard` | Rich live terminal dashboard |
+
+### stats — Registry Statistics
+
+| Command | Description |
+|---------|------------|
+| `spl stats -j` | Show registry statistics |
+
+### intend / do / know / learn — Record Shortcuts
+
+| Command | Description |
+|---------|------------|
+| `spl intend "goal"` | Emit an INTEND record |
+| `spl do "action"` | Emit a DO record |
+| `spl know "fact"` | Emit a KNOW record |
+| `spl learn "insight"` | Emit a LEARN record |
+
+### config — Configuration
+
+| Command | Description |
+|---------|------------|
+| `spl config show -j` | View current configuration |
+| `spl config model <model>` | Set the agent model |
+| `spl config set-key` | Configure API key interactively |
 
 ### help-agent — Progressive Discovery
 
@@ -200,16 +261,16 @@ Designed for AI agents — token-budgeted responses in structured JSON.
 Configuration is layered (lowest to highest priority):
 
 1. **Built-in defaults** — sensible out of the box
-2. **Config file** — `~/.syncropel/config.yaml` (preferred) or `config.json` (legacy)
+2. **Config file** — `~/.syncro/config.yaml` (preferred) or `config.json` (legacy)
 3. **Environment variables** — `SPL_REGISTRY_URL`, `SPL_HOME`, etc.
 
 Default configuration values:
 
 | Key | Default |
 |-----|---------|
-| `trace_dir` | `~/.syncropel/traces` |
-| `registry_url` | `https://registry.syncropel.com` |
-| `registry.db_path` | `~/.syncropel/registry.duckdb` |
+| `trace_dir` | `~/.syncro/traces` |
+| `registry_url` | `https://api.syncropel.com` |
+| `registry.db_path` | `~/.syncro/hub.db` |
 | `registry.port` | `9100` |
 | `current_namespace` | `default` |
 

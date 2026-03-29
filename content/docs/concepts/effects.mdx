@@ -3,11 +3,11 @@ title: The Effect Algebra
 description: "GET, PUT, CALL, MAP and VOID, ONE, OPTIONAL, MANY, KEYED — the atomic vocabulary of all computation in Syncropel."
 ---
 
-Every computation in Syncropel decomposes into **effects** — atomic units with a primitive, input shape, output shape, operation, and parameters. This isn't a design choice; it's a mathematical property. A closed set of primitives and shapes form a closed algebra under composition.
+Every computation in Syncropel decomposes into **effects** — atomic units with a primitive, input shape, output shape, operation, and parameters. The four primitives cover all possible operations.
 
 ## Primitives
 
-These are **Frozen Foundation F1** — they will never change.
+These four primitives are permanent — they will never change.
 
 | Primitive | What It Does | Example |
 |-----------|-------------|---------|
@@ -26,7 +26,7 @@ Any computational action — no matter how complex — decomposes into a sequenc
 
 ## Data Shapes
 
-These are **Frozen Foundation F2** — they will never change.
+These five shapes are permanent — they will never change.
 
 | Shape | What It Means | Example |
 |-------|--------------|---------|
@@ -47,17 +47,7 @@ PUT  MANY→VOID      Write results (no return)
 
 ## Shape Compatibility
 
-When connecting effects in a sequence, the output shape of one effect must be **compatible** with the input shape of the next. This is **Frozen Foundation F11**:
-
-| Output Shape | Compatible Input Shapes |
-|-------------|------------------------|
-| VOID | VOID |
-| ONE | ONE, OPTIONAL, MANY, KEYED |
-| OPTIONAL | OPTIONAL, MANY, VOID |
-| MANY | MANY, OPTIONAL, ONE |
-| KEYED | KEYED, MANY, ONE |
-
-The governance validator enforces this at Check 3 (shape flow). Incompatible connections are rejected before execution.
+When connecting effects in a sequence, the output shape of one effect must be **compatible** with the input shape of the next. The system validates that connected effects have compatible shapes. Incompatible connections are rejected before execution.
 
 ## Effect Structure
 
@@ -72,7 +62,7 @@ Effect = Primitive × Input Shape × Output Shape × Operation × Parameters
 | **Primitive** | Yes | One of GET, PUT, CALL, MAP |
 | **Input Shape** | Yes | One of VOID, ONE, OPTIONAL, MANY, KEYED |
 | **Output Shape** | Yes | One of VOID, ONE, OPTIONAL, MANY, KEYED |
-| **Operation** | No | Specialization (e.g., `db.query`, `llm.generate`, `http.post`). Defaults to lowercase primitive if absent (F15). |
+| **Operation** | No | Specialization (e.g., `db.query`, `llm.generate`, `http.post`). Defaults to lowercase primitive if absent. |
 | **Parameters** | No | Runtime values (e.g., `{"table": "users", "limit": 100}`) |
 
 ## Operations
@@ -92,7 +82,7 @@ Operations are matched via **glob patterns** in governance policies:
 - `*` matches everything
 - Policies use operation patterns to control what a session can do
 
-**Operation Fallback (F15)**: If no operation is specified, it defaults to the lowercase primitive — `GET` becomes `"get"`, `MAP` becomes `"map"`.
+**Operation Fallback**: If no operation is specified, it defaults to the lowercase primitive — `GET` becomes `"get"`, `MAP` becomes `"map"`.
 
 ## Hashing: Privacy from Structure
 
@@ -105,7 +95,7 @@ The primitive + shape algebra enables **content-addressed hashing at progressive
 | **L2** (Flow) | Primitive + shapes | Medium | Cross-org structure matching |
 | **L3** (Intent) | Shapes only | Minimum | Universal intent matching |
 
-L0 hashes **never leave your namespace** (F8). Higher levels progressively strip detail, enabling privacy-preserving knowledge sharing across organizations.
+L0 hashes **never leave your namespace**. Higher levels progressively strip detail, enabling privacy-preserving knowledge sharing across organizations.
 
 Learn more: [Hash Levels](/docs/concepts/hash-levels)
 
@@ -134,28 +124,6 @@ The governance validator checks every effect against the session's SCT:
 - **Check 4**: Does any deny rule block `db.query` on the `customers` table?
 - **Check 5**: Does the session have budget remaining?
 - **Check 6**: Is the dial position within the dial ceiling?
-
-## Using the Library
-
-```python
-from syncropel_registry_core.hashing import compute_hashes
-
-effects = [
-    {
-        "primitive": "GET",
-        "input_shape": "ONE",
-        "output_shape": "MANY",
-        "operation": "db.query",
-        "parameters": {"table": "users"},
-    }
-]
-
-hash_l0, hash_l1, hash_l2, hash_l3 = compute_hashes(effects)
-# L0 = exact (includes parameters) — never leaves local namespace
-# L1 = structural (primitive + shapes + operation)
-# L2 = flow (primitive + shapes)
-# L3 = intent (shapes only) — safest to federate
-```
 
 ## Related Concepts
 

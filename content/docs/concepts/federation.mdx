@@ -63,7 +63,7 @@ The edge is **from → to**, meaning "from grants access to to":
 
 ### L0 Never Leaves
 
-[Frozen Foundation F8](/docs/reference/frozen-foundations): L0 hashes contain exact parameters and must **never** leave the local namespace. This is enforced structurally:
+L0 hashes contain exact parameters and must **never** leave the local namespace. This is enforced structurally:
 
 ```
 Requested: L0  →  Denied (always, regardless of consent)
@@ -76,9 +76,9 @@ The federation check in the [governance validator](/docs/reference/governance-ch
 
 ## Observation Sync
 
-Observations sync between registries using **CRDT G-Counter** semantics:
+Observations merge automatically without conflicts:
 
-- **G-Counter** = growth-only counter. It can only increase, never decrease.
+- Observation counters can only increase, never decrease.
 - **Merge** = take the maximum of each counter. No conflicts, ever.
 - **Eventually consistent** = all registries converge to the same totals.
 
@@ -123,11 +123,11 @@ spl federation revoke \
   --to partner-corp -j
 ```
 
-Revocation is immediate. The receiving registry keeps any observations it already has (they're G-Counters — they don't "un-sync"), but it can no longer query for new patterns.
+Revocation is immediate. The receiving registry keeps any observations it already has (observation counters don't "un-sync"), but it can no longer query for new patterns.
 
 ## The "One Donor Teaches All" Property
 
-Because hash containment is monotonic ([F9](/docs/reference/frozen-foundations)), a single federated observation teaches at multiple levels:
+Because hash containment is monotonic, a single federated observation teaches at multiple levels:
 
 1. Organization A proves a pattern works (200 successes at L1)
 2. Organization B receives this via federation
@@ -148,19 +148,11 @@ Both checks use **forbid-wins** semantics: if any check denies, the effect is bl
 
 ## Current Status
 
-| Feature | Status |
-|---------|--------|
-| Consent edge CRUD | Implemented (API + CLI) |
-| Consent enforcement in validator | Implemented (Check 9d) |
-| L0 sharing prevention | Implemented (structural block) |
-| Observation sync (local) | Implemented (G-Counter merge) |
-| Remote registry discovery | Roadmap (Phase 3) |
-| Cross-registry sync protocol | Roadmap (Phase 3) |
-| CRDT conflict resolution | Not needed (G-Counters are conflict-free) |
+Consent edge management, consent enforcement in the governance validator, L0 sharing prevention, and local observation sync are all implemented. Remote registry discovery and cross-registry sync are on the roadmap.
 
 ## Related
 
 - [Hash Levels](/docs/concepts/hash-levels) — The hierarchy that makes federation possible
 - [Trust](/docs/concepts/trust) — Trust score that gates consent threshold
 - [Governance Checks](/docs/reference/governance-checks) — Checks 7 and 9d enforce federation rules
-- [Frozen Foundations](/docs/reference/frozen-foundations) — F8 (L0 never leaves) and F9 (hash containment)
+- [Frozen Foundations](/docs/reference/frozen-foundations) — L0 never leaves, hash containment

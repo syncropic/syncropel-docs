@@ -13,10 +13,10 @@ spl serve
 
 ```
 Registry started at http://localhost:9100
-Database: ~/.syncropel/registry.duckdb (persistent)
+Database: ~/.syncro/hub.db (persistent)
 ```
 
-The registry auto-configures the CLI: it writes `registry_url: http://localhost:9100` to `~/.syncropel/config.yaml` so all `spl` commands automatically hit your local instance.
+The registry auto-configures the CLI: it writes `registry_url: http://localhost:9100` to `~/.syncro/config.yaml` so all `spl` commands automatically hit your local instance.
 
 ### Options
 
@@ -27,34 +27,13 @@ The registry auto-configures the CLI: it writes `registry_url: http://localhost:
 
 ## What's Inside
 
-### Storage (Schema v4)
+### Storage
 
-All data persists at `~/.syncropel/registry.duckdb` — a single file. It survives restarts, and you can back it up by copying the file.
+All data persists at `~/.syncro/hub.db` — a single file. It survives restarts, and you can back it up by copying the file.
 
-**16 tables:**
+The database stores namespaces, policies, sessions, effects, governance tokens, patterns, observations, trust scores, consent edges, revocation lists, approval requests, settlements, audit logs, and peer registry configurations. Schema migrations are automatic on startup.
 
-| Table | What It Stores |
-|-------|---------------|
-| `namespaces` | Namespace hierarchy (id, parent, level, config) |
-| `policies` | Capability/deny/budget policies per namespace |
-| `sessions` | Session records with SCT references |
-| `effects` | Individual effects within sessions |
-| `scts` | Session Capability Tokens (frozen governance snapshots) |
-| `patterns` | Discovered computation patterns (L0-L3 hashes, stats) |
-| `observations` | Execution outcomes (success/failure/timeout) |
-| `governance_observations` | Governance-specific observation records |
-| `governance_trust_scores` | Wilson scores per (principal, domain) pair |
-| `consent_edges` | Federation consent between namespaces |
-| `crl_entries` | Certificate Revocation List entries |
-| `hitl_requests` | Human-in-the-loop approval requests |
-| `settlements` | Governance settlement records |
-| `audit_log` | Immutable audit trail |
-| `remotes` | Peer registry configurations |
-| `_schema_version` | Schema migration tracking (currently v4) |
-
-Schema migrations are automatic — the registry checks `_schema_version` on startup and applies any needed migrations.
-
-### 68 API Routes
+### 160+ API Routes
 
 The server exposes a full API surface covering:
 
@@ -73,45 +52,33 @@ The server exposes a full API surface covering:
 | Traces | `GET/POST /api/traces/...` | Session trace management |
 | Health | `GET /health` | Liveness check |
 
-These are the same URLs as the production registry. An SDK configured with `registry_url="http://localhost:9100"` works identically against `registry.syncropel.com`.
+These are the same URLs as the production registry. An SDK configured with `registry_url="http://localhost:9100"` works identically against `api.syncropel.com`.
 
 ## The Governance Stack
 
-Everything that runs in production runs locally:
-
-| Component | What It Does |
-|-----------|-------------|
-| **SCT issuance** | Computes Session Capability Tokens from namespace chain + trust + budget |
-| **10-check validator** | Checks 1-2, 10 (CRL, policy freshness, HITL) in registry + checks 3-9 via registry-core |
-| **Trust computation** | Mathematical trust with cold-start prior and temporal decay |
-| **Namespace resolution** | Hierarchy walk with monotonic narrowing |
-| **Observation recording** | Auto-populates dial zone from dial position |
-| **Audit trail** | Every governance action recorded immutably |
-| **CRL management** | Service account revocation |
-| **Federation consent** | Consent edge management (local — no remote sync yet) |
-| **HITL workflow** | Human approval for ELEVATED tier effects |
+Everything that runs in production runs locally: session capability token issuance, the full governance validation pipeline, trust computation, namespace resolution with monotonic narrowing, observation recording, immutable audit trail, service account revocation, federation consent management, and human-in-the-loop approval workflows.
 
 ## Persistence
 
 | Item | Location | Behavior |
 |------|----------|----------|
-| Database | `~/.syncropel/registry.duckdb` | Persistent, survives restarts |
-| Config | `~/.syncropel/config.yaml` | Written by `spl serve`, read by all commands |
-| Traces | `~/.syncropel/traces/` | Populated by integration hooks |
-| Seeds | `~/.syncropel/seeds/` | Loaded on startup if present |
+| Database | `~/.syncro/hub.db` | Persistent, survives restarts |
+| Config | `~/.syncro/config.yaml` | Written by `spl serve`, read by all commands |
+| Traces | `~/.syncro/traces/` | Populated by integration hooks |
+| Seeds | `~/.syncro/seeds/` | Loaded on startup if present |
 
 ### Backup
 
 ```bash
 # Stop the registry, then copy the database
-cp ~/.syncropel/registry.duckdb ~/.syncropel/registry.duckdb.backup
+cp ~/.syncro/hub.db ~/.syncro/hub.db.backup
 ```
 
 ### Reset
 
 ```bash
 # Delete the database to start fresh
-rm ~/.syncropel/registry.duckdb
+rm ~/.syncro/hub.db
 spl serve  # Creates a new empty database
 ```
 
@@ -139,13 +106,13 @@ When `spl serve` is running, the `SPL_REGISTRY_URL` environment variable is auto
 |---------|-------------------|------------|
 | Governance checks | All 10 | All 10 |
 | SCT computation | Full 10-step algorithm | Same |
-| Trust model | Full trust computation | Same |
+| Trust model | Full trust score computation | Same |
 | API surface | Full | Same + scaling endpoints |
 | Backing store | Single-file (persistent) | Managed database |
 | Federation | Consent edges (local) | Full peer sync |
 | Authentication | `AUTH_PROVIDER=dev` | Clerk JWT |
 
-The governance logic is identical because both environments use `syncropel-registry-core` — the same shared governance library with the same checks, same thresholds, same math.
+The governance logic is identical because both environments use `syncropel-hub-core` — the same shared governance library with the same checks, same thresholds, same math.
 
 ## Related
 
