@@ -1,29 +1,15 @@
 import Link from 'next/link';
 
-const learnLinks = [
-  { title: 'The Effect Algebra', href: '/docs/concepts/effects' },
-  { title: 'The Dial', href: '/docs/concepts/the-dial' },
-  { title: 'Governance', href: '/docs/concepts/governance' },
-  { title: 'Trust', href: '/docs/concepts/trust' },
-  { title: 'Hash Levels', href: '/docs/concepts/hash-levels' },
-  { title: 'Namespaces', href: '/docs/concepts/namespaces' },
-  { title: 'Federation', href: '/docs/concepts/federation' },
-  { title: 'Physics, Not Policy', href: '/docs/concepts/physics-not-policy' },
-];
-
-const buildLinks = [
-  { title: 'Quick Start', href: '/docs/tutorials/quickstart' },
-  { title: 'Core Workflow', href: '/docs/tutorials/core-workflow' },
-  { title: 'Syncropel Studio', href: '/docs/guides/studio' },
-  { title: 'Agent Integration', href: '/docs/guides/agent-integration' },
+const guideLinks = [
+  { title: 'API Proxy', href: '/docs/guides/proxy' },
+  { title: 'Console Dashboard', href: '/docs/guides/console' },
   { title: 'Local Registry', href: '/docs/guides/local-registry' },
-  { title: 'Policy Management', href: '/docs/guides/policy-management' },
+  { title: 'Agent Integration', href: '/docs/guides/agent-integration' },
 ];
 
 const referenceLinks = [
   { title: 'CLI Reference', href: '/docs/reference/cli' },
-  { title: 'Frozen Foundations', href: '/docs/reference/frozen-foundations' },
-  { title: 'Governance Checks', href: '/docs/reference/governance-checks' },
+  { title: 'Integration Status', href: '/docs/reference/integrations' },
   { title: 'Glossary', href: '/docs/reference/glossary' },
 ];
 
@@ -33,21 +19,22 @@ export default function HomePage() {
       {/* Hero */}
       <section className="w-full max-w-3xl mx-auto px-6 pt-20 pb-14 text-center">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1] mb-5">
-          Infrastructure that{' '}
-          <span className="text-[#b45309] dark:text-[#d97706]">learns</span> and{' '}
-          <span className="text-[#b45309] dark:text-[#d97706]">governs</span>.
+          Observe every{' '}
+          <span className="text-[#b45309] dark:text-[#d97706]">LLM call</span>.
         </h1>
+        <p className="text-lg text-fd-muted-foreground max-w-xl mx-auto leading-relaxed mb-2">
+          Model. Tokens. Cost. Latency.
+        </p>
         <p className="text-base text-fd-muted-foreground max-w-xl mx-auto leading-relaxed">
-          A formal algebra for computation governance. Closed primitives.
-          Deterministic validation. What isn&apos;t permitted can&apos;t execute.
-          What is spent can&apos;t be spent again. Trust earned from evidence,
-          not granted by policy or promises.
+          Change one line &mdash; your <code className="text-fd-foreground">base_url</code> &mdash;
+          and get full observability on every API call.
+          Automatic. Local-first. Privacy-preserving.
         </p>
 
         {/* Install */}
         <div className="mt-8 mb-6">
           <code className="inline-block px-5 py-2.5 rounded-lg bg-fd-muted text-sm font-mono text-fd-foreground border border-fd-border">
-            $ curl -fsSL https://get.syncropic.com/spl | sh
+            $ curl -sSf https://get.syncropic.com/spl | sh
           </code>
         </div>
 
@@ -74,35 +61,16 @@ export default function HomePage() {
         <div className="h-px bg-fd-border" />
       </div>
 
-      {/* Three Paths */}
+      {/* Navigation */}
       <section className="w-full max-w-3xl mx-auto px-6 py-14">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-          {/* Learn */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+          {/* Guides */}
           <div>
             <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-4">
-              Learn
+              Guides
             </h2>
             <ul className="space-y-2">
-              {learnLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-fd-foreground hover:text-[#b45309] dark:hover:text-[#d97706] transition-colors"
-                  >
-                    {link.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Build */}
-          <div>
-            <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-fd-muted-foreground mb-4">
-              Build
-            </h2>
-            <ul className="space-y-2">
-              {buildLinks.map((link) => (
+              {guideLinks.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
@@ -150,47 +118,26 @@ export default function HomePage() {
           <div className="flex gap-3">
             <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">spl</code>
             <span className="text-fd-muted-foreground">
-              CLI + local registry. Governance, trust, audit, namespaces, policies. Offline-first.
+              CLI + local registry. API proxy, console dashboard, trust computation,
+              governance. Offline-first, privacy-preserving.
             </span>
           </div>
           <div className="flex gap-3">
-            <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">studio</code>
+            <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">proxy</code>
             <span className="text-fd-muted-foreground">
-              Browser interface for operating registries. Traces, governance, namespaces, patterns, federation.{' '}
-              <a href="https://app.syncropel.com" className="text-[#b45309] dark:text-[#d97706] hover:underline">app.syncropel.com</a>
+              Transparent Anthropic + OpenAI API proxy. Records model, tokens, cost,
+              and latency on every call. Streaming supported.
             </span>
           </div>
           <div className="flex gap-3">
-            <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">registry-core</code>
+            <code className="font-mono text-[#b45309] dark:text-[#d97706] shrink-0">console</code>
             <span className="text-fd-muted-foreground">
-              Shared governance library. Zero dependencies. Same logic in CLI and production.
+              Real-time dashboard at{' '}
+              <code className="text-fd-foreground">localhost:9100/console</code>.
+              Live feed, filters, saved views, cost tracking.
             </span>
           </div>
         </div>
-        <p className="text-xs text-fd-muted-foreground mt-5">
-          Coming: federation sync &middot; VFS gateway &middot; global registry network
-        </p>
-      </section>
-
-      {/* Divider */}
-      <div className="w-full max-w-3xl mx-auto px-6">
-        <div className="h-px bg-fd-border" />
-      </div>
-
-      {/* Foundations */}
-      <section className="w-full max-w-3xl mx-auto px-6 py-14">
-        <p className="text-sm text-fd-muted-foreground">
-          <span className="font-medium text-fd-foreground">Primitives:</span> GET, PUT, CALL, MAP &middot;{' '}
-          <span className="font-medium text-fd-foreground">Shapes:</span> VOID, ONE, OPTIONAL, MANY, KEYED &middot;{' '}
-          <span className="font-medium text-fd-foreground">Hash levels:</span> Exact, Structural, Flow, Intent &middot;{' '}
-          <span className="font-medium text-fd-foreground">Dial zones:</span> REPLAY, ADAPT, EXPLORE, CREATE
-        </p>
-        <Link
-          href="/docs/reference/frozen-foundations"
-          className="text-sm text-[#b45309] dark:text-[#d97706] hover:underline mt-1 inline-block"
-        >
-          Full reference &rarr;
-        </Link>
       </section>
 
       {/* Footer */}
@@ -204,14 +151,8 @@ export default function HomePage() {
               <a href="https://syncropic.com" className="hover:text-fd-foreground transition-colors">
                 syncropic.com
               </a>
-              <a href="https://app.syncropel.com" className="hover:text-fd-foreground transition-colors">
-                app.syncropel.com
-              </a>
-              <a href="https://syncropel.org" className="hover:text-fd-foreground transition-colors">
-                Protocol Spec
-              </a>
-              <a href="https://github.com/syncropic/syncropel-docs" className="hover:text-fd-foreground transition-colors">
-                GitHub
+              <a href="https://docs.syncropel.com" className="hover:text-fd-foreground transition-colors">
+                docs.syncropel.com
               </a>
             </div>
           </div>
