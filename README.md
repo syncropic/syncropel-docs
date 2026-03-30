@@ -56,7 +56,7 @@ The Dial governs a continuous spectrum from deterministic replay to creative gen
 | Product | Description |
 |---------|------------|
 | [**spl**](https://github.com/syncropic/syncropel-cli) | CLI + local registry. Full governance stack on your machine. Offline-first, persistent, production-compatible. |
-| [**Studio**](https://app.syncropel.com) | Browser interface for operating registries. Traces, governance, namespaces, patterns, federation. |
+| [**Studio**](https://syncropel.com) | Browser interface for operating registries. Traces, governance, namespaces, patterns, federation. |
 | [**registry-core**](https://github.com/syncropic/syncropel-core) | Shared governance library. Zero dependencies. Same logic in CLI and production. |
 
 Coming: federation sync, VFS gateway, global registry network.
@@ -64,7 +64,7 @@ Coming: federation sync, VFS gateway, global registry network.
 ## Related
 
 - [syncropic.com](https://syncropic.com) — Syncropic, Inc. (Delaware Public Benefit Corporation)
-- [app.syncropel.com](https://app.syncropel.com) — Syncropel Studio
+- [syncropel.com](https://syncropel.com) — Syncropel Studio
 - [registry.syncropel.com](https://registry.syncropel.com) — Production registry
 - [GitHub](https://github.com/syncropic) — All repositories
 
