@@ -1,0 +1,95 @@
+---
+title: Sync & Device Portability
+description: Push your work to the hub, pull on a new device, zero cold start
+---
+
+## Overview
+
+Every record, actor, and trust score is stored locally in your DuckDB database. Sync pushes this to the hub (api.syncropel.com) so you can pull it on another device.
+
+## Connect to the Hub
+
+```bash
+spl remote add origin -u https://api.syncropel.com
+```
+
+This stores the hub URL in `~/.syncro/config.toml`. No daemon needed.
+
+## Push to the Hub
+
+```bash
+spl sync push
+```
+
+This pushes:
+- **Your actor identity** (DID + public key)
+- **Records** (metadata only — L1-L3 hashes, no content)
+- **Trust scores** (per-domain reliability)
+
+**Privacy**: Your actual prompts and responses (L0 content) never leave your machine. Only structural metadata is synced.
+
+**Incremental**: Only new records since the last push are sent.
+
+## Pull from the Hub
+
+```bash
+spl sync pull
+```
+
+This pulls:
+- **Team actors** (other members' identities)
+- **Records** (metadata from other devices/team)
+- **Trust scores** (aggregated from all sources)
+
+## New Device Flow
+
+The complete flow for starting on a new machine:
+
+```bash
+# 1. Install
+curl -sSf https://get.syncropic.com/spl | sh
+
+# 2. Configure
+spl init --yes
+
+# 3. Authenticate (same account as your other device)
+spl auth login
+
+# 4. Start the daemon
+spl serve &
+
+# 5. Pull your work
+spl sync pull
+
+# Done — same identity, same trust, same patterns
+```
+
+## Check Sync Status
+
+```bash
+spl sync status
+```
+
+Shows: local record count, last push/pull sequence, hub URL, pending records.
+
+## Privacy (F8 Rule)
+
+Syncropel enforces a strict privacy rule: **L0 content never leaves your local machine.**
+
+| What syncs | What stays local |
+|------------|-----------------|
+| Record ID (SHA-256 hash) | Full record body (prompts, responses) |
+| Actor DID | API keys, signing keys |
+| Act type (INTEND, LEARN, etc.) | Canonical JSON |
+| Timestamp | Signatures |
+| Thread ID | Body content |
+| Trust scores | |
+| Namespace | |
+
+This means the hub knows *what* happened (metadata) but not the *content* of what happened.
+
+## What's Next
+
+- [Authentication Guide](/docs/guides/auth) — login, service accounts, CI/CD
+- [API Proxy Guide](/docs/guides/proxy) — how records are created
+- [Console Dashboard](/docs/guides/console) — visualize your records

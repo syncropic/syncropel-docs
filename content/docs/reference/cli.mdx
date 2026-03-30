@@ -303,3 +303,43 @@ On error:
   "exit_code": 3
 }
 ```
+
+## Auth
+
+Manage authentication with the hub.
+
+| Command | What |
+|---------|------|
+| `spl auth login` | Authenticate with the hub (browser or --token) |
+| `spl auth login --token TOKEN` | Authenticate with a token directly |
+| `spl auth whoami` | Show current identity (email, DID, hub) |
+| `spl auth logout` | Remove stored tokens, revoke on hub |
+| `spl auth create-sa NAME` | Create a service account (returns API key once) |
+| `spl auth list-sa` | List service accounts |
+| `spl auth revoke-sa ID` | Revoke a service account |
+| `spl auth rotate-key ID` | Rotate a service account's API key |
+
+See the [Authentication Guide](/docs/guides/auth) for details.
+
+## Sync
+
+Push and pull records, actors, and trust scores.
+
+| Command | What |
+|---------|------|
+| `spl sync push` | Push to hub (default remote: origin) |
+| `spl sync pull` | Pull from hub |
+| `spl sync status` | Show sync status (pending records, last push/pull) |
+
+See the [Sync Guide](/docs/guides/sync) for details.
+
+## Remote
+
+Manage hub connections.
+
+| Command | What |
+|---------|------|
+| `spl remote add NAME -u URL` | Add a hub remote (stored in config.toml) |
+| `spl remote list` | List configured remotes |
+| `spl remote remove NAME` | Remove a remote |
+| `spl remote status NAME` | Check remote connectivity |

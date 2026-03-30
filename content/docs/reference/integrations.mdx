@@ -25,6 +25,16 @@ The proxy captures everything — prompts, responses, tool calls, model, tokens,
 | Project discovery | `spl init --project` | `.syncro/ABOUT.md` for agent auto-detection |
 | Progressive help | `spl help-agent -j` | Token-budgeted command discovery |
 
+## Hub Sync (Production)
+
+| Feature | Status | How |
+|---------|--------|-----|
+| Push records | Production | `spl sync push` |
+| Pull records | Production | `spl sync pull` |
+| Auth (Clerk) | Production | `spl auth login` |
+| Service accounts | Production | `spl auth create-sa` |
+| Device portability | Production | Install, auth, pull, serve |
+
 ## Planned
 
 Python SDK, TypeScript SDK, LangChain adapter, CrewAI adapter.

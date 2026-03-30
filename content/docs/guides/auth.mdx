@@ -1,0 +1,94 @@
+---
+title: Authentication
+description: Log in to the hub, sync across devices, set up CI/CD access
+---
+
+## Overview
+
+Syncropel runs locally on your machine. To sync your work across devices or with your team, authenticate with the hub at api.syncropel.com.
+
+## Log In
+
+```bash
+spl auth login
+```
+
+This opens your browser to sign in. After authenticating, your token is stored locally.
+
+**Headless / SSH / CI:**
+```bash
+spl auth login --token YOUR_TOKEN
+```
+
+**Verify:**
+```bash
+spl auth whoami
+```
+
+You should see your email, DID (decentralized identity), and hub URL.
+
+## How It Works
+
+1. You sign in via [Clerk](https://clerk.com) (the auth provider)
+2. Clerk issues a short-lived JWT
+3. The hub exchanges it for a long-lived hub token (30 days)
+4. Your CLI stores the token at `~/.syncro/secrets/hub_token`
+5. The token auto-refreshes when it expires
+
+## Log Out
+
+```bash
+spl auth logout
+```
+
+Removes local tokens and revokes the refresh token on the hub.
+
+## Service Accounts (CI/CD)
+
+For automated environments that can't use browser sign-in:
+
+```bash
+# Create a service account
+spl auth create-sa deploy-bot
+
+# Output: API key spl_a1b2c3d4_Xk9mP... (shown ONCE — save it)
+```
+
+Use the API key in CI:
+```bash
+export SPL_API_KEY=spl_a1b2c3d4_Xk9mP...
+spl sync push
+```
+
+**Manage service accounts:**
+```bash
+spl auth list-sa           # List all
+spl auth revoke-sa ID      # Revoke
+spl auth rotate-key ID     # Rotate API key
+```
+
+## Credential Resolution
+
+The CLI checks for credentials in this order:
+
+1. `SPL_API_KEY` environment variable (service accounts)
+2. `SPL_HUB_TOKEN` environment variable (override)
+3. `~/.syncro/secrets/hub_token` (from `spl auth login`)
+4. No credentials (unauthenticated — only health/public endpoints)
+
+## Identity
+
+Your identity is a DID (Decentralized Identifier):
+
+```
+did:sync:user:user_399OTwIk...    (human)
+did:sync:sa:deploy-bot             (service account)
+did:sync:agent:architect           (AI agent)
+```
+
+Your DID stays the same across devices. Trust scores accumulate on your DID regardless of which machine you're on.
+
+## What's Next
+
+- [Sync Guide](/docs/guides/sync) — push and pull your work across devices
+- [CLI Reference](/docs/reference/cli) — all auth commands

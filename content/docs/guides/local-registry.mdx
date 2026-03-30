@@ -76,9 +76,22 @@ spl serve  # Creates a new empty database
   CONVENTIONS.md              # Governance reference
 ```
 
+## Syncing with the Hub
+
+Your local registry can sync with api.syncropel.com:
+
+```bash
+spl auth login       # Authenticate
+spl sync push        # Push records to hub
+spl sync pull        # Pull from hub
+```
+
+Only metadata is synced — your actual prompts and responses stay local. See the [Sync Guide](/docs/guides/sync).
+
 ## What's Next
 
 - [Quick Start](/docs/tutorials/quickstart) — Get running in 60 seconds
 - [API Proxy Guide](/docs/guides/proxy) — Endpoints, metadata, streaming
+- [Sync Guide](/docs/guides/sync) — Push/pull across devices
 - [Troubleshooting](/docs/reference/troubleshooting) — Common issues and fixes
 - [CLI Reference](/docs/reference/cli) — All `spl` commands

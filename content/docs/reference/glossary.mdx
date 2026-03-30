@@ -91,6 +91,12 @@ One of 4 levels of content-addressed hashing: L0 (Exact), L1 (Structural), L2 (F
 ### HITL (Human-in-the-Loop)
 Check 10 in the governance pipeline. Required for PUT and CALL effects in the [ELEVATED tier](#elevated-tier) (dial &ge; 2/3). Blocks execution until a human approves or denies. Managed via `spl hitl pending/approve/deny`.
 
+### Hub
+The remote registry at api.syncropel.com. Stores synced records (metadata only), actors, and trust scores. Authenticated via Clerk. Connected with `spl remote add origin -u https://api.syncropel.com`.
+
+### Hub Token
+A long-lived opaque token (30 days) issued by the hub after Clerk authentication. Stored at `~/.syncro/secrets/hub_token`. Auto-refreshes on expiry. Created by `spl auth login`.
+
 ## L
 
 ### Latency
@@ -155,6 +161,9 @@ One of the 5 frozen data types: VOID, ONE, OPTIONAL, MANY, KEYED. Every effect h
 
 ### spl
 The Syncropel CLI command. See [CLI Reference](/docs/reference/cli).
+
+### Sync
+Push/pull records between your local daemon and the hub. Only metadata (L1-L3) is synced — content (L0) stays local per the F8 rule. Uses `spl sync push` and `spl sync pull`.
 
 ## T
 

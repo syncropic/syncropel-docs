@@ -74,6 +74,7 @@ export default function HomePage() {
           Open{' '}
           <code className="text-[#c2410c] dark:text-[#d97706] font-mono text-[12px]">localhost:9100/console</code>
           {' '}to see the dashboard.
+          Your work follows you &mdash; push to the hub, pull on any device.
         </p>
 
         <div className="flex flex-wrap justify-center gap-3">

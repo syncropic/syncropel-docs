@@ -155,6 +155,31 @@ Syncropel sits between your code and the LLM API. Every call flows through the p
   />
 </Cards>
 
+## Sync Across Devices (Optional)
+
+To access your work from another machine, connect to the hub:
+
+```bash
+# Authenticate
+spl auth login
+
+# Push your records
+spl sync push
+```
+
+On your other machine:
+```bash
+curl -sSf https://get.syncropic.com/spl | sh
+spl init --yes
+spl auth login
+spl serve &
+spl sync pull
+```
+
+Your identity, trust scores, and record history follow you.
+
+Learn more: [Sync Guide](/docs/guides/sync) | [Auth Guide](/docs/guides/auth)
+
 ## Uninstalling
 
 ```bash
