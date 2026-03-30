@@ -9,7 +9,7 @@ description: How spl serve works — your local LLM proxy and data store
 
 1. **Proxies LLM calls** — Anthropic and OpenAI compatible endpoints
 2. **Records everything** — every call stored in a local DuckDB database
-3. **Serves the console** — real-time dashboard at localhost:9100/console
+3. **Opens the workspace** — `spl serve --open` launches [syncropel.com/local](https://syncropel.com/local) which connects to your daemon
 4. **Computes trust** — reliability scores from your usage history
 5. **Runs offline** — no internet required after install
 
@@ -27,7 +27,7 @@ The registry exposes 160+ HTTP endpoints matching the production API. Key endpoi
 | `/v1/chat/completions` | POST | OpenAI API proxy |
 | `/v1/records` | GET | Query stored records |
 | `/health` | GET | Server status + proxy stats |
-| `/console` | GET | Web dashboard |
+| `/console` | GET | Redirects to syncropel.com/local |
 
 ## Configuration
 

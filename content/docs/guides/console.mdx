@@ -1,68 +1,72 @@
 ---
-title: Console
-description: Real-time dashboard at localhost:9100/console
+title: Local Workspace
+description: Full-featured dashboard at syncropel.com/local — connected to your local daemon
 ---
 
 ## Overview
 
-The console shows every LLM call flowing through your proxy in real-time. Open [localhost:9100/console](http://localhost:9100/console).
+The local workspace at [syncropel.com/local](https://syncropel.com/local) gives you a full dashboard connected to your `spl serve` daemon on localhost:9100. No account required — if your daemon is running, the workspace connects automatically.
+
+**Open it:**
+
+```bash
+spl serve --open
+```
+
+Or navigate directly to [syncropel.com/local](https://syncropel.com/local).
 
 ## What you see
 
-Each API call appears as a record with:
-- **Actor** — who made the call (your app, an agent, a script)
-- **Content** — the prompt or response (truncated)
-- **Metadata** — model, tokens, cost, latency (shown below the record)
+The workspace shows everything flowing through your proxy in real-time:
 
-```
-proxy-client › What is the capital of France?
-  sonnet-4-6 · 3 msg · stream
+- **Threads** — groups of related LLM calls (sidebar, left panel)
+- **Records** — every API call with model, tokens, cost, latency (detail panel)
+- **Actors** — who made the call (your app, an agent, a script)
+- **Trust scores** — reliability metrics computed from your usage history
+- **Governance** — policies, audit trail, signing keys
 
-The capital of France is Paris...
-  sonnet-4-6 · 142→38 tok · $0.001 · 1.2s
-```
+## How it works
 
-## Live Feed
+The workspace at syncropel.com is a hosted web app (Cloudflare Pages). When you visit `/local`, it:
 
-Records stream in chronological order. New calls appear at the bottom. The feed polls every 2 seconds.
+1. Probes `localhost:9100/health` to detect your daemon
+2. If the daemon is running — connects and shows the full workspace
+3. If the daemon is not running — shows a "Start your daemon" page with instructions
+4. Auto-retries every 3 seconds until the daemon is detected
 
-## Cost Dashboard
+All data stays on your machine. The web app makes API calls directly from your browser to `localhost:9100`. Nothing is sent to Syncropel's servers.
 
-Below the feed, a mini dashboard shows aggregate stats updated every 10 seconds:
+## Navigation
 
-- **Total cost** — running USD total across all calls
-- **Call count** — how many API calls through the proxy
-- **Models used** — which models and how often
-- **Records** — total records in the database
-- **Threads** — groups of related calls
+| Page | What it shows |
+|------|---------------|
+| `/local/dashboard` | Overview with active threads |
+| `/local/threads` | Thread browser with search |
+| `/local/actors` | Actor directory with trust scores |
+| `/local/hub` | Record browser with filters |
+| `/local/governance` | Trust scores, audit trail, policies |
+| `/local/governance/trust` | Trust scores per actor per domain |
+| `/local/models` | Model usage statistics |
 
-## Filters
+## Status bar
 
-Click any item in the dashboard to filter the feed. Click again to unfilter. Controls:
-- **All**: show everything (reset filters)
-- **Inv**: invert current selection
-- **sys**: toggle system records on/off
+The bottom bar shows:
+- **Connection status** — green dot when connected to localhost:9100
+- **Record count** — total records in your database
+- **Pattern count** — extracted patterns
+- **Namespace** — current namespace (default: "all namespaces")
 
-## Saved Views
+## "Running locally" banner
 
-Save your current filter state as a named view. Views persist in your browser across sessions.
+A banner at the top shows your connection status and a link to sign in. Signing in is optional — it enables syncing your records across devices via the hub.
 
-## Threads
+## Offline support
 
-The sidebar shows active threads with search. Click a thread to see its full record timeline.
+The workspace is a Progressive Web App (PWA). After your first visit, it caches in your browser and works even without internet — as long as your daemon is running on localhost:9100.
 
-## Record Types
+## Legacy console
 
-Each record has a type indicator:
-
-| Symbol | Type | Meaning |
-|--------|------|---------|
-| ○ | Intent | A goal or plan was stated |
-| ◑ | Action | Work was performed |
-| ◕ | Knowledge | A fact was recorded |
-| ● | Learning | An insight or result was captured |
-
-Most proxy records are Intent (your prompt) and Learning (the response).
+The old console at `localhost:9100/console` now redirects to `syncropel.com/local`. If you have no internet, the redirect page shows a link to check daemon health at `/health`.
 
 ## What's Next
 

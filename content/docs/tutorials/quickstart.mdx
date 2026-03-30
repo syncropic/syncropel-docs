@@ -31,7 +31,7 @@ curl -sSf https://get.syncropic.com/spl | sh
 spl --version
 ```
 
-You should see `syncropel-cli v0.8.x`. If you see "command not found", add `~/.local/bin` to your PATH:
+You should see `syncropel-cli v0.12.x`. If you see "command not found", add `~/.local/bin` to your PATH:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
@@ -123,13 +123,15 @@ curl -s http://localhost:9100/v1/records?limit=1 | python3 -m json.tool
 
 ## See the dashboard
 
-Open [http://localhost:9100/console](http://localhost:9100/console) in your browser.
+Open [syncropel.com/local](https://syncropel.com/local) in your browser — or run `spl serve --open` to open it automatically.
 
-You'll see every LLM call with:
+The workspace connects to your local daemon and shows every LLM call with:
 - Model and tokens used
 - Cost estimate
 - Latency
 - Full audit trail
+
+No account required. Everything stays on your machine.
 
 ## What's happening
 
