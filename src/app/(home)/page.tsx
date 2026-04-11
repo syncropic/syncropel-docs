@@ -5,8 +5,6 @@ const docLinks = [
   { title: 'Task Management', href: '/docs/guides/task-management', desc: 'Track work with success criteria and trust' },
   { title: 'Agent Integration', href: '/docs/guides/agent-integration', desc: 'Connect AI agents to Syncropel' },
   { title: 'CLI Reference', href: '/docs/reference/cli', desc: 'All spl commands' },
-  { title: 'Protocol Spec', href: 'https://github.com/syncropic/syncropel-spec', desc: 'The canonical specification' },
-  { title: 'Source Code', href: 'https://github.com/syncropic/syncropel-core', desc: 'Rust implementation' },
 ];
 
 export default function HomePage() {
