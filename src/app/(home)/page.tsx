@@ -75,17 +75,17 @@ export default function HomePage() {
 
         <div className="flex flex-wrap justify-center gap-3">
           <Link
-            href="/docs"
+            href="/docs/tutorials/quickstart"
             className="inline-flex items-center gap-2 px-5 py-2 rounded bg-[#c2410c] dark:bg-[#d97706] text-white font-medium text-sm transition-all hover:brightness-110"
           >
-            Documentation
+            Quick Start
             <span aria-hidden="true">&rarr;</span>
           </Link>
           <Link
-            href="/docs/runbooks/backup-restore"
+            href="/docs/reference/cli"
             className="inline-flex items-center gap-2 px-5 py-2 rounded border border-fd-border text-fd-muted-foreground font-medium text-sm transition-all hover:border-fd-foreground hover:text-fd-foreground"
           >
-            Backup Guide
+            CLI Reference
           </Link>
         </div>
       </section>
