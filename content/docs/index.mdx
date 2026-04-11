@@ -1,11 +1,11 @@
 ---
 title: Syncropel Documentation
-description: Infrastructure that learns, governs, and coordinates. The coordination protocol for hybrid human-AI teams.
+description: The coordination protocol for hybrid human-AI teams. Every intent, every action, every insight — one protocol.
 ---
 
 ## What is Syncropel?
 
-Syncropel is a coordination protocol for hybrid human-AI teams. Every intent, every action, every insight — one protocol. The fundamental unit is an 8-field immutable, content-addressed record.
+Syncropel is a coordination protocol that makes human-AI collaboration auditable, trustworthy, and self-improving. Every action is an immutable record. Trust is earned from evidence. Proven workflows replay automatically at zero cost.
 
 ```bash
 curl -sSf https://get.syncropic.com/spl | sh
@@ -13,39 +13,53 @@ spl init
 spl serve --daemon
 ```
 
+## How It Works
+
+**Records** are the fundamental unit — 8 fields, content-addressed with SHA-256. Every intent, action, observation, and insight is a record. Records are immutable and self-verifying.
+
+**Threads** group related records into workflows. A thread starts with an intent and ends with a fulfillment. Threads fork and merge like Git branches.
+
+**Trust** accumulates from outcomes. When an actor completes work and an evaluator confirms quality, trust grows. Trust is computed with Wilson lower bound — statistically principled, handles small samples correctly.
+
+**The Dial** maps trust to cost. Proven workflows replay at $0.00 (the REPLAY zone). Novel work requires full computation (the CREATE zone). As trust grows, costs converge to zero.
+
+**Patterns** form from repeated successful workflows. When a pattern crystallizes (high trust, 100+ observations, compression gain), future matching work replays the pattern instantly.
+
 ## Core Concepts
 
-| Concept | What It Is |
+| Concept | Description |
 |---|---|
-| **The Record** | 8 fields, 7 hashed. `id = SHA-256(canonical_json(7 fields))`. Immutable, content-addressed. |
-| **Act Types** | 8: GET, PUT, CALL, MAP (effects) + INTEND, DO, KNOW, LEARN (coordination) |
-| **Trust** | 3D: `trust(actor, domain, judged_by)`. Wilson lower bound. 90-day decay. |
-| **The Dial** | d in [0,1]. REPLAY ($0.00) to ADAPT to EXPLORE to CREATE ($0.50+) |
-| **Threading** | INTEND opens, KNOW with fulfills closes. Fork/merge like Git. |
-| **Patterns** | Hash chains of successful threads. Match cascade: L1, L2, L3, CREATE. |
-| **Actors** | DID-based identity. Three layers: DID (immutable), Substrate (mutable), Instance (ephemeral). |
-| **Engine** | 4 loops: INGEST (under 100 microseconds), RECONCILE, TICK, CRON. Everything else is data. |
+| **Record** | 8-field immutable unit. `id = SHA-256(canonical_json(7 fields))`. |
+| **Thread** | Sequence of records sharing a thread ID. Opens with INTEND, closes with KNOW. |
+| **Actor** | Any participant — human or AI. Identified by DID (`did:sync:type:name`). |
+| **Trust** | 3-dimensional: `trust(actor, domain, judged_by)`. Evidence-based, not granted. |
+| **Dial** | Continuous [0, 1]. Maps trust + pattern match to cost zone. |
+| **Pattern** | Crystallized workflow. L1 (exact) through L3 (intent-level) matching. |
 
-## Architecture
+## The `spl` CLI
 
+```bash
+spl serve --daemon          # Start the server
+spl status                  # Check health
+
+spl intend "Deploy v2"      # Record an intent
+spl do "Ran tests"          # Record an action
+spl know "Tests passed"     # Record an observation
+spl learn "Use staging"     # Record an insight
+
+spl task add "Fix auth"     # Create a task
+spl task list               # See all tasks
+spl task done SKL-001       # Complete a task
+
+spl trust                   # View trust scores
+spl memory list             # View actor memories
 ```
-spl (Rust CLI + server binary)
-  spl serve        — HTTP API + engine + LLM proxy (port 9100)
-  spl task         — hypothesis-driven task management (19 commands)
-  spl dispatch     — multi-actor coordination with worktrees
-  spl trust        — 3D trust with Wilson lower bound
-  spl memory       — cross-session actor learning
-  spl config       — routing rules + event triggers
-```
 
-## Runbooks
+## Guides
 
-- [Director Loop Setup](/docs/runbooks/director-setup) — Configure the autonomous Director with event triggers
-- [Register a New Actor](/docs/runbooks/new-actor) — Add actors to your team (4-layer stack)
-- [Backup and Recovery](/docs/runbooks/backup-restore) — Protect hub.db and task content
+- [Backup and Recovery](/docs/runbooks/backup-restore) — Protect your data
 
-## Source
+## Resources
 
-- **Spec**: [syncropel-spec](https://github.com/syncropic/syncropel-spec) — 132 files, 18 sections, the canonical protocol specification
-- **Implementation**: [syncropel-core](https://github.com/syncropic/syncropel-core) — 7 Rust crates, 458 tests
-- **Web**: [syncropel.com](https://syncropel.com)
+- [Protocol Specification](https://github.com/syncropic/syncropel-spec) — The canonical spec
+- [syncropel.com](https://syncropel.com) — Project website

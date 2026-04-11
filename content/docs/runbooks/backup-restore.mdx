@@ -1,45 +1,48 @@
 ---
 title: Backup and Recovery
-description: Protect your Syncropel data — hub.db, task content, and aliases.
+description: Protect your Syncropel data — the database, task content, and configuration.
 ---
 
 ## What to Protect
 
 | Data | Location | Contains |
 |---|---|---|
-| `hub.db` | `~/.syncro/hub.db` | All records, trust scores, routing rules, task threads |
-| Task content | `~/.syncro-data/tasks/` | Markdown task descriptions (SKL-XXXX.md) |
-| Aliases | `~/.syncro-data/aliases.toml` | Human-readable alias → thread ID mappings |
-| Archives | `~/.local/share/syncropel/archives/` | Archived .cmt and other legacy data |
+| Database | `~/.syncro/hub.db` | All records, trust scores, routing rules |
+| Task content | `~/.syncro-data/tasks/` | Task descriptions and artifacts |
+| Aliases | `~/.syncro-data/aliases.toml` | Human-readable task alias mappings |
+| Config | `~/.syncro/config.toml` | Identity, store URL, server settings |
 
 ## Automatic Backup
 
-The daemon backs up `hub.db` on every startup:
+The `spl serve` daemon backs up the database on every startup:
 
 ```
 ~/.local/share/syncropel/backups/hub.db.bak
 ```
 
-This is OUTSIDE `~/.syncro/` — a `rm -rf ~/.syncro/` doesn't kill the backup.
+This backup is stored OUTSIDE `~/.syncro/` — removing that directory does not affect the backup.
 
 ## Manual Backup
 
 ```bash
-# Before risky operations
+# Create a timestamped backup
 cp ~/.syncro/hub.db ~/.local/share/syncropel/backups/hub.db.$(date +%Y%m%d-%H%M%S)
 
-# List backups
+# List available backups
 ls -la ~/.local/share/syncropel/backups/
 ```
 
 ## Recovery
 
 ```bash
-# Restore hub.db from backup
+# Stop the daemon
+spl serve --stop
+
+# Restore from backup
 cp ~/.local/share/syncropel/backups/hub.db.bak ~/.syncro/hub.db
 
-# Restart daemon (trust + config rebuild from records automatically)
-spl serve --stop && spl serve --daemon
+# Restart — trust and config rebuild automatically from records
+spl serve --daemon
 
 # Verify
 spl status
@@ -47,27 +50,16 @@ spl task list
 spl trust
 ```
 
-## What Rebuilds Automatically
+## What Rebuilds on Startup
 
-On startup, the engine rebuilds derived state from records:
-- Trust scores (`rebuild_from_store()` replays KNOW/DO records)
-- Engine config (`reload_config()` replays LEARN records on th_engine_config)
-- Thread state (state = fold(records))
+The engine reconstructs all derived state from the immutable record log:
 
-## What is NOT Recoverable Without Backup
+- **Trust scores** — replayed from outcome records
+- **Engine config** — replayed from configuration records
+- **Thread state** — derived from records (`state = fold(records)`)
 
-If `hub.db` is deleted with no backup:
-- All records (tasks, dispatch history, routing decisions)
-- All accumulated trust evidence
-- All learned routing rules and event triggers
-- All task tracking data
+## Prevention
 
-Task content files (`~/.syncro-data/tasks/`) are separate and unaffected by hub.db loss.
-
-## Prevention Rules
-
-- **NEVER** `rm ~/.syncro/hub.db` — that is production data
-- **NEVER** `rm -rf ~/.syncro-data/` — that contains task content and aliases
-- **NEVER** run `spl serve --memory` on port 9100 — that overwrites prod with ephemeral store
-- Dev/test daemons use `--port 9200` with `--memory --echo`
-- E2E tests use `SPL_DATA_DIR=/tmp/...` for isolation
+- Use separate ports for development (`--port 9200`) and production (port 9100)
+- Development daemons use `--memory` for ephemeral storage
+- Task content files in `~/.syncro-data/` are independent of the database
