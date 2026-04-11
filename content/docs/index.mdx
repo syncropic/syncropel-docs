@@ -19,30 +19,33 @@ spl serve --daemon
 |---|---|
 | **The Record** | 8 fields, 7 hashed. `id = SHA-256(canonical_json(7 fields))`. Immutable, content-addressed. |
 | **Act Types** | 8: GET, PUT, CALL, MAP (effects) + INTEND, DO, KNOW, LEARN (coordination) |
-| **Trust** | 3D: `trust(actor, domain, judged_by)`. Wilson LB. 90-day decay. |
-| **The Dial** | d ∈ [0,1]. REPLAY ($0.00) → ADAPT → EXPLORE → CREATE ($0.50+) |
+| **Trust** | 3D: `trust(actor, domain, judged_by)`. Wilson lower bound. 90-day decay. |
+| **The Dial** | d in [0,1]. REPLAY ($0.00) to ADAPT to EXPLORE to CREATE ($0.50+) |
 | **Threading** | INTEND opens, KNOW with fulfills closes. Fork/merge like Git. |
-| **Patterns** | Hash chains of successful threads. Match cascade: L1→L2→L3→CREATE. |
-| **Actors** | DID-based identity. Three layers: DID (immutable) / Substrate (mutable) / Instance (ephemeral). |
-| **Engine** | 4 loops: INGEST (<100μs), RECONCILE, TICK, CRON. Everything else is data. |
-
-## Get Started
-
-<Cards>
-  <Card title="Quick Start" href="/docs/getting-started/quickstart" description="Install spl and create your first record in 60 seconds" />
-  <Card title="First Task" href="/docs/getting-started/first-task" description="Create, dispatch, and complete a task with trust evidence" />
-  <Card title="Director Loop" href="/docs/guides/director-loop" description="Set up autonomous task management with event triggers" />
-</Cards>
+| **Patterns** | Hash chains of successful threads. Match cascade: L1, L2, L3, CREATE. |
+| **Actors** | DID-based identity. Three layers: DID (immutable), Substrate (mutable), Instance (ephemeral). |
+| **Engine** | 4 loops: INGEST (under 100 microseconds), RECONCILE, TICK, CRON. Everything else is data. |
 
 ## Architecture
 
 ```
-spl (Rust CLI + server binary, ~11MB)
-├── spl serve (HTTP API + engine + LLM proxy, port 9100)
-├── spl task (hypothesis-driven task management, 19 commands)
-├── spl dispatch (multi-actor coordination with worktrees)
-├── spl trust (3D trust with Wilson LB)
-└── spl memory (cross-session actor learning)
+spl (Rust CLI + server binary)
+  spl serve        — HTTP API + engine + LLM proxy (port 9100)
+  spl task         — hypothesis-driven task management (19 commands)
+  spl dispatch     — multi-actor coordination with worktrees
+  spl trust        — 3D trust with Wilson lower bound
+  spl memory       — cross-session actor learning
+  spl config       — routing rules + event triggers
 ```
 
-The spec lives at [syncropel-spec](https://github.com/syncropic/syncropel-spec). The implementation at [syncropel-core](https://github.com/syncropic/syncropel-core).
+## Runbooks
+
+- [Director Loop Setup](/docs/runbooks/director-setup) — Configure the autonomous Director with event triggers
+- [Register a New Actor](/docs/runbooks/new-actor) — Add actors to your team (4-layer stack)
+- [Backup and Recovery](/docs/runbooks/backup-restore) — Protect hub.db and task content
+
+## Source
+
+- **Spec**: [syncropel-spec](https://github.com/syncropic/syncropel-spec) — 132 files, 18 sections, the canonical protocol specification
+- **Implementation**: [syncropel-core](https://github.com/syncropic/syncropel-core) — 7 Rust crates, 458 tests
+- **Web**: [syncropel.com](https://syncropel.com)
