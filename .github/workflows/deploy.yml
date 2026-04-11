@@ -2,9 +2,8 @@ name: Deploy to Cloudflare
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:  # Manual trigger from GitHub Actions UI
 
 env:
   NODE_VERSION: '20'
@@ -38,15 +37,7 @@ jobs:
         run: npx @opennextjs/cloudflare build
 
       - name: Deploy to Cloudflare
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: npx @opennextjs/cloudflare deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy Preview (PR)
-        if: github.event_name == 'pull_request'
-        run: npx @opennextjs/cloudflare upload
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
