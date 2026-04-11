@@ -1,12 +1,10 @@
 import Link from 'next/link';
 
 const docLinks = [
-  { title: 'Quick Start', href: '/docs/tutorials/quickstart', desc: 'Install, configure, and see your first dashboard' },
-  { title: 'API Proxy', href: '/docs/guides/proxy', desc: 'Endpoints, metadata, cost tracking, streaming' },
-  { title: 'Console', href: '/docs/guides/console', desc: 'Real-time feed, filters, saved views' },
-  { title: 'Local Registry', href: '/docs/guides/local-registry', desc: 'How spl serve works under the hood' },
-  { title: 'Agent Integration', href: '/docs/guides/agent-integration', desc: 'Claude Code, VS Code, Zed, Cursor' },
-  { title: 'CLI Reference', href: '/docs/reference/cli', desc: 'All spl commands' },
+  { title: 'Getting Started', href: '/docs', desc: 'Install spl, create your first record' },
+  { title: 'Backup & Recovery', href: '/docs/runbooks/backup-restore', desc: 'Protect your data and recover safely' },
+  { title: 'Protocol Spec', href: 'https://github.com/syncropic/syncropel-spec', desc: 'The canonical specification' },
+  { title: 'Source Code', href: 'https://github.com/syncropic/syncropel-core', desc: 'Rust implementation' },
 ];
 
 export default function HomePage() {
@@ -24,19 +22,19 @@ export default function HomePage() {
           <span className="text-[#c2410c] dark:text-[#d97706]">coordinates</span>.
         </h1>
         <p className="text-sm text-fd-muted-foreground max-w-md mx-auto leading-relaxed">
-          The coordination layer for teams and AI agents.
+          The coordination protocol for hybrid human-AI teams.
           Prevents what shouldn&apos;t happen, records what did,
           extracts what works, shares what was learned.
         </p>
       </section>
 
-      {/* Today: Observe — centered like hero */}
+      {/* Start in 60 seconds */}
       <section className="w-full max-w-[720px] mx-auto px-6 pb-10 text-center">
         <p className="text-[11px] font-semibold text-fd-muted-foreground uppercase tracking-[0.15em] mb-4">
           Start in 60 seconds
         </p>
 
-        {/* Terminal mockup — centered, full width of container */}
+        {/* Terminal mockup */}
         <div className="border border-fd-border rounded-lg bg-fd-secondary overflow-hidden text-left mb-6">
           <div className="px-3 py-2 border-b border-fd-border/50 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-fd-border" />
@@ -54,48 +52,40 @@ export default function HomePage() {
               <span className="text-fd-foreground">spl init &amp;&amp; spl serve</span>
             </p>
             <p className="text-[#059669] dark:text-[#34d399]">
-              ✓ Registry ready at localhost:9100
+              ✓ Syncropel kernel ready at localhost:9100
             </p>
             <p className="mt-2">
-              <span className="text-fd-muted-foreground"># Point your SDK here:</span>
+              <span className="text-fd-muted-foreground"># Record your first intent:</span>
             </p>
             <p>
-              <span className="text-fd-foreground">client = anthropic.Client(</span>
-              <span className="text-[#c2410c] dark:text-[#d97706]">base_url</span>
-              <span className="text-fd-foreground">=</span>
-              <span className="text-[#059669] dark:text-[#34d399]">&quot;http://localhost:9100&quot;</span>
-              <span className="text-fd-foreground">)</span>
+              <span className="text-fd-muted-foreground">$ </span>
+              <span className="text-fd-foreground">spl intend &quot;Deploy auth service v2&quot;</span>
+            </p>
+            <p className="text-[#059669] dark:text-[#34d399]">
+              ✓ Record created on thread th_a7f3...
             </p>
           </div>
         </div>
 
         <p className="text-sm text-fd-muted-foreground mb-6">
-          Every LLM call is recorded with model, tokens, cost, and latency.
-          Open{' '}
-          <code className="text-[#c2410c] dark:text-[#d97706] font-mono text-[12px]">localhost:9100/console</code>
-          {' '}to see the dashboard.
-          Your work follows you &mdash; push to the hub, pull on any device.
+          Every intent, action, and insight is an immutable record.
+          Trust accumulates from evidence. Patterns crystallize.
+          Proven workflows replay at zero cost.
         </p>
 
         <div className="flex flex-wrap justify-center gap-3">
           <Link
-            href="/docs/tutorials/quickstart"
+            href="/docs"
             className="inline-flex items-center gap-2 px-5 py-2 rounded bg-[#c2410c] dark:bg-[#d97706] text-white font-medium text-sm transition-all hover:brightness-110"
           >
-            Quick Start
+            Documentation
             <span aria-hidden="true">&rarr;</span>
           </Link>
           <Link
-            href="/docs/guides/proxy"
+            href="/docs/runbooks/backup-restore"
             className="inline-flex items-center gap-2 px-5 py-2 rounded border border-fd-border text-fd-muted-foreground font-medium text-sm transition-all hover:border-fd-foreground hover:text-fd-foreground"
           >
-            API Proxy Guide
-          </Link>
-          <Link
-            href="/docs/guides/console"
-            className="inline-flex items-center gap-2 px-5 py-2 rounded border border-fd-border text-fd-muted-foreground font-medium text-sm transition-all hover:border-fd-foreground hover:text-fd-foreground"
-          >
-            Console
+            Backup Guide
           </Link>
         </div>
       </section>
@@ -105,18 +95,18 @@ export default function HomePage() {
         <div className="h-px bg-fd-border" />
       </div>
 
-      {/* Tomorrow: Coordinate — centered */}
+      {/* Coming Next */}
       <section className="w-full max-w-[720px] mx-auto px-6 py-12 text-center">
         <p className="text-[11px] font-semibold text-fd-muted-foreground uppercase tracking-[0.15em] mb-4">
           Coming Next
         </p>
         <p className="text-sm text-fd-muted-foreground max-w-lg mx-auto leading-relaxed mb-3">
-          Trust computed from evidence. Work routed to the most reliable
-          actor &mdash; human, agent, or automation. Patterns crystallize.
-          Value cascades to every contributor.
+          Multi-agent coordination with event triggers.
+          Worktree-isolated parallel execution. Autonomous task
+          management that learns from every outcome.
         </p>
         <p className="text-[12px] font-mono text-fd-muted-foreground/60">
-          Smart routing &middot; Federation &middot; SDK integrations
+          Parallel agents &middot; Federation &middot; Web workspace
         </p>
       </section>
 
@@ -125,12 +115,12 @@ export default function HomePage() {
         <div className="h-px bg-fd-border" />
       </div>
 
-      {/* Documentation — 3x2 grid, no orphan */}
+      {/* Documentation grid */}
       <section className="w-full max-w-[720px] mx-auto px-6 py-12">
         <p className="text-[11px] font-semibold text-fd-muted-foreground uppercase tracking-[0.15em] mb-6 text-center">
           Documentation
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {docLinks.map((link) => (
             <Link
               key={link.href}
@@ -145,14 +135,6 @@ export default function HomePage() {
               </span>
             </Link>
           ))}
-        </div>
-        <div className="text-center mt-4">
-          <Link
-            href="/docs/reference/integrations"
-            className="text-[12px] text-[#c2410c] dark:text-[#d97706] hover:underline"
-          >
-            Integration status &rarr;
-          </Link>
         </div>
       </section>
 
