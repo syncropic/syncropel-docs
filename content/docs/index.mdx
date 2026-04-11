@@ -1,66 +1,62 @@
 ---
 title: Syncropel Documentation
-description: The coordination protocol for hybrid human-AI teams. Every intent, every action, every insight — one protocol.
+description: Learn how to coordinate work between humans and AI agents with immutable records, evidence-based trust, and self-improving workflows.
 ---
 
-## What is Syncropel?
-
-Syncropel is a coordination protocol that makes human-AI collaboration auditable, trustworthy, and self-improving. Every action is an immutable record. Trust is earned from evidence. Proven workflows replay automatically at zero cost.
+## Get Started
 
 ```bash
 curl -sSf https://get.syncropic.com/spl | sh
-spl init
-spl serve --daemon
+spl init && spl serve --daemon
 ```
 
-## How It Works
+Then follow the [Quick Start tutorial](/docs/tutorials/quickstart) to create your first record.
 
-**Records** are the fundamental unit — 8 fields, content-addressed with SHA-256. Every intent, action, observation, and insight is a record. Records are immutable and self-verifying.
+---
 
-**Threads** group related records into workflows. A thread starts with an intent and ends with a fulfillment. Threads fork and merge like Git branches.
+## Tutorials
 
-**Trust** accumulates from outcomes. When an actor completes work and an evaluator confirms quality, trust grows. Trust is computed with Wilson lower bound — statistically principled, handles small samples correctly.
+Step-by-step learning — follow along from start to finish.
 
-**The Dial** maps trust to cost. Proven workflows replay at $0.00 (the REPLAY zone). Novel work requires full computation (the CREATE zone). As trust grows, costs converge to zero.
+| Tutorial | Description |
+|---|---|
+| [Quick Start](/docs/tutorials/quickstart) | Install spl and create your first record |
+| [Your First Task](/docs/tutorials/first-task) | Create, complete, and see trust grow |
+| [Working with Threads](/docs/tutorials/first-thread) | Open, fork, and close coordinated workflows |
 
-**Patterns** form from repeated successful workflows. When a pattern crystallizes (high trust, 100+ observations, compression gain), future matching work replays the pattern instantly.
+## Concepts
 
-## Core Concepts
+Understand how Syncropel works under the hood.
 
 | Concept | Description |
 |---|---|
-| **Record** | 8-field immutable unit. `id = SHA-256(canonical_json(7 fields))`. |
-| **Thread** | Sequence of records sharing a thread ID. Opens with INTEND, closes with KNOW. |
-| **Actor** | Any participant — human or AI. Identified by DID (`did:sync:type:name`). |
-| **Trust** | 3-dimensional: `trust(actor, domain, judged_by)`. Evidence-based, not granted. |
-| **Dial** | Continuous [0, 1]. Maps trust + pattern match to cost zone. |
-| **Pattern** | Crystallized workflow. L1 (exact) through L3 (intent-level) matching. |
-
-## The `spl` CLI
-
-```bash
-spl serve --daemon          # Start the server
-spl status                  # Check health
-
-spl intend "Deploy v2"      # Record an intent
-spl do "Ran tests"          # Record an action
-spl know "Tests passed"     # Record an observation
-spl learn "Use staging"     # Record an insight
-
-spl task add "Fix auth"     # Create a task
-spl task list               # See all tasks
-spl task done SKL-001       # Complete a task
-
-spl trust                   # View trust scores
-spl memory list             # View actor memories
-```
+| [Records](/docs/concepts/records) | The 8-field immutable, content-addressed unit |
+| [Threads](/docs/concepts/threads) | Group records into coordinated workflows |
+| [Actors](/docs/concepts/actors) | Identity, trust profiles, and persistent memory |
+| [Trust](/docs/concepts/trust) | Evidence-based reputation with the dial |
+| [Patterns](/docs/concepts/patterns) | Proven workflows that replay automatically |
+| [The Engine](/docs/concepts/engine) | Four loops from ingest to learning |
 
 ## Guides
 
-- [Backup and Recovery](/docs/guides/backup-restore) — Protect your data
-- [Task Management](/docs/guides/task-management) — Structured workflows with trust
-- [Agent Integration](/docs/guides/agent-integration) — Connect AI agents
+Solve specific problems — task-oriented, practical.
 
-## Resources
+| Guide | Description |
+|---|---|
+| [Task Management](/docs/guides/task-management) | The full lifecycle from creation to approval |
+| [Routing Rules](/docs/guides/routing-rules) | Control how work flows to actors |
+| [Actors & Adapters](/docs/guides/actors-and-adapters) | Register participants and connect them |
+| [Agent Integration](/docs/guides/agent-integration) | Connect AI agents to dispatch and trust |
+| [Backup & Recovery](/docs/guides/backup-restore) | Protect your data and recover safely |
 
-- [syncropel.com](https://syncropel.com) — Project website
+## Reference
+
+Look things up — commands, endpoints, formats.
+
+| Reference | Description |
+|---|---|
+| [CLI](/docs/reference/cli) | Every spl command with flags and examples |
+| [HTTP API](/docs/reference/api) | All endpoints with request examples |
+| [Record Format](/docs/reference/record-format) | The 8 fields, types, and canonical JSON |
+| [Configuration](/docs/reference/configuration) | Settings, rules, and data locations |
+| [Glossary](/docs/reference/glossary) | Key terms A to Z |
