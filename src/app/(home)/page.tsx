@@ -142,9 +142,9 @@ export default function HomePage() {
       <footer className="w-full border-t border-fd-border mt-auto">
         <div className="max-w-[720px] mx-auto px-6 py-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-[11px] text-fd-muted-foreground">
-              &copy; 2026 Syncropic Inc. Delaware Public Benefit Corporation.
-            </div>
+            <a href="https://syncropic.com" className="text-[11px] text-fd-muted-foreground hover:text-fd-foreground transition-colors">
+              &copy; 2026 Syncropic Inc. Public Benefit Corporation.
+            </a>
             <div className="flex flex-wrap gap-4 text-[11px] text-fd-muted-foreground">
               <a href="https://syncropic.com" className="hover:text-fd-foreground transition-colors">
                 syncropic.com
