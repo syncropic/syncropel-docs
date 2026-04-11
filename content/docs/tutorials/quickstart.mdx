@@ -1,0 +1,82 @@
+---
+title: Quick Start
+description: Install Syncropel and create your first record in under two minutes.
+---
+
+## Install
+
+Download and install the `spl` binary:
+
+```bash
+curl -sSf https://get.syncropic.com/spl | sh
+```
+
+This installs `spl` to `~/.local/bin/`. Verify the installation:
+
+```bash
+spl version
+```
+
+## Initialize
+
+Set up your local configuration:
+
+```bash
+spl init
+```
+
+This creates `~/.syncro/config.toml` with default settings. You only need to do this once.
+
+## Start the server
+
+```bash
+spl serve --daemon
+```
+
+The Syncropel server runs in the background on port 9100. Check that it's healthy:
+
+```bash
+spl status
+```
+
+You should see:
+
+```
+Syncropel kernel v0.7.0
+Status:  ok
+```
+
+## Create your first record
+
+Every action in Syncropel is a record. Let's create one:
+
+```bash
+spl intend "Set up monitoring for the production API"
+```
+
+This creates an INTEND record — a statement of what you want to accomplish. The output shows the thread ID where the record was stored.
+
+## Record what happened
+
+As you work, record your actions and observations:
+
+```bash
+spl do "Configured alerting thresholds"
+spl know "All endpoints responding under 200ms"
+```
+
+Each command creates a new record on the same thread. Together, they tell the story: you intended to set up monitoring, you configured alerts, and you observed the results.
+
+## View your work
+
+```bash
+spl thread list
+```
+
+This shows all active threads with their latest activity.
+
+## What's next
+
+- [Create your first task](/docs/tutorials/first-task) — structured task management with success criteria
+- [Work with threads](/docs/tutorials/first-thread) — fork, merge, and coordinate
+- [Understand records](/docs/concepts/records) — the fundamental unit of Syncropel

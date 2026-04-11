@@ -1,0 +1,72 @@
+---
+title: Patterns
+description: Successful workflows form patterns that can be replayed automatically — reducing cost to zero over time.
+---
+
+## Overview
+
+When the same type of work succeeds repeatedly, Syncropel extracts a pattern. The next time similar work arrives, the system recognizes the pattern and replays it — without re-computing from scratch. This is how costs converge to zero.
+
+## How Patterns Form
+
+Every completed thread is a chain of records: INTEND → DO/CALL → KNOW. When a thread completes successfully, the system computes hash signatures at multiple levels of abstraction:
+
+| Level | What It Captures | Example |
+|---|---|---|
+| **L1 (Structural)** | The exact sequence of operations | "Run tests, read file, edit function, run tests" |
+| **L2 (Flow)** | The input-output shape | "Code file in, modified code out" |
+| **L3 (Intent)** | The high-level purpose | "Fix a bug" |
+
+## The Matching Cascade
+
+When new work arrives, the system checks for matching patterns starting from the most specific:
+
+```
+New work arrives
+  → Check L1 (exact match?) → found? REPLAY at $0.00
+  → Check L2 (similar flow?) → found? ADAPT with minor changes
+  → Check L3 (same intent?) → found? EXPLORE the approach
+  → No match → CREATE from scratch
+```
+
+Exact matches replay instantly at zero cost. Partial matches guide the approach. No match requires full computation.
+
+## Crystallization
+
+A pattern crystallizes when it meets four criteria:
+
+1. **Trust**: The actor's trust in this domain is 0.90 or higher
+2. **Observations**: The pattern has been observed 100 or more times
+3. **Compression**: The pattern compresses well (it's a genuine regularity, not noise)
+4. **Multi-source**: Multiple actors or contexts have confirmed the pattern
+
+Crystallized patterns are highly reliable — they've been validated extensively. They unlock the REPLAY zone: zero-cost execution with high confidence.
+
+## De-crystallization
+
+Patterns can lose crystallized status if conditions change:
+
+- Trust drops below 0.80 (the actor's reliability declined)
+- The pattern starts failing (the environment changed)
+- A better pattern emerges (compression improved)
+
+This prevents the system from rigidly following outdated approaches. Patterns evolve with the evidence.
+
+## The Economic Model
+
+Over time, the proportion of work matching crystallized patterns grows:
+
+| Stage | REPLAY | ADAPT | EXPLORE | CREATE |
+|---|---|---|---|---|
+| Early (0-50 tasks) | 0% | 10% | 30% | 60% |
+| Growing (50-200) | 20% | 30% | 30% | 20% |
+| Mature (200-500) | 50% | 25% | 15% | 10% |
+| Steady state (500+) | 85% | 10% | 4% | 1% |
+
+At steady state, 85% of work matches proven patterns and costs near zero. Only genuinely novel work requires full computation.
+
+## What's Next
+
+- [The engine](/docs/concepts/engine) — the 4-loop system that manages patterns
+- [Trust](/docs/concepts/trust) — the evidence model that feeds pattern formation
+- [Records](/docs/concepts/records) — the fundamental unit from which patterns are extracted

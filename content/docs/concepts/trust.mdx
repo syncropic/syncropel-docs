@@ -1,0 +1,72 @@
+---
+title: Trust
+description: Trust in Syncropel is earned from evidence — completed work reviewed by independent evaluators, not granted by policy.
+---
+
+## Overview
+
+Syncropel computes trust from outcomes, not opinions. When an actor completes work and an independent reviewer approves it, that creates a data point. Thousands of data points produce a reliable trust score. This is how the system learns who is good at what.
+
+## Three Dimensions
+
+Trust has three dimensions:
+
+```
+trust(actor, domain, judged_by)
+```
+
+- **Actor**: who performed the work
+- **Domain**: what kind of work (code, ops, data, research, etc.)
+- **Judged by**: who evaluated the outcome
+
+A developer might have high trust in `code` but low trust in `ops`. The same work evaluated by different reviewers creates different trust entries. This captures the full picture — not just "is this actor good?" but "is this actor good at THIS, according to WHOM?"
+
+## How Trust Grows
+
+Trust accumulates from the evaluation gate:
+
+1. An actor completes work → claims done
+2. An independent evaluator reviews → approves or rejects
+3. Approval creates a success observation: `trust += success`
+4. Rejection creates a failure observation: `trust += failure`
+
+```bash
+spl trust
+```
+
+```
+ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
+did:sync:user:alice     code           12      14   0.438
+did:sync:agent:dev      code            5       5   0.299
+```
+
+The trust score is a statistical lower bound — it reflects confidence based on the amount of evidence. With few observations, trust stays low (conservative). With many observations, trust converges to the true success rate.
+
+## The Dial
+
+Trust feeds into the dial — a continuous value from 0 to 1 that maps to four zones:
+
+| Zone | Range | What It Means | Cost |
+|---|---|---|---|
+| **REPLAY** | 0.0 - 0.33 | Pattern is proven, replay it directly | Near zero |
+| **ADAPT** | 0.33 - 0.50 | Known pattern, minor adaptation needed | Low |
+| **EXPLORE** | 0.50 - 0.67 | Moderate novelty, iterative approach | Moderate |
+| **CREATE** | 0.67 - 1.0 | Genuinely novel, full reasoning required | Higher |
+
+As an actor builds trust in a domain, their work costs less — proven patterns can be replayed without re-computation. This is the economic engine: every successful completion makes the next similar task cheaper.
+
+## Decay
+
+Trust decays over time. Evidence from 6 months ago carries less weight than evidence from last week. The default decay half-life is 90 days — trust must be continuously maintained through recent work.
+
+This prevents stale trust from persisting. An actor who was excellent a year ago but hasn't worked recently returns to a neutral trust score, requiring fresh evidence.
+
+## Independence Requirement
+
+The evaluator must be different from the executor. An actor cannot approve their own work — self-evaluation is structurally ignored by the trust computation. This ensures trust evidence comes from independent judgment, not self-reported success.
+
+## What's Next
+
+- [Patterns](/docs/concepts/patterns) — how trust enables pattern crystallization
+- [The engine](/docs/concepts/engine) — the 4-loop system that processes records
+- [Task management](/docs/guides/task-management) — the evaluation gate in practice

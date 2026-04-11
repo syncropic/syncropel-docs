@@ -1,0 +1,83 @@
+---
+title: The Engine
+description: Four loops running at different timescales — from sub-millisecond record ingestion to daily trust maintenance.
+---
+
+## Overview
+
+The Syncropel engine is a 4-loop system. Each loop operates at a different timescale and handles a different concern. Together, they turn records into action, action into evidence, and evidence into learning.
+
+## The Four Loops
+
+### INGEST (microseconds)
+
+Receives a new record, validates it, computes its content-addressed ID, stores it, and broadcasts it to the other loops.
+
+This is the fast path — under 100 microseconds per record. No blocking, no computation beyond validation and hashing.
+
+### RECONCILE (seconds)
+
+When a new record arrives, the reconcile loop determines what should happen next:
+
+1. Does a routing rule match? → dispatch to the appropriate actor
+2. Does a pattern match? → replay the proven workflow
+3. No match? → use reasoning to propose an action
+
+This is where coordination happens. A record expressing intent gets routed to an actor who can fulfill it. The routing cascade checks patterns first (cheapest), then rules, then trust-based routing, then full reasoning (most expensive).
+
+### TICK (minutes)
+
+Periodic checks that run every minute:
+
+- Process trust outcomes from completed work
+- Detect anomalies in actor behavior
+- Check for stalled threads that need attention
+
+### CRON (hours/daily)
+
+Long-term maintenance:
+
+- Apply trust decay (older evidence weighs less)
+- Check patterns for crystallization (have they met the threshold?)
+- Generate cost reports and health summaries
+
+## Configuration as Data
+
+The engine's behavior is configured through records on a special thread (`th_engine_config`). Routing rules, timing parameters, and policies are all records — they can be updated at runtime, versioned, and audited like any other data.
+
+```bash
+spl config show
+spl config list-rules
+```
+
+## Routing
+
+When a record arrives that needs to be handled, the engine routes it through a cascade:
+
+```
+Record arrives
+  → Check explicit target (body.to field)
+  → Check pattern matches (L1 → L2 → L3)
+  → Check routing rules (configured patterns)
+  → Check trust-based routing (actors with proven ability)
+  → Use reasoning (propose a new routing decision)
+  → Default handler
+```
+
+Each step is cheaper and faster than the next. The system tries the cheapest approach first and only falls back to more expensive methods when needed.
+
+## Self-Improvement
+
+The engine improves over time:
+
+- Routing decisions that work well become routing rules
+- Routing rules that work repeatedly become patterns
+- Patterns that crystallize enable zero-cost replay
+
+Every record processed is evidence that makes the next decision better. The engine doesn't just execute — it learns.
+
+## What's Next
+
+- [Records](/docs/concepts/records) — what the engine processes
+- [Trust](/docs/concepts/trust) — how evidence accumulates
+- [Configuration reference](/docs/reference/configuration) — engine settings and routing rules

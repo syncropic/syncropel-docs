@@ -1,0 +1,147 @@
+---
+title: CLI Reference
+description: Complete reference for the spl command-line interface.
+---
+
+## Global Options
+
+All commands support:
+
+| Flag | Description |
+|---|---|
+| `-o json` or `--json` | Output in JSON format |
+| `-o stream-json` | Output as newline-delimited JSON stream |
+| `-h` or `--help` | Show help |
+
+## Server
+
+```bash
+spl serve [--daemon] [--port 9100] [--memory] [--echo] [--store sqlite:///path]
+spl serve --stop
+spl status
+spl version
+```
+
+| Command | Description |
+|---|---|
+| `serve` | Start the Syncropel server |
+| `serve --daemon` | Start in background mode |
+| `serve --memory` | Use ephemeral in-memory store (for development) |
+| `serve --echo` | Echo mode — no AI provider needed |
+| `serve --stop` | Stop the background daemon |
+| `status` | Show server health, uptime, record count |
+| `version` | Show version |
+
+## Records
+
+```bash
+spl intend "goal" [--thread ID] [--actor DID]
+spl do "action" [--thread ID]
+spl know "observation" [--thread ID]
+spl learn "insight" [--thread ID]
+```
+
+| Command | Creates | Purpose |
+|---|---|---|
+| `intend` | INTEND record | State a goal or plan |
+| `do` | DO record | Record an action |
+| `know` | KNOW record | Record an observation |
+| `learn` | LEARN record | Record an insight or decision |
+
+## Threads
+
+```bash
+spl thread list
+spl thread show <id>
+spl thread records <id>
+```
+
+## Tasks
+
+```bash
+spl task add "goal" [--priority P] [--label L] [--assign @actor] [--alias SKL-0001]
+spl task list [--all]
+spl task show <id|alias>
+spl task start <id|alias>
+spl task done <id|alias> --summary "..." [--domain D]
+spl task fail <id|alias> --reason "..."
+spl task approve <id|alias> [--domain D] [--notes "..."] [--verify]
+spl task reject <id|alias> --reason "..." [--domain D]
+spl task block <id|alias> --reason "..."
+spl task defer <id|alias> --reason "..."
+spl task cancel <id|alias> --reason "..." [--superseded-by ID]
+spl task reopen <id|alias> --reason "..."
+spl task comment <id|alias> "text"
+spl task edit <id|alias> --set field=value [--reason "..."]
+spl task plan <parent> "sub-goal"
+spl task handoff <id|alias>
+spl task dispatch <id|alias> [--worktree]
+spl task tree <id|alias>
+```
+
+## Trust
+
+```bash
+spl trust
+```
+
+Shows trust scores per actor per domain with success count, total observations, and current zone.
+
+## Actors
+
+```bash
+spl actor list
+spl actor show <did|name>
+spl actor register <did> [--display-name NAME] [--category agent]
+spl actor use <did|name>
+spl actor export <did|name>
+spl actor import <path> [--trust-discount 0.5]
+```
+
+## Memory
+
+```bash
+spl memory list [--actor DID]
+spl memory add "name" --type TYPE --description "..."
+spl memory remove "name"
+spl memory search "keyword"
+```
+
+Memory types: `user`, `feedback`, `project`, `reference`, `skill`, `insight`.
+
+## Adapters
+
+```bash
+spl adapter list
+spl adapter add <did> --family cli --binary <path> [--timeout 600]
+spl adapter remove <name>
+```
+
+## Configuration
+
+```bash
+spl config show
+spl config list-rules
+spl config add-rule --name N --domain D --act A --target DID
+spl config add-trigger --name N --match "expr" --target DID [--cooldown 60]
+spl config list-triggers
+spl config set-key <provider> <key>
+spl config model <name>
+spl config path
+```
+
+## Dispatch
+
+```bash
+spl dispatch <actor> "goal" [--thread ID] [--budget 1.0] [--timeout 600]
+```
+
+## Other
+
+```bash
+spl init [--force]
+spl run "goal" [--timeout 600]
+spl aitl list
+spl aitl approve <id>
+spl aitl reject <id>
+```

@@ -1,0 +1,128 @@
+---
+title: API Reference
+description: HTTP endpoints for the Syncropel server.
+---
+
+## Base URL
+
+```
+http://localhost:9100
+```
+
+The server listens on port 9100 by default. All endpoints return JSON.
+
+## Health
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | Health check — returns `{"status": "ok"}` |
+
+## Records
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/records` | Ingest a new record |
+| GET | `/v1/records/:id` | Get a record by ID |
+| GET | `/v1/records?thread=X` | List records filtered by thread |
+| GET | `/v1/records?actor=X` | List records filtered by actor |
+
+### Ingest a Record
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:alice",
+    "thread": "th_abc123...",
+    "body": {"goal": "Deploy the service"},
+    "clock": 0,
+    "data_type": "SCALAR"
+  }'
+```
+
+## Threads
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/threads` | List all threads |
+| GET | `/v1/threads/:id/records` | Get all records on a thread |
+| GET | `/v1/threads/:id/state` | Get folded thread state |
+| GET | `/v1/threads/:id/project` | Get thread projection (formatted view) |
+| GET | `/v1/threads/:id/participants` | Get thread participants |
+
+### Thread Projections
+
+```bash
+curl "http://localhost:9100/v1/threads/th_abc123.../project?format=tui"
+```
+
+Projection formats:
+
+| Format | Description |
+|---|---|
+| `tui` | Turn-based view for terminal display |
+| `messages` | Chat-style message format |
+
+## Trust
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/trust` | Get all trust scores |
+
+## Actors
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/actors` | List registered actors |
+| GET | `/v1/actors/lookup?did=X` | Get actor detail by DID |
+
+## Dispatch
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/dispatch` | Dispatch work to an actor |
+
+### Dispatch Work
+
+```bash
+curl -X POST http://localhost:9100/v1/dispatch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "actor_did": "did:sync:agent:dev",
+    "goal": "Fix the authentication bug",
+    "thread_id": "th_abc123...",
+    "budget": {"max_cost_usd": 1.0, "max_duration_secs": 600}
+  }'
+```
+
+## Decisions
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/aitl` | List pending decisions |
+| POST | `/v1/aitl/:id/decide` | Approve or reject a pending decision |
+
+### Approve a Decision
+
+```bash
+curl -X POST http://localhost:9100/v1/aitl/abc123.../decide \
+  -H "Content-Type: application/json" \
+  -d '{"decision": "approve", "reason": "Looks correct"}'
+```
+
+## Engine
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/engine/health` | Engine health counters |
+| GET | `/v1/config/rules` | List routing rules |
+| GET | `/v1/adapters` | List registered adapters |
+
+## Proxy
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/proxy/messages` | Anthropic Messages API proxy (translates to records) |
+
+The proxy endpoint accepts the Anthropic Messages API format and translates requests into Syncropel records. Use this to route existing AI tool calls through Syncropel for observability and trust tracking.

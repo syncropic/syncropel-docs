@@ -1,0 +1,111 @@
+---
+title: Configuration
+description: Engine configuration — routing rules, event triggers, and server settings.
+---
+
+## Configuration File
+
+Syncropel stores local settings in `~/.syncro/config.toml`:
+
+```toml
+[identity]
+actor = "did:sync:user:alice"
+display_name = "Alice"
+
+[store]
+url = "sqlite:///home/alice/.syncro/hub.db"
+
+[server]
+host = "127.0.0.1"
+port = 9100
+```
+
+View the configuration:
+
+```bash
+spl config show
+spl config path    # Shows the file location
+```
+
+## Engine Configuration
+
+Engine behavior is configured through records on a special thread. This means configuration is versioned, auditable, and can change at runtime.
+
+### Routing Rules
+
+```bash
+# Add a routing rule
+spl config add-rule \
+  --name "code-to-dev" \
+  --domain code \
+  --act INTEND \
+  --target did:sync:agent:dev
+
+# List rules
+spl config list-rules
+```
+
+Rules are evaluated in order. The first matching rule determines where a record is routed.
+
+### Event Triggers
+
+Event triggers wake up actors when specific records appear:
+
+```bash
+# Create a trigger
+spl config add-trigger \
+  --name "review-on-completion" \
+  --match "act=KNOW,body.topic=task_completion" \
+  --target did:sync:agent:reviewer \
+  --goal "Review the completed task" \
+  --budget 1.0 \
+  --timeout 300 \
+  --cooldown 60
+
+# Create a scheduled trigger
+spl config add-trigger \
+  --name "daily-summary" \
+  --schedule "0 9 * * *" \
+  --target did:sync:agent:reporter \
+  --goal "Generate daily project summary"
+
+# List triggers
+spl config list-triggers
+
+# Disable a trigger
+spl config add-trigger --name "review-on-completion" --disable
+```
+
+Trigger options:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--match` | — | Record pattern: `"act=KNOW,body.topic=task_verdict"` |
+| `--schedule` | — | Cron expression: `"*/15 * * * *"` (mutually exclusive with match) |
+| `--target` | — | Actor DID to dispatch to |
+| `--goal` | — | Goal text for the dispatched actor |
+| `--budget` | 1.0 | Maximum cost per dispatch (USD) |
+| `--timeout` | 300 | Maximum duration per dispatch (seconds) |
+| `--cooldown` | 60 | Minimum seconds between fires |
+| `--max-concurrent` | 1 | Maximum simultaneous dispatches from this trigger |
+
+### API Keys
+
+```bash
+# Set an AI provider key
+spl config set-key anthropic sk-ant-...
+
+# Set the default model
+spl config model claude-sonnet-4-20250514
+```
+
+## Data Locations
+
+| Path | Purpose |
+|---|---|
+| `~/.syncro/config.toml` | Local settings (identity, server, store) |
+| `~/.syncro/hub.db` | Record database (SQLite) |
+| `~/.syncro/secrets/` | API keys (plaintext files) |
+| `~/.syncro-data/tasks/` | Task content files (Markdown) |
+| `~/.syncro-data/aliases.toml` | Task alias mappings |
+| `~/.local/share/syncropel/backups/` | Automatic database backups |

@@ -1,0 +1,76 @@
+---
+title: Actors
+description: Every participant in Syncropel — human or AI — is an actor with an identity, trust profile, and memory.
+---
+
+## Overview
+
+An actor is any entity that creates records — a person, an AI agent, a CI pipeline, or an automated service. The protocol treats all actors uniformly. A human typing a command and an AI agent calling a tool both produce the same 8-field records and accumulate trust the same way.
+
+## Identity
+
+Every actor has a DID (Decentralized Identifier):
+
+```
+did:sync:user:alice          — a human user
+did:sync:agent:dev           — an AI development agent
+did:sync:sa:github-ci        — a service account
+did:sync:system:engine       — a system component
+```
+
+The DID is permanent — it doesn't change when the underlying model, tool, or person changes. This means trust earned by an agent carries forward even if the AI model is upgraded.
+
+## Three Layers
+
+Actor identity has three layers:
+
+| Layer | What It Is | How Often It Changes |
+|---|---|---|
+| **Identity (DID)** | The permanent identifier | Never |
+| **Substrate** | The current implementation (which AI model, which tool) | Occasionally |
+| **Instance** | The active session or process | Every session |
+
+This separation means you can swap the AI model behind an agent without losing its accumulated trust, memory, or reputation.
+
+## Trust Profile
+
+Every actor accumulates a trust profile from the outcomes of their work:
+
+```bash
+spl trust
+```
+
+```
+ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
+did:sync:user:alice     code            8       9   0.473
+did:sync:agent:dev      code            5       6   0.388
+```
+
+Trust is domain-specific — an actor can be highly trusted in `code` but untrusted in `ops`. Trust is computed from evidence (approved work), not granted by permission.
+
+## Memory
+
+Actors accumulate memories across sessions — learned preferences, techniques, and context:
+
+```bash
+spl memory list
+```
+
+Memories persist across session restarts. When an actor starts a new session, its memories provide context about past work, preferences, and lessons learned.
+
+## Registration
+
+Actors are registered in the actor registry:
+
+```bash
+spl actor register did:sync:agent:reviewer --display-name Reviewer
+spl actor list
+```
+
+The registry tracks all known actors, their categories, and their current status.
+
+## What's Next
+
+- [Trust](/docs/concepts/trust) — how outcomes build evidence-based reputation
+- [Actors and adapters guide](/docs/guides/actors-and-adapters) — register and configure actors
+- [Records](/docs/concepts/records) — what actors produce

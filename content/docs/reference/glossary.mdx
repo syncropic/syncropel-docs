@@ -1,0 +1,79 @@
+---
+title: Glossary
+description: Key terms and definitions used throughout Syncropel.
+---
+
+## A
+
+**Actor**
+Any participant that creates records — a person, an AI agent, a service account, or a system component. Identified by a DID.
+
+**Act Type**
+One of 8 types that classify what a record represents: INTEND, DO, KNOW, LEARN (coordination) and GET, PUT, CALL, MAP (effects).
+
+**Adapter**
+A bridge between the Syncropel engine and an external system. CLI adapters spawn processes. Proxy adapters make HTTP calls.
+
+**Approval**
+A KNOW record with a verdict of "accept" from an independent evaluator. Creates trust evidence.
+
+## C
+
+**Clock**
+A logical timestamp on each record, monotonically increasing per actor per thread. Used for ordering, not wall-clock time.
+
+**Crystallization**
+When a pattern meets quality thresholds (high trust, many observations, compression gain), it becomes crystallized — proven reliable enough for automatic replay.
+
+## D
+
+**DID (Decentralized Identifier)**
+The permanent identity of an actor: `did:sync:type:name`. The identity layer that persists across model changes, session restarts, and substrate upgrades.
+
+**Dial**
+A continuous value from 0 to 1 that maps trust and pattern matching to cost zones. Lower dial values mean cheaper execution (proven patterns replay at near-zero cost).
+
+**Domain**
+A category of work: `code`, `ops`, `data`, `research`, etc. Trust is tracked per domain — an actor can be trusted in one domain and untrusted in another.
+
+## E
+
+**Engine**
+The 4-loop system that processes records: INGEST (receive), RECONCILE (route and execute), TICK (periodic checks), CRON (maintenance).
+
+**Evaluation Gate**
+The requirement that completed work be reviewed by an independent evaluator before trust evidence is created. Prevents self-reported success from inflating trust scores.
+
+**Event Trigger**
+A configuration that dispatches to an actor when a matching record appears or on a schedule.
+
+## F
+
+**Fold**
+Computing the current state by replaying all records on a thread. `state = fold(records)`. This is how status, trust, and configuration are derived.
+
+## P
+
+**Pattern**
+A recurring sequence of successful records. Patterns are matched at multiple levels of abstraction (L1 exact through L3 intent-level) and can be replayed to avoid re-computation.
+
+## R
+
+**Record**
+The fundamental unit — an 8-field immutable, content-addressed data structure. Records are never modified or deleted.
+
+**Routing Rule**
+A configuration that tells the engine how to handle records matching specific criteria. Rules specify which actor should handle which types of work.
+
+## T
+
+**Thread**
+A sequence of records sharing a thread ID. Represents a workflow, task, conversation, or any coordinated activity.
+
+**Trust**
+A score computed from evidence — approved work, reviewed outcomes, verified results. Three-dimensional: `trust(actor, domain, judged_by)`. Computed using the Wilson score lower bound for statistical rigor.
+
+## Z
+
+**Zone**
+One of four cost regions on the dial: REPLAY (near-zero cost), ADAPT (low cost), EXPLORE (moderate cost), CREATE (full cost). The zone determines how much computation is needed.

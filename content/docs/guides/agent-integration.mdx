@@ -1,0 +1,101 @@
+---
+title: Agent Integration
+description: Connect AI agents to Syncropel — dispatch work, track outcomes, and build trust.
+---
+
+## Overview
+
+Syncropel coordinates AI agents the same way it coordinates humans. An agent registers as an actor, receives work through the dispatch system, and accumulates trust from reviewed outcomes.
+
+## Supported Agents
+
+Any CLI-based agent that reads a prompt and produces output can integrate. Commonly used:
+
+| Agent | Binary | Integration |
+|---|---|---|
+| Claude Code | `claude` | CLI adapter, stream-json output |
+| Codex CLI | `codex` | CLI adapter |
+| Custom agents | Any binary | CLI adapter with configurable flags |
+
+## Register an Agent
+
+```bash
+# Register the actor
+spl actor register did:sync:agent:dev --display-name "Dev Agent"
+
+# Bind a CLI adapter
+spl adapter add did:sync:agent:dev \
+  --family cli \
+  --binary claude \
+  --timeout 600 \
+  --max-concurrent 2
+```
+
+## Dispatch Work
+
+Send a task to an agent:
+
+```bash
+spl dispatch dev "Fix the failing authentication tests" \
+  --budget 1.0 \
+  --timeout 600
+```
+
+Or dispatch a structured task with full context:
+
+```bash
+spl task dispatch SKL-0001
+```
+
+The dispatch system:
+1. Composes a goal with context (task content, actor memories)
+2. Spawns the agent process via the CLI adapter
+3. Monitors output for records
+4. Ingests the agent's records into the shared store
+
+## How Agents Report Work
+
+Agents create records on the thread they're assigned to:
+
+- **CALL records** for tool use (shell commands, file reads, API calls)
+- **KNOW records** for observations ("tests pass", "found the bug in auth.rs")
+- **DO records** for actions taken
+
+The agent marks completion with:
+
+```bash
+spl task done SKL-0001 --summary "Fixed token validation logic" --domain code
+```
+
+## Trust from Agent Work
+
+Agent work follows the same evaluation gate as human work:
+
+1. Agent completes → status: `review`
+2. Reviewer approves → status: `approved`, trust evidence created
+3. Over time, the agent builds a trust profile in specific domains
+
+```bash
+spl trust
+```
+
+```
+ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
+did:sync:agent:dev      code            8      10   0.418
+```
+
+## Agent Memory
+
+Agents accumulate memories across sessions:
+
+```bash
+spl memory list --actor did:sync:agent:dev
+```
+
+Memories include learned conventions, quality gates, past corrections, and domain knowledge. They are included in dispatch context so the agent starts each session with accumulated knowledge.
+
+## What's Next
+
+- [Task management](/docs/guides/task-management) — the full task lifecycle
+- [Actors and adapters](/docs/guides/actors-and-adapters) — register and configure actors
+- [Trust](/docs/concepts/trust) — how evidence builds reliable reputation

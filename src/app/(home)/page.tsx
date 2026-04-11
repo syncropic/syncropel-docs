@@ -1,8 +1,10 @@
 import Link from 'next/link';
 
 const docLinks = [
-  { title: 'Getting Started', href: '/docs', desc: 'Install spl, create your first record' },
-  { title: 'Backup & Recovery', href: '/docs/runbooks/backup-restore', desc: 'Protect your data and recover safely' },
+  { title: 'Quick Start', href: '/docs/tutorials/quickstart', desc: 'Install and create your first record' },
+  { title: 'Task Management', href: '/docs/guides/task-management', desc: 'Track work with success criteria and trust' },
+  { title: 'Agent Integration', href: '/docs/guides/agent-integration', desc: 'Connect AI agents to Syncropel' },
+  { title: 'CLI Reference', href: '/docs/reference/cli', desc: 'All spl commands' },
   { title: 'Protocol Spec', href: 'https://github.com/syncropic/syncropel-spec', desc: 'The canonical specification' },
   { title: 'Source Code', href: 'https://github.com/syncropic/syncropel-core', desc: 'Rust implementation' },
 ];
@@ -120,7 +122,7 @@ export default function HomePage() {
         <p className="text-[11px] font-semibold text-fd-muted-foreground uppercase tracking-[0.15em] mb-6 text-center">
           Documentation
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {docLinks.map((link) => (
             <Link
               key={link.href}

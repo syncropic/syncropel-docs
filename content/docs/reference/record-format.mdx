@@ -1,0 +1,96 @@
+---
+title: Record Format
+description: The 8-field record — Syncropel's fundamental data structure.
+---
+
+## Fields
+
+Every record has exactly 8 fields:
+
+| # | Field | Type | Hashed | Description |
+|---|---|---|---|---|
+| 1 | `parents` | string[] | Yes | Record IDs this builds on (sorted ascending) |
+| 2 | `thread` | string | Yes | Thread ID (`th_` + 64 hex chars) |
+| 3 | `actor` | string | Yes | Actor DID (e.g., `did:sync:user:alice`) |
+| 4 | `act` | string | Yes | Act type (see below) |
+| 5 | `body` | object | Yes | JSON payload (domain-specific content) |
+| 6 | `clock` | integer | Yes | Logical timestamp (monotonic per actor per thread) |
+| 7 | `data_type` | string | Yes | Value type (see below) |
+| 8 | `judged_by` | string or null | No | Record ID of the judgment this reflects |
+
+## Identity
+
+```
+id = SHA-256(canonical_json(act, actor, body, clock, data_type, parents, thread))
+```
+
+Seven fields are hashed in alphabetical key order. The `judged_by` field is excluded — the same observation judged by different evaluators has the same content but different trust implications.
+
+## Act Types
+
+| Type | Category | Purpose |
+|---|---|---|
+| `INTEND` | Coordination | State a goal, open a thread |
+| `DO` | Coordination | Record an action taken |
+| `KNOW` | Coordination | Record an observation or judgment |
+| `LEARN` | Coordination | Record an insight or decision |
+| `GET` | Effect | Retrieve a value |
+| `PUT` | Effect | Store a value |
+| `CALL` | Effect | Invoke a tool or service |
+| `MAP` | Effect | Transform data |
+
+## Data Types
+
+| Type | Description |
+|---|---|
+| `SCALAR` | A single value (the most common type) |
+| `FORMULA` | A computation specification |
+| `DISTRIBUTION` | A probability distribution or range |
+| `REFERENCE` | A pointer to external content |
+| `MORPHISM` | A transformation between types |
+| `VOID` | No value (for pure side-effect records) |
+
+## Canonical JSON
+
+Records are serialized in canonical JSON for hashing:
+
+- Keys sorted alphabetically at every depth
+- No whitespace
+- Numbers without trailing zeros
+- Deterministic — same fields always produce the same bytes
+
+This ensures that any implementation computing a record's ID will get the same result.
+
+## Thread IDs
+
+```
+th_ + SHA-256(actor + purpose + nonce)
+```
+
+Thread IDs use the `th_` prefix to distinguish them from record IDs. They are content-addressed — the same inputs always produce the same thread ID.
+
+## Clock Rules
+
+- Monotonically increasing per actor per thread
+- Starts at 0 for the first record
+- Gaps are allowed (clock 0, 1, 5 is valid)
+- No two records by the same actor on the same thread can have the same clock
+
+## Example
+
+```json
+{
+  "parents": [],
+  "thread": "th_7f3a8b2c...",
+  "actor": "did:sync:user:alice",
+  "act": "INTEND",
+  "body": {
+    "goal": "Deploy the authentication service v2"
+  },
+  "clock": 0,
+  "data_type": "SCALAR",
+  "judged_by": null
+}
+```
+
+ID: `SHA-256(canonical_json({act, actor, body, clock, data_type, parents, thread}))` = `a1b2c3d4...`

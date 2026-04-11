@@ -1,0 +1,81 @@
+---
+title: Records
+description: The fundamental unit of Syncropel — an 8-field immutable, content-addressed record.
+---
+
+## Overview
+
+A record is a single, immutable fact. It captures who did what, when, and in what context. Records are never modified or deleted — new records are added to express changes. The complete history is always preserved.
+
+## The 8 Fields
+
+Every record has exactly 8 fields:
+
+| Field | Description |
+|---|---|
+| **parents** | Links to previous records this one builds on (like Git parent commits) |
+| **thread** | The thread this record belongs to — a coordination context |
+| **actor** | Who created this record (a DID like `did:sync:user:alice`) |
+| **act** | What kind of record: INTEND, DO, KNOW, LEARN, or an effect type |
+| **body** | The payload — a JSON object with the record's content |
+| **clock** | A logical timestamp, monotonically increasing per actor per thread |
+| **data_type** | The kind of value: SCALAR, FORMULA, DISTRIBUTION, or others |
+| **judged_by** | Whose judgment this reflects (used for trust computation) |
+
+## Content Addressing
+
+A record's identity is its content. The `id` is computed as:
+
+```
+id = SHA-256(canonical_json(parents, thread, actor, act, body, clock, data_type))
+```
+
+Seven of the eight fields are hashed. The `judged_by` field is excluded — the same observation judged by different parties has different trust implications but the same content.
+
+This means:
+- Two records with identical content have the same ID
+- A record's ID verifies its integrity — change any field and the ID changes
+- Records are self-verifying — no external authority needed
+
+## Act Types
+
+Eight act types cover everything that can happen:
+
+| Act Type | Purpose | Example |
+|---|---|---|
+| **INTEND** | State a goal or plan | "Deploy the authentication service" |
+| **DO** | Record an action taken | "Ran the migration script" |
+| **KNOW** | Record an observation or judgment | "All tests passing" |
+| **LEARN** | Record an insight or decision | "Use connection pooling for this service" |
+| **GET** | Retrieve a value | Query a configuration parameter |
+| **PUT** | Store a value | Update a setting |
+| **CALL** | Invoke a tool or service | Run a shell command, call an API |
+| **MAP** | Transform data | Apply a function to a dataset |
+
+The first four (INTEND, DO, KNOW, LEARN) are coordination types — they track intent, execution, observation, and learning. The last four (GET, PUT, CALL, MAP) are effect types — they perform operations.
+
+## Immutability
+
+Records are never modified. This is a fundamental guarantee:
+
+- **No edits**: To change a field, create a new record that supersedes the old one
+- **No deletes**: To cancel a record, create a new record that references and cancels it
+- **No backdating**: Clock values are monotonically increasing — you cannot insert a record into the past
+
+This makes the record chain a complete, auditable history. Every state can be reconstructed by replaying the records from the beginning.
+
+## State from Records
+
+All state in Syncropel is derived by folding records:
+
+```
+current_state = fold(all_records_on_thread)
+```
+
+Thread status, task progress, trust scores, actor profiles — everything is computed from the immutable record chain. There is no separate "state database" that can drift from the records.
+
+## What's Next
+
+- [Threads](/docs/concepts/threads) — how records are organized into workflows
+- [Trust](/docs/concepts/trust) — how outcomes create evidence-based trust
+- [Record format reference](/docs/reference/record-format) — field-level detail

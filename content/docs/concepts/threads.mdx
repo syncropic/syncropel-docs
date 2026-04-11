@@ -1,0 +1,73 @@
+---
+title: Threads
+description: Threads group related records into workflows — from a single task to a multi-step project.
+---
+
+## Overview
+
+A thread is a sequence of records that share a thread ID. It represents a unit of work — a task, a conversation, a deployment, or any coordinated activity. Threads give structure to the record stream.
+
+## Lifecycle
+
+Every thread follows a natural lifecycle:
+
+1. **Open**: An INTEND record creates the thread, stating the goal
+2. **Active**: DO and CALL records capture work being performed
+3. **Observed**: KNOW records capture facts and judgments about the work
+4. **Closed**: A KNOW record with `fulfills` marks the goal as achieved
+
+```
+INTEND "Deploy v2"  →  DO "Ran tests"  →  KNOW "Tests pass"  →  KNOW fulfills "Deployed"
+    (open)                (active)          (observed)              (closed)
+```
+
+## Thread Identity
+
+Thread IDs are content-addressed, like record IDs:
+
+```
+thread_id = "th_" + SHA-256(actor + purpose + timestamp)
+```
+
+The `th_` prefix makes thread IDs visually distinct from record IDs. Thread IDs are deterministic — the same inputs always produce the same thread.
+
+## Fork and Merge
+
+Threads can fork into sub-threads and merge results back:
+
+```
+Main thread: Deploy v2
+  ├── Sub-thread: Run test suite
+  │     └── KNOW: "All 458 tests pass"
+  ├── Sub-thread: Update staging
+  │     └── KNOW: "Staging verified"
+  └── KNOW fulfills: "Deployed to production"
+```
+
+Forking creates a child thread linked to the parent. Results from child threads flow back via KNOW records on the parent. This enables parallel work and hierarchical decomposition.
+
+## Tasks Are Threads
+
+Tasks in Syncropel are threads with additional metadata. A task thread starts with an INTEND record that includes:
+
+- A goal (what to accomplish)
+- Success criteria (how to verify)
+- Priority and labels (how to organize)
+
+The task lifecycle (inbox → active → review → approved) is derived from the records on the thread. There is no separate status field — the status is always consistent with what actually happened.
+
+## Participants
+
+Every actor who creates a record on a thread is a participant. Thread participation is tracked automatically:
+
+```bash
+spl thread show th_7f3a...
+```
+
+Shows who participated, what roles they played, and how many records each contributed.
+
+## What's Next
+
+- [Actors](/docs/concepts/actors) — the participants in threads
+- [Task management guide](/docs/guides/task-management) — structured task workflows
+- [Records](/docs/concepts/records) — the fundamental unit

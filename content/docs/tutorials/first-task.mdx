@@ -1,0 +1,78 @@
+---
+title: Your First Task
+description: Create a task with success criteria, complete it, and see trust evidence accumulate.
+---
+
+## What you'll learn
+
+Tasks in Syncropel are more than work items — they carry a hypothesis and success criteria. When a task completes and is reviewed, the outcome feeds into trust scores that improve future work.
+
+## Create a task
+
+```bash
+spl task add "Add input validation to the signup form" \
+  --priority high \
+  --label code
+```
+
+The output shows a thread ID and an alias (like `SKL-0001`) that you can use as a shorthand.
+
+## View your tasks
+
+```bash
+spl task list
+```
+
+```
+ID           STATUS   PRI    GOAL                                    ASSIGN
+SKL-0001     inbox    high   Add input validation to the signup...   —
+```
+
+The task starts in `inbox` status — it exists but nobody has started working on it.
+
+## Start working
+
+```bash
+spl task start SKL-0001
+```
+
+Status changes to `active`. This records that work has begun.
+
+## Complete the task
+
+When the work is done, mark it complete with a summary:
+
+```bash
+spl task done SKL-0001 --summary "Added email format and password length validation" --domain code
+```
+
+Status changes to `review` — the task is claimed complete but hasn't been independently verified yet.
+
+## Review and approve
+
+An independent reviewer confirms the work meets the criteria:
+
+```bash
+spl task approve SKL-0001 --domain code --notes "Validation logic verified, tests pass"
+```
+
+Status changes to `approved`. This creates a trust observation — evidence that the work was completed successfully in the `code` domain.
+
+## See trust grow
+
+```bash
+spl trust
+```
+
+```
+ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
+did:sync:user:you       code            1       1   0.246
+```
+
+Each approved task adds evidence. Over time, trust scores reflect real track records — not opinions or permissions.
+
+## What's next
+
+- [Work with threads](/docs/tutorials/first-thread) — understand how tasks relate to threads
+- [Task management guide](/docs/guides/task-management) — the full task lifecycle
+- [How trust works](/docs/concepts/trust) — the evidence-based trust model

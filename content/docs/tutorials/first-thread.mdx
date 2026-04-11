@@ -1,0 +1,78 @@
+---
+title: Working with Threads
+description: Threads group related records into workflows. Learn to create, track, and close threads.
+---
+
+## What you'll learn
+
+A thread is a sequence of related records that represent a workflow. Every task, conversation, and coordination flow is a thread. In this tutorial, you'll create a thread, add records to it, and close it.
+
+## Create a thread
+
+Every intent opens a new thread automatically:
+
+```bash
+spl intend "Migrate the user database to the new schema"
+```
+
+The output includes a thread ID:
+
+```
+✓ Record created on thread th_7f3a...
+```
+
+All subsequent records on this thread reference this ID.
+
+## Add records to the thread
+
+Record what happens as you work:
+
+```bash
+spl do "Backed up existing database" --thread th_7f3a...
+spl do "Applied migration script" --thread th_7f3a...
+spl know "All tables migrated, zero data loss" --thread th_7f3a...
+```
+
+Each record builds the story of the thread — what was intended, what was done, and what was observed.
+
+## View the thread
+
+```bash
+spl thread records th_7f3a...
+```
+
+This shows every record on the thread in chronological order, with the actor, act type, and body of each record.
+
+## List all threads
+
+```bash
+spl thread list
+```
+
+Shows all active threads with their latest activity, participant count, and record count.
+
+## Close a thread
+
+A thread closes when a KNOW record fulfills the original intent:
+
+```bash
+spl know "Migration complete, all services verified" --thread th_7f3a... --fulfills
+```
+
+The thread is now closed. Its complete record chain — from intent through execution to fulfillment — is preserved as an immutable history.
+
+## Capture insights
+
+After completing work, record what you learned:
+
+```bash
+spl learn "Schema migrations should run in maintenance windows to avoid connection timeouts"
+```
+
+LEARN records capture insights that improve future work. They persist in your actor memory and inform future decisions.
+
+## What's next
+
+- [How threads work](/docs/concepts/threads) — lifecycle, fork and merge, assertions
+- [How records work](/docs/concepts/records) — the 8-field immutable unit
+- [Task management](/docs/guides/task-management) — structured workflows with success criteria
