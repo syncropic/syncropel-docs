@@ -1,80 +1,48 @@
 ---
 title: Syncropel Documentation
-description: LLM API proxy with cost tracking, token monitoring, and observability. Record every API call with model, tokens, cost, and latency. Open source.
+description: Infrastructure that learns, governs, and coordinates. The coordination protocol for hybrid human-AI teams.
 ---
 
 ## What is Syncropel?
 
-Syncropel sits between your code and your LLM. Change one line — your `base_url` — and get full observability on every API call: model, tokens, cost, and latency, all recorded automatically.
+Syncropel is a coordination protocol for hybrid human-AI teams. Every intent, every action, every insight — one protocol. The fundamental unit is an 8-field immutable, content-addressed record.
 
 ```bash
 curl -sSf https://get.syncropic.com/spl | sh
 spl init
-spl serve
+spl serve --daemon
 ```
 
-Then point your SDK to `http://localhost:9100`. Every call is now recorded.
+## Core Concepts
+
+| Concept | What It Is |
+|---|---|
+| **The Record** | 8 fields, 7 hashed. `id = SHA-256(canonical_json(7 fields))`. Immutable, content-addressed. |
+| **Act Types** | 8: GET, PUT, CALL, MAP (effects) + INTEND, DO, KNOW, LEARN (coordination) |
+| **Trust** | 3D: `trust(actor, domain, judged_by)`. Wilson LB. 90-day decay. |
+| **The Dial** | d ∈ [0,1]. REPLAY ($0.00) → ADAPT → EXPLORE → CREATE ($0.50+) |
+| **Threading** | INTEND opens, KNOW with fulfills closes. Fork/merge like Git. |
+| **Patterns** | Hash chains of successful threads. Match cascade: L1→L2→L3→CREATE. |
+| **Actors** | DID-based identity. Three layers: DID (immutable) / Substrate (mutable) / Instance (ephemeral). |
+| **Engine** | 4 loops: INGEST (<100μs), RECONCILE, TICK, CRON. Everything else is data. |
 
 ## Get Started
 
 <Cards>
-  <Card
-    title="Quick Start (60 sec)"
-    description="Install, configure, and see your first dashboard."
-    href="/docs/tutorials/quickstart"
-  />
-  <Card
-    title="API Proxy Guide"
-    description="Endpoints, metadata, cost tracking, streaming support."
-    href="/docs/guides/proxy"
-  />
-  <Card
-    title="Local Workspace"
-    description="Full dashboard at syncropel.com/local — threads, actors, trust, cost."
-    href="/docs/guides/console"
-  />
-  <Card
-    title="CLI Reference"
-    description="All spl commands — run, serve, init, thread, actor, and more."
-    href="/docs/reference/cli"
-  />
+  <Card title="Quick Start" href="/docs/getting-started/quickstart" description="Install spl and create your first record in 60 seconds" />
+  <Card title="First Task" href="/docs/getting-started/first-task" description="Create, dispatch, and complete a task with trust evidence" />
+  <Card title="Director Loop" href="/docs/guides/director-loop" description="Set up autonomous task management with event triggers" />
 </Cards>
 
-## Learn More
+## Architecture
 
-<Cards>
-  <Card
-    title="Integration Status"
-    description="What works, what's preview, what's planned."
-    href="/docs/reference/integrations"
-  />
-  <Card
-    title="Agent Integration"
-    description="Connect Claude Code, VS Code, Zed, and other tools."
-    href="/docs/guides/agent-integration"
-  />
-  <Card
-    title="Authentication"
-    description="Login, service accounts, CI/CD access."
-    href="/docs/guides/auth"
-  />
-  <Card
-    title="Sync & Portability"
-    description="Push/pull across devices, privacy-preserving."
-    href="/docs/guides/sync"
-  />
-  <Card
-    title="Local Registry"
-    description="How spl serve works — persistent DuckDB, 160+ API routes."
-    href="/docs/guides/local-registry"
-  />
-  <Card
-    title="Glossary"
-    description="Key terms and definitions."
-    href="/docs/reference/glossary"
-  />
-</Cards>
+```
+spl (Rust CLI + server binary, ~11MB)
+├── spl serve (HTTP API + engine + LLM proxy, port 9100)
+├── spl task (hypothesis-driven task management, 19 commands)
+├── spl dispatch (multi-actor coordination with worktrees)
+├── spl trust (3D trust with Wilson LB)
+└── spl memory (cross-session actor learning)
+```
 
----
-
-*Syncropel is developed by [Syncropic Inc.](https://syncropic.com), a Delaware Public Benefit Corporation.*
+The spec lives at [syncropel-spec](https://github.com/syncropic/syncropel-spec). The implementation at [syncropel-core](https://github.com/syncropic/syncropel-core).
