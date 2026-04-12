@@ -1,0 +1,325 @@
+---
+title: CEL Expressions
+description: Write rules, gates, and predicates using Syncropel's canonical expression language — one syntax for triggers, routing, preconditions, fold rules, health checks, AITL, and permissions.
+---
+
+## Overview
+
+Syncropel uses **CEL (Common Expression Language)** as its canonical decision language. Every decision point in the system — event triggers, routing rules, task preconditions, status fold, health checks, AITL (Actor-in-the-Loop), and permissions — accepts CEL expressions. Write the predicate once; it works the same way everywhere.
+
+CEL is Google's type-safe, sandboxed expression language, used in production by Kubernetes admission controllers, gRPC, Envoy, Tekton, and GCP IAM. Syncropel extends CEL with a standard library exposing records, tasks, threads, trust, and system state.
+
+See the full specification in [§10/20 Expression Language](https://github.com/syncropic/syncropel-spec/blob/main/10-engine/20-expression-language.md) and the adoption rationale in [ADR-019](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-019-cel-expression-language.md).
+
+## Quick Start
+
+Validate an expression without running it:
+
+```bash
+spl expr check 'record.act == "KNOW" && record.body.verdict == "accept"' --context trigger
+```
+
+Evaluate an expression against real daemon state:
+
+```bash
+spl expr eval 'system.uptime_secs > 3600' --context health_check
+```
+
+Both commands report compile errors at the exact character position so you can fix syntax before shipping.
+
+## The Seven Contexts
+
+Each decision point has its own evaluation context with a specific set of bindings. Expressions are always bound to ONE context — you specify it with `--context` on the CLI or `context:` in a stored record. A trigger expression referencing `tasks` will fail to compile, because `tasks` isn't bound in trigger context.
+
+| Context | Used For | Primary Bindings |
+|---|---|---|
+| `trigger` | Event triggers matching incoming records | `record`, `records`, `system`, `task()`, `trust()`, `thread()`, `now()`, `current_actor()` |
+| `routing` | Routing rules | `record`, `thread()`, `system`, `trust()`, `task()`, `now()`, `current_actor()` |
+| `precondition` | Task readiness gating | `records`, `tasks`, `task()`, `trust()`, `thread()`, `now()`, `system`, `current_actor()` |
+| `fold_rule` | Task status derivation | `records` (the task thread), `task`, `thread()`, `now()`, `current_actor()` |
+| `health_check` | `spl health check` predicates | `system`, `tasks`, `trust()`, `now()`, `current_actor()` |
+| `aitl` | Intelligence proposal disposition | `record`, `proposal_confidence`, `meta_trust`, `system`, `now()`, `current_actor()` |
+| `permission` | API request gating | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()` |
+
+## Standard Library Reference
+
+### `record`
+
+A single Syncropel record (available in `trigger`, `routing`, `aitl`, `permission` contexts):
+
+```
+record.act          // string: "KNOW", "DO", "INTEND", "LEARN", etc.
+record.actor        // string: actor DID
+record.thread       // string: thread ID
+record.body         // map: the payload — access as record.body.topic, record.body.domain, etc.
+record.body.topic   // dot-access works for any body field
+record.clock        // int: logical timestamp
+record.data_type    // string: "SCALAR", "FORMULA", etc.
+record.parents      // list<string>: parent record IDs
+```
+
+### `records`
+
+A list of records (available in `trigger`, `precondition`, `fold_rule` contexts). Use CEL's built-in macros:
+
+```
+records.exists(r, r.act == "KNOW" && r.body.topic == "feature_enabled")
+records.filter(r, r.actor.startsWith("did:sync:agent:")).size()
+records.all(r, r.body.reviewed == true)
+records.map(r, r.cost_usd).reduce(acc, x, acc + x, 0.0)
+```
+
+### `task(alias)`
+
+Look up a single task by alias. Returns a projection:
+
+```
+task("SKL-0163").status        // string: "approved", "blocked", "active", etc.
+task("SKL-0163").priority      // string: "critical", "high", etc.
+task("SKL-0163").assigned_to   // string: actor DID
+task("SKL-0163").age_secs      // int: seconds since creation
+task("SKL-0163").cost_usd      // double
+task("SKL-0163").exists        // bool: false for unknown aliases
+```
+
+Defensive check: `task("SKL-0163").exists && task("SKL-0163").status == "approved"`.
+
+### `tasks`
+
+List of all known tasks (available in `precondition` and `health_check` contexts):
+
+```
+tasks.filter(t, t.status == "blocked").size()
+tasks.exists(t, t.priority == "critical" && t.age_secs > 3600)
+tasks.all(t, t.cost_usd < 5.0)
+```
+
+### `thread(id)`
+
+Look up a thread by ID:
+
+```
+thread("th_abc...").status          // string
+thread("th_abc...").last_clock      // int
+thread("th_abc...").record_count    // int
+thread("th_abc...").participants    // list<string>: actor DIDs
+```
+
+### `trust(actor, domain)` and `trust_count(actor, domain)`
+
+Wilson lower-bound trust score + observation count:
+
+```
+trust("did:sync:agent:dev", "code") > 0.5
+trust_count("did:sync:agent:dev", "code") >= 10   // require minimum evidence
+```
+
+### `system`
+
+Daemon-level state (available in most contexts):
+
+```
+system.uptime_secs                             // int
+system.records_total                           // int
+system.threads_total                           // int
+system.daemon_version                          // string
+system.active_dispatches                       // list<Dispatch>
+system.active_dispatches.all(d, d.duration_secs < d.timeout_secs * 2)
+system.today.dispatches                        // int
+system.today.cost_usd                          // double
+system.today.tasks_completed                   // int
+```
+
+Each `Dispatch` has: `task_alias`, `actor`, `duration_secs`, `cost_usd`, `timeout_secs`, `sub_thread`.
+
+### `current_actor()` and `now()`
+
+```
+current_actor()                                // string: caller's DID
+current_actor().startsWith("did:sync:user:")   // is a user (not agent)
+now()                                          // int: unix seconds
+```
+
+### `proposal_confidence` and `meta_trust` (AITL context only)
+
+For gating intelligence proposals:
+
+```
+proposal_confidence                    // double in [0, 1]
+meta_trust.wilson_lb                   // double: intelligence's track record
+meta_trust.total_proposals             // int
+meta_trust.accepted                    // int
+meta_trust.rejected                    // int
+```
+
+### `resource` (Permission context only)
+
+The resource being accessed, for gating API requests:
+
+```
+resource                               // string: "record_write", "dispatch", "aitl_decide", etc.
+resource == "record_delete" && current_actor() == "did:sync:user:admin"
+```
+
+## Common Recipes
+
+### Trigger on Task Approval
+
+```bash
+spl config add-trigger \
+  --name on-approval \
+  --expression 'record.act == "KNOW" && record.body.verdict == "accept"' \
+  --target did:sync:agent:director
+```
+
+### Routing Rule by Domain
+
+```bash
+spl config add-rule \
+  --name code-to-dev \
+  --expression 'record.act == "INTEND" && record.body.domain == "code"' \
+  --target did:sync:agent:dev
+```
+
+### Precondition via Expression
+
+```bash
+spl task add "ship v1.0" \
+  --alias REL-0001 \
+  --expression 'task("SKL-0163").status == "approved" && task("SKL-0164").status == "approved" && trust("did:sync:agent:dev", "code") > 0.5'
+```
+
+The shortcut `--depends-on SKL-0163,SKL-0164` compiles to an equivalent CEL expression internally, so you can mix the legacy sugar with the expression form.
+
+### Health Check for Stuck Dispatches
+
+```bash
+spl config add-health \
+  --name no-stuck-dispatches \
+  --severity critical \
+  --description "Alert if any dispatch runs past 2x its timeout" \
+  --expression 'system.active_dispatches.all(d, d.duration_secs < d.timeout_secs * 2)'
+```
+
+### Health Check for Daily Cost Budget
+
+```bash
+spl config add-health \
+  --name daily-cost-budget \
+  --severity warn \
+  --expression 'system.today.cost_usd < 10.0'
+```
+
+### AITL Auto-Apply High-Confidence Proposals
+
+```bash
+spl config add-aitl-rule \
+  --name auto-apply-high-confidence \
+  --action auto_apply \
+  --priority 100 \
+  --expression 'proposal_confidence > 0.8 && meta_trust.wilson_lb > 0.7'
+```
+
+### Permission: Users Can Only Approve Their Own Tasks
+
+```bash
+spl config add-permission-rule \
+  --name users-approve-own \
+  --action allow \
+  --priority 100 \
+  --expression 'current_actor().startsWith("did:sync:user:") && resource == "aitl_decide"'
+```
+
+See the [Permission Enforcement](#permission-enforcement) section below for the full security model.
+
+## Debugging
+
+### Compile Errors
+
+`spl expr check` reports the exact position:
+
+```
+$ spl expr check 'record.act == "KNO" && record.clock + "x"' --context trigger
+✗ compile error: type error: cannot add int and string at column 36
+```
+
+Type errors are caught at compile time, not at evaluation. A stored expression has already been validated before it reaches the runtime — the daemon refuses to ingest a rule with bad CEL.
+
+### Evaluation Errors
+
+Field-access errors against missing keys in `record.body.*` return runtime errors. These are data-dependent and can't be caught at compile time. Defend with `has()`:
+
+```
+has(record.body.priority) && record.body.priority == "critical"
+```
+
+### Cache Stats
+
+Monitor the compiled expression cache (how often expressions hit vs recompile):
+
+```bash
+curl -s http://localhost:9100/v1/engine/expression_cache/stats | jq
+```
+
+Fields: `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `avg_compile_micros`, `size`, `capacity`. A well-tuned daemon under steady-state load should show hit rate >99%.
+
+## Performance
+
+Per §10/20 performance characteristics:
+
+| Operation | Bound |
+|---|---|
+| Compile a typical expression | < 1 ms (once, at config load) |
+| Evaluate a simple expression | < 50 μs |
+| Evaluate a complex expression | < 500 μs |
+| `records.exists` over a 10K snapshot | < 100 ms |
+| `task()` lookup | < 5 ms |
+| `trust()` lookup | < 1 ms |
+
+Compiled expressions are cached in a 1024-entry LRU by default. Cache lifetime = daemon process lifetime.
+
+## Permission Enforcement
+
+Permission rules are the one CEL feature that's **off by default** for backward compatibility. Enable them explicitly:
+
+```bash
+# 1. Author an admin allow rule FIRST (otherwise you'll lock yourself out)
+spl config add-permission-rule \
+  --name admin-write \
+  --action allow \
+  --priority 10000 \
+  --expression 'current_actor() == "did:sync:user:YOUR_ADMIN_DID" && resource == "record_write"'
+
+# 2. Then author your policy rules
+spl config add-permission-rule \
+  --name users-read-only \
+  --action allow \
+  --priority 100 \
+  --expression 'current_actor().startsWith("did:sync:user:") && (resource == "thread_read" || resource == "record_read")'
+
+# 3. Finally, enable enforcement
+spl config permissions-enable
+```
+
+**Security model**: when enforcement is on, rules are evaluated in descending priority order. First match wins. If no rule matches, the request is **denied** (fail-closed). Every denial emits an audit log entry. `GET /health` is always exempt so liveness checks work.
+
+**Rollback trap**: `spl config permissions-disable` POSTs a LEARN record to `/v1/records` (resource = `record_write`). If your policy doesn't allow `record_write` for your actor, you can't disable enforcement from the CLI. The recovery path is a daemon restart with the `permissions_enabled` LEARN record removed from the store. Always author an admin allow rule before flipping enforcement on.
+
+## Migration from Legacy Forms
+
+All legacy match forms still work — CEL is additive, not replacing. When both CEL and a legacy form are present, CEL takes precedence.
+
+| Decision point | Legacy form | CEL form (preferred) |
+|---|---|---|
+| Triggers | `--match "act=KNOW,body.topic=verdict"` | `--expression 'record.act == "KNOW" && record.body.topic == "verdict"'` |
+| Routing | `--domain code --act INTEND` | `--expression 'record.act == "INTEND" && record.body.domain == "code"'` |
+| Preconditions | `--depends-on SKL-0163,SKL-0164` | `--expression 'task("SKL-0163").status == "approved" && task("SKL-0164").status == "approved"'` |
+
+The legacy `--depends-on` sugar compiles to CEL internally, so there's no behavior difference — it's still the recommended path for the simple "all of these tasks approved" case.
+
+## References
+
+- **Spec**: [§10/20 Expression Language](https://github.com/syncropic/syncropel-spec/blob/main/10-engine/20-expression-language.md) — normative reference with test vectors
+- **ADR**: [ADR-019 CEL Adoption](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-019-cel-expression-language.md) — decision rationale
+- **CEL spec**: [github.com/google/cel-spec](https://github.com/google/cel-spec) — upstream language reference
+- **Rust implementation**: [github.com/clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust) — the `cel-interpreter` crate Syncropel uses
