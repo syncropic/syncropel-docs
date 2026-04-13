@@ -31,7 +31,20 @@ Open a terminal. Start the fleet with two workers:
 spl fleet start --workers 2
 ```
 
-{/* TODO(SKL-0222): paste actual output after SKL-0211 ships */}
+```text
+Starting local fleet: 1 coordinator + 2 workers
+
+  [coordinator] spawned PID 429874 on :9100 (home=~/.syncro)
+  [worker-a]  spawned PID 429875 on :9201 (home=~/.syncro-worker-a)
+  [worker-b]  spawned PID 429888 on :9202 (home=~/.syncro-worker-b)
+
+Waiting for fleet convergence (3 live)...
+  ✓ fleet converged
+
+Fleet ready. Inspect with:
+  spl fleet list
+  spl fleet status
+```
 
 This does three things:
 
@@ -45,7 +58,14 @@ Within 15 seconds, both workers POST their first heartbeat to the coordinator. V
 spl fleet list
 ```
 
-{/* TODO(SKL-0222): paste actual output after SKL-0208 ships */}
+```text
+  DID                                      ENDPOINT                  STATUS   VERSION  UPTIME     HEALTH
+  did:sync:instance:923a4e6d10646e27       http://127.0.0.1:9201     live     0.11.0   5s         healthy
+  did:sync:instance:dfe40ff4272ad900       http://127.0.0.1:9202     live     0.11.0   5s         healthy
+  did:sync:instance:e6f09984f9ccd634       http://127.0.0.1:9100     live     0.11.0   5s         healthy
+
+  3 live · 0 stale · 0 archived
+```
 
 You should see 3 instances: 1 coordinator and 2 workers, all `live`, all with recent `last_heartbeat` timestamps. If any are `stale` or missing, see [Worker not registering](/docs/operate/runbook#worker-not-registering) in the operator runbook.
 
@@ -53,62 +73,53 @@ You should see 3 instances: 1 coordinator and 2 workers, all `live`, all with re
 The workers are persistent — their state roots at `~/.syncro-worker-{a,b}` survive fleet restarts. Next time you run `spl fleet start --workers 2`, the same two workers come back with whatever records they had before. To start fresh, delete the worker home directories before launching.
 </Callout>
 
-## Part 2 — Review a fan-out candidate
+## Part 2 — Create a fan-out candidate
 
 On the coordinator, look at your task backlog for something parallelizable. For this tutorial we'll use a synthetic task, but in real work you'd pick an actual multi-subtask task from your director's proposals.
 
-Create a practice task with three subtasks — two parallel and one dependent:
+Create a practice task you'll fan out:
 
 ```bash
 spl task add "Tutorial: parallel docs writing" \
   --priority medium \
   --domain docs \
   --hypothesis "Validate spl task fan-out end-to-end on a 3-instance fleet." \
-  --criteria "All 3 subtasks complete within wall-clock 5 minutes"
+  --criteria "All 3 subtasks complete within wall-clock 5 minutes" \
+  --alias TUT-001
 ```
 
-{/* TODO(SKL-0222): replace with a richer example after SKL-0211 ships — possibly a real task from the backlog */}
-
-Edit the task body to declare the subtasks. Open `~/.syncro-data/tasks/SKL-XXXX.md` in your editor and append:
-
-```yaml
-subtasks:
-  - goal: "Write section A"
-    target: worker-a
-    budget_usd: 0.50
-    timeout_secs: 300
-
-  - goal: "Write section B"
-    target: worker-b
-    budget_usd: 0.50
-    timeout_secs: 300
-
-  - goal: "Write summary synthesizing A and B"
-    target: least-loaded-worker
-    budget_usd: 0.50
-    timeout_secs: 300
-    depends_on: [0, 1]
-
-join: all
+```text
+◇ Task created: Tutorial: parallel docs writing
+  thread: th_4afffe301dd40d5d3080b932ea6dee71fe897fa823edd03243646ddf300a7451
+  alias:  TUT-001
 ```
 
-{/* TODO(SKL-0222): verify this is the exact body-file convention once SKL-0211 lands */}
-
-Verify the task looks right:
-
-```bash
-spl task show SKL-XXXX
-```
-
-The task status should be `approved` (or whatever your default workflow leaves it at after `spl task add`). The subtasks section should be reflected in the body.
+The task is just a placeholder at this point — no subtasks, no fan-out spec. The decomposition lives in the next command's flags, not in the task body. (You can also pre-declare subtasks in the body file; see [the fan-out reference](/docs/reference/cli#task-fan-out) for that form.)
 
 ## Part 3 — Fan out
 
+Fan out the placeholder task into three subtasks — two parallel writers and one synthesis step that depends on both. Each `--subtask` flag is a comma-separated list of `key=value` pairs; the engine parses them into a body subtasks array before emitting the parent INTEND.
+
 ```bash
-spl task fan-out SKL-XXXX
+spl task fan-out TUT-001 \
+  --subtask "goal=Write section A on Loki integration,target=worker-a,budget=0.50,timeout=300" \
+  --subtask "goal=Write section B on Prometheus integration,target=worker-b,budget=0.50,timeout=300" \
+  --subtask "goal=Write summary synthesizing A and B,target=least-loaded-worker,budget=0.50,timeout=300,depends=0+1" \
+  --join all
 ```
 
-{/* TODO(SKL-0222): paste the actual dispatch output after SKL-0211 ships */}
+```text
+◇ Fan-out parent INTEND created
+  thread: th_4afffe301dd40d5d3080b932ea6dee71fe897fa823edd03243646ddf300a7451
+  record: f2bb6627c70d9e723bb8f04d53dc40ae6883fdfc7421b2d3b8ab0874e3093dba
+  subtasks: 3
+  join:     all
+
+  The engine will spawn child INTENDs to the targeted workers
+  and emit a join KNOW once the predicate is satisfied.
+
+  Watch progress: spl task join-status TUT-001
+```
 
 What just happened:
 
@@ -122,42 +133,48 @@ On each worker, the child INTEND triggered its local dispatch pipeline. The work
 
 ## Part 4 — Monitor in real time
 
-In the same terminal, run:
+In a second terminal, check the join state on demand:
 
 ```bash
-spl fleet status --live
+spl task join-status TUT-001
 ```
 
-{/* TODO(SKL-0222): paste refreshing-view output after SKL-0211 ships */}
+```text
+Fan-out join status: th_4afffe301dd40d5d3080b932ea6dee71fe897fa823edd03243646ddf300a7451
+  Subtasks:        3
+  Spawned:         2 / 3
+  Completed:       0 / 3
+  Join predicate:  all
+  Join complete:   no
 
-This opens a continuously-refreshing view showing:
+  Per-subtask:
+    [0] Write section A on Loki integration → specific:did:sync:instance:923a4e6d10646e27
+        in progress
+    [1] Write section B on Prometheus integration → specific:did:sync:instance:dfe40ff4272ad900
+        in progress
+    [2] Write summary synthesizing A and B → specific:did:sync:instance:923a4e6d10646e27
+        pending spawn
+```
 
-- Coordinator and worker heartbeats
-- Active dispatches per instance (count + alias + elapsed time + spent so far)
-- The pending fan-out on the coordinator
-- Per-instance load
+Subtasks 0 and 1 spawned immediately because they had no dependencies. Subtask 2 sits in `pending spawn` because its `depends=0+1` blocks it until both predecessors report `accept`. The reconciler picks it up automatically once that condition flips; you don't have to do anything.
+
+The continuously-refreshing dashboard view is `spl fleet status --live` — it shows coordinator and worker heartbeats, active dispatches per instance (alias + elapsed time + spend so far), pending fan-outs, and per-instance load. Use it on the same terminal you'd otherwise be running `spl fleet list` over and over on.
 
 Watch the two workers execute in parallel. You should see the wall-clock time of the fan-out track *max*(subtask wall-times) rather than the *sum* — that's the parallelism payoff.
 
-In a second terminal, you can check the join state at any time:
-
-```bash
-spl task join-status SKL-XXXX
-```
-
-{/* TODO(SKL-0222): paste join-status output */}
-
-This shows: spawned children, completed children, current verdict-so-far, pending children, the join predicate, and whether the predicate currently evaluates true.
-
 ## Part 5 — Trigger a mid-run failure (the kill switch drill)
 
-Halfway through execution, pretend you realize worker-a is going down a bad path. Stop just that subtask cleanly:
+Halfway through execution, pretend you realize worker-a is going down a bad path. Freeze just that namespace cleanly:
 
 ```bash
-spl kill --namespace docs/v0.11 --level soft --reason "wrong approach on section A"
+spl kill --namespace docs/v0.11 --reason "wrong approach on section A"
 ```
 
-{/* TODO(SKL-0222): verify namespace; may need --namespace default or task-specific */}
+```text
+✓ soft freeze of 'docs/v0.11' recorded
+```
+
+The namespace passed to `--kill` is whatever `body.namespace` your fan-out parent INTEND declared. For a task with no explicit namespace it defaults to `default` — pick something specific in real workflows so a freeze on one slice doesn't lock out unrelated work.
 
 What this does:
 
@@ -172,7 +189,19 @@ Verify the freeze is live:
 spl fleet status
 ```
 
-You should see the namespace listed under "frozen namespaces" with the reason.
+```text
+Fleet status
+  Coordinator URL:  http://127.0.0.1:9100
+  Heartbeat:        every 5s
+  Instances:        3 live · 0 stale · 0 archived
+
+  Active freezes:
+    [soft] docs/v0.11 — wrong approach on section A
+
+  Emergency stop:   inactive
+```
+
+The namespace appears under "Active freezes" with the reason you supplied.
 
 Now rethink, then unfreeze:
 
@@ -180,17 +209,22 @@ Now rethink, then unfreeze:
 spl unkill --namespace docs/v0.11
 ```
 
-The fleet returns to normal operation. Check that the subtask that was mid-drain has completed (look at `spl task join-status SKL-XXXX` — it should now show 1 child in a "draining" or "accept" state).
-
-Retry the failed subtask with a correction:
-
-```bash
-spl task retry SKL-XXXX --subtask 0 --hint "use the pipe pattern, not the scrape pattern"
+```text
+✓ unfreeze of 'docs/v0.11' recorded
 ```
 
-{/* TODO(SKL-0222): confirm retry --subtask shape after SKL-0211 ships */}
+The fleet returns to normal operation. Re-issue the stuck subtask:
 
-The reconciler re-dispatches subtask index 0 to a different worker (via `least-loaded-worker` by default).
+```bash
+spl task retry TUT-001 --subtask 0
+```
+
+```text
+◇ Retry requested for subtask 0 on th_4afffe301dd40d5d3080b932ea6dee71fe897fa823edd03243646ddf300a7451
+  Watch progress: spl task join-status TUT-001
+```
+
+The retry emits a `LEARN topic: "fanout_retry_subtask"` record on the parent thread; the reconciler's spawn-pending walk excludes index 0 from the "already spawned" set on its next pass and re-resolves the descriptor's target via the configured routing strategy. The content-addressed child thread ID makes the second POST idempotent against the original worker — if the original landed cleanly, the worker's local store deduplicates.
 
 ## Part 6 — Watch the barrier join
 
@@ -203,12 +237,46 @@ Return to the `spl fleet status --live` view. As the subtasks complete, their co
 5. When the third subtask completes and reports back, the coordinator runs the join predicate (`all` → `children.all(c, c.verdict == "accept")`). If satisfied, it emits a parent KNOW fulfilling the original fan-out INTEND.
 
 ```bash
-spl task show SKL-XXXX
+spl task show TUT-001
 ```
 
-{/* TODO(SKL-0222): paste final task show output with all subtask results */}
+```text
+Task: Tutorial: parallel docs writing
+Thread: th_4afffe301dd40d5d3080b932ea6dee71fe897fa823edd03243646ddf300a7451
+Alias: TUT-001
+Status: approved
+Priority: medium
+Hypothesis: Validate spl task fan-out end-to-end on a 3-instance fleet.
+Success Criteria:
+  [ ] All 3 subtasks complete within wall-clock 5 minutes
 
-The task is now in `review` or `done` state (depending on your evaluation gate config). The body shows aggregated cost, wall-clock time, and per-subtask verdicts.
+Evaluation:
+  Completed by: engine
+  Verdict: accept (by engine)
+
+Records: 9
+```
+
+For the per-subtask cost and wall-clock breakdown, run `spl task join-status TUT-001` after the parent KNOW lands:
+
+```text
+Fan-out join status: th_4afffe301dd40d5d3080b932ea6dee71fe897fa823edd03243646ddf300a7451
+  Subtasks:        3
+  Spawned:         3 / 3
+  Completed:       3 / 3
+  Join predicate:  all
+  Join complete:   yes
+
+  Per-subtask:
+    [0] Write section A on Loki integration → specific:did:sync:instance:923a4e6d10646e27
+        accept ($0.42, 120s)
+    [1] Write section B on Prometheus integration → specific:did:sync:instance:dfe40ff4272ad900
+        accept ($0.42, 120s)
+    [2] Write summary synthesizing A and B → specific:did:sync:instance:923a4e6d10646e27
+        accept ($0.31, 78s)
+```
+
+The task is now in `review` or `done` state (depending on your evaluation gate config). Each subtask shows verdict, cost, and wall-clock — the raw inputs to the speedup ratio you'd compare against a serial baseline.
 
 ## Part 7 — Tear down
 

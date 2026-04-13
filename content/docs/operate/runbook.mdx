@@ -288,14 +288,36 @@ This section covers the operations you run day-2 on a fleet. For the first-time 
 spl fleet start --workers 2
 ```
 
-{/* TODO(SKL-0221): concrete output sample after SKL-0208 ships */}
+```text
+Starting local fleet: 1 coordinator + 2 workers
 
-This boots the coordinator on `~/.syncro` port 9100 plus N workers on `~/.syncro-worker-{a,b,...}` ports 9201, 9202, ... Each worker inherits the coordinator URL from the `[fleet]` config section and begins emitting heartbeats within ~15 seconds.
+  [coordinator] spawned PID 414153 on :9100 (home=~/.syncro)
+  [worker-a]  spawned PID 414154 on :9201 (home=~/.syncro-worker-a)
+  [worker-b]  spawned PID 414161 on :9202 (home=~/.syncro-worker-b)
+
+Waiting for fleet convergence (3 live)...
+  ✓ fleet converged
+
+Fleet ready. Inspect with:
+  spl fleet list
+  spl fleet status
+```
+
+This boots the coordinator on `~/.syncro` port 9100 plus N workers on `~/.syncro-worker-{a,b,...}` ports 9201, 9202, ... Each worker inherits the coordinator URL from the `[fleet]` config section and begins emitting heartbeats within ~15 seconds. The wrapper polls `/v1/fleet/status` until all expected instances are live or 30 seconds pass; if convergence times out, fall through to [Worker not registering](#worker-not-registering).
 
 Verify the fleet is healthy:
 
 ```bash
 spl fleet list
+```
+
+```text
+  DID                                      ENDPOINT                  STATUS   VERSION  UPTIME     HEALTH
+  did:sync:instance:923a4e6d10646e27       http://127.0.0.1:9201     live     0.11.0   0s         healthy
+  did:sync:instance:dfe40ff4272ad900       http://127.0.0.1:9202     live     0.11.0   0s         healthy
+  did:sync:instance:e6f09984f9ccd634       http://127.0.0.1:9100     live     0.11.0   0s         healthy
+
+  3 live · 0 stale · 0 archived
 ```
 
 All declared instances should appear with status `live` and a recent `last_heartbeat`. If any show `stale` or are missing, see [Worker not registering](#worker-not-registering).
@@ -309,7 +331,38 @@ spl fleet show <did>     # detailed view of one instance
 spl fleet ping <did>     # reachability + latency check via HTTP /health
 ```
 
-{/* TODO(SKL-0221): concrete output samples after SKL-0208 ships */}
+`spl fleet status` aggregates everything an operator usually wants to see at a glance:
+
+```text
+Fleet status
+  Coordinator URL:  http://127.0.0.1:9100
+  Heartbeat:        every 5s
+  Instances:        3 live · 0 stale · 0 archived
+
+  Active freezes:   (none)
+
+  Emergency stop:   inactive
+```
+
+`spl fleet show <did>` drills into one instance's details — endpoint, version, uptime, current dispatch count, store size, and last heartbeat:
+
+```text
+Instance: did:sync:instance:923a4e6d10646e27
+  Endpoint:         http://127.0.0.1:9201
+  Status:           live
+  Version:          0.11.0
+  Uptime:           5s
+  Health:           healthy
+  Active dispatches: 0
+  Store records:    7
+  Last heartbeat:   1776119018 (unix)
+```
+
+`spl fleet ping <did>` measures reachability + latency via the worker's `/health` endpoint:
+
+```text
+  ✓ did:sync:instance:923a4e6d10646e27 reachable in 0ms (200 OK)
+```
 
 For deep inspection of a specific instance, SSH into its host and run `spl doctor` + `spl status` locally against that instance's port. The fleet-level commands aggregate over HTTP; the per-instance commands hit the local socket.
 
@@ -326,7 +379,7 @@ To replace a dead coordinator:
 5. **Update remaining workers** to point their `[fleet] coordinator_url` at the new coordinator's endpoint. Restart each.
 6. **Verify**: `spl fleet list` against the new coordinator should show all workers live.
 
-{/* TODO(SKL-0221): replace with a drill script from tests/drills/coordinator-failover.sh after SKL-0208 ships */}
+For a scriptable check that phases 1-3 of this procedure work end-to-end on a fresh sandbox (boot → kill coordinator → promote worker-a as new coordinator with health-check verification), see [`tests/drills/coordinator-failover.sh`](https://github.com/syncropic/syncropel-core/blob/main/tests/drills/coordinator-failover.sh) in `syncropel-core`. Phase 4-5 (re-pointing surviving workers and waiting for the new registry to converge) is operator-driven and not scripted — a single bash harness can't reliably orchestrate four background daemons through stop/config-rewrite/restart cycles plus poll for fold convergence without becoming flaky.
 
 Expected downtime: ~2-5 minutes for a 3-instance fleet. In-flight fan-outs on the old coordinator are lost; they need to be re-issued by the operator after failover.
 
@@ -344,7 +397,7 @@ For the fleet at large this is low-impact:
   4. `spl unkill --namespace <fanout-namespace>` — resumes normal operation.
   5. Restart the crashed worker cleanly.
 
-{/* TODO(SKL-0221): confirm spl task retry --subtask exists after SKL-0211 ships, otherwise describe the manual retry path */}
+`spl task retry <parent-alias> --subtask <index>` ships in v0.11.0 (SKL-0211 / ADR-022). It emits a `LEARN topic: "fanout_retry_subtask"` record on the parent thread; the engine's fan-out reconciler picks it up on the next broadcast and re-spawns that index using the configured routing strategy. The content-addressed child thread ID makes the retry idempotent — if the original spawn POST landed but the worker died mid-execution, the same thread receives the second INTEND and the worker's local store deduplicates it.
 
 Phase 3 (v0.12+) adds automatic reassignment; v0.11 requires the manual procedure.
 
@@ -365,7 +418,7 @@ Upgrading all instances from vX → vY without losing state.
 5. **Unfreeze the fleet**: `spl unkill --emergency`. Normal operation resumes.
 6. **Verify**: `spl fleet list` shows all instances on the new version, `spl doctor` passes against each.
 
-{/* TODO(SKL-0221): add concrete vX → vY example once we have one, probably v0.11.0 → v0.11.1 */}
+A concrete vX → vY worked example will land here after the first real point release that's deployed to a multi-instance fleet (likely v0.11.0 → v0.11.1). Until then, follow the procedure above and substitute your own version strings; the upgrade drill at [`tests/drills/upgrade.sh`](https://github.com/syncropic/syncropel-core/blob/main/tests/drills/upgrade.sh) validates the binary-swap-on-persistent-volume flow against a single-instance Docker harness.
 
 If any instance fails to come back up, its hub.db backup is at `~/.local/share/syncropel/backups/hub.db.bak` on that instance's host. Restore and retry.
 
@@ -394,6 +447,20 @@ spl kill --namespace <ns> --level soft --reason "deploy freeze"
 spl unkill --namespace <ns>
 ```
 
+The kill command emits a one-line confirmation; verify the freeze landed via `spl fleet status`:
+
+```text
+Fleet status
+  Coordinator URL:  http://127.0.0.1:9100
+  Heartbeat:        every 5s
+  Instances:        3 live · 0 stale · 0 archived
+
+  Active freezes:
+    [soft] acme/payments — deploy freeze for v0.11.1 release
+
+  Emergency stop:   inactive
+```
+
 In-flight dispatches in that namespace drain within the configured grace window (default 60s); new INTEND/DO/CALL records are denied; KNOW/LEARN records still pass (so completion reporting drains cleanly).
 
 **Hard freeze** — a specific dispatch is going off the rails and you want it stopped immediately:
@@ -414,9 +481,51 @@ spl kill --emergency --reason "unknown incident, investigating"
 spl unkill --emergency
 ```
 
+```text
+Fleet status
+  Coordinator URL:  http://127.0.0.1:9100
+  Heartbeat:        every 5s
+  Instances:        3 live · 0 stale · 0 archived
+
+  Active freezes:   (none)
+
+  ⚠ EMERGENCY STOP ACTIVE
+    Reason: unknown incident, investigating
+    Issued by: did:sync:user:dpwanjala
+```
+
 Every namespace's effective dial drops to 0. No new CALL or DO records land with non-trivial effects. GET and KNOW/LEARN records still pass so you can inspect state post-hoc. This is the "pull the handbrake" move; use when you're scared and need a moment to think.
 
-{/* TODO(SKL-0221): add post-incident audit procedure — how to inspect what was happening when the kill fired */}
+#### Post-incident audit — what was the fleet doing when the kill fired?
+
+After unwinding a kill drill (or a real incident), reconstruct what was in flight at the moment the freeze landed:
+
+```bash
+# Pull every governance record from the last hour as JSONL — freezes,
+# emergencies, permission denials all surface here.
+spl audit export --since 1h --categories governance | jq
+
+# Find every dispatch that was in progress when the kill fired. The
+# audit trail keys off `topic` so you can filter for fanout_spawned
+# without a fanout_join_complete on the same parent thread.
+spl audit export --since 1h --categories dispatch | jq '
+  select(.record.body.topic == "fanout_spawned") |
+  {parent: .record.thread, children: .record.body.children}
+'
+
+# For each affected parent thread, walk its records and find which
+# subtask was mid-execution.
+spl task join-status <parent-alias>
+
+# Cross-check against the freeze records themselves to confirm the
+# scope (which namespaces, what level, when issued, by whom).
+spl audit export --since 1h --categories governance | jq '
+  select(.record.body.topic == "freeze" or .record.body.topic == "emergency_stop") |
+  {topic: .record.body.topic, ns: .record.body.namespace, by: .record.body.issued_by, at: .record.body.issued_at_unix, reason: .record.body.reason}
+'
+```
+
+The audit trail is the source of truth — every freeze, unfreeze, emergency stop, and emergency clear is a record on `th_fleet_control`. After the incident write-up, archive the relevant audit slice alongside the incident report so the timeline is recoverable years later without depending on the live store.
 
 ### Worker not registering
 
