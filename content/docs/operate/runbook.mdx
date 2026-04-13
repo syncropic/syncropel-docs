@@ -237,6 +237,8 @@ spl status
 
 The Rust kernel's SQLite schema has been backward-compatible across 0.8.x → 0.9.x. The startup path runs `CREATE TABLE IF NOT EXISTS` for any new tables; existing data is untouched. If a future release requires a non-backward-compatible migration, the release notes will say so explicitly and the daemon will refuse to start until you run the migration.
 
+The upgrade drill (`bash tests/drills/upgrade.sh`) verifies the data-preservation property end-to-end on every release: 5 user records + 1 routing rule + 1 permission rule are all confirmed intact across daemon stop → container swap → daemon start on the same volume. If you're maintaining a fork or shipping a custom build, run this drill before you cut a release.
+
 ### What can go wrong, and how to recognize it
 
 - **Binary download fails partway**: the install script downloads to a temp file and atomically `mv`s into place. A failed download leaves the old binary intact. You'll see the old version on `spl version`.

@@ -1,0 +1,179 @@
+---
+title: Quickstart
+description: Install Syncropel, start the kernel, create your first task, and watch trust accumulate. About 10 minutes from a fresh terminal to a working coordination loop.
+---
+
+## What you'll have at the end
+
+A running `spl serve` daemon on your machine, your first task tracked through completion and approval, and a trust score that proves the loop works. From there you can dispatch work to AI agents, write CEL rules to automate decisions, or invite collaborators — all on the same record log you just started.
+
+This page is for **humans** who want to use Syncropel directly. If you're integrating an AI agent, see [Agent Integration](/docs/guides/agent-integration) instead.
+
+**Time**: 10 minutes. **Prerequisites**: macOS or Linux (x86_64 or aarch64). No Rust toolchain, no Docker, no API key required for this walkthrough.
+
+## 1. Install
+
+```bash
+curl -sSf https://get.syncropic.com/spl | sh
+```
+
+The install script downloads the right binary for your platform from `releases.syncropic.com`, atomically moves it into `~/.local/bin/spl`, and verifies the version. If `~/.local/bin` isn't already in your `PATH`, the script will tell you what to add to your shell rc.
+
+Verify it landed:
+
+```bash
+spl version
+```
+
+You should see `spl 0.9.1 (Rust kernel)` or whatever the latest is. If not, check the install script's output for errors — it's verbose by design.
+
+## 2. Initialize your environment
+
+```bash
+spl init
+```
+
+This creates `~/.syncro/` with sane defaults:
+
+- `~/.syncro/config.toml` — your identity, default model, server settings
+- `~/.syncro/run/` — runtime files (PID file, Unix socket)
+- `~/.syncro/logs/` — daemon logs
+- `~/.syncro/secrets/` — empty, ready for API keys later
+
+The default identity is `did:sync:user:<your-username>`. You can edit `config.toml` to change it.
+
+## 3. Start the kernel
+
+```bash
+spl serve --daemon
+```
+
+`--daemon` puts the kernel in the background. It opens `~/.syncro/hub.db` (creating it on first run), takes a startup backup, binds `127.0.0.1:9100`, and starts the four loops (ingest, reconcile, tick, cron).
+
+Verify it's healthy:
+
+```bash
+spl status
+```
+
+Expected output:
+
+```
+Syncropel kernel v0.9.1
+Status:  ok
+PID:     12345
+Uptime:  3s
+Store:   sqlite:///home/you/.syncro/hub.db (1 records, 1 threads)
+```
+
+The "1 records, 1 threads" is the daemon's bootstrap LEARN record on `th_engine_config` — that's the engine writing its own initial config as a record. Everything in Syncropel is records, including the kernel's own state.
+
+## 4. Create your first task
+
+Tasks in Syncropel aren't just todos — they're **threads** with hypotheses, success criteria, and trust attribution. Create one:
+
+```bash
+spl task add "Read the Syncropel quickstart" \
+  --priority high \
+  --domain learning
+```
+
+The CLI assigns it an alias like `SKL-0001` and prints the task ID. List your tasks:
+
+```bash
+spl task list
+```
+
+You'll see one row with status `inbox` (no work done yet).
+
+Show the full detail:
+
+```bash
+spl task show SKL-0001
+```
+
+## 5. Work the task and complete it
+
+Mark the task as active (you're working on it):
+
+```bash
+spl task start SKL-0001
+```
+
+Status flips to `active`. The CLI emits a `DO` record on the task's thread.
+
+When you're done — for this walkthrough, that's "you finished reading the quickstart" — mark it complete:
+
+```bash
+spl task done SKL-0001 \
+  --summary "Read it. Set up local kernel. Created my first task and completed it." \
+  --domain learning
+```
+
+Status flips to `review` (waiting for evaluation).
+
+## 6. Approve the completion (and earn your first trust)
+
+Tasks need an evaluator distinct from the executor. For solo use, you can act as both:
+
+```bash
+spl task approve SKL-0001 --notes "Quickstart goal achieved"
+```
+
+If `approve` complains about self-evaluation, set a different actor for the approval:
+
+```bash
+SPL_ACTOR=did:sync:user:<your-username>-reviewer spl task approve SKL-0001 \
+  --notes "Quickstart goal achieved"
+```
+
+The status now flips to `approved` (terminal). And — because you completed and got approved in the `learning` domain — your trust score has its first data point:
+
+```bash
+spl trust
+```
+
+You should see a row with your DID, domain `learning`, and a small but non-zero Wilson lower bound. **That's the loop**: produce a record, get evaluated, accumulate evidence, derive trust. Every other Syncropel feature builds on this primitive.
+
+## 7. Look at the records you just created
+
+Tasks are threads. The thread for `SKL-0001` contains every record you generated during the last few minutes. Show them:
+
+```bash
+spl thread show SKL-0001
+spl thread records SKL-0001
+```
+
+You should see roughly:
+
+| Clock | Act | Actor | What it represents |
+|---|---|---|---|
+| 0 | INTEND | you | task creation (`spl task add`) |
+| 1 | DO | you | started work (`spl task start`) |
+| 2 | KNOW | you | completion claim (`spl task done`) |
+| 3 | KNOW | reviewer | evaluation verdict (`spl task approve`) |
+
+Four records. Immutable. Content-addressed. Each one has a SHA-256 ID derived from its 7 hashed fields. Every spl command from here on either reads existing records or writes new ones to a thread.
+
+## 8. What to do next
+
+You now have a working kernel, a completed task, a trust score, and an understanding of how records, threads, and verdicts compose. From here:
+
+- **[Tutorials](/docs/tutorials)** — guided walkthroughs of the next 30 minutes (first thread, first dispatch, first CEL rule).
+- **[Concepts](/docs/concepts)** — read why records are 8 fields, how the dial scales from REPLAY to CREATE, what trust is.
+- **[Guides](/docs/guides)** — task-oriented how-tos for common operations (CEL expressions, routing, agent integration, Docker deployment).
+- **[Operator Runbook](/docs/operate/runbook)** — when you're ready to keep this daemon running for real work, this page covers backup discipline, recovery, and upgrades.
+
+## Common pitfalls
+
+**`spl serve --daemon` says it started but `spl status` says no daemon.**
+The daemon may have failed to bind the port. Check `~/.syncro/logs/spl.log` for the error. Most common cause: another process is on `localhost:9100` (a previous daemon, or another tool).
+
+**`spl task done` complains about uncommitted changes.**
+The dev evaluation gate refuses to mark a task complete when the working tree has uncommitted git changes — it's protecting against attributing wrong commits. Either commit your work first (you don't need to push), or pass `--force` if the change is unrelated to the task.
+
+**`spl task approve` refuses self-evaluation.**
+Single-actor approval is gated by design — multi-user governance assumes the evaluator is someone other than the executor. The workaround for solo use is the `SPL_ACTOR=...` env var trick shown above. A future release will add a single-user mode flag.
+
+**The CLI hangs on `spl serve --stop`.**
+The daemon may have lost its PID file. Use `pgrep -af "spl serve"` to find the process, then `kill <pid>`. See the [Operator Runbook](/docs/operate/runbook#when-spl-serve---stop-says-not-running-but-the-daemon-clearly-is) for the detail.
