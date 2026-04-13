@@ -132,13 +132,17 @@ system.today.tasks_completed                   // int
 
 Each `Dispatch` has: `task_alias`, `actor`, `duration_secs`, `cost_usd`, `timeout_secs`, `sub_thread`.
 
-### `current_actor()` and `now()`
+### `current_actor()`, `current_namespace()`, and `now()`
 
 ```
 current_actor()                                // string: caller's DID
 current_actor().startsWith("did:sync:user:")   // is a user (not agent)
+current_namespace()                            // string: current namespace ID
+current_namespace().startsWith("acme-corp/")   // scope to all descendants
 now()                                          // int: unix seconds
 ```
+
+`current_namespace()` was added in v0.10.0 alongside the [namespace hierarchy](/docs/reference/cli#namespaces-v0100). Returns the namespace ID the current evaluation is scoped to (defaults to `"default"` when unset). Use `.startsWith("parent/")` to match an entire subtree of the 5-level hierarchy. Per-record namespace is accessible via `record.body.namespace`.
 
 ### `proposal_confidence` and `meta_trust` (AITL context only)
 

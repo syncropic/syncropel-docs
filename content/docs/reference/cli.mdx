@@ -136,6 +136,67 @@ spl config path
 spl dispatch <actor> "goal" [--thread ID] [--budget 1.0] [--timeout 600]
 ```
 
+## Namespaces (v0.10.0+)
+
+5-level hierarchy for tenancy, governance, and policy composition. See [spec §08-governance/04](https://github.com/syncropic/syncropel-spec/blob/main/08-governance/04-namespaces.md).
+
+```bash
+spl namespace create <id> [--description X] [--policy X]
+spl namespace list [--json]
+spl namespace show <id> [--json]
+spl namespace archive <id>
+spl namespace delete <id>
+```
+
+Namespace IDs are slash-separated, max 4 segments under DEFAULT, lowercase ASCII + digits + `-` + `_`:
+
+```bash
+spl namespace create acme-corp                              # ORG
+spl namespace create acme-corp/payments                     # PROJECT
+spl namespace create acme-corp/payments/staging             # ENV
+spl namespace create acme-corp/payments/staging/job-42      # JOB
+```
+
+Records that set `body.namespace` to a namespace that doesn't exist (or whose ancestor chain contains an archived/deleted entry) are rejected with `403 NAMESPACE_REJECTED`. Records without `body.namespace` fall through to the implicit DEFAULT and are always accepted.
+
+## Developer Tools (v0.10.0+)
+
+```bash
+spl doctor [--json]                         # Top-down diagnostic (7 checks)
+spl debug replay <task-or-thread> [--json]  # Walk records, show status transitions
+spl debug thread-diff <a> <b> [--json]      # Structural diff of two threads
+spl audit export [--since 24h]              # JSONL export for SIEM
+                 [--categories system,aitl,dispatch,governance]
+                 [--actor X] [--thread X]
+spl completion bash|zsh|fish|powershell|elvish   # Shell completion script
+```
+
+**`spl doctor`** runs 7 read-only checks and prints PASS/WARN/FAIL with a short reason for each. Exit code 0 = all pass, 1 = any warn, 2 = any fail. Suitable for cron/monitoring.
+
+**`spl debug replay`** walks every record on a task thread in clock order and runs the same `derive_status` fold that `spl task show` uses. Status transitions are highlighted with an arrow and yellow highlight, so you can see exactly which record moved the task from `inbox → active → review → approved`.
+
+**`spl debug thread-diff`** prints a side-by-side structural comparison of two threads: record count, participants, fold status, act distribution.
+
+**`spl audit export`** emits one JSON object per line for security-relevant records (system actor writes, AITL decisions, dispatch outcomes, governance events). `--since` accepts relative durations (`24h`, `7d`), ISO 8601 timestamps, or unix seconds. Output is directly ingestable into Splunk, Elastic, Loki, or Datadog.
+
+**`spl completion`** generates shell completion scripts via `clap_complete`. Pipe to the shell's completion directory:
+
+```bash
+spl completion bash > ~/.local/share/bash-completion/completions/spl
+spl completion zsh  > ~/.zfunc/_spl
+spl completion fish > ~/.config/fish/completions/spl.fish
+```
+
+## Emergency Recovery (v0.10.0+)
+
+```bash
+spl config permissions-unlock [--force]    # Unlock from permission lockout
+```
+
+`permissions-unlock` writes a `permissions_enabled=false` LEARN record directly to the SQLite store, bypassing the HTTP middleware that would otherwise deny the disable (the classic lockout trap). Refuses to run while the daemon is up unless `--force` is passed — you still need to restart the daemon for the change to take effect. Only sqlite stores are supported.
+
+See [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the pre-flight check that prevents the trap from firing in the first place.
+
 ## Other
 
 ```bash
