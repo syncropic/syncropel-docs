@@ -187,6 +187,96 @@ spl completion zsh  > ~/.zfunc/_spl
 spl completion fish > ~/.config/fish/completions/spl.fish
 ```
 
+## Fleet (v0.11.0+)
+
+<Callout type="warning">
+This section targets v0.11.0+ multi-instance deployments. The commands below do not exist in v0.10.x.
+</Callout>
+
+Multi-instance coordination primitives from ADR-021 (instance registry + kill switch) and ADR-022 (task fan-out + barrier). See [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) for a hands-on walkthrough and [Operator Runbook: Fleet Operations](/docs/operate/runbook#multi-instance-fleet-operations) for day-2 procedures.
+
+### Fleet lifecycle
+
+```bash
+spl fleet start [--workers N]        # Boot coordinator + N worker instances
+spl fleet stop [--workers | --all]   # Stop workers only, or everything
+```
+
+`spl fleet start --workers 2` boots two worker daemons on auto-assigned `SYNCROPEL_HOME` paths (`~/.syncro-worker-{a,b}`) and auto-assigned ports (9201, 9202), with the current `~/.syncro` prod daemon acting as coordinator. Each worker inherits `SPL_FLEET_COORDINATOR_URL` pointing at the coordinator and begins emitting heartbeats within ~15 seconds.
+
+Worker state roots are persistent across fleet restarts. Next `spl fleet start --workers 2` reuses them. To start fresh, delete `~/.syncro-worker-*` before booting.
+
+### Fleet observability
+
+```bash
+spl fleet list                       # Snapshot: DID, endpoint, status, role, uptime
+spl fleet show <did>                 # Detailed view of one instance
+spl fleet ping <did>                 # HTTP /health reachability + latency check
+spl fleet status [--live]            # Aggregate: live/stale/archived counts + frozen ns
+```
+
+`spl fleet list` reads the coordinator's `th_instance_registry` fold. Each instance is classified as `live` (heartbeat within last N seconds), `stale` (2-3 N windows old), or `archived` (older than 3N).
+
+`spl fleet status --live` opens a continuously-refreshing view showing active dispatches per instance, pending fan-outs, and fleet-wide frozen namespaces.
+
+### Kill switch
+
+```bash
+spl kill --namespace <ns> --level soft [--reason "..."]
+spl kill --namespace <ns> --level hard [--grace <secs>] [--reason "..."]
+spl kill --emergency [--reason "..."]
+
+spl unkill --namespace <ns>
+spl unkill --emergency
+```
+
+**Soft** (level 1, reversible, preferred): denies new `INTEND`/`DO`/`CALL` records in the namespace; allows `KNOW`/`LEARN` so in-flight dispatches drain cleanly. Common use: release-window lockdown, one-namespace debugging.
+
+**Hard** (level 2, reversible with data loss): same as soft plus after `--grace <secs>` (default 60) the engine refuses all record ingest in that namespace. Use when the drain-cleanly semantics of soft are not safe.
+
+**Emergency** (level 3, reversible, fleet-wide): every namespace's effective dial drops to 0. No new CALL or DO records land with non-trivial effects. GETs and KNOWs/LEARNs still pass so state remains inspectable. Use when you don't know what's wrong and need everything to stop immediately.
+
+All kill records are LEARN records on `th_fleet_control` with full audit trail in `spl audit export`.
+
+### Task fan-out
+
+```bash
+spl task fan-out <task-alias>                   # Fan out from task body.subtasks
+spl task fan-out <task-alias> \
+  --subtask 'goal="...",target=worker-a,budget=2.00' \
+  --subtask 'goal="...",target=worker-b,budget=2.00' \
+  --join all                                    # Explicit descriptors
+
+spl task join-status <parent-alias>             # Current join state
+spl task retry <parent-alias> --subtask <index> # Re-dispatch one failed child
+```
+
+`spl task fan-out` emits a parent INTEND on the coordinator with the subtask list. The fan-out reconciler spawns one child INTEND per descriptor and POSTs each to its target worker's `/v1/records` endpoint via the instance registry.
+
+The `--join` flag (or `body.join` in the task file) accepts shorthands (`all`, `any`, `k_of_n:K`) or a custom CEL expression evaluating against the `children` binding. Examples:
+
+```text
+all                                               # all subtasks must accept
+any                                               # any one subtask accepting is enough
+k_of_n:3                                          # at least 3 of N subtasks accept
+children.all(c, c.verdict == "accept" && c.cost_usd < 5.00)   # custom CEL
+```
+
+`spl task join-status` prints which children have reported, which are pending, the current verdict-so-far, and whether the join predicate currently evaluates true.
+
+`spl task retry --subtask <index>` re-dispatches a single failed subtask (e.g. to a different worker after the original went stale) without disturbing the rest of the fan-out.
+
+### Routing strategies
+
+Fan-out descriptors set `target` to one of:
+
+- **`worker-<alias>`** — direct lookup by instance DID last-segment alias
+- **`specific:<full-did>`** — exact DID match
+- **`least-loaded-worker`** — live worker with lowest `active_dispatches`, tie-break on longest uptime
+- **`round-robin`** — deterministic pick based on `hash(parent_id + descriptor_index) mod live_worker_count`
+
+Custom strategies (e.g. trust-weighted selection) are a Phase 3 concern.
+
 ## Emergency Recovery (v0.10.0+)
 
 ```bash

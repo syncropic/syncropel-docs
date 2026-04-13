@@ -1,6 +1,6 @@
 ---
 title: CEL Expressions
-description: Write rules, gates, and predicates using Syncropel's canonical expression language — one syntax for triggers, routing, preconditions, fold rules, health checks, AITL, and permissions.
+description: Write rules, gates, and predicates using Syncropel's canonical expression language — one syntax for triggers, routing, preconditions, fold rules, health checks, AITL, permissions, and (v0.11+) fan-out join predicates.
 ---
 
 ## Overview
@@ -27,19 +27,20 @@ spl expr eval 'system.uptime_secs > 3600' --context health_check
 
 Both commands report compile errors at the exact character position so you can fix syntax before shipping.
 
-## The Seven Contexts
+## The Eight Contexts
 
 Each decision point has its own evaluation context with a specific set of bindings. Expressions are always bound to ONE context — you specify it with `--context` on the CLI or `context:` in a stored record. A trigger expression referencing `tasks` will fail to compile, because `tasks` isn't bound in trigger context.
 
 | Context | Used For | Primary Bindings |
 |---|---|---|
 | `trigger` | Event triggers matching incoming records | `record`, `records`, `system`, `task()`, `trust()`, `thread()`, `now()`, `current_actor()` |
-| `routing` | Routing rules | `record`, `thread()`, `system`, `trust()`, `task()`, `now()`, `current_actor()` |
+| `routing` | Routing rules | `record`, `thread()`, `system`, `trust()`, `task()`, `now()`, `current_actor()`, `fanout_status()` *(v0.11+)* |
 | `precondition` | Task readiness gating | `records`, `tasks`, `task()`, `trust()`, `thread()`, `now()`, `system`, `current_actor()` |
 | `fold_rule` | Task status derivation | `records` (the task thread), `task`, `thread()`, `now()`, `current_actor()` |
-| `health_check` | `spl health check` predicates | `system`, `tasks`, `trust()`, `now()`, `current_actor()` |
+| `health_check` | `spl health check` predicates | `system`, `tasks`, `trust()`, `now()`, `current_actor()`, `fleet_instances_live()` *(v0.11+)* |
 | `aitl` | Intelligence proposal disposition | `record`, `proposal_confidence`, `meta_trust`, `system`, `now()`, `current_actor()` |
-| `permission` | API request gating | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()` |
+| `permission` | API request gating | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()`, `fleet_frozen_namespaces()` / `fleet_emergency_active()` *(v0.11+)* |
+| `join` *(v0.11+)* | Fan-out barrier — when is a parent INTEND satisfied? | `children`, `parent`, `now()` |
 
 ## Standard Library Reference
 
@@ -163,6 +164,85 @@ The resource being accessed, for gating API requests:
 ```
 resource                               // string: "record_write", "dispatch", "aitl_decide", etc.
 resource == "record_delete" && current_actor() == "did:sync:user:admin"
+```
+
+### Fleet bindings (v0.11+)
+
+Added with ADR-021 (instance registry + kill switch) and ADR-022 (task fan-out). Scoped to specific contexts to avoid cross-context leakage.
+
+**`fleet_frozen_namespaces()`** — *Permission context only.* Returns a `list<string>` of namespace IDs currently under soft or hard freeze per the `th_fleet_control` fold. Used in the default permission rule template that denies new INTEND/DO/CALL in frozen namespaces:
+
+```text
+!fleet_frozen_namespaces().exists(ns,
+  record.body.namespace == ns &&
+  (record.act == "INTEND" || record.act == "DO" || record.act == "CALL"))
+```
+
+**`fleet_hard_frozen_past_grace()`** — *Permission context only.* Returns a `list<string>` of namespaces where a hard freeze has passed its grace window. Used in the terminal-deny rule:
+
+```text
+!fleet_hard_frozen_past_grace().exists(ns, record.body.namespace == ns)
+```
+
+**`fleet_emergency_active()`** — *Permission context only.* Returns `bool`. True if an engine-wide emergency stop is active. Paired with an allow-only-reads clause:
+
+```text
+!fleet_emergency_active() ||
+(record.act == "GET" || record.act == "KNOW" || record.act == "LEARN")
+```
+
+**`fleet_instances_live()`** — *Health check context only.* Returns `list<string>` of instance DIDs currently classified as live per the registry fold. Useful for health rules like "at least one worker must be reachable":
+
+```text
+fleet_instances_live().filter(did, did.contains("worker-")).size() >= 1
+```
+
+**`fanout_status(thread_id)`** — *Routing and Permission contexts.* Given a thread ID, returns one of `"none"`, `"spawning"`, `"in_progress"`, `"ready_to_join"`, `"done"`. Useful for routing rules that check whether a parent fan-out has already completed before acting on child records.
+
+### `children` (Join context only, v0.11+)
+
+The list of completed child results for a fan-out parent. Available only in the join context, which is evaluated to determine when a fan-out parent INTEND is satisfied.
+
+```
+children                                    // list<ChildResult>
+children.size()                              // int: how many reported so far
+children.all(c, c.verdict == "accept")       // "all" shorthand
+children.exists(c, c.verdict == "accept")    // "any" shorthand
+children.filter(c, c.verdict == "accept").size() >= 3   // k-of-n with K=3
+```
+
+Each `ChildResult` has the fields:
+
+```
+c.index              // int: subtask index (0-based, matches body.subtasks position)
+c.thread             // string: child thread ID
+c.worker             // string: worker DID that executed the subtask
+c.verdict            // string: "accept" | "reject" | "failed" | "timeout"
+c.cost_usd           // double: subtask cost
+c.wall_time_secs     // int: elapsed wall-clock seconds
+c.summary            // string: from the child's KNOW body
+```
+
+Custom join predicates can combine these for nuanced barriers:
+
+```text
+// All succeed AND total cost is under budget AND no single child went wild
+children.all(c, c.verdict == "accept") &&
+children.map(c, c.cost_usd).reduce(acc, x, acc + x, 0.0) < 10.00 &&
+children.all(c, c.cost_usd < 5.00)
+```
+
+```text
+// K-of-N with at most M failures allowed
+children.filter(c, c.verdict == "accept").size() >= 3 &&
+children.filter(c, c.verdict == "failed" || c.verdict == "timeout").size() <= 1
+```
+
+The `parent` binding in the join context is the fan-out parent record itself, available for referencing the original body or metadata:
+
+```
+parent.body.namespace         // the fan-out's declared namespace
+parent.body.subtasks.size()   // total subtask count
 ```
 
 ## Common Recipes
