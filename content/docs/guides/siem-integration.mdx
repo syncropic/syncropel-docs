@@ -1,0 +1,398 @@
+---
+title: SIEM Integration
+description: Pipe spl audit export into Splunk, Elastic, Loki, or Datadog with cron rotation and concrete pipeline recipes for each platform.
+---
+
+## What this guide covers
+
+You're running Syncropel in production and you want security-relevant events flowing into your existing SIEM (Splunk, Elastic, Loki, Datadog, or self-hosted). This guide gives you concrete cron-driven shipping recipes for each platform and walks through the operational concerns: rotation, retention, idempotency, and what's in scope vs out of scope today.
+
+If you just want to look at what would be exported without setting up a pipeline, run `spl audit export --since 1h | jq` and see the [`spl audit export`](/docs/reference/cli#developer-tools-v0100) CLI reference.
+
+## What gets exported
+
+`spl audit export` emits JSON Lines (one record per line) for security-relevant records from the kernel's record log. Categories:
+
+| Category | What it captures | Example records |
+|---|---|---|
+| `system` | Records authored by `did:sync:system:*` actors | Engine bootstrap, intelligence proposals, trust feedback |
+| `aitl` | KNOW records with `body.verdict` (accept/reject) | Director approvals, dispatch verdicts |
+| `dispatch` | KNOW records with `body.topic == "dispatch_complete"` | Every adapter invocation outcome |
+| `governance` | Records authored by `did:sync:system:governance` | Policy decisions (when permissions are enabled) |
+
+Each emitted line has the shape:
+
+```json
+{
+  "category": "aitl",
+  "thread": "th_03f822528448c2a0439a7292df96518dd8c899436f7386d2ba88c45113fc0e6c",
+  "record": {
+    "id": "151439fe29726ddc8958a70b2ce003f78d8a2a024fb0317f555376927b1ec437",
+    "act": "KNOW",
+    "actor": "did:sync:agent:director",
+    "thread": "th_03f822528448c2a0439a7292df96518dd8c899436f7386d2ba88c45113fc0e6c",
+    "clock": 12,
+    "data_type": "SCALAR",
+    "body": {
+      "verdict": "accept",
+      "reviews": "0bb271be9375e1b7491d7bd826b1793f228fe3abaeb4468c0175d58592f7ac0a",
+      "topic": "task_verdict",
+      "review_notes": "All gates pass. Verdict: accept.",
+      "domain": "code",
+      "fulfills": "d403d0c24f03b2f0d18c8725b83804cce3b83786eca0cba607533d15bdfd4c0b"
+    }
+  }
+}
+```
+
+Top-level `category` makes filtering trivial in any SIEM. The full record is nested under `record` so you have everything: actor, clock, body, IDs.
+
+## What's NOT exported (read this first)
+
+**HTTP middleware permission denials are not records today.** They're `tracing::warn!` events in the daemon log (`~/.syncro/logs/spl.log`) with a structured `PERMISSION DENIED` message. To get a complete security view in your SIEM, pipe the daemon log alongside `spl audit export`. Promoting denials to first-class audit records is on the roadmap; for now, the two streams are complementary.
+
+The other pre-existing limitation: `spl audit export` enumerates threads client-side and fetches records per thread. For stores with thousands of threads this becomes slow. Pass `--thread <id>` to scope when you can. A server-side `/v1/audit/export` endpoint that pushes filtering into SQL is on the roadmap.
+
+## Cron pipeline pattern
+
+The simplest production pattern:
+
+1. **Cron job** runs `spl audit export --since <window>` every N minutes
+2. **Output captured** to a rotating file or piped directly to a shipper
+3. **Shipper** (filebeat, vector, fluent-bit, splunk forwarder) tails the file and ships to SIEM
+4. **State file** tracks last successful export window so you don't double-ship or skip
+
+Here's a baseline cron script you can adapt:
+
+```bash
+#!/bin/bash
+# /usr/local/bin/spl-audit-ship.sh
+# Run via cron every 5 minutes.
+
+set -euo pipefail
+
+STATE_DIR="/var/lib/spl-audit"
+OUTPUT_DIR="/var/log/spl-audit"
+STATE_FILE="$STATE_DIR/last-export.unix"
+NOW=$(date +%s)
+
+mkdir -p "$STATE_DIR" "$OUTPUT_DIR"
+
+# Read last successful export timestamp; default to 1 hour ago on first run
+if [ -f "$STATE_FILE" ]; then
+    SINCE=$(cat "$STATE_FILE")
+else
+    SINCE=$((NOW - 3600))
+fi
+
+# Export to a timestamped file. The shipper tails OUTPUT_DIR/*.jsonl.
+OUT_FILE="$OUTPUT_DIR/audit-${NOW}.jsonl"
+spl audit export --since "$SINCE" > "$OUT_FILE"
+
+# Only commit the new state if export succeeded
+echo "$NOW" > "$STATE_FILE"
+
+# Drop empty exports to keep the directory clean
+if [ ! -s "$OUT_FILE" ] || [ "$(grep -v '^#' "$OUT_FILE" | wc -l)" -eq 0 ]; then
+    rm -f "$OUT_FILE"
+fi
+```
+
+Wire it up:
+
+```bash
+sudo install -m 755 spl-audit-ship.sh /usr/local/bin/
+sudo crontab -e
+# Add:
+# */5 * * * * /usr/local/bin/spl-audit-ship.sh >> /var/log/spl-audit-cron.log 2>&1
+```
+
+### Idempotency considerations
+
+`spl audit export --since X` returns ALL records since X. If your last successful export was at unix `1712000000` and you run again with `--since 1712000000`, you'll get every record from that exact second forward — including the ones already exported. There's no built-in deduplication.
+
+Three strategies:
+
+1. **Use record IDs as dedup keys in the SIEM.** Splunk indexes can dedupe on `record.id`; Elastic can use `_id` from the record id. Most SIEMs handle this natively if you tell them the unique field.
+2. **Track the last clock per thread instead of a global timestamp.** Compare to a state file keyed by thread. More work but bulletproof.
+3. **Accept the tiny overlap window.** Each export overlaps the previous by one second of activity, which is usually negligible. For audit purposes it's better to over-ship than under-ship.
+
+The baseline script above uses strategy 3 implicitly. For most deployments that's fine.
+
+## Splunk
+
+### Forwarder approach (preferred for production)
+
+Install the Splunk Universal Forwarder on the Syncropel host, point it at your indexer, and configure it to monitor `/var/log/spl-audit/*.jsonl`:
+
+```ini
+# /opt/splunkforwarder/etc/system/local/inputs.conf
+[monitor:///var/log/spl-audit/*.jsonl]
+sourcetype = syncropel:audit
+index = security
+```
+
+```ini
+# /opt/splunkforwarder/etc/system/local/props.conf
+[syncropel:audit]
+SHOULD_LINEMERGE = false
+LINE_BREAKER = ([\r\n]+)
+TIME_PREFIX = "clock":
+TIME_FORMAT = %s
+KV_MODE = json
+TRUNCATE = 0
+```
+
+This indexes each JSONL line as a single event with full JSON parsing. You can then query in SPL:
+
+```spl
+index=security sourcetype=syncropel:audit category=aitl
+| stats count by record.body.verdict, record.actor
+```
+
+Common queries:
+
+```spl
+# All AITL rejections in the last 24h
+index=security sourcetype=syncropel:audit category=aitl record.body.verdict=reject
+
+# Dispatch outcomes by cost
+index=security sourcetype=syncropel:audit category=dispatch
+| stats sum(record.body.cost_usd) as total_cost by record.actor
+
+# System records authored by intelligence
+index=security sourcetype=syncropel:audit category=system record.actor="did:sync:system:intelligence"
+```
+
+### HEC approach (for setups without forwarders)
+
+If you don't want a forwarder, use Splunk's HTTP Event Collector. Adapt the cron script:
+
+```bash
+spl audit export --since "$SINCE" | while IFS= read -r line; do
+    curl -s -X POST "https://splunk.example.com:8088/services/collector/event" \
+         -H "Authorization: Splunk $HEC_TOKEN" \
+         -d "{\"event\": $line, \"sourcetype\": \"syncropel:audit\", \"index\": \"security\"}"
+done
+```
+
+Slower (one HTTP call per event) but works without installing forwarders. Use the forwarder approach if you have more than a few events per minute.
+
+## Elastic / OpenSearch
+
+### Filebeat approach
+
+```yaml
+# /etc/filebeat/filebeat.yml
+filebeat.inputs:
+  - type: filestream
+    id: syncropel-audit
+    paths:
+      - /var/log/spl-audit/*.jsonl
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+    fields:
+      service: syncropel
+      stream: audit
+
+output.elasticsearch:
+  hosts: ["https://elastic.example.com:9200"]
+  index: "syncropel-audit-%{+yyyy.MM.dd}"
+```
+
+Each line becomes a single Elasticsearch document with full JSON parsing. Query in Kibana:
+
+```
+category: aitl AND record.body.verdict: reject
+```
+
+### Vector approach (lightweight alternative)
+
+```toml
+# /etc/vector/vector.toml
+[sources.syncropel_audit]
+type = "file"
+include = ["/var/log/spl-audit/*.jsonl"]
+read_from = "beginning"
+
+[transforms.parse_json]
+type = "remap"
+inputs = ["syncropel_audit"]
+source = '. = parse_json!(.message)'
+
+[sinks.elastic]
+type = "elasticsearch"
+inputs = ["parse_json"]
+endpoints = ["https://elastic.example.com:9200"]
+mode = "data_stream"
+data_stream.dataset = "syncropel-audit"
+```
+
+Vector is one binary, no JVM, lower memory footprint than filebeat. Recommended if you don't already run Beats.
+
+## Loki
+
+Loki indexes labels rather than full text, so the trick is choosing useful labels without exploding cardinality. Use `category` (4 distinct values) and `record_actor_class` (a derived label like `system`/`agent`/`user` from the DID prefix). DON'T use the full DID or thread ID as a label — that explodes cardinality.
+
+### Promtail approach
+
+```yaml
+# /etc/promtail/promtail.yml
+scrape_configs:
+  - job_name: syncropel-audit
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syncropel-audit
+          host: ${HOSTNAME}
+          __path__: /var/log/spl-audit/*.jsonl
+    pipeline_stages:
+      - json:
+          expressions:
+            category: category
+            actor: record.actor
+            verdict: record.body.verdict
+      - regex:
+          source: actor
+          expression: '^did:sync:(?P<actor_class>[a-z]+):'
+      - labels:
+          category:
+          actor_class:
+      - timestamp:
+          source: clock
+          format: Unix
+```
+
+Query in Grafana / LogQL:
+
+```logql
+{job="syncropel-audit", category="aitl"} | json | record.body.verdict="reject"
+```
+
+```logql
+sum by (actor_class) (rate({job="syncropel-audit", category="dispatch"}[5m]))
+```
+
+## Datadog
+
+Use the Datadog agent's JSON log integration:
+
+```yaml
+# /etc/datadog-agent/conf.d/syncropel_audit.d/conf.yaml
+logs:
+  - type: file
+    path: /var/log/spl-audit/*.jsonl
+    service: syncropel
+    source: syncropel-audit
+    log_processing_rules:
+      - type: include_at_match
+        name: include_jsonl
+        pattern: ^\{
+```
+
+Datadog auto-detects JSON and creates facets for the nested fields. Query:
+
+```
+service:syncropel @category:aitl @record.body.verdict:reject
+```
+
+## Self-hosted minimal pipeline
+
+If you don't have a SIEM and want the lightest possible setup, just rotate JSONL files on disk and grep them:
+
+```bash
+# /etc/logrotate.d/spl-audit
+/var/log/spl-audit/*.jsonl {
+    daily
+    rotate 30
+    compress
+    missingok
+    notifempty
+    create 0644 syncropel syncropel
+}
+```
+
+Then for any investigation:
+
+```bash
+# All AITL rejections this week
+zcat /var/log/spl-audit/audit-*.jsonl.gz /var/log/spl-audit/*.jsonl 2>/dev/null \
+    | jq -c 'select(.category == "aitl" and .record.body.verdict == "reject")'
+
+# Dispatch cost in the last 24h
+zcat /var/log/spl-audit/audit-*.jsonl.gz /var/log/spl-audit/*.jsonl 2>/dev/null \
+    | jq -r 'select(.category == "dispatch") | .record.body.cost_usd' \
+    | awk '{s+=$1} END {print s}'
+
+# Records by a specific actor
+zcat /var/log/spl-audit/audit-*.jsonl.gz /var/log/spl-audit/*.jsonl 2>/dev/null \
+    | jq -c 'select(.record.actor == "did:sync:user:alice")'
+```
+
+You're not getting dashboards, but for solo or small-team deployments this is enough to satisfy compliance audits and post-incident investigation. Move to a real SIEM when log volume or query complexity demands it.
+
+## Companion: shipping the daemon log
+
+To get a complete view, also ship `~/.syncro/logs/spl.log`. It's JSON-line format, so the same shippers work.
+
+```yaml
+# Filebeat example — ship both audit + daemon log
+filebeat.inputs:
+  - type: filestream
+    id: syncropel-audit
+    paths:
+      - /var/log/spl-audit/*.jsonl
+    fields:
+      stream: audit
+
+  - type: filestream
+    id: syncropel-daemon-log
+    paths:
+      - /home/syncropel/.syncro/logs/spl.log
+    parsers:
+      - ndjson:
+          target: ""
+    fields:
+      stream: daemon
+```
+
+Filter for permission denials in the daemon log — these are NOT in audit export today:
+
+```spl
+index=security sourcetype=syncropel:daemon "PERMISSION DENIED"
+```
+
+## Operational checklist
+
+Before declaring your audit pipeline production-ready:
+
+- [ ] Cron script runs successfully on a schedule
+- [ ] State file is written after each successful export
+- [ ] Output files are non-empty when there's activity (and empty files are cleaned up)
+- [ ] Shipper is tailing the output directory
+- [ ] First events visible in SIEM index
+- [ ] Tested filter for each of the 4 categories (system, aitl, dispatch, governance)
+- [ ] Daemon log also being shipped (for permission denials)
+- [ ] Dedup strategy chosen (SIEM-side dedup on record.id is the easiest)
+- [ ] Logrotate or equivalent configured on the cron output
+- [ ] Alert rule for "no audit events for N minutes" — catches a broken pipeline before it matters
+- [ ] Retention policy aligned with your compliance requirements
+- [ ] Disk space monitoring on the output directory
+
+## What's coming next
+
+The audit export pipeline is the v0.10.0 first slice. Two follow-ups are tracked:
+
+1. **Permission denials as first-class records** — the HTTP middleware will emit `did:sync:system:auth` records on every denial, making them appear in `spl audit export --categories governance`. Removes the need to ship the daemon log separately for security purposes.
+2. **Server-side `/v1/audit/export`** — pushes filtering into SQL for stores with thousands of threads, returns a single JSONL stream from one HTTP call, removes the per-thread round-trip overhead.
+
+Neither is blocking for v0.10.0 — the current CLI-driven pipeline is fully functional. They're efficiency + completeness improvements for the next iteration.
+
+## Reference
+
+- [`spl audit export`](/docs/reference/cli#developer-tools-v0100) — full CLI flags
+- [Debugging Syncropel](/docs/guides/debugging) — when to reach for audit export vs other tools
+- [Operator Runbook](/docs/operate/runbook) — daemon-log filtering for permission denials

@@ -149,8 +149,36 @@ curl -X POST http://localhost:9100/v1/aitl/abc123.../decide \
 | Method | Path | Description |
 |---|---|---|
 | GET | `/v1/engine/health` | Engine health counters |
+| GET | `/v1/engine/expression_cache/stats` | CEL expression cache statistics (hit rate, size, avg compile time) — used by `spl doctor` |
 | GET | `/v1/config/rules` | List routing rules |
 | GET | `/v1/adapters` | List registered adapters |
+
+### Expression cache stats
+
+```bash
+curl http://localhost:9100/v1/engine/expression_cache/stats
+```
+
+Returns a JSON object with `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `avg_compile_micros`, `size`, `capacity`. Healthy steady-state: hit rate > 99%, avg compile < 100μs, size much less than capacity (1024 default). `spl doctor` consumes this endpoint as one of its 7 checks.
+
+## Audit
+
+There is no dedicated `/v1/audit/*` endpoint family in v0.10.0. The [`spl audit export`](/docs/reference/cli#developer-tools-v0100) CLI command produces JSONL by querying existing endpoints client-side:
+
+1. `GET /v1/threads` → enumerate threads
+2. `GET /v1/threads/:id/records` → fetch records per thread
+3. Filter client-side by category (system actor, AITL verdict, dispatch outcome, governance) and time window
+4. Emit one JSON object per matching record on stdout
+
+This means `spl audit export` works against any Syncropel daemon without server-side changes. The trade-off is that it's O(n) over thread count — for very large stores you should pass `--thread <id>` to scope the query.
+
+A future server-side `/v1/audit/export?since=...&categories=...` endpoint is on the roadmap. It would push the filtering into SQL and return a single JSONL stream, removing the per-thread round trips.
+
+For SIEM integration recipes (cron rotation, Splunk/Elastic/Loki pipelines, etc.) see the [SIEM Integration guide](/docs/guides/siem-integration).
+
+### Permission denials are NOT in audit export today
+
+HTTP middleware permission denials are emitted as `tracing::warn!` events to the daemon log (`~/.syncro/logs/spl.log`), not as records. They appear in the log filtered by `grep "PERMISSION DENIED"` but do NOT appear in `spl audit export` output. Promoting denials to first-class audit records is tracked as a follow-up — for now treat the daemon log and the audit export as complementary security-event streams.
 
 ## Proxy
 
