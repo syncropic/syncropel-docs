@@ -283,12 +283,17 @@ Compiled expressions are cached in a 1024-entry LRU by default. Cache lifetime =
 Permission rules are the one CEL feature that's **off by default** for backward compatibility. Enable them explicitly:
 
 ```bash
-# 1. Author an admin allow rule FIRST (otherwise you'll lock yourself out)
+# 1. Author an admin allow rule FIRST. It must cover EVERY resource
+#    `spl config permissions-disable` touches (otherwise you'll lock
+#    yourself out and need permissions-unlock to recover):
+#      * record_write — POST /v1/records (the disable LEARN itself)
+#      * thread_read  — GET /v1/threads/.../state (read last_clock first)
+#      * config_read  — GET /v1/config/* (so you can list rules)
 spl config add-permission-rule \
-  --name admin-write \
+  --name admin-self \
   --action allow \
   --priority 10000 \
-  --expression 'current_actor() == "did:sync:user:YOUR_ADMIN_DID" && resource == "record_write"'
+  --expression 'current_actor() == "did:sync:user:YOUR_ADMIN_DID" && (resource == "record_write" || resource == "thread_read" || resource == "config_read")'
 
 # 2. Then author your policy rules
 spl config add-permission-rule \
@@ -297,13 +302,25 @@ spl config add-permission-rule \
   --priority 100 \
   --expression 'current_actor().startsWith("did:sync:user:") && (resource == "thread_read" || resource == "record_read")'
 
-# 3. Finally, enable enforcement
+# 3. Finally, enable enforcement. As of v0.9.2 a pre-flight runs first
+#    and refuses if your admin rule doesn't cover all three resources
+#    above — preventing the lockout trap before it happens.
 spl config permissions-enable
 ```
 
 **Security model**: when enforcement is on, rules are evaluated in descending priority order. First match wins. If no rule matches, the request is **denied** (fail-closed). Every denial emits an audit log entry. `GET /health` is always exempt so liveness checks work.
 
-**Rollback trap**: `spl config permissions-disable` POSTs a LEARN record to `/v1/records` (resource = `record_write`). If your policy doesn't allow `record_write` for your actor, you can't disable enforcement from the CLI. The recovery path is a daemon restart with the `permissions_enabled` LEARN record removed from the store. Always author an admin allow rule before flipping enforcement on.
+**Pre-flight check (v0.9.2+)**: `spl config permissions-enable` simulates the disable path before flipping the switch. It refuses with a clear error and prints the exact `add-permission-rule` invocation needed when your loaded rules don't cover `(record_write, thread_read, config_read)` for the daemon's `identity.actor`.
+
+**Emergency unlock**: if you locked yourself out on an older version (or by other means — disabling the admin rule, dropping a deny rule, etc.), recovery is now one command instead of SQL surgery:
+
+```bash
+spl serve --stop                  # the daemon caches config in memory
+spl config permissions-unlock     # writes permissions_enabled=false directly to the store
+spl serve --daemon                # restart — enforcement is off
+```
+
+`permissions-unlock` opens the SQLite store directly and appends a `permissions_enabled=false` LEARN record on `th_engine_config`, bypassing the HTTP middleware that would otherwise deny the request. It refuses to run if the daemon is still up (use `--force` to override the safety check). Only sqlite stores are supported — for `--memory` daemons, just restart.
 
 ## Migration from Legacy Forms
 
