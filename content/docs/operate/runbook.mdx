@@ -272,6 +272,166 @@ The HEALTHCHECK in the docker image hits `/health`. If you're behind a reverse p
 
 The 4-loop kernel holds working state in memory for active threads. If you're seeing unbounded growth, capture a snapshot via `spl status -o json` and file it. As of v0.9.1 this hasn't been observed in practice (74-hour soak completed clean), but it's a class of bug to watch for.
 
+## Multi-instance fleet operations
+
+<Callout type="info">
+This section targets v0.11.0+ multi-instance deployments. If you're running a single daemon, skip it — nothing here applies. If you're on v0.10.x, the primitives described here don't exist yet.
+</Callout>
+
+A "fleet" is two or more `spl` instances that coordinate via the instance registry (ADR-021). One instance is the **coordinator** (holds the registry thread, receives heartbeats, processes fan-out barriers). The others are **workers** (execute dispatched work, report heartbeats, POST completion records back to the coordinator). Any instance can play either role; the distinction is config, not code.
+
+This section covers the operations you run day-2 on a fleet. For the first-time walkthrough, see the [Parallel Dev Tutorial](/docs/tutorials/parallel-dev).
+
+### Booting a fleet
+
+```bash
+spl fleet start --workers 2
+```
+
+{/* TODO(SKL-0221): concrete output sample after SKL-0208 ships */}
+
+This boots the coordinator on `~/.syncro` port 9100 plus N workers on `~/.syncro-worker-{a,b,...}` ports 9201, 9202, ... Each worker inherits the coordinator URL from the `[fleet]` config section and begins emitting heartbeats within ~15 seconds.
+
+Verify the fleet is healthy:
+
+```bash
+spl fleet list
+```
+
+All declared instances should appear with status `live` and a recent `last_heartbeat`. If any show `stale` or are missing, see [Worker not registering](#worker-not-registering).
+
+### Observing the fleet
+
+```bash
+spl fleet status         # snapshot of live/stale/archived counts
+spl fleet status --live  # continuously refreshing view
+spl fleet show <did>     # detailed view of one instance
+spl fleet ping <did>     # reachability + latency check via HTTP /health
+```
+
+{/* TODO(SKL-0221): concrete output samples after SKL-0208 ships */}
+
+For deep inspection of a specific instance, SSH into its host and run `spl doctor` + `spl status` locally against that instance's port. The fleet-level commands aggregate over HTTP; the per-instance commands hit the local socket.
+
+### Coordinator replacement (manual failover)
+
+The coordinator is a single writer for the registry thread. If it dies, workers continue operating locally but cannot register or coordinate fan-out until a new coordinator is nominated. v0.11.0 does not automatic failover — that's Phase 4 (v0.13+).
+
+To replace a dead coordinator:
+
+1. **Pick a surviving worker** to promote. Any worker can play the coordinator role — they differ only in config.
+2. **Stop the chosen worker cleanly**: `spl fleet stop --instance worker-a` (or send SIGTERM directly if `spl fleet` is unreachable).
+3. **Edit its config** at `~/.syncro-worker-a/config.toml`: remove the `[fleet] coordinator_url` line (so it no longer reports to an external coordinator), or leave it pointing at its own endpoint.
+4. **Restart**: `SYNCROPEL_HOME=~/.syncro-worker-a spl serve --daemon --port 9201`. The promoted instance now holds the registry.
+5. **Update remaining workers** to point their `[fleet] coordinator_url` at the new coordinator's endpoint. Restart each.
+6. **Verify**: `spl fleet list` against the new coordinator should show all workers live.
+
+{/* TODO(SKL-0221): replace with a drill script from tests/drills/coordinator-failover.sh after SKL-0208 ships */}
+
+Expected downtime: ~2-5 minutes for a 3-instance fleet. In-flight fan-outs on the old coordinator are lost; they need to be re-issued by the operator after failover.
+
+### Worker crash recovery
+
+When a worker crashes (OOM, panic, kill -9), its heartbeat goes stale within `fleet.heartbeat_interval_secs * 2` seconds. The coordinator's `spl fleet list` transitions it from `live` → `stale` → `archived`.
+
+For the fleet at large this is low-impact:
+
+- **No in-flight work on the crashed worker**: just restart it. `SYNCROPEL_HOME=~/.syncro-worker-<x> spl serve --daemon --port <port>`. First heartbeat re-registers it as `live` within ~15 seconds.
+- **In-flight fan-out subtask on the crashed worker**: the parent fan-out on the coordinator sees no `fanout_child_done` record for that child. v0.11.0 does not auto-reassign. Operator procedure:
+  1. `spl kill --namespace <fanout-namespace> --level soft` — freezes new work in the namespace so the dead subtask's slot can be reclaimed.
+  2. Identify the stuck parent: `spl task join-status <parent-alias>` shows which subtasks are pending.
+  3. `spl task retry <parent-alias> --subtask <index>` — re-dispatches the stuck subtask to a different worker (chooses via `least-loaded-worker` strategy by default).
+  4. `spl unkill --namespace <fanout-namespace>` — resumes normal operation.
+  5. Restart the crashed worker cleanly.
+
+{/* TODO(SKL-0221): confirm spl task retry --subtask exists after SKL-0211 ships, otherwise describe the manual retry path */}
+
+Phase 3 (v0.12+) adds automatic reassignment; v0.11 requires the manual procedure.
+
+### Fleet-wide in-place upgrade
+
+Upgrading all instances from vX → vY without losing state.
+
+**Prerequisites:**
+- Every instance's `hub.db` has a current backup (the daemon auto-backs-up on startup to `~/.local/share/syncropel/backups/hub.db.bak`; copy to off-host for extra safety).
+- No in-flight fan-outs. If there are, let them drain or `spl kill --emergency` first.
+
+**Procedure:**
+
+1. **Freeze new work** across the fleet: `spl kill --emergency --reason "vX → vY upgrade"`. All instances stop accepting new INTEND/DO/CALL records; only GETs and KNOWs/LEARNs pass.
+2. **Drain in-flight dispatches**. Watch `spl fleet status --live` until `active_dispatches` hits 0 on every instance.
+3. **Upgrade coordinator first**: stop, install new binary (`curl get.syncropic.com/spl | sh`), start.
+4. **Upgrade workers in sequence**: one at a time to preserve fleet observability throughout. For each: stop, install new binary, start, verify `spl fleet list` shows it back as `live` before moving to the next.
+5. **Unfreeze the fleet**: `spl unkill --emergency`. Normal operation resumes.
+6. **Verify**: `spl fleet list` shows all instances on the new version, `spl doctor` passes against each.
+
+{/* TODO(SKL-0221): add concrete vX → vY example once we have one, probably v0.11.0 → v0.11.1 */}
+
+If any instance fails to come back up, its hub.db backup is at `~/.local/share/syncropel/backups/hub.db.bak` on that instance's host. Restore and retry.
+
+### Graceful fleet teardown
+
+End-of-day or end-of-sprint teardown when the fleet has served its purpose.
+
+```bash
+spl fleet stop --workers   # stop worker instances, keep coordinator
+spl fleet stop --all       # stop everything
+```
+
+Each instance emits a final `DO topic: "heartbeat"` with `health: "draining"` on its way out (best-effort; may not arrive if shutdown is fast). The coordinator marks that instance as `archived` after the heartbeat window expires.
+
+If you intend to rebuild the fleet from scratch next time, the per-worker homes at `~/.syncro-worker-{a,b,...}` are preserved — next `spl fleet start --workers N` reuses them. To start truly fresh, delete the worker home directories first.
+
+### Kill switch drills
+
+The three kill levels (soft / hard / emergency) exist for different escalation scenarios. Drill each one at least once per fleet per month so you know the procedure when you actually need it.
+
+**Soft freeze** — release-window lockdown or debugging one namespace:
+
+```bash
+spl kill --namespace <ns> --level soft --reason "deploy freeze"
+# ... investigate or wait for window ...
+spl unkill --namespace <ns>
+```
+
+In-flight dispatches in that namespace drain within the configured grace window (default 60s); new INTEND/DO/CALL records are denied; KNOW/LEARN records still pass (so completion reporting drains cleanly).
+
+**Hard freeze** — a specific dispatch is going off the rails and you want it stopped immediately:
+
+```bash
+spl kill --namespace <ns> --level hard --grace 30 --reason "runaway dispatch"
+# ... investigate, then unkill or let it expire ...
+spl unkill --namespace <ns>
+```
+
+Same as soft freeze plus: after the grace window, the engine refuses *all* record ingest for the namespace including KNOW/LEARN. Use when the drain-cleanly semantics of soft freeze aren't safe.
+
+**Emergency engine-wide stop** — you don't know what's wrong, you just want everything to stop:
+
+```bash
+spl kill --emergency --reason "unknown incident, investigating"
+# ... investigate at leisure; fleet is inspectable but not doing new work ...
+spl unkill --emergency
+```
+
+Every namespace's effective dial drops to 0. No new CALL or DO records land with non-trivial effects. GET and KNOW/LEARN records still pass so you can inspect state post-hoc. This is the "pull the handbrake" move; use when you're scared and need a moment to think.
+
+{/* TODO(SKL-0221): add post-incident audit procedure — how to inspect what was happening when the kill fired */}
+
+### Worker not registering
+
+Symptom: `spl fleet list` does not show a worker you just started.
+
+Check order:
+1. **Worker is up**: on the worker's host, `spl serve --status` and `spl doctor`. Both should report healthy.
+2. **Coordinator URL is correct**: `spl config show | grep coordinator` on the worker. Compare to the actual coordinator endpoint (port and host).
+3. **Network reachability**: from the worker, `curl -fsS <coordinator_url>/health`. Should return `{"status": "ok"}`. If not, you have a network or firewall problem.
+4. **Worker heartbeat log**: tail the worker's daemon log at `~/.syncro-worker-<x>/logs/spl.log`. Look for `heartbeat_loop` lines. Should see one POST every ~15 seconds.
+5. **Coordinator ingest log**: tail the coordinator's log for inbound records on `th_instance_registry`. Should see one record ingested per worker per heartbeat interval.
+6. **Permission denial**: if the coordinator's CEL permission rules deny record writes from the worker's DID, the heartbeat POST returns 403. Check recent audit records: `spl audit export --since 10m --categories governance | jq 'select(.record.body.reason | contains("instance"))'`.
+
+If the first five pass but heartbeats still don't arrive, it's almost certainly a config mismatch. Stop the worker, fix config, restart.
+
 ## When to reach for the spec
 
 If a recovery procedure here doesn't match the daemon's behavior, the daemon is either buggy or the docs are stale. The spec is the source of truth — the relevant sections:

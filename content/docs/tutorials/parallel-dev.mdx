@@ -1,0 +1,247 @@
+---
+title: Parallel Dev — Monday Morning Walkthrough
+description: A 20-minute hands-on walkthrough of v0.11.0's fleet workflow — start a 3-instance fleet, fan out a real task to two workers, handle a mid-run failure with the kill switch, watch the barrier join, tear down cleanly.
+---
+
+<Callout type="warning">
+This tutorial requires **Syncropel v0.11.0 or later**. The commands below — `spl fleet`, `spl kill`, `spl task fan-out` — do not exist in v0.10.x. If you're on v0.10, see the single-instance [Quickstart](/docs/start) first and come back after upgrading.
+</Callout>
+
+## What you'll learn
+
+By the end of this tutorial you will have:
+
+1. Booted a 3-instance fleet on your laptop (1 coordinator + 2 workers)
+2. Seen the fleet register and report health via heartbeats
+3. Fanned out a real multi-subtask task across both workers
+4. Watched a live fleet status view refresh as workers executed in parallel
+5. Triggered a soft freeze mid-run to stop a subtask cleanly, then unfrozen and retried
+6. Observed the barrier join and the parent task's completion KNOW
+7. Torn the fleet down cleanly
+
+Total time: about 20 minutes if everything works, 30 minutes if you want to explore.
+
+**Prerequisites**: v0.11.0+ binary installed (`spl --version` should report `0.11.x`), a working `~/.syncro` prod daemon (or be willing to set one up fresh), and ~2 GB of free disk for per-worker state roots.
+
+## Part 1 — Start the fleet
+
+Open a terminal. Start the fleet with two workers:
+
+```bash
+spl fleet start --workers 2
+```
+
+{/* TODO(SKL-0222): paste actual output after SKL-0211 ships */}
+
+This does three things:
+
+1. Verifies the coordinator (your existing prod daemon at `~/.syncro` on port 9100) is healthy. If no coordinator is running, it starts one.
+2. Creates `~/.syncro-worker-a` and `~/.syncro-worker-b` if they don't exist (empty state roots, fresh init).
+3. Launches two worker daemons on ports 9201 and 9202, each with `SPL_FLEET_COORDINATOR_URL=http://localhost:9100` so they know where to register.
+
+Within 15 seconds, both workers POST their first heartbeat to the coordinator. Verify:
+
+```bash
+spl fleet list
+```
+
+{/* TODO(SKL-0222): paste actual output after SKL-0208 ships */}
+
+You should see 3 instances: 1 coordinator and 2 workers, all `live`, all with recent `last_heartbeat` timestamps. If any are `stale` or missing, see [Worker not registering](/docs/operate/runbook#worker-not-registering) in the operator runbook.
+
+<Callout type="info">
+The workers are persistent — their state roots at `~/.syncro-worker-{a,b}` survive fleet restarts. Next time you run `spl fleet start --workers 2`, the same two workers come back with whatever records they had before. To start fresh, delete the worker home directories before launching.
+</Callout>
+
+## Part 2 — Review a fan-out candidate
+
+On the coordinator, look at your task backlog for something parallelizable. For this tutorial we'll use a synthetic task, but in real work you'd pick an actual multi-subtask task from your director's proposals.
+
+Create a practice task with three subtasks — two parallel and one dependent:
+
+```bash
+spl task add "Tutorial: parallel docs writing" \
+  --priority medium \
+  --domain docs \
+  --hypothesis "Validate spl task fan-out end-to-end on a 3-instance fleet." \
+  --criteria "All 3 subtasks complete within wall-clock 5 minutes"
+```
+
+{/* TODO(SKL-0222): replace with a richer example after SKL-0211 ships — possibly a real task from the backlog */}
+
+Edit the task body to declare the subtasks. Open `~/.syncro-data/tasks/SKL-XXXX.md` in your editor and append:
+
+```yaml
+subtasks:
+  - goal: "Write section A"
+    target: worker-a
+    budget_usd: 0.50
+    timeout_secs: 300
+
+  - goal: "Write section B"
+    target: worker-b
+    budget_usd: 0.50
+    timeout_secs: 300
+
+  - goal: "Write summary synthesizing A and B"
+    target: least-loaded-worker
+    budget_usd: 0.50
+    timeout_secs: 300
+    depends_on: [0, 1]
+
+join: all
+```
+
+{/* TODO(SKL-0222): verify this is the exact body-file convention once SKL-0211 lands */}
+
+Verify the task looks right:
+
+```bash
+spl task show SKL-XXXX
+```
+
+The task status should be `approved` (or whatever your default workflow leaves it at after `spl task add`). The subtasks section should be reflected in the body.
+
+## Part 3 — Fan out
+
+```bash
+spl task fan-out SKL-XXXX
+```
+
+{/* TODO(SKL-0222): paste the actual dispatch output after SKL-0211 ships */}
+
+What just happened:
+
+1. The coordinator's reconciler detected the fan-out parent INTEND (your task) and scanned `body.subtasks`.
+2. For each subtask with no unsatisfied `depends_on`, it resolved the `target` (worker-a, worker-b) via the instance registry.
+3. It computed content-addressed child thread IDs and POSTed child genesis INTENDs to each target worker's `/v1/records` endpoint.
+4. It emitted a `DO topic: "fanout_spawned"` record on the parent thread to record what was spawned.
+5. The third subtask (with `depends_on: [0, 1]`) did not spawn yet — the reconciler will pick it up once the first two complete.
+
+On each worker, the child INTEND triggered its local dispatch pipeline. The worker's agent is now executing the subtask in isolation, just like any single-instance dispatch.
+
+## Part 4 — Monitor in real time
+
+In the same terminal, run:
+
+```bash
+spl fleet status --live
+```
+
+{/* TODO(SKL-0222): paste refreshing-view output after SKL-0211 ships */}
+
+This opens a continuously-refreshing view showing:
+
+- Coordinator and worker heartbeats
+- Active dispatches per instance (count + alias + elapsed time + spent so far)
+- The pending fan-out on the coordinator
+- Per-instance load
+
+Watch the two workers execute in parallel. You should see the wall-clock time of the fan-out track *max*(subtask wall-times) rather than the *sum* — that's the parallelism payoff.
+
+In a second terminal, you can check the join state at any time:
+
+```bash
+spl task join-status SKL-XXXX
+```
+
+{/* TODO(SKL-0222): paste join-status output */}
+
+This shows: spawned children, completed children, current verdict-so-far, pending children, the join predicate, and whether the predicate currently evaluates true.
+
+## Part 5 — Trigger a mid-run failure (the kill switch drill)
+
+Halfway through execution, pretend you realize worker-a is going down a bad path. Stop just that subtask cleanly:
+
+```bash
+spl kill --namespace docs/v0.11 --level soft --reason "wrong approach on section A"
+```
+
+{/* TODO(SKL-0222): verify namespace; may need --namespace default or task-specific */}
+
+What this does:
+
+- Writes a `LEARN topic: "freeze"` record on `th_fleet_control` with `level: soft`.
+- A CEL permission rule fires on every subsequent record write: new `INTEND`, `DO`, or `CALL` records in the frozen namespace get rejected with `403 NAMESPACE_FROZEN`.
+- `KNOW` and `LEARN` records still pass — in-flight dispatches drain cleanly and write their completion records.
+- After the configured grace window (default 60s), the in-flight dispatch that was on worker-a completes or times out naturally.
+
+Verify the freeze is live:
+
+```bash
+spl fleet status
+```
+
+You should see the namespace listed under "frozen namespaces" with the reason.
+
+Now rethink, then unfreeze:
+
+```bash
+spl unkill --namespace docs/v0.11
+```
+
+The fleet returns to normal operation. Check that the subtask that was mid-drain has completed (look at `spl task join-status SKL-XXXX` — it should now show 1 child in a "draining" or "accept" state).
+
+Retry the failed subtask with a correction:
+
+```bash
+spl task retry SKL-XXXX --subtask 0 --hint "use the pipe pattern, not the scrape pattern"
+```
+
+{/* TODO(SKL-0222): confirm retry --subtask shape after SKL-0211 ships */}
+
+The reconciler re-dispatches subtask index 0 to a different worker (via `least-loaded-worker` by default).
+
+## Part 6 — Watch the barrier join
+
+Return to the `spl fleet status --live` view. As the subtasks complete, their completion records flow back to the coordinator:
+
+1. Worker-a emits its local KNOW (fulfills child INTEND) after completing section A (with the correction applied).
+2. Worker-a POSTs a `DO topic: "fanout_child_done"` record back to the coordinator's parent thread.
+3. Worker-b does the same for section B.
+4. The coordinator's reconciler sees both `fanout_child_done` records and now has enough to spawn subtask 2 (the dependent one). It POSTs the third child INTEND to the least-loaded worker.
+5. When the third subtask completes and reports back, the coordinator runs the join predicate (`all` → `children.all(c, c.verdict == "accept")`). If satisfied, it emits a parent KNOW fulfilling the original fan-out INTEND.
+
+```bash
+spl task show SKL-XXXX
+```
+
+{/* TODO(SKL-0222): paste final task show output with all subtask results */}
+
+The task is now in `review` or `done` state (depending on your evaluation gate config). The body shows aggregated cost, wall-clock time, and per-subtask verdicts.
+
+## Part 7 — Tear down
+
+```bash
+spl fleet stop --workers
+```
+
+This sends SIGTERM to both worker daemons. Each emits a final heartbeat with `health: "draining"` before exiting. The coordinator stays running for overnight director proposals (the common case at end-of-day).
+
+If you want to stop everything including the coordinator:
+
+```bash
+spl fleet stop --all
+```
+
+Verify:
+
+```bash
+spl fleet list
+```
+
+Should show 0 live instances (or just the coordinator, depending on which stop you ran).
+
+## What you just demonstrated
+
+You ran a real distributed workflow. The coordinator dispatched parallel work to two autonomous workers, handled a mid-run failure gracefully with the kill switch, and barrier-joined the results. The wall-clock vs serial ratio — how much faster the parallel run was than running the three subtasks sequentially on one instance — is the quantitative proof that v0.11.0 delivers on the pet→cattle thesis.
+
+More importantly, every line you typed is a *protocol operation*, not a script. The fan-out, the kill switch, the heartbeat, the join — all of those are records emitted on well-known threads and reconciled by CEL-configurable folds. You could rewrite any of the behavior by editing CEL rules, not by recompiling spl.
+
+## Going further
+
+- **[Operator Runbook: Multi-instance fleet operations](/docs/operate/runbook#multi-instance-fleet-operations)** — day-2 procedures for running a fleet in production: coordinator failover, worker crash recovery, fleet-wide upgrades, kill drills.
+- **[Guide: CEL Expressions](/docs/guides/cel-expressions)** — how to write custom join predicates and routing rules for fan-out.
+- **[ADR-021: Instance registry + kill switch](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-021-instance-registry-and-kill-switch.md)** — the design document for the primitives used in Parts 1, 5, and 7.
+- **[ADR-022: Task fan-out + barrier](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-022-task-fan-out-and-barrier.md)** — the design document for the primitives used in Parts 3, 4, and 6.
+- **[Research: v0.11.0 Fleet release vision](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/08-v0.11-fleet-release-vision.md)** — the Monday-morning transcript that this tutorial makes concrete, plus the broader "fleet, not pets" theme for v0.11.
