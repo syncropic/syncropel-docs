@@ -199,19 +199,19 @@ The error includes the exact recovery command. This is the same shape `permissio
 
 You can write CEL rules that match records based on their namespace. The current namespace is exposed as a function:
 
-```cel
+```text
 current_namespace() == "acme-corp/payments/prod"
 ```
 
 For an entire subtree:
 
-```cel
+```text
 current_namespace().startsWith("acme-corp/")
 ```
 
 For records (e.g. in a routing rule):
 
-```cel
+```text
 record.body.namespace == "acme-corp/payments/staging"
 ```
 

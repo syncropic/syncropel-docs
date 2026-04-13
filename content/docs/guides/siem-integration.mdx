@@ -145,14 +145,14 @@ TRUNCATE = 0
 
 This indexes each JSONL line as a single event with full JSON parsing. You can then query in SPL:
 
-```spl
+```text
 index=security sourcetype=syncropel:audit category=aitl
 | stats count by record.body.verdict, record.actor
 ```
 
 Common queries:
 
-```spl
+```text
 # All AITL rejections in the last 24h
 index=security sourcetype=syncropel:audit category=aitl record.body.verdict=reject
 
@@ -268,11 +268,11 @@ scrape_configs:
 
 Query in Grafana / LogQL:
 
-```logql
+```text
 {job="syncropel-audit", category="aitl"} | json | record.body.verdict="reject"
 ```
 
-```logql
+```text
 sum by (actor_class) (rate({job="syncropel-audit", category="dispatch"}[5m]))
 ```
 
@@ -361,7 +361,7 @@ filebeat.inputs:
 
 Filter for permission denials in the daemon log — these are NOT in audit export today:
 
-```spl
+```text
 index=security sourcetype=syncropel:daemon "PERMISSION DENIED"
 ```
 
