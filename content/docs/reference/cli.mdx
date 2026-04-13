@@ -241,19 +241,31 @@ All kill records are LEARN records on `th_fleet_control` with full audit trail i
 ### Task fan-out
 
 ```bash
-spl task fan-out <task-alias>                   # Fan out from task body.subtasks
 spl task fan-out <task-alias> \
-  --subtask 'goal="...",target=worker-a,budget=2.00' \
-  --subtask 'goal="...",target=worker-b,budget=2.00' \
-  --join all                                    # Explicit descriptors
+  --subtask 'goal=...,target=worker-a,budget=2.00,timeout=1800' \
+  --subtask 'goal=...,target=worker-b,budget=2.00,timeout=1800' \
+  --subtask 'goal=...,target=least-loaded-worker,depends=0+1' \
+  --join all
 
 spl task join-status <parent-alias>             # Current join state
 spl task retry <parent-alias> --subtask <index> # Re-dispatch one failed child
 ```
 
-`spl task fan-out` emits a parent INTEND on the coordinator with the subtask list. The fan-out reconciler spawns one child INTEND per descriptor and POSTs each to its target worker's `/v1/records` endpoint via the instance registry.
+`spl task fan-out` creates a parent INTEND on the coordinator with the subtask list derived from the `--subtask` flags. The fan-out reconciler spawns one child INTEND per descriptor and POSTs each to its target worker's `/v1/records` endpoint via the instance registry.
 
-The `--join` flag (or `body.join` in the task file) accepts shorthands (`all`, `any`, `k_of_n:K`) or a custom CEL expression evaluating against the `children` binding. Examples:
+Each `--subtask` flag is a comma-separated list of `key=value` pairs. Supported keys:
+
+- **`goal`** (required) — the child subtask's INTEND goal, passed verbatim to the worker
+- **`target`** (required) — one of `worker-<alias>`, `specific:<full-did>`, `least-loaded-worker`, `round-robin` (see §"Routing strategies" below)
+- **`budget`** (optional) — advisory per-subtask USD budget (not enforced in v0.11; Phase 3/v0.12+ enforces)
+- **`timeout`** (optional) — worker-side timeout in seconds, default 600
+- **`depends`** (optional) — plus-separated list of 0-based subtask indices this child depends on. `depends=0+1` means "wait for subtasks 0 and 1 to accept before spawning this one." The reconciler validates depends indices for cycles at parse time.
+
+<Callout type="info">
+v0.11 does not support declaring subtasks via a task body file. The `--subtask` CLI flag form is the only shape shipped. A future release may add body-file parsing as an alternative form.
+</Callout>
+
+The `--join` flag accepts shorthands (`all`, `any`, `k_of_n:K`) or a custom CEL expression evaluating against the `children` binding. Examples:
 
 ```text
 all                                               # all subtasks must accept

@@ -74,38 +74,24 @@ Or manually:
 
 ### 3. Run the parallel drill
 
-On a different session of the same task (same day, same local state — you're comparing equivalent work), run the fan-out version:
+On a different session of the same task (same day, same local state — you're comparing equivalent work), create a fan-out parent task and spawn children via `spl task fan-out` with explicit `--subtask` flags:
 
 ```bash
-# Create a copy of the task with body.subtasks declared
-spl task add "<same goal>" --body-file <task>-parallel.md
+# Create a placeholder parent task
+spl task add "<same goal> (parallel)" \
+  --priority medium \
+  --domain <same-as-serial> \
+  --alias <new-alias>
 
-# Then fan out
-spl task fan-out <task-alias>
+# Fan out with explicit subtask descriptors
+spl task fan-out <new-alias> \
+  --subtask "goal=subtask 1 goal,target=worker-a,budget=<n>,timeout=1800" \
+  --subtask "goal=subtask 2 goal,target=worker-b,budget=<n>,timeout=1800" \
+  --subtask "goal=subtask 3 goal (synthesis),target=least-loaded-worker,budget=<n>,timeout=900,depends=0+1" \
+  --join all
 ```
 
-The body file declares the subtasks and join predicate:
-
-```yaml
-subtasks:
-  - goal: "subtask 1 goal"
-    target: worker-a
-    budget_usd: <reasonable>
-    timeout_secs: 1800
-
-  - goal: "subtask 2 goal"
-    target: worker-b
-    budget_usd: <reasonable>
-    timeout_secs: 1800
-
-  - goal: "subtask 3 goal (synthesis)"
-    target: least-loaded-worker
-    budget_usd: <reasonable>
-    timeout_secs: 900
-    depends_on: [0, 1]
-
-join: all
-```
+Each `--subtask` flag is a comma-separated list of `key=value` pairs. Keys: `goal` (required), `target` (required; one of `worker-<alias>`, `specific:<did>`, `least-loaded-worker`, `round-robin`), `budget` (advisory in v0.11, enforced in v0.12+), `timeout` (seconds), `depends` (plus-separated list of 0-based indices that must accept first). Join shorthand accepts `all`, `any`, `k_of_n:K`, or a full CEL expression in quotes.
 
 Watch the drill live:
 

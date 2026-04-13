@@ -39,7 +39,7 @@ Join predicates accept shorthand (`"all"`, `"any"`, `"k_of_n:K"`) or full CEL ex
 
 Four built-in routing strategies: `worker-<alias>` direct, `specific:<did>` exact, `least-loaded-worker` (lowest `active_dispatches` from heartbeats), `round-robin` (deterministic by parent + index hash).
 
-CLI surface: `spl task fan-out <alias>`, `spl task join-status <parent-alias>`, `spl task retry <parent> --subtask <index>`.
+CLI surface: `spl task fan-out <alias> --subtask '...' --subtask '...' --join all`, `spl task join-status <parent-alias>`, `spl task retry <parent> --subtask <index>`. Each `--subtask` flag accepts a comma-separated list of `key=value` pairs for `goal`, `target`, `budget`, `timeout`, and `depends` (plus-separated indices for sequential dependencies).
 
 Content-addressed child thread IDs (`sha256(parent.id + index + goal)`) make re-spawning idempotent; a hiccup during spawn can be safely retried and does not produce duplicate children.
 
@@ -128,8 +128,11 @@ spl unkill --namespace <ns>
 spl unkill --emergency
 
 # Task fan-out
-spl task fan-out <alias>               # from body.subtasks
-spl task fan-out <alias> --subtask '...' --subtask '...' --join all   # explicit
+spl task fan-out <alias> \
+  --subtask 'goal=...,target=worker-a,budget=2.00,timeout=1800' \
+  --subtask 'goal=...,target=worker-b,budget=2.00,timeout=1800' \
+  --subtask 'goal=...,target=least-loaded-worker,depends=0+1' \
+  --join all
 spl task join-status <parent-alias>
 spl task retry <parent-alias> --subtask <index> [--hint "..."]
 ```
