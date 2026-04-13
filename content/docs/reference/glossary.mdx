@@ -52,6 +52,20 @@ A configuration that dispatches to an actor when a matching record appears or on
 **Fold**
 Computing the current state by replaying all records on a thread. `state = fold(records)`. This is how status, trust, and configuration are derived.
 
+## N
+
+**Namespace**
+A scope that groups records by tenancy, project, environment, or job. Every record belongs to exactly one namespace via `body.namespace` (or implicitly to `default` when unset). Namespaces form a 5-level hierarchy where each level narrows the capabilities of the level above. Spec: §08-governance/04. CLI: `spl namespace`.
+
+**Namespace Hierarchy**
+The 5-level structure `DEFAULT → ORG → PROJECT → ENV → JOB`. Each level is slash-separated (`acme-corp/payments/staging`), max 4 segments under DEFAULT, lowercase ASCII + digits + `-` + `_`. Parents must exist before children. The DEFAULT root is implicit and cannot be deleted.
+
+**Namespace Registry**
+The in-memory snapshot of all explicitly-declared namespaces, built by replaying LEARN records on the well-known thread `th_namespace_registry`. Same reload pattern as routing rules and permission rules — the engine hot-reloads on every namespace_entry record via the broadcast handler.
+
+**Narrowing (Monotonic)**
+The rule that a child namespace can never claim capabilities its parent doesn't grant. Enforced at record ingest by walking the ancestor chain from the record's claimed namespace up to DEFAULT and rejecting if any link is missing or non-Active. This is what makes namespaces a real isolation boundary instead of a label.
+
 ## P
 
 **Pattern**

@@ -41,6 +41,39 @@ curl -X POST http://localhost:9100/v1/records \
   }'
 ```
 
+#### Namespace-scoped ingest (v0.10.0+)
+
+Records can target a specific [namespace](/docs/concepts/namespaces) by setting `body.namespace`. The daemon walks the namespace's ancestor chain and rejects the record with `403 NAMESPACE_REJECTED` if any ancestor is missing or not Active. Records that omit `body.namespace` fall through to the implicit `default` namespace and are always accepted.
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:alice",
+    "thread": "th_abc123...",
+    "body": {
+      "namespace": "acme-corp/payments/staging",
+      "goal": "Deploy v2.3 to staging"
+    },
+    "clock": 0,
+    "data_type": "SCALAR"
+  }'
+```
+
+If the namespace does not exist, the response is:
+
+```json
+{
+  "object": "error",
+  "type": "invalid_request_error",
+  "code": "NAMESPACE_REJECTED",
+  "message": "namespace 'acme-corp/payments/staging' rejected: ancestor 'acme-corp/payments' is not Active in the registry. Create it first with `spl namespace create acme-corp/payments`."
+}
+```
+
+The error always names the failing ancestor and includes the exact recovery command. To declare namespaces use the [`spl namespace`](/docs/reference/cli#namespaces-v0100) CLI commands, which write to the well-known thread `th_namespace_registry` that the engine hot-reloads on every change.
+
 ## Threads
 
 | Method | Path | Description |
