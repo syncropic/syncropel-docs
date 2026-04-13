@@ -1,0 +1,192 @@
+---
+title: v0.11.0 Release Notes — Fleet
+description: The v0.11.0 Fleet release delivers coordinated multi-instance Syncropel — instance registry, three-level kill switch, task fan-out with barrier join. What's new, how to migrate from v0.10, what's explicitly not included, and what's next.
+---
+
+<Callout type="info">
+**Draft.** This page is pre-written alongside v0.11.0 development. Specific numbers (speedup measurements, final test counts, release binary build timestamp) are TODO markers that fill in when SKL-0223 (the v0.11 release gate) fires. The structural claims, migration steps, and scope discipline are final.
+</Callout>
+
+## TL;DR
+
+v0.11.0 is the **Fleet release** — the first Syncropel release where multi-instance stops being possible-but-uncoordinated (v0.10.0's isolation primitives) and becomes coordinated-parallel-work. A single operator can now direct a fleet of worker instances from one CLI, fan out parallelizable tasks across them, watch the barrier join, and stop anything going wrong via a three-level kill switch.
+
+This is the release where "my spl daemon" becomes "my spl fleet" and the system delivers on the core value prop identified in [research/compute-plane/06](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/06-distributed-execution-topology.md): **parallel velocity without the single-node ceiling**.
+
+Upgrading from v0.10.x is zero-touch: instances without fleet config behave exactly like v0.10.0. No data migration. No breaking changes.
+
+## Headline features
+
+### Instance registry + three-level kill switch (ADR-021)
+
+Every v0.11+ instance can emit heartbeat records at a configured interval to a nominated coordinator instance. The coordinator folds these into a live-instance map queryable via `spl fleet list`, `spl fleet status`, `spl fleet ping`, and a new `GET /v1/fleet/status` HTTP endpoint.
+
+A three-level kill switch built as LEARN records on `th_fleet_control` lets operators freeze or emergency-stop work at the namespace or fleet-wide level, with audit trail preserved as records:
+
+- **Soft freeze** — deny new `INTEND`/`DO`/`CALL` in a namespace; allow `KNOW`/`LEARN` so in-flight work drains cleanly
+- **Hard freeze** — soft plus a configurable grace window after which all ingest is refused
+- **Emergency stop** — fleet-wide dial to zero, no new work anywhere, state remains inspectable
+
+All levels reversed by counter-records. Permission rules back the enforcement via three new CEL stdlib bindings: `fleet_frozen_namespaces()`, `fleet_hard_frozen_past_grace()`, `fleet_emergency_active()`.
+
+See [ADR-021](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-021-instance-registry-and-kill-switch.md) for the full design.
+
+### Task fan-out + barrier join (ADR-022)
+
+A parent INTEND can declare `body.subtasks` as a list of descriptors (`goal`, `target` worker, `budget_usd`, `timeout_secs`, `depends_on`) and `body.join` as a predicate. The engine's fan-out reconciler spawns one child INTEND per descriptor via the instance registry, each worker executes its subtask autonomously through the existing unified dispatch pipeline, and a join fold reads completion records back to the coordinator to emit the parent KNOW when the predicate is satisfied.
+
+Join predicates accept shorthand (`"all"`, `"any"`, `"k_of_n:K"`) or full CEL expressions against a new `children` binding (list of `ChildResult` with `verdict`/`cost_usd`/`wall_time_secs`/`summary` per child). The `join` context is the eighth CEL context, following Trigger, Routing, Precondition, FoldRule, HealthCheck, AITL, and Permission.
+
+Four built-in routing strategies: `worker-<alias>` direct, `specific:<did>` exact, `least-loaded-worker` (lowest `active_dispatches` from heartbeats), `round-robin` (deterministic by parent + index hash).
+
+CLI surface: `spl task fan-out <alias>`, `spl task join-status <parent-alias>`, `spl task retry <parent> --subtask <index>`.
+
+Content-addressed child thread IDs (`sha256(parent.id + index + goal)`) make re-spawning idempotent; a hiccup during spawn can be safely retried and does not produce duplicate children.
+
+See [ADR-022](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-022-task-fan-out-and-barrier.md) for the full design.
+
+### Fleet convenience CLI
+
+- `spl fleet start --workers N` — boot 1 coordinator + N workers locally with auto-assigned `SYNCROPEL_HOME` paths and ports. Workers auto-register via heartbeat.
+- `spl fleet stop --workers` — stop workers, keep coordinator running (common end-of-day).
+- `spl fleet stop --all` — tear down everything.
+
+Worker state roots are persistent across fleet restarts, so `spl fleet start --workers 2` tomorrow picks up where you left off.
+
+### Measured parallel velocity
+
+{/* TODO(SKL-0223): paste the 3 dogfood drill results here after the release gate fires. */}
+{/* Format per research/compute-plane/09: list every drill with speedup ratio, cost ratio, and an observations field naming confounders. */}
+{/* Do NOT aggregate into a mean or median with N=3. Just list the individual ratios. */}
+
+**Pass criterion committed pre-release** (per [measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-dogfood-measurement-methodology.md)): at least 2 of 3 real dogfood drills show a parallel speedup ratio ≥ 1.5×, with no naked regressions (any drill below 1.0× must have a named confounder, not anomalous overhead).
+
+## Migration from v0.10.x
+
+### What you don't need to do
+
+- **No data migration.** v0.11 reads v0.10 SQLite stores byte-identically. No schema change, no fold replay discrepancy, no trust reset.
+- **No config migration by default.** The `[fleet]` config section is additive. Instances with no fleet config behave exactly like v0.10.0 — single-instance mode, no heartbeats, no coordinator involvement.
+- **No record format change.** The 8 fields of the record are unchanged. v0.11 adds optional fields like `body.subtasks` and `body.join` that v0.10 would simply ignore as unknown body fields.
+- **No CLI surface removal.** Every v0.10 command still works identically. The v0.11 additions (`spl fleet`, `spl kill`, `spl task fan-out`, `spl task join-status`, `spl task retry`) are additive.
+- **No CEL context removal.** The seven existing contexts (Trigger, Routing, Precondition, FoldRule, HealthCheck, AITL, Permission) behave identically. The eighth (Join) is additive and only evaluated for fan-out parent INTENDs.
+
+In short: if your v0.10.x deployment does not opt into multi-instance operation, the upgrade is a drop-in binary replacement.
+
+### What you do if you want multi-instance
+
+1. **Upgrade the binary.** `curl https://get.syncropic.com/spl | sh` installs v0.11.0 over v0.10.x. The binary replacement is atomic (Linux `rename(2)` semantics).
+2. **Restart the prod daemon** cleanly: `spl serve --stop && spl serve --daemon`. It'll re-open the SQLite store at `~/.syncro/hub.db`, rebuild trust from records, and come up on v0.11.0.
+3. **Verify health**: `spl doctor` should pass 7/7. `spl status` should report `v0.11.0`.
+4. **Configure fleet operation**, choose one approach:
+
+   **Approach A — Single-laptop worktree fleet** (recommended starting point):
+
+   ```bash
+   spl fleet start --workers 2
+   ```
+
+   This boots the existing prod daemon as coordinator plus two worker daemons at `~/.syncro-worker-{a,b}` on ports 9201 and 9202. Each worker's config.toml gets `[fleet] coordinator_url = "http://127.0.0.1:9100"` automatically.
+
+   **Approach B — Manual multi-host fleet**: edit each instance's `~/.syncro/config.toml` to add a `[fleet]` section, then restart each daemon:
+
+   ```toml
+   [fleet]
+   coordinator_url = "http://coordinator.example.com:9100"
+   heartbeat_interval_secs = 15
+   advertised_endpoint = "http://worker-a.example.com:9100"
+   ```
+
+   The advertised endpoint is the URL other instances should use to reach this one. `SPL_FLEET_COORDINATOR_URL` env var takes precedence over the config file if set.
+
+5. **Verify the fleet is live**: `spl fleet list` should show all instances with status `live` and recent heartbeats.
+
+See the [Operator Runbook: Multi-instance fleet operations](/docs/operate/runbook#multi-instance-fleet-operations) for day-2 procedures (coordinator failover, worker crash recovery, fleet-wide upgrade, teardown, kill drills).
+
+### What you can safely ignore
+
+If you're running a single-node deployment and will continue to, everything in v0.11 is opt-in. You don't need to learn the fleet CLI, the kill switch commands, the fan-out descriptor format, or any of the new CEL bindings. Your existing workflows work identically.
+
+## New CLI commands at a glance
+
+```bash
+# Fleet lifecycle (local convenience wrapper)
+spl fleet start [--workers N]
+spl fleet stop [--workers | --all]
+
+# Fleet observability
+spl fleet list                         # instances by DID, endpoint, status, role, uptime, load
+spl fleet show <did>                   # detailed view of one instance
+spl fleet ping <did>                   # HTTP reachability + latency
+spl fleet status [--live]              # aggregate: live/stale/archived + frozen namespaces
+
+# Kill switch
+spl kill --namespace <ns> --level soft [--reason "..."]
+spl kill --namespace <ns> --level hard [--grace <secs>] [--reason "..."]
+spl kill --emergency [--reason "..."]
+spl unkill --namespace <ns>
+spl unkill --emergency
+
+# Task fan-out
+spl task fan-out <alias>               # from body.subtasks
+spl task fan-out <alias> --subtask '...' --subtask '...' --join all   # explicit
+spl task join-status <parent-alias>
+spl task retry <parent-alias> --subtask <index> [--hint "..."]
+```
+
+Full reference: [`spl fleet` + `spl kill`](/docs/reference/cli#fleet-v0110).
+
+## What's explicitly NOT in v0.11
+
+Honest scope discipline. These are valid concerns we are deferring, not gaps we are denying:
+
+- **Autonomous budget enforcement.** The `budget_usd` field on fan-out descriptors is advisory; the engine does not refuse a subtask for budget reasons. Budget accounting is Phase 3, shipping in v0.12. The kill switch is the manual stop-gap.
+- **Merge queue.** Parallel workers still write to their own git branches; integrating them into main is manual and can hit text-level conflicts that v0.11 does not arbitrate. Phase 3.
+- **Automatic worker reassignment on crash.** v0.11 requires operator intervention (`spl task retry --subtask <index>`) when a worker dies mid-subtask. Phase 3.
+- **Cross-instance record sync (federation).** The fleet in v0.11 uses targeted HTTP POST for parent-child communication. General record sync, trust propagation across instances, and CRDT convergence are Phase 4 (v0.13+).
+- **Coordinator election / automatic failover.** The coordinator is a single nominated instance. If it dies, workers continue operating locally but lose fleet coordination until an operator manually promotes a new coordinator. Phase 4.
+- **Managed hosting on Kubernetes.** The primitives v0.11 ships are the same primitives a k8s deployment would need, but the deployment layer, per-user pod provisioning, ingress routing, and billing hooks are Phase 5 (v1.0+).
+- **Recursive fan-out.** A child can be an INTEND with its own `body.subtasks`, but the v0.11 reconciler only handles one-level flat fan-out. Recursive cases are deferred to when they're concretely needed.
+- **General DAG dependencies.** `depends_on` is a simple sequential marker (index list, cycle-checked at parse). Complex DAGs with merges, conditional branches, or loops are out of scope.
+
+For a single-tenant deployment or trusted-actor multi-tenant setup, v0.11 is production-ready. For untrusted multi-tenant where workers must be isolated from each other's state beyond what namespaces provide, you want Phase 3 + Phase 4 gaps closed first.
+
+## Test and build evidence
+
+{/* TODO(SKL-0223): fill in from the actual release gate run */}
+
+- **Cargo tests**: {"TODO(SKL-0223): final count, e.g. "900+ tests, 0 failed""}
+- **E2E tests**: `e2e_task.sh` ({"TODO"}), `e2e_fleet.sh` ({"TODO"}), `e2e_fanout.sh` ({"TODO"}), `e2e_permissions_lockout.sh` ({"TODO"})
+- **Quality gates**: `cargo fmt --check`, `cargo clippy --all -D warnings`, `cargo test --all` all green on CI
+- **Binaries**: `linux-x86_64`, `linux-aarch64`, `macos-x86_64`, `macos-aarch64`, all on {"TODO: R2 URL"}
+- **Install verification**: clean Ubuntu 24.04 Docker container, `curl https://get.syncropic.com/spl | sh` → v0.11.0 installed, all new commands work end-to-end
+- **Live fleet verification**: 3-instance native fleet exercised the Monday-morning tutorial end-to-end against the release binary
+
+## What's next — v0.12 preview
+
+v0.12 is the **Safety release**. It turns human-gated parallelism (v0.11) into autonomous-ready parallelism by shipping the Phase 3 primitives:
+
+- **Budget + quota enforcement** — live accounting in the TICK loop, CEL rules deny new work when namespace budget is exhausted
+- **Merge queue** — serialized integration of parallel workers' git work, with record-level and text-level conflict detection
+- **Graceful drain** — a state machine where an instance rejects new intents while completing in-flight ones with a configurable grace window
+- **Chaos testing harness** — scripted failure injection against the Docker fleet, recovery verification
+- **Automatic worker reassignment on crash** — the operator step that v0.11 requires becomes automatic
+
+v0.13 (Federation) and v1.0 (Managed hosting) follow. See [research/compute-plane/06 §10 roadmap](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/06-distributed-execution-topology.md#10-phased-implementation-roadmap) for the full five-phase trajectory.
+
+## Known limitations
+
+- `fleet.rs` is a single 854-LOC module. It exceeds the project's 800-line "acceptable" file size band by a modest margin. Splitting is deferred until Phase 2 Full's fan-out code pressures the module further; defensible because the `InstanceRegistry` + `FleetControlRegistry` + `FleetSnapshot` surface is tightly coupled and a premature split would hurt cohesion.
+- `GET /v1/fleet/status` re-folds from the SQLite store on every request instead of using a cached snapshot. This keeps the endpoint working in test harnesses where the reconciler loop isn't running, at the cost of a small per-request overhead. For v0.11 scale (3-10 instance fleets), this is a non-issue; v0.12 may add caching when fleet sizes grow.
+- Instance DIDs in v0.11 use a fallback `hash(HOSTNAME + advertised_endpoint)` derivation because ADR-020 Part 2 (canonical bootstrap-derived DID) has not yet shipped. The fallback is collision-free as long as co-resident instances have distinct `advertised_endpoint` values (which the `spl fleet start` wrapper enforces). Part 2 of ADR-020, planned for v0.12, stabilizes the DID format; existing v0.11 fleets will auto-upgrade their DIDs on next restart when that ships.
+
+## References
+
+- [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) — hands-on walkthrough
+- [Operator Runbook: Multi-instance fleet](/docs/operate/runbook#multi-instance-fleet-operations) — day-2 procedures
+- [CLI Reference: Fleet section](/docs/reference/cli#fleet-v0110) — full command reference
+- [CEL Guide: Fleet bindings](/docs/guides/cel-expressions#fleet-bindings-v011) — fleet-aware CEL
+- [ADR-021](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-021-instance-registry-and-kill-switch.md) — instance registry + kill switch design
+- [ADR-022](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-022-task-fan-out-and-barrier.md) — fan-out + barrier design
+- [Research: Fleet release vision](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/08-v0.11-fleet-release-vision.md) — the Monday-morning transcript that v0.11 makes real
+- [Research: Dogfood measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-dogfood-measurement-methodology.md) — how the release gate was measured
