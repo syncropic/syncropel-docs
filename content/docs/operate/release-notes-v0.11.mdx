@@ -47,19 +47,52 @@ See [ADR-022](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions
 
 ### Fleet convenience CLI
 
-- `spl fleet start --workers N` — boot 1 coordinator + N workers locally with auto-assigned `SYNCROPEL_HOME` paths and ports. Workers auto-register via heartbeat.
+- `spl fleet start --workers N [--share THREADS]` — boot 1 coordinator + N workers locally with auto-assigned `SYNCROPEL_HOME` paths and ports. Workers auto-register via heartbeat. The `--share` flag (default: `--shared-system`) snapshots the coordinator's shared system threads (`th_engine_config`, `th_actor_registry`, `th_namespace_registry`, `th_fleet_control`) and restores them into each worker, so workers inherit the coordinator's adapter registry and routing rules and can immediately dispatch real work.
 - `spl fleet stop --workers` — stop workers, keep coordinator running (common end-of-day).
 - `spl fleet stop --all` — tear down everything.
 
 Worker state roots are persistent across fleet restarts, so `spl fleet start --workers 2` tomorrow picks up where you left off.
 
+### Thread snapshot/restore primitive (ADR-023)
+
+v0.11.0 introduces a foundational replication primitive: **thread snapshot/restore**. This is the operation underneath `spl fleet start --share` and is also exposed as user-facing CLI commands and HTTP routes for backup, migration, and Phase 4 federation.
+
+- **`spl thread snapshot <thread> [--out FILE]`** — serialize a thread's records into a deterministic JSONL file (`.snap.jsonl`, content-type `application/x-ndjson`). Supports `--threads th_a,th_b,th_c` for multi-thread snapshots, `--shared-system` for the four reserved system threads, `--all` for the entire instance, `--include-l0` to control hash level inclusion, `--causal-closure` to follow parent references across threads.
+- **`spl thread restore [--in FILE]`** — ingest a snapshot file into the local store. Supports `--dry-run` (validate without ingesting), `--on-conflict skip|fail|accept-existing`. Restore is **idempotent** — re-running with a snapshot whose records already exist is a no-op for those records. Records are validated (canonical hash recomputed and matched, parents checked, fields validated) before ingest, so a tampered snapshot file cannot corrupt the destination.
+- **`GET /v1/threads/snapshot`** and **`POST /v1/threads/restore`** — the HTTP routes wrapping the store-trait methods. Permission-gated via two new resources: `thread_snapshot` and `thread_restore`. Operators who have CEL permission enforcement enabled (per [SKL-0204 lockout protection](/docs/guides/cel-expressions)) MUST include these resources in their admin allow rule.
+
+The primitive is the foundation that backup, migration, audit-export unification, and Phase 4 federation will all extend. The architecture is layered (per ADR-023 §"Layered Architecture"): v0.11 ships L0 (the primitive) + L1 (`spl fleet start --share` wiring); v0.12 will add L2 (reactive sync, adopting the CouchDB Replication Protocol v2 semantics); Phase 4 will add L5 (federation, gated by the consent records specified in §08-governance/06).
+
+The full design is in **ADR-023** with a Prior Art Alignment table mapping every decision to the giant it stands on (Git bundle, IPFS/IPLD, CouchDB, Hypercore, EventStoreDB, OAuth, Solid, GDPR, Matrix). The prior-art survey itself is at `research/compute-plane/10-replication-prior-art.md`.
+
+### Foundation F8 revised — L0 sharing as a consent-gated policy (ADR-024)
+
+v0.11.0 includes the **first revision of a Frozen Foundation in Syncropel's history**. Foundation F8 — the L0 sharing rule — has been revised from absolute prohibition to a default-closed, consent-gated policy:
+
+| | Before v0.11.0 | v0.11.0 onward |
+|---|---|---|
+| Wording | "L0 hashes MUST NEVER leave the local namespace" | "L0 hashes MUST NOT cross namespace boundaries without explicit mutual consent. Intra-namespace sharing is permitted." |
+| Intra-namespace sharing (workers under same operator) | Forbidden by literal reading | **Permitted by default** (no consent records needed) |
+| Cross-namespace sharing (different trust domains) | Forbidden full-stop | **Default closed**, gated by mutual consent records on `th_consent` |
+| Privacy invariant | Preserved by absolute rule | **Preserved by default-closed policy** |
+
+**What this changes for you**:
+
+- **Intra-namespace operations now legal**: fleet bootstrap, backup, migration, and multi-machine deployment under one operator now work without violating F8. The `spl fleet start --share` command (above) is the immediate beneficiary.
+- **Phase 4 federation has a foundation**: the consent record schema in §08-governance/06 is the contract that future federation will implement against. v0.11.0 reserves the `th_consent` thread name and ships the schema; the cross-namespace enforcement layer ships in Phase 4.
+- **No action required for existing deployments**: the revision is strictly more permissive than the original. Anything that was legal under the old F8 is still legal. New behavior (intra-namespace L0 sharing) was previously a grey area but never enforced — it is now officially legal.
+
+The full reasoning, the six alternatives considered and rejected, and the consent record schema are in **ADR-024**. The prior-art justification (GDPR, Solid, Matrix, OAuth, Mastodon allow-lists) is in `research/compute-plane/10` §"Consent and privacy models". The revised F8 wording is in §14-reference/03-frozen-foundations.
+
+This is the first foundation revision; it sets the precedent that foundations CAN be revised when they are demonstrably wrong, but only with explicit operator approval through an ADR.
+
 ### Measured parallel velocity
 
-{/* TODO(SKL-0223): paste the 3 dogfood drill results here after the release gate fires. */}
+{/* TODO(SKL-0223): paste the 3 bootstrap drill results here after the release gate fires. */}
 {/* Format per research/compute-plane/09: list every drill with speedup ratio, cost ratio, and an observations field naming confounders. */}
 {/* Do NOT aggregate into a mean or median with N=3. Just list the individual ratios. */}
 
-**Pass criterion committed pre-release** (per [measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-dogfood-measurement-methodology.md)): at least 2 of 3 real dogfood drills show a parallel speedup ratio ≥ 1.5×, with no naked regressions (any drill below 1.0× must have a named confounder, not anomalous overhead).
+**Pass criterion committed pre-release** (per [measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-bootstrap-measurement-methodology.md)): at least 2 of 3 real bootstrap drills show a parallel speedup ratio ≥ 1.5×, with no naked regressions (any drill below 1.0× must have a named confounder, not anomalous overhead).
 
 ## Migration from v0.10.x
 
@@ -192,4 +225,4 @@ v0.13 (Federation) and v1.0 (Managed hosting) follow. See [research/compute-plan
 - [ADR-021](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-021-instance-registry-and-kill-switch.md) — instance registry + kill switch design
 - [ADR-022](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-022-task-fan-out-and-barrier.md) — fan-out + barrier design
 - [Research: Fleet release vision](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/08-v0.11-fleet-release-vision.md) — the Monday-morning transcript that v0.11 makes real
-- [Research: Dogfood measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-dogfood-measurement-methodology.md) — how the release gate was measured
+- [Research: Bootstrap measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-bootstrap-measurement-methodology.md) — how the release gate was measured

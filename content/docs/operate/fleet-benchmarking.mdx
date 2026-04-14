@@ -4,7 +4,7 @@ description: Measure your own fleet's parallel speedup honestly — how to run r
 ---
 
 <Callout type="info">
-**Audience**: operators who want to verify v0.11.0's parallel velocity claim against their own workloads, or who want a repeatable benchmark to track regressions across Syncropel versions. This page is the actionable companion to the [dogfood measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-dogfood-measurement-methodology.md) used internally for the v0.11.0 release gate.
+**Audience**: operators who want to verify v0.11.0's parallel velocity claim against their own workloads, or who want a repeatable benchmark to track regressions across Syncropel versions. This page is the actionable companion to the [bootstrap measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-bootstrap-measurement-methodology.md) used internally for the v0.11.0 release gate.
 </Callout>
 
 ## What you're measuring
@@ -15,7 +15,7 @@ A **parallel speedup ratio** — the wall-clock time of a fan-out run divided in
 speedup = serial_wall_clock / parallel_wall_clock
 ```
 
-A 2-worker fan-out on independent equal-sized subtasks has a theoretical ceiling of 2.0×. Realistic workloads lose fractional speedup to spawn overhead, completion reporting, and the irreducible cost of the slowest subtask. **Any real 2-worker drill over 1.5× is a clear win** — that's the threshold v0.11.0 committed to before its own dogfood gate ran, and it's the same threshold this guide recommends.
+A 2-worker fan-out on independent equal-sized subtasks has a theoretical ceiling of 2.0×. Realistic workloads lose fractional speedup to spawn overhead, completion reporting, and the irreducible cost of the slowest subtask. **Any real 2-worker drill over 1.5× is a clear win** — that's the threshold v0.11.0 committed to before its own bootstrap gate ran, and it's the same threshold this guide recommends.
 
 Speedup is the ONLY quantity this guide measures. You are not measuring:
 
@@ -276,7 +276,7 @@ If you run the benchmark in one of these less-tested configurations, your drill 
 
 ## References
 
-- [Dogfood Measurement Methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-dogfood-measurement-methodology.md) — the full research document this guide distills
+- [Bootstrap Measurement Methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-bootstrap-measurement-methodology.md) — the full research document this guide distills
 - [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) — hands-on walkthrough of the fan-out workflow
 - [Operator Runbook: Multi-instance fleet operations](/docs/operate/runbook#multi-instance-fleet-operations) — day-2 procedures
 - [v0.11.0 Release Notes](/docs/operate/release-notes-v0.11) — the release that introduced these primitives
