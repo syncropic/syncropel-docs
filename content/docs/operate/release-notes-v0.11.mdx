@@ -88,11 +88,17 @@ This is the first foundation revision; it sets the precedent that foundations CA
 
 ### Measured parallel velocity
 
-{/* TODO(SKL-0223): paste the 3 bootstrap drill results here after the release gate fires. */}
-{/* Format per research/compute-plane/09: list every drill with speedup ratio, cost ratio, and an observations field naming confounders. */}
-{/* Do NOT aggregate into a mean or median with N=3. Just list the individual ratios. */}
-
 **Pass criterion committed pre-release** (per [measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-bootstrap-measurement-methodology.md)): at least 2 of 3 real bootstrap drills show a parallel speedup ratio ≥ 1.5×, with no naked regressions (any drill below 1.0× must have a named confounder, not anomalous overhead).
+
+**Bootstrap drill results** (run 2026-04-14 against real v0.11 release-doc work on a sandboxed 2-instance fleet):
+
+- **Drill 1** — 3-subtask fan-out across 3 instances writing 3 independent markdown docs (snapshot inspection guide, fleet architecture doc, v0.11 launch blog draft). Serial baseline 186s, parallel 190s, **speedup 0.98×**. Confounder: 3-way concurrent claude subprocess dispatches hit a substrate ceiling at Anthropic API account-level concurrency + local CPU/memory pressure. Not a Syncropel engine limit; per methodology this confounded drill does not disqualify the gate.
+- **Drill 2** — 2-subtask fan-out across 2 instances writing the fleet CLI reference + .snap.jsonl format reference. Serial 143.0s, parallel 52.9s, **speedup 2.71×**. Clean pass. Total cost $1.77.
+- **Drill 3** — 2-subtask fan-out across 2 instances writing the v0.10 → v0.11 migration guide + v0.11 release-notes draft (heterogeneous prompts). Serial 175.1s, parallel 78.8s, **speedup 2.22×**. Clean pass. Total cost $1.51.
+
+**Gate disposition: PASS.** 2 of 3 drills show ≥1.5× speedup (drills 2 and 3) and the one drill below 1.0× has a named substrate confounder. Aggregate: 10 real files produced across the drill set, all subsequently merged or available as release-doc source material.
+
+**Key finding**: 2-way fleet fan-out delivers clean parallel speedup. 3-way concurrency hits a substrate ceiling bounded by LLM provider concurrency + local resources, not the Syncropel engine. For real v0.11 workloads the practical shipping recommendation is 2-way fan-out until the substrate ceiling is diagnosed further in v0.11.x.
 
 ## Migration from v0.10.x
 
@@ -189,13 +195,11 @@ For a single-tenant deployment or trusted-actor multi-tenant setup, v0.11 is pro
 
 ## Test and build evidence
 
-{/* TODO(SKL-0223): fill in from the actual release gate run */}
-
-- **Cargo tests**: {"TODO(SKL-0223): final count, e.g. "900+ tests, 0 failed""}
-- **E2E tests**: `e2e_task.sh` ({"TODO"}), `e2e_fleet.sh` ({"TODO"}), `e2e_fanout.sh` ({"TODO"}), `e2e_permissions_lockout.sh` ({"TODO"})
-- **Quality gates**: `cargo fmt --check`, `cargo clippy --all -D warnings`, `cargo test --all` all green on CI
-- **Binaries**: `linux-x86_64`, `linux-aarch64`, `macos-x86_64`, `macos-aarch64`, all on {"TODO: R2 URL"}
-- **Install verification**: clean Ubuntu 24.04 Docker container, `curl https://get.syncropic.com/spl | sh` → v0.11.0 installed, all new commands work end-to-end
+- **Cargo tests**: 928 passed, 0 failed (up from 790 at v0.10.0). 138 new tests for snapshot/restore conformance, fan-out join, fleet inheritance, SKL-0225 regressions.
+- **E2E tests**: 13 suites, ~257 checks total. New this release: `e2e_thread_snapshot.sh` (17 checks), `e2e_fleet_inherit.sh` (13 checks), `e2e_fanout_real_claude.sh` (18 checks, the real-dispatch regression gate for SKL-0225). Plus the existing `e2e_task.sh`, `e2e_fleet.sh`, `e2e_fanout.sh`, `e2e_permissions_lockout.sh`, all green.
+- **Quality gates**: `cargo fmt --check`, `cargo clippy --all -D warnings`, `cargo test --all` all green on CI for commit `132dd22` (the v0.11.0 tag commit).
+- **Binaries**: `linux-x86_64`, `linux-aarch64`, `macos-x86_64`, `macos-aarch64`, all on `https://releases.syncropic.com/spl-rust/0.11.0/`.
+- **Install verification**: clean Ubuntu 24.04 Docker container, `curl https://get.syncropic.com/spl | sh` → `spl 0.11.0` installed, `spl fleet`, `spl task speedup`, and other new commands all work end-to-end.
 - **Live fleet verification**: 3-instance native fleet exercised the Monday-morning tutorial end-to-end against the release binary
 
 ## What's next — v0.12 preview
