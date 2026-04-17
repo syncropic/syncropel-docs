@@ -245,7 +245,42 @@ Create body: `{peer_did, peer_url, thread_id}`. Response includes `pair_id` and,
 
 The pair direction is semantically "target pulls source" — creating a pair on B with `peer_did=A` means records flow A→B. For bidirectional sync, create a pair on each side.
 
-**Known limitation**: `SyncRegistry` is in-memory. Pairs are lost on daemon restart and must be re-created. Persistence is on the roadmap.
+Pair state is persistent across daemon restart — the registry is rebuilt from lifecycle records on a reserved control thread at startup.
+
+### Federation health + per-pair stats
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/sync/health` | Aggregate mesh health — pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency, top slowest + error-prone pairs, active drift alerts |
+| GET | `/v1/sync/pairs/{id}/stats` | Per-pair detail — rolling rate, latency histogram, error count last hour, poll interval state, cumulative counters |
+
+Aggregate response shape (elided):
+
+```json
+{
+  "object": "sync_health",
+  "pairs_total": 5,
+  "pairs_by_state": { "running": 3, "failing": 1, "paused": 1 },
+  "records_pulled_last_hour": 2147,
+  "mean_delivery_latency_ms": 847,
+  "p95_delivery_latency_ms": 2410,
+  "slowest_pairs": [...],
+  "most_errored_pairs": [...],
+  "drift_alerts": [...]
+}
+```
+
+Metrics are in-memory with a 1-hour rolling window — ephemeral, reset on daemon restart. The daemon-wide `/health` endpoint also includes a `federation` summary for one-glance status.
+
+### LAN peer discovery
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/discovery/mdns` | List peers the local daemon has discovered via LAN mDNS browsing |
+
+Returns a roster of peers with DID, endpoint, namespace, handle, capabilities (all from their TXT records), and `last_seen` timestamps. Used by `spl fleet sync peers discover --method mdns`.
+
+The daemon advertises itself on `_syncropel._tcp.local` when `[sync.discovery] mdns_broadcast = true`; it listens for other daemons' advertisements by default. Failures during mDNS init are logged but never fail the daemon (LAN discovery is a soft feature).
 
 ## did:sync directory
 

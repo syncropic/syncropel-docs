@@ -314,6 +314,34 @@ spl sync <THREAD_ID> from <PEER>   # PEER is URL or DID
 
 Uses thread snapshot/restore under the hood. Useful for onboarding a new instance with existing history.
 
+## Federation — Peer Discovery
+
+Find other daemons without hand-configured peer URLs. See the [federation guide](/docs/guides/federation) for when each method fits.
+
+```bash
+spl fleet sync peers discover                       # Try all available methods
+spl fleet sync peers discover --method mdns         # LAN broadcast (mDNS)
+spl fleet sync peers discover --method did-web --domain alice.dev
+spl fleet sync peers discover --method did-sync --namespace acme-corp
+spl fleet sync peers discover --method did-sync --directory https://directory.myorg.com
+spl fleet sync peers discover --method transitive --via <peer-did>
+spl fleet sync peers discover --method static       # Peers from local config
+```
+
+Output groups results by method and deduplicates peers seen via multiple methods. Use `--json` for programmatic consumption.
+
+**Discovery never creates pairs automatically.** Review the output, then run `spl fleet sync add` for the peers you want.
+
+### Identity — publish a did:web document
+
+Generate a W3C-conformant DID document for operators who control a domain. Upload the resulting file to `https://<domain>/.well-known/did.json` via your existing web hosting.
+
+```bash
+spl identity publish-did-web --domain alice.dev [--output did.json]
+```
+
+The document includes the daemon's current public key and a service entry of type `syncropel` pointing at the daemon's advertised endpoint. Anyone who knows `alice.dev` can then resolve `did:web:alice.dev` without a directory service.
+
 ## Federation — Consent
 
 Grant and manage cross-namespace record-sharing. See the [consent guide](/docs/guides/consent).

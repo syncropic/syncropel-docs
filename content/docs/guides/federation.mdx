@@ -114,6 +114,45 @@ The `state` field shows one of:
 - `failing` — pair is retrying with exponential backoff; `last_error` has the reason
 - `stopped` — pair has been removed
 
+### 7. Monitor mesh health at a glance
+
+Once you have several pairs running, the `spl status` command shows a Federation block with every pair on one line each — direction arrow, peer handle, thread, records/minute, lag, error state. It's the easiest way to answer "is anything wrong right now?" without diving into individual pair detail.
+
+```
+Federation (5 pairs: 3 running, 1 failing, 1 paused)
+  abc12345  ← alice    thread:th_acme_ops   7 rec/min, lag 2s
+  def45678  → bob      thread:th_acme_ops   4 rec/min, lag 0s
+  345cdef0  ← carol    thread:th_archive    FAILING: CONNECT_REFUSED
+  ...
+```
+
+For machine-readable access use `spl status --json` or query the endpoints directly:
+
+- **`GET /v1/sync/health`** — aggregate mesh health: pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency across all pairs, top slowest pairs, top error-prone pairs, any active drift alerts.
+- **`GET /v1/sync/pairs/{id}/stats`** — per-pair detail: rolling rate, latency histogram, error count in the last hour, poll interval state, cumulative counters.
+
+## Peer discovery — finding other daemons without hand-configured URLs
+
+You don't have to hand-configure every `peer_did` + `peer_url`. The `spl fleet sync peers discover` command surfaces peers found via four mechanisms:
+
+```bash
+spl fleet sync peers discover                            # Try all methods
+spl fleet sync peers discover --method mdns              # LAN broadcast
+spl fleet sync peers discover --method did-web --domain alice.dev
+spl fleet sync peers discover --method did-sync --namespace acme-corp
+spl fleet sync peers discover --method static            # Peers from config
+```
+
+**mDNS (LAN broadcast)** — on the same local network, daemons advertise themselves on `_syncropel._tcp.local` and discover each other in under a second. Listener is on by default; the broadcaster is off by default (opt in with `[sync.discovery] mdns_broadcast = true` in `~/.syncro/config.toml`).
+
+**did:web resolution** — if you know a peer's domain (e.g., `alice.dev`), the resolver does a standard HTTPS GET to `https://alice.dev/.well-known/did.json` and extracts the peer's endpoint. No directory service required. Publish your own domain-hosted DID document with `spl identity publish-did-web --domain alice.dev`.
+
+**did:sync directory lookup** — for peers registered in a shared directory (either `discovery.syncropel.com` or a self-hosted one), list all peers in a given namespace, then resolve each DID to its current endpoint.
+
+**Static config** — for air-gapped or debugging scenarios, list peers directly in `~/.syncro/config.toml`.
+
+**Discovery never creates pairs automatically.** You always review the discovered list and explicitly run `spl fleet sync add <did> <thread>` for the peers you want.
+
 ## Pair error codes
 
 When a pair is in `failing` state, `last_error` uses structured codes:
@@ -166,10 +205,6 @@ spl namespace create X --description "..."
 ```
 
 This is an intentional security default. Namespaces are never created implicitly.
-
-### "Pairs disappear after restart"
-
-Sync pair state is held in memory. After a daemon restart, pairs need to be recreated — `spl fleet sync add ...` again. Script your pair setup into your daemon startup procedure if you rely on long-running pairs.
 
 ### "Pulls return zero records on a thread that should have some"
 
