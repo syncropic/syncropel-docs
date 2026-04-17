@@ -50,7 +50,7 @@ A configuration that dispatches to an actor when a matching record appears or on
 ## F
 
 **Fan-out** (v0.11+)
-A parent INTEND that declares `body.subtasks` as a list of descriptors and `body.join` as a predicate. The engine's fan-out reconciler spawns one child INTEND per descriptor, dispatches each to a target worker instance via the instance registry, and emits the parent KNOW when the CEL join predicate is satisfied. ADR-022.
+A parent INTEND that declares `body.subtasks` as a list of descriptors and `body.join` as a predicate. The engine's fan-out reconciler spawns one child INTEND per descriptor, dispatches each to a target worker instance via the instance registry, and emits the parent KNOW when the CEL join predicate is satisfied.
 
 **Fleet** (v0.11+)
 Two or more `spl` instances coordinating via the instance registry. One instance is the coordinator (holds the registry thread, receives heartbeats, processes fan-out); the others are workers (execute dispatched work, report heartbeats). The distinction is config, not code — any instance can play either role.
@@ -69,15 +69,15 @@ A `DO topic: "heartbeat"` record emitted by each live instance on `th_instance_r
 ## I
 
 **Instance** (v0.11+)
-A single `spl serve` daemon process with its own `SYNCROPEL_HOME` state root, its own `hub.db`, its own port binding, and (once ADR-020 Part 2 ships) its own canonical `did:sync:instance:*` DID derived from the bootstrap record. An instance may run as a standalone single-node deployment or as a coordinator/worker in a fleet.
+A single `spl serve` daemon process with its own `SYNCROPEL_HOME` state root, its own `hub.db`, its own port binding, and (once the instance DID work lands) its own canonical `did:sync:instance:*` DID derived from the bootstrap record. An instance may run as a standalone single-node deployment or as a coordinator/worker in a fleet.
 
 **Instance Registry** (v0.11+)
-The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local in v0.11 (single writer); Phase 4 federation sync will migrate this to a peer-replicated CRDT. ADR-021.
+The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local in v0.11 (single writer); Phase 4 federation sync will migrate this to a peer-replicated CRDT.
 
 ## K
 
 **Kill Switch** (v0.11+)
-A reversible freeze mechanism with three escalation levels implemented as LEARN records on `th_fleet_control`. **Soft** denies new INTEND/DO/CALL in a namespace while allowing KNOW/LEARN for drain. **Hard** adds a grace window after which all ingest is refused. **Emergency** forces the engine-wide dial to 0 (REPLAY only) across every namespace. All levels are reversed by counter-records. ADR-021.
+A reversible freeze mechanism with three escalation levels implemented as LEARN records on `th_fleet_control`. **Soft** denies new INTEND/DO/CALL in a namespace while allowing KNOW/LEARN for drain. **Hard** adds a grace window after which all ingest is refused. **Emergency** forces the engine-wide dial to 0 (REPLAY only) across every namespace. All levels are reversed by counter-records.
 
 ## N
 

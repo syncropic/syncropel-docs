@@ -11,13 +11,13 @@ description: The v0.11.0 Fleet release delivers coordinated multi-instance Syncr
 
 v0.11.0 is the **Fleet release** — the first Syncropel release where multi-instance stops being possible-but-uncoordinated (v0.10.0's isolation primitives) and becomes coordinated-parallel-work. A single operator can now direct a fleet of worker instances from one CLI, fan out parallelizable tasks across them, watch the barrier join, and stop anything going wrong via a three-level kill switch.
 
-This is the release where "my spl daemon" becomes "my spl fleet" and the system delivers on the core value prop identified in [research/compute-plane/06](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/06-distributed-execution-topology.md): **parallel velocity without the single-node ceiling**.
+This is the release where "my spl daemon" becomes "my spl fleet" and the system delivers on the core value prop identified in research/compute-plane/06: **parallel velocity without the single-node ceiling**.
 
 Upgrading from v0.10.x is zero-touch: instances without fleet config behave exactly like v0.10.0. No data migration. No breaking changes.
 
 ## Headline features
 
-### Instance registry + three-level kill switch (ADR-021)
+### Instance registry + three-level kill switch
 
 Every v0.11+ instance can emit heartbeat records at a configured interval to a nominated coordinator instance. The coordinator folds these into a live-instance map queryable via `spl fleet list`, `spl fleet status`, `spl fleet ping`, and a new `GET /v1/fleet/status` HTTP endpoint.
 
@@ -29,9 +29,9 @@ A three-level kill switch built as LEARN records on `th_fleet_control` lets oper
 
 All levels reversed by counter-records. Permission rules back the enforcement via three new CEL stdlib bindings: `fleet_frozen_namespaces()`, `fleet_hard_frozen_past_grace()`, `fleet_emergency_active()`.
 
-See [ADR-021](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-021-instance-registry-and-kill-switch.md) for the full design.
+See ADR-021 for the full design.
 
-### Task fan-out + barrier join (ADR-022)
+### Task fan-out + barrier join
 
 A parent INTEND can declare `body.subtasks` as a list of descriptors (`goal`, `target` worker, `budget_usd`, `timeout_secs`, `depends_on`) and `body.join` as a predicate. The engine's fan-out reconciler spawns one child INTEND per descriptor via the instance registry, each worker executes its subtask autonomously through the existing unified dispatch pipeline, and a join fold reads completion records back to the coordinator to emit the parent KNOW when the predicate is satisfied.
 
@@ -43,7 +43,7 @@ CLI surface: `spl task fan-out <alias> --subtask '...' --subtask '...' --join al
 
 Content-addressed child thread IDs (`sha256(parent.id + index + goal)`) make re-spawning idempotent; a hiccup during spawn can be safely retried and does not produce duplicate children.
 
-See [ADR-022](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-022-task-fan-out-and-barrier.md) for the full design.
+See ADR-022 for the full design.
 
 ### Fleet convenience CLI
 
@@ -53,7 +53,7 @@ See [ADR-022](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions
 
 Worker state roots are persistent across fleet restarts, so `spl fleet start --workers 2` tomorrow picks up where you left off.
 
-### Thread snapshot/restore primitive (ADR-023)
+### Thread snapshot/restore primitive
 
 v0.11.0 introduces a foundational replication primitive: **thread snapshot/restore**. This is the operation underneath `spl fleet start --share` and is also exposed as user-facing CLI commands and HTTP routes for backup, migration, and Phase 4 federation.
 
@@ -61,11 +61,11 @@ v0.11.0 introduces a foundational replication primitive: **thread snapshot/resto
 - **`spl thread restore [--in FILE]`** — ingest a snapshot file into the local store. Supports `--dry-run` (validate without ingesting), `--on-conflict skip|fail|accept-existing`. Restore is **idempotent** — re-running with a snapshot whose records already exist is a no-op for those records. Records are validated (canonical hash recomputed and matched, parents checked, fields validated) before ingest, so a tampered snapshot file cannot corrupt the destination.
 - **`GET /v1/threads/snapshot`** and **`POST /v1/threads/restore`** — the HTTP routes wrapping the store-trait methods. Permission-gated via two new resources: `thread_snapshot` and `thread_restore`. Operators who have CEL permission enforcement enabled (per [SKL-0204 lockout protection](/docs/guides/cel-expressions)) MUST include these resources in their admin allow rule.
 
-The primitive is the foundation that backup, migration, audit-export unification, and Phase 4 federation will all extend. The architecture is layered (per ADR-023 §"Layered Architecture"): v0.11 ships L0 (the primitive) + L1 (`spl fleet start --share` wiring); v0.12 will add L2 (reactive sync, adopting the CouchDB Replication Protocol v2 semantics); Phase 4 will add L5 (federation, gated by the consent records specified in §08-governance/06).
+The primitive is the foundation that backup, migration, audit-export unification, and Phase 4 federation will all extend. The architecture is layered ( §"Layered Architecture"): v0.11 ships L0 (the primitive) + L1 (`spl fleet start --share` wiring); v0.12 will add L2 (reactive sync, adopting the CouchDB Replication Protocol v2 semantics); Phase 4 will add L5 (federation, gated by the consent records specified in §08-governance/06).
 
 The full design is in **ADR-023** with a Prior Art Alignment table mapping every decision to the giant it stands on (Git bundle, IPFS/IPLD, CouchDB, Hypercore, EventStoreDB, OAuth, Solid, GDPR, Matrix). The prior-art survey itself is at `research/compute-plane/10-replication-prior-art.md`.
 
-### Foundation F8 revised — L0 sharing as a consent-gated policy (ADR-024)
+### Foundation F8 revised — L0 sharing as a consent-gated policy
 
 v0.11.0 includes the **first revision of a Frozen Foundation in Syncropel's history**. Foundation F8 — the L0 sharing rule — has been revised from absolute prohibition to a default-closed, consent-gated policy:
 
@@ -88,7 +88,7 @@ This is the first foundation revision; it sets the precedent that foundations CA
 
 ### Measured parallel velocity
 
-**Pass criterion committed pre-release** (per [measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-bootstrap-measurement-methodology.md)): at least 2 of 3 real bootstrap drills show a parallel speedup ratio ≥ 1.5×, with no naked regressions (any drill below 1.0× must have a named confounder, not anomalous overhead).
+**Pass criterion committed pre-release** (per measurement methodology): at least 2 of 3 real bootstrap drills show a parallel speedup ratio ≥ 1.5×, with no naked regressions (any drill below 1.0× must have a named confounder, not anomalous overhead).
 
 **Bootstrap drill results** (run 2026-04-14 against real v0.11 release-doc work on a sandboxed 2-instance fleet):
 
@@ -212,7 +212,7 @@ v0.12 is the **Safety release**. It turns human-gated parallelism (v0.11) into a
 - **Chaos testing harness** — scripted failure injection against the Docker fleet, recovery verification
 - **Automatic worker reassignment on crash** — the operator step that v0.11 requires becomes automatic
 
-v0.13 (Federation) and v1.0 (Managed hosting) follow. See [research/compute-plane/06 §10 roadmap](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/06-distributed-execution-topology.md#10-phased-implementation-roadmap) for the full five-phase trajectory.
+v0.13 (Federation) and v1.0 (Managed hosting) follow. See research/compute-plane/06 §10 roadmap for the full five-phase trajectory.
 
 ## Known limitations
 
@@ -226,7 +226,7 @@ v0.13 (Federation) and v1.0 (Managed hosting) follow. See [research/compute-plan
 - [Operator Runbook: Multi-instance fleet](/docs/operate/runbook#multi-instance-fleet-operations) — day-2 procedures
 - [CLI Reference: Fleet section](/docs/reference/cli#fleet-v0110) — full command reference
 - [CEL Guide: Fleet bindings](/docs/guides/cel-expressions#fleet-bindings-v011) — fleet-aware CEL
-- [ADR-021](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-021-instance-registry-and-kill-switch.md) — instance registry + kill switch design
-- [ADR-022](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-022-task-fan-out-and-barrier.md) — fan-out + barrier design
-- [Research: Fleet release vision](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/08-v0.11-fleet-release-vision.md) — the Monday-morning transcript that v0.11 makes real
-- [Research: Bootstrap measurement methodology](https://github.com/syncropic/syncropel-research/blob/main/docs/compute-plane/09-v0.11-bootstrap-measurement-methodology.md) — how the release gate was measured
+- ADR-021 — instance registry + kill switch design
+- ADR-022 — fan-out + barrier design
+- Research: Fleet release vision — the Monday-morning transcript that v0.11 makes real
+- Research: Bootstrap measurement methodology — how the release gate was measured

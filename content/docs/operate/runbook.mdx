@@ -278,7 +278,7 @@ The 4-loop kernel holds working state in memory for active threads. If you're se
 This section targets v0.11.0+ multi-instance deployments. If you're running a single daemon, skip it — nothing here applies. If you're on v0.10.x, the primitives described here don't exist yet.
 </Callout>
 
-A "fleet" is two or more `spl` instances that coordinate via the instance registry (ADR-021). One instance is the **coordinator** (holds the registry thread, receives heartbeats, processes fan-out barriers). The others are **workers** (execute dispatched work, report heartbeats, POST completion records back to the coordinator). Any instance can play either role; the distinction is config, not code.
+A "fleet" is two or more `spl` instances that coordinate via the instance registry. One instance is the **coordinator** (holds the registry thread, receives heartbeats, processes fan-out barriers). The others are **workers** (execute dispatched work, report heartbeats, POST completion records back to the coordinator). Any instance can play either role; the distinction is config, not code.
 
 This section covers the operations you run day-2 on a fleet. For the first-time walkthrough, see the [Parallel Dev Tutorial](/docs/tutorials/parallel-dev).
 
@@ -397,7 +397,7 @@ For the fleet at large this is low-impact:
   4. `spl unkill --namespace <fanout-namespace>` — resumes normal operation.
   5. Restart the crashed worker cleanly.
 
-`spl task retry <parent-alias> --subtask <index>` ships in v0.11.0 (SKL-0211 / ADR-022). It emits a `LEARN topic: "fanout_retry_subtask"` record on the parent thread; the engine's fan-out reconciler picks it up on the next broadcast and re-spawns that index using the configured routing strategy. The content-addressed child thread ID makes the retry idempotent — if the original spawn POST landed but the worker died mid-execution, the same thread receives the second INTEND and the worker's local store deduplicates it.
+`spl task retry <parent-alias> --subtask <index>` ships in v0.11.0 (SKL-0211). It emits a `LEARN topic: "fanout_retry_subtask"` record on the parent thread; the engine's fan-out reconciler picks it up on the next broadcast and re-spawns that index using the configured routing strategy. The content-addressed child thread ID makes the retry idempotent — if the original spawn POST landed but the worker died mid-execution, the same thread receives the second INTEND and the worker's local store deduplicates it.
 
 Phase 3 (v0.12+) adds automatic reassignment; v0.11 requires the manual procedure.
 
@@ -545,8 +545,8 @@ If the first five pass but heartbeats still don't arrive, it's almost certainly 
 
 If a recovery procedure here doesn't match the daemon's behavior, the daemon is either buggy or the docs are stale. The spec is the source of truth — the relevant sections:
 
-- [§07/01 Engine Loops](https://github.com/syncropic/syncropel-spec/blob/main/07-engine/01-loops.md) — what the daemon's 4 loops do on startup
-- [§09/01 Trust Rebuild](https://github.com/syncropic/syncropel-spec/blob/main/09-aitl/01-actor-in-the-loop.md) — how trust derives from records
-- [§12/08 Task Lifecycle](https://github.com/syncropic/syncropel-spec/blob/main/12-experience/08-task-management.md) — task fold semantics
+- §07/01 Engine Loops — what the daemon's 4 loops do on startup
+- §09/01 Trust Rebuild — how trust derives from records
+- §12/08 Task Lifecycle — task fold semantics
 
 If you find a gap between this runbook and reality, please file it as a `spl task add` against the `syncropel-core` repo with the `docs` label.

@@ -227,7 +227,7 @@ grep "th_be084400" ~/.syncro/logs/spl.log
 spl debug replay <task-alias>
 ```
 
-Look for a KNOW record with `body.verdict = "accept"` from an actor different from the one who claimed completion. If none exists, the task hasn't been evaluated yet. The fold rule [requires distinct evaluator and executor](https://github.com/syncropic/syncropel-spec/blob/main/12-experience/08-task-management.md) — that's the separation-of-duties gate.
+Look for a KNOW record with `body.verdict = "accept"` from an actor different from the one who claimed completion. If none exists, the task hasn't been evaluated yet. The fold rule requires distinct evaluator and executor — that's the separation-of-duties gate.
 
 ### "I created a CEL routing rule but it's not firing"
 

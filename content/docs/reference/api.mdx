@@ -188,25 +188,25 @@ HTTP middleware permission denials are emitted as `tracing::warn!` events to the
 
 The proxy endpoint accepts the Anthropic Messages API format and translates requests into Syncropel records. Use this to route existing AI tool calls through Syncropel for observability and trust tracking.
 
-## Capabilities manifest (v0.13.0+)
+## Capabilities manifest
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/.well-known/syncropel` | Progressive-enablement manifest for clients |
 
-Returns the kernel version, tier, and a map of boolean capability flags. Clients use this to enable/disable features based on what the connected daemon actually supports. Advertised capabilities in v0.13.0 include `sync`, `directory` (gated by `config.directory_enabled`), `federation_consent`, `identity`, `dispatch_observability`, `cusum_alerts`, `trust_detail`, and `reconcile_queue`.
+Returns the kernel version, tier, and a map of boolean capability flags. Clients use this to enable/disable features based on what the connected daemon actually supports. Advertised capabilities include `sync`, `directory` (gated by `config.directory_enabled`), `federation_consent`, `identity`, `dispatch_observability`, `cusum_alerts`, `trust_detail`, and `reconcile_queue`.
 
-## Identity (v0.13.0+)
+## Identity
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/v1/identity` | The daemon's own identity (DID + public-key info) |
 
-Returns `{actor, display_name, did, method, key_path, key_fingerprint}`. Populated from `~/.syncro/config.toml` at daemon startup. New installs from v0.13.0 generate a `did:key:...` on `spl init`; older installs need `spl init --force` once to upgrade.
+Returns `{actor, display_name, did, method, key_path, key_fingerprint}`. Populated from `~/.syncro/config.toml` at daemon startup. New installs generate a `did:key:...` on `spl init`; upgraded installs without a DID in config need `spl init --force` once.
 
-## Federation sync (v0.13.0+)
+## Federation sync
 
-Federation is ADR-027 "The Pair" — pull-first HTTP replication between two daemons. Both flat (`/v1/sync/*`) and domain-grouped (`/v1/federation/sync/*`) routes are served.
+Federation is pull-first HTTP replication between two daemons. Both flat (`/v1/sync/*`) and domain-grouped (`/v1/federation/sync/*`) routes are served.
 
 ### Changes feed
 
@@ -245,9 +245,9 @@ Create body: `{peer_did, peer_url, thread_id}`. Response includes `pair_id` and,
 
 The pair direction is semantically "target pulls source" — creating a pair on B with `peer_did=A` means records flow A→B. For bidirectional sync, create a pair on each side.
 
-**Known limitation (v0.13.0)**: `SyncRegistry` is in-memory. Pairs are lost on daemon restart and must be re-created. Persistence is on the v0.13.1 roadmap.
+**Known limitation**: `SyncRegistry` is in-memory. Pairs are lost on daemon restart and must be re-created. Persistence is on the roadmap.
 
-## did:sync directory (v0.13.0+)
+## did:sync directory
 
 | Method | Path | Description |
 |---|---|---|
@@ -258,7 +258,7 @@ The pair direction is semantically "target pulls source" — creating a pair on 
 | GET | `/directory/{hash}/operations` | Full operation log for a did:sync |
 | GET | `/directory/handle/{handle}` | Resolve a human-readable handle to its did:sync |
 
-Gated by `config.directory_enabled` — off by default. A daemon can act as a did:sync directory provider; most installs don't need to. See [ADR-028 Federated Identity](https://github.com/syncropic/syncropel-spec) for the directory protocol design (Bluesky did:plc-inspired).
+Gated by `config.directory_enabled` — off by default. A daemon can act as a did:sync directory provider; most installs don't need to.
 
 ## CORS
 

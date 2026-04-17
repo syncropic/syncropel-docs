@@ -136,9 +136,9 @@ You're back to a single-instance setup.
 
 You exercised the four primitives that make up v0.11.0's Fleet release:
 
-1. **Instance registry** (ADR-021) — `spl fleet list` shows you the registered instances.
-2. **Fan-out** (ADR-022) — `spl task fan-out` writes one parent INTEND with a subtask descriptor list, and the engine's fan-out handler spawns child INTENDs on the targeted workers.
-3. **Barrier join** (ADR-022) — the parent's completion waits until the join predicate (`all`, `any`, `k_of_n`, or any CEL expression) is satisfied by the child completions.
+1. **Instance registry** — `spl fleet list` shows you the registered instances.
+2. **Fan-out** — `spl task fan-out` writes one parent INTEND with a subtask descriptor list, and the engine's fan-out handler spawns child INTENDs on the targeted workers.
+3. **Barrier join** — the parent's completion waits until the join predicate (`all`, `any`, `k_of_n`, or any CEL expression) is satisfied by the child completions.
 4. **Speedup measurement** (v0.11 addition) — the `spl task speedup` tool reads `fanout_child_done` records and reports the ratio you care about.
 
 ## Next steps

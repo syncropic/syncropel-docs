@@ -9,7 +9,7 @@ Syncropel uses **CEL (Common Expression Language)** as its canonical decision la
 
 CEL is Google's type-safe, sandboxed expression language, used in production by Kubernetes admission controllers, gRPC, Envoy, Tekton, and GCP IAM. Syncropel extends CEL with a standard library exposing records, tasks, threads, trust, and system state.
 
-See the full specification in [§10/20 Expression Language](https://github.com/syncropic/syncropel-spec/blob/main/10-engine/20-expression-language.md) and the adoption rationale in [ADR-019](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-019-cel-expression-language.md).
+See the full specification in the expression language specification.
 
 ## Quick Start
 
@@ -168,7 +168,7 @@ resource == "record_delete" && current_actor() == "did:sync:user:admin"
 
 ### Fleet bindings (v0.11+)
 
-Added with ADR-021 (instance registry + kill switch) and ADR-022 (task fan-out). Scoped to specific contexts to avoid cross-context leakage.
+Added with the fleet primitives. Scoped to specific contexts to avoid cross-context leakage.
 
 **`fleet_frozen_namespaces()`** — *Permission context only.* Returns a `list<string>` of namespace IDs currently under soft or hard freeze per the `th_fleet_control` fold. Used in the default permission rule template that denies new INTEND/DO/CALL in frozen namespaces:
 
@@ -420,7 +420,6 @@ The legacy `--depends-on` sugar compiles to CEL internally, so there's no behavi
 
 ## References
 
-- **Spec**: [§10/20 Expression Language](https://github.com/syncropic/syncropel-spec/blob/main/10-engine/20-expression-language.md) — normative reference with test vectors
-- **ADR**: [ADR-019 CEL Adoption](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-019-cel-expression-language.md) — decision rationale
+- **Spec**: the expression language specification — normative reference with test vectors
 - **CEL spec**: [github.com/google/cel-spec](https://github.com/google/cel-spec) — upstream language reference
 - **Rust implementation**: [github.com/clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust) — the `cel-interpreter` crate Syncropel uses

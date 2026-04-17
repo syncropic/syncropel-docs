@@ -1,35 +1,35 @@
 ---
 title: Federation — pairing two instances
-description: Set up record sync between two Syncropel daemons using the v0.13 "The Pair" federation layer. Covers identity, pair creation, propagation semantics, consent for cross-namespace sharing, and the common misconfigurations.
+description: Set up record sync between two Syncropel daemons. Covers identity, pair creation, propagation semantics, consent for cross-namespace sharing, and the common misconfigurations.
 ---
 
 ## Who this is for
 
-You have two Syncropel daemons — say, one on your laptop and one on a server — and you want records emitted on one to show up on the other. That's what the v0.13 federation layer does.
+You have two Syncropel daemons — say, one on your laptop and one on a server — and you want records emitted on one to show up on the other. That's what the federation layer does.
 
-This is the minimal, hands-on walk-through. For the architectural rationale (why pull-first HTTP, why content-addressed dedup, why consent-gated), see [ADR-027 Federation Transport](https://github.com/syncropic/syncropel-spec) in the spec repo.
+This is the minimal, hands-on walk-through. For the architectural rationale (why pull-first HTTP, why content-addressed dedup, why consent-gated), see the corresponding design discussion in the spec.
 
-## What federation actually is in v0.13
+## What federation actually is
 
 A **pair** is a unidirectional, thread-scoped subscription. When you create a pair on instance B with `peer_did=A, peer_url=http://A, thread_id=T`, you are saying: *"B will continuously pull changes for thread T from A."* Records emitted on A (in thread T) will appear on B. For the reverse direction, you create a second pair on A tracking B.
 
 Three consequences of that model:
 
 - **Pair direction = data flow direction, inverted.** Pair on B tracking A means records flow A→B.
-- **Bidirectional sync = two pairs, one on each side.** No "bidirectional" flag in v0.13.
-- **Pairs are per-thread.** Syncing five threads = five pairs. (A "track everything" mode is on the v0.14 roadmap.)
+- **Bidirectional sync = two pairs, one on each side.** No "bidirectional" flag.
+- **Pairs are per-thread.** Syncing five threads = five pairs.
 
 Records are signed on emit and verified on ingest. Content-addressed dedup means the same record submitted twice is a no-op — replay attacks don't produce duplicate records.
 
 ## Prerequisites
 
-- `spl` v0.13.0 or later on both instances. Verify with `spl version`.
+- `spl` installed on both instances. Verify with `spl version`.
 - Both daemons reachable from each other over HTTP. **If one is behind NAT or on `127.0.0.1`, see the common misconfigurations section below.**
-- Each daemon has an identity generated. First-time users should run `spl init` once — it generates an Ed25519 keypair and writes the `did:key:...` identity to `~/.syncro/config.toml`. Existing daemons from before v0.13 need `spl init --force` once to get a DID.
+- Each daemon has an identity generated. First-time users should run `spl init` once — it generates an Ed25519 keypair and writes the `did:key:...` identity to `~/.syncro/config.toml`. Existing daemons without a DID in config need `spl init --force` once.
 
 ## Walk-through: pair two local daemons
 
-For this walk-through we'll run two daemons on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250. This matches the topology used by the synthetic pair drill (`syncropel-research/docs/drills/synthetic-pair-drill.sh`).
+For this walk-through we'll run two daemons on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250.
 
 ### 1. Start both daemons
 
@@ -147,7 +147,7 @@ When a pair is in `failing` state, the `last_error` field uses structured bucket
 
 ## Cross-namespace sharing: consent grants
 
-By default, records in namespace X are not visible to a peer in namespace Y — the [consent filter (ADR-024, Frozen Foundation F8)](https://github.com/syncropic/syncropel-spec) blocks them. To grant cross-namespace consent, use `spl consent grant` on the **source** daemon:
+By default, records in namespace X are not visible to a peer in namespace Y — the consent filter blocks them. To grant cross-namespace consent, use `spl consent grant` on the **source** daemon:
 
 ```bash
 # On instance A: allow sharing records from "default" to namespace "beta"
@@ -183,11 +183,11 @@ Namespaces must be registered before records in them can be emitted:
 spl namespace create X --description "..."
 ```
 
-This is an intentional security default (ADR-032 D5 — impersonation defense). No auto-creation.
+This is an intentional security default. No auto-creation.
 
 ### "Pairs disappear after restart"
 
-In v0.13, `SyncRegistry` is in-memory — pairs don't persist across daemon restart. After restart, re-create any pairs you need. **Pair persistence is planned for v0.13.1**; for now, script your pair setup on startup if you rely on it.
+Currently, `SyncRegistry` is in-memory — pairs don't persist across daemon restart. After restart, re-create any pairs you need. Pair persistence is on the roadmap; for now, script your pair setup on startup if you rely on it.
 
 ### "Pulls return zero records on a thread that should have some"
 
@@ -196,17 +196,5 @@ Check the consent filter. If the source and target namespaces differ and there's
 ## What's next
 
 - **[Consent management](./consent)** — the full flow for cross-namespace grants
-- **[API reference: /v1/sync/*](../reference/api#federation-sync-v0130)** — the HTTP surface, for building clients
-- **[CLI reference: spl fleet sync](../reference/cli#fleet-sync-v0130)** — all subcommands
-- **ADR-027 + ADR-028** in the spec repo — the "why" behind these decisions
-
-## Verification
-
-Before depending on federation in production, **run the synthetic pair drill** on your setup to verify end-to-end correctness:
-
-```bash
-# From a checkout of syncropel-research
-bash docs/drills/synthetic-pair-drill.sh
-```
-
-The drill runs 26 scenarios in ~65 seconds covering two-peer propagation, consent enforcement, N=3 topology (fan-out + chain), CLI surface parity, signature depth, and concurrent bidirectional convergence. If all 26 are green on your machine, the federation layer is behaving correctly for your platform.
+- **[API reference: /v1/sync/*](../reference/api)** — the HTTP surface, for building clients
+- **[CLI reference: spl fleet sync](../reference/cli)** — all subcommands

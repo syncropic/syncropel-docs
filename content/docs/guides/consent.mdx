@@ -1,6 +1,6 @@
 ---
 title: Consent management
-description: Grant, list, and revoke consent for cross-namespace record sharing over federation. The consent filter (ADR-024, Frozen Foundation F8) gates L0 hashes at namespace boundaries — records don't cross without an explicit grant.
+description: Grant, list, and revoke consent for cross-namespace record sharing over federation. The consent filter gates L0 hashes at namespace boundaries — records don't cross without an explicit grant.
 ---
 
 ## Who this is for
@@ -25,7 +25,7 @@ When a pair tries to pull cross-namespace, the consent filter looks up the most 
 | Grant includes L0 | Full records pass (body intact, sig preserved) |
 | Grant excludes L0 (e.g. L1-only) | Records pass but body is replaced with `{"redacted": true}`, sig stripped |
 
-This upholds **Frozen Foundation F8** (L0 hashes must not cross namespace boundaries without explicit mutual consent).
+This upholds the foundational invariant that L0 hashes must not cross namespace boundaries without explicit mutual consent.
 
 ## Grant consent
 
@@ -39,11 +39,11 @@ Options:
 
 - `--to-namespace <NS>` — target namespace (required)
 - `--hash-levels <LEVELS>` — comma-separated list. Default `L0,L1,L2,L3` (full sharing)
-- `--threads <IDS>` — comma-separated thread IDs, advisory metadata. Default `*` (all threads). In v0.13 the filter operates at namespace granularity; thread scoping is planned for v0.14
+- `--threads <IDS>` — comma-separated thread IDs, advisory metadata. Default `*` (all threads). The filter currently operates at namespace granularity; thread scoping is on the roadmap
 - `--purpose <TEXT>` — optional human-readable rationale stored in the grant
-- `--expires <ISO8601>` — optional expiration (time-based revocation; not yet enforced in v0.13)
+- `--expires <ISO8601>` — optional expiration (time-based revocation; not yet enforced)
 
-Source namespace is currently hardcoded to `default`. If you need to grant from a non-default namespace, write the LEARN record directly until the CLI supports `--from-namespace` (v0.13.1).
+Source namespace is currently hardcoded to `default`. If you need to grant from a non-default namespace, write the LEARN record directly until the CLI supports `--from-namespace`.
 
 ## Common recipes
 
@@ -117,20 +117,6 @@ This runs on **every pull**. If a grant is added or revoked, the change takes ef
 - **Not outbound-only**: the filter runs on the source side, so the source daemon decides what to share. An attacker who controls the source can still leak — consent is about honest operators cooperating, not adversarial protection. For that, use namespace-based access control on who can reach the daemon.
 - **Not per-record**: grants are namespace-pair scoped, not record-scoped. If you need per-record gating, combine with CEL rules on emit.
 
-## Verification in the drill
-
-Scenarios S12-S15 of the synthetic pair drill cover consent end-to-end:
-
-| # | Test | Proves |
-|---|---|---|
-| S12 | Same-namespace sync | body arrives intact |
-| S13 | Cross-namespace without consent | 0 records — F8 upheld |
-| S14 | Cross-namespace with L0 grant | full records pass |
-| S15 | Cross-namespace without L0 | body downgraded to `{"redacted": true}` |
-
-All four pass in v0.13.0. Source: `syncropel-research/docs/drills/synthetic-pair-drill.sh`.
-
 ## What's next
 
 - **[Federation quickstart](./federation)** — pair two instances end-to-end
-- **[ADR-024 in the spec repo](https://github.com/syncropic/syncropel-spec)** — the original rationale for L0 consent-gating, the first revision of a Frozen Foundation (F8)

@@ -123,7 +123,7 @@ The implicit `default` namespace is always there, always Active, and never goes 
 
 The v0.10.0 release implements the **existence layer** of the spec's narrowing guarantee: every record's claimed namespace and every ancestor must be Active in the registry. This is enforced at the HTTP boundary by the daemon's `validate_namespace_for_ingest` check.
 
-Two pieces from the [spec §08-governance/04](https://github.com/syncropic/syncropel-spec/blob/main/08-governance/04-namespaces.md) are not yet implemented and are tracked as follow-up tasks:
+Two pieces from the spec §08-governance/04 are not yet implemented and are tracked as follow-up tasks:
 
 - **Policy composition** — the YAML policy language with `dial`, `primitives`, `max_effects`, etc. and the intersect-on-allow / union-on-deny composition rules. Today, the `policy` field on a namespace entry is opaque text. The narrowing check only validates existence + status, not capability subsets.
 - **Store-level isolation** — the spec mandates that backends partition records by namespace at the storage layer for hard isolation. Today, records are tagged but not indexed by namespace, and read queries return records from all namespaces a caller has access to.
@@ -134,5 +134,5 @@ Both are bounded follow-ups, not show-stoppers. The HTTP-boundary enforcement th
 
 - **Use it now**: see [`spl namespace`](/docs/reference/cli#namespaces-v0100) in the CLI reference for the create/list/show/archive/delete commands.
 - **Author CEL rules scoped to namespaces**: the `current_namespace()` function and `record.body.namespace` field are both available in every CEL context. See [CEL Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now).
-- **Read the spec**: [§08-governance/04 Namespaces](https://github.com/syncropic/syncropel-spec/blob/main/08-governance/04-namespaces.md) is the normative source.
+- **Read the spec**: §08-governance/04 Namespaces is the normative source.
 - **Walk through the worked example**: see the [Namespaces guide](/docs/guides/namespaces) for a full setup from `spl namespace create` to a working multi-environment deployment.
