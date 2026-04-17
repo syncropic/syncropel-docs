@@ -1,6 +1,6 @@
 ---
 title: CEL Expressions
-description: Write rules, gates, and predicates using Syncropel's canonical expression language — one syntax for triggers, routing, preconditions, fold rules, health checks, AITL, permissions, and (v0.11+) fan-out join predicates.
+description: Write rules, gates, and predicates using Syncropel's canonical expression language — one syntax for triggers, routing, preconditions, fold rules, health checks, AITL, permissions, and fan-out join predicates.
 ---
 
 ## Overview
@@ -34,13 +34,13 @@ Each decision point has its own evaluation context with a specific set of bindin
 | Context | Used For | Primary Bindings |
 |---|---|---|
 | `trigger` | Event triggers matching incoming records | `record`, `records`, `system`, `task()`, `trust()`, `thread()`, `now()`, `current_actor()` |
-| `routing` | Routing rules | `record`, `thread()`, `system`, `trust()`, `task()`, `now()`, `current_actor()`, `fanout_status()` *(v0.11+)* |
+| `routing` | Routing rules | `record`, `thread()`, `system`, `trust()`, `task()`, `now()`, `current_actor()`, `fanout_status()` ** |
 | `precondition` | Task readiness gating | `records`, `tasks`, `task()`, `trust()`, `thread()`, `now()`, `system`, `current_actor()` |
 | `fold_rule` | Task status derivation | `records` (the task thread), `task`, `thread()`, `now()`, `current_actor()` |
-| `health_check` | `spl health check` predicates | `system`, `tasks`, `trust()`, `now()`, `current_actor()`, `fleet_instances_live()` *(v0.11+)* |
+| `health_check` | `spl health check` predicates | `system`, `tasks`, `trust()`, `now()`, `current_actor()`, `fleet_instances_live()` ** |
 | `aitl` | Intelligence proposal disposition | `record`, `proposal_confidence`, `meta_trust`, `system`, `now()`, `current_actor()` |
-| `permission` | API request gating | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()`, `fleet_frozen_namespaces()` / `fleet_emergency_active()` *(v0.11+)* |
-| `join` *(v0.11+)* | Fan-out barrier — when is a parent INTEND satisfied? | `children`, `parent`, `now()` |
+| `permission` | API request gating | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()`, `fleet_frozen_namespaces()` / `fleet_emergency_active()` ** |
+| `join` ** | Fan-out barrier — when is a parent INTEND satisfied? | `children`, `parent`, `now()` |
 
 ## Standard Library Reference
 
@@ -143,7 +143,7 @@ current_namespace().startsWith("acme-corp/")   // scope to all descendants
 now()                                          // int: unix seconds
 ```
 
-`current_namespace()` was added in v0.10.0 alongside the [namespace hierarchy](/docs/reference/cli#namespaces-v0100). Returns the namespace ID the current evaluation is scoped to (defaults to `"default"` when unset). Use `.startsWith("parent/")` to match an entire subtree of the 5-level hierarchy. Per-record namespace is accessible via `record.body.namespace`.
+`current_namespace()` was added alongside the [namespace hierarchy](/docs/reference/cli#namespaces-v0100). Returns the namespace ID the current evaluation is scoped to (defaults to `"default"` when unset). Use `.startsWith("parent/")` to match an entire subtree of the 5-level hierarchy. Per-record namespace is accessible via `record.body.namespace`.
 
 ### `proposal_confidence` and `meta_trust` (AITL context only)
 
@@ -166,7 +166,7 @@ resource                               // string: "record_write", "dispatch", "a
 resource == "record_delete" && current_actor() == "did:sync:user:admin"
 ```
 
-### Fleet bindings (v0.11+)
+### Fleet bindings
 
 Added with the fleet primitives. Scoped to specific contexts to avoid cross-context leakage.
 
@@ -199,7 +199,7 @@ fleet_instances_live().filter(did, did.contains("worker-")).size() >= 1
 
 **`fanout_status(thread_id)`** — *Routing and Permission contexts.* Given a thread ID, returns one of `"none"`, `"spawning"`, `"in_progress"`, `"ready_to_join"`, `"done"`. Useful for routing rules that check whether a parent fan-out has already completed before acting on child records.
 
-### `children` (Join context only, v0.11+)
+### `children` (Join context only)
 
 The list of completed child results for a fan-out parent. Available only in the join context, which is evaluated to determine when a fan-out parent INTEND is satisfied.
 
@@ -386,7 +386,7 @@ spl config add-permission-rule \
   --priority 100 \
   --expression 'current_actor().startsWith("did:sync:user:") && (resource == "thread_read" || resource == "record_read")'
 
-# 3. Finally, enable enforcement. As of v0.9.2 a pre-flight runs first
+# 3. Finally, enable enforcement. A pre-flight runs first
 #    and refuses if your admin rule doesn't cover all three resources
 #    above — preventing the lockout trap before it happens.
 spl config permissions-enable
@@ -394,7 +394,7 @@ spl config permissions-enable
 
 **Security model**: when enforcement is on, rules are evaluated in descending priority order. First match wins. If no rule matches, the request is **denied** (fail-closed). Every denial emits an audit log entry. `GET /health` is always exempt so liveness checks work.
 
-**Pre-flight check (v0.9.2+)**: `spl config permissions-enable` simulates the disable path before flipping the switch. It refuses with a clear error and prints the exact `add-permission-rule` invocation needed when your loaded rules don't cover `(record_write, thread_read, config_read)` for the daemon's `identity.actor`.
+**Pre-flight check**: `spl config permissions-enable` simulates the disable path before flipping the switch. It refuses with a clear error and prints the exact `add-permission-rule` invocation needed when your loaded rules don't cover `(record_write, thread_read, config_read)` for the daemon's `identity.actor`.
 
 **Emergency unlock**: if you locked yourself out on an older version (or by other means — disabling the admin rule, dropping a deny rule, etc.), recovery is now one command instead of SQL surgery:
 

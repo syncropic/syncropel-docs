@@ -201,7 +201,7 @@ spl thread records <thread-id-of-concern>       # specific thread
 
 ### Symptom: permission enforcement locked you out
 
-You enabled `spl config permissions-enable` without an admin allow rule, and now `spl config permissions-disable` returns 403. As of v0.9.2 this is prevented by a pre-flight check, but if you're on an older version or you disabled an admin rule by mistake:
+You enabled `spl config permissions-enable` without an admin allow rule, and now `spl config permissions-disable` returns 403. This is prevented by a pre-flight check, but if you're on an older version or you disabled an admin rule by mistake:
 
 ```bash
 spl serve --stop                  # cached config in memory will shadow our write
@@ -270,12 +270,12 @@ The HEALTHCHECK in the docker image hits `/health`. If you're behind a reverse p
 
 ### High memory growth over multi-day uptime
 
-The 4-loop kernel holds working state in memory for active threads. If you're seeing unbounded growth, capture a snapshot via `spl status -o json` and file it. As of v0.9.1 this hasn't been observed in practice (74-hour soak completed clean), but it's a class of bug to watch for.
+The 4-loop kernel holds working state in memory for active threads. If you're seeing unbounded growth, capture a snapshot via `spl status -o json` and file it. This hasn't been observed in practice, but it's a class of bug to watch for.
 
 ## Multi-instance fleet operations
 
 <Callout type="info">
-This section targets v0.11.0+ multi-instance deployments. If you're running a single daemon, skip it — nothing here applies. If you're on v0.10.x, the primitives described here don't exist yet.
+This section covers multi-instance deployments. If you're running a single daemon, skip it.
 </Callout>
 
 A "fleet" is two or more `spl` instances that coordinate via the instance registry. One instance is the **coordinator** (holds the registry thread, receives heartbeats, processes fan-out barriers). The others are **workers** (execute dispatched work, report heartbeats, POST completion records back to the coordinator). Any instance can play either role; the distinction is config, not code.
@@ -368,7 +368,7 @@ For deep inspection of a specific instance, SSH into its host and run `spl docto
 
 ### Coordinator replacement (manual failover)
 
-The coordinator is a single writer for the registry thread. If it dies, workers continue operating locally but cannot register or coordinate fan-out until a new coordinator is nominated. v0.11.0 does not automatic failover.13+).
+The coordinator is a single writer for the registry thread. If it dies, workers continue operating locally but cannot register or coordinate fan-out until a new coordinator is nominated. Automatic failover is not yet supported.
 
 To replace a dead coordinator:
 

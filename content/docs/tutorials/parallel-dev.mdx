@@ -1,10 +1,10 @@
 ---
 title: Parallel Dev — Monday Morning Walkthrough
-description: A 20-minute hands-on walkthrough of v0.11.0's fleet workflow — start a 3-instance fleet, fan out a real task to two workers, handle a mid-run failure with the kill switch, watch the barrier join, tear down cleanly.
+description: A 20-minute hands-on walkthrough of the fleet workflow — start a 3-instance fleet, fan out a real task to two workers, handle a mid-run failure with the kill switch, watch the barrier join, tear down cleanly.
 ---
 
 <Callout type="warning">
-This tutorial requires **Syncropel v0.11.0 or later**. The commands below — `spl fleet`, `spl kill`, `spl task fan-out` — do not exist in v0.10.x. If you're on v0.10, see the single-instance [Quickstart](/docs/start) first and come back after upgrading.
+This tutorial requires **a version of `spl` with fleet support**. The commands below — `spl fleet`, `spl kill`, `spl task fan-out` — are only available in builds with fleet support. If your build doesn't have them, see the single-instance [Quickstart](/docs/start) first.
 </Callout>
 
 ## What you'll learn
@@ -21,7 +21,7 @@ By the end of this tutorial you will have:
 
 Total time: about 20 minutes if everything works, 30 minutes if you want to explore.
 
-**Prerequisites**: v0.11.0+ binary installed (`spl --version` should report `0.11.x`), a working `~/.syncro` prod daemon (or be willing to set one up fresh), and ~2 GB of free disk for per-worker state roots.
+**Prerequisites**: `spl` binary installed with fleet support (`spl fleet --help` works), a working `~/.syncro` prod daemon (or be willing to set one up fresh), and ~2 GB of free disk for per-worker state roots.
 
 ## Part 1 — Start the fleet
 
@@ -302,7 +302,7 @@ Should show 0 live instances (or just the coordinator, depending on which stop y
 
 ## What you just demonstrated
 
-You ran a real distributed workflow. The coordinator dispatched parallel work to two autonomous workers, handled a mid-run failure gracefully with the kill switch, and barrier-joined the results. The wall-clock vs serial ratio — how much faster the parallel run was than running the three subtasks sequentially on one instance — is the quantitative proof that v0.11.0 delivers on the pet→cattle thesis.
+You ran a real distributed workflow. The coordinator dispatched parallel work to two autonomous workers, handled a mid-run failure gracefully with the kill switch, and barrier-joined the results. The wall-clock vs serial ratio — how much faster the parallel run was than running the three subtasks sequentially on one instance — is the quantitative proof of the pet→cattle thesis.
 
 More importantly, every line you typed is a *protocol operation*, not a script. The fan-out, the kill switch, the heartbeat, the join — all of those are records emitted on well-known threads and reconciled by CEL-configurable folds. You could rewrite any of the behavior by editing CEL rules, not by recompiling spl.
 
@@ -310,4 +310,3 @@ More importantly, every line you typed is a *protocol operation*, not a script. 
 
 - **[Operator Runbook: Multi-instance fleet operations](/docs/operate/runbook#multi-instance-fleet-operations)** — day-2 procedures for running a fleet in production: coordinator failover, worker crash recovery, fleet-wide upgrades, kill drills.
 - **[Guide: CEL Expressions](/docs/guides/cel-expressions)** — how to write custom join predicates and routing rules for fan-out.
-- **Research: v0.11.0 Fleet release vision** — the Monday-morning transcript that this tutorial makes concrete, plus the broader "fleet, not pets" theme for v0.11.

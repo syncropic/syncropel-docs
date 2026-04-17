@@ -384,12 +384,12 @@ Before declaring your audit pipeline production-ready:
 
 ## What's coming next
 
-The audit export pipeline is the v0.10.0 first slice. Two follow-ups are tracked:
+The audit export pipeline is the first slice. Two follow-ups are tracked:
 
 1. **Permission denials as first-class records** — the HTTP middleware will emit `did:sync:system:auth` records on every denial, making them appear in `spl audit export --categories governance`. Removes the need to ship the daemon log separately for security purposes.
 2. **Server-side `/v1/audit/export`** — pushes filtering into SQL for stores with thousands of threads, returns a single JSONL stream from one HTTP call, removes the per-thread round-trip overhead.
 
-Neither is blocking for v0.10.0 — the current CLI-driven pipeline is fully functional. They're efficiency + completeness improvements for the next iteration.
+the current CLI-driven pipeline is fully functional. They're efficiency + completeness improvements for the next iteration.
 
 ## Reference
 

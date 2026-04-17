@@ -241,7 +241,7 @@ spl config add-permission-rule \
 
 Higher priority means it's evaluated first. The `prod-requires-high-trust` rule wins for prod records; the staging rule catches everything for staging.
 
-Now enable enforcement (with the v0.10.0+ pre-flight check that prevents the lockout trap):
+Now enable enforcement (with the pre-flight check that prevents the lockout trap):
 
 ```bash
 # First, an admin escape rule so YOU don't get locked out
@@ -342,7 +342,7 @@ You'll still see them in `spl namespace list` (with status `deleted`) for audit 
 
 ### Symptom: I locked myself out of the registry by enabling permissions without an admin allow rule
 
-Use the v0.10.0 emergency unlock — see [Emergency Recovery](/docs/reference/cli#emergency-recovery-v0100):
+Use the emergency unlock command — see [Emergency Recovery](/docs/reference/cli#emergency-recovery):
 
 ```bash
 spl serve --stop
@@ -377,14 +377,14 @@ Run through this before you start gating real records on namespace existence:
 - [ ] You've tested writing a record claiming a non-existent namespace (should return 403 NAMESPACE_REJECTED)
 - [ ] Operator runbook is bookmarked: see [`docs/operate/runbook`](/docs/operate/runbook) for recovery procedures
 
-## What's NOT yet enforced (v0.10.0 honest scope)
+## What's NOT yet enforced
 
-The narrowing guarantee in v0.10.0 enforces **existence** — every ancestor in the chain must be in the registry and Active. It does NOT yet enforce:
+The narrowing guarantee enforces **existence** — every ancestor in the chain must be in the registry and Active. It does NOT yet enforce:
 
 - **Capability subsets**: a record can claim any `body.dial`, `body.primitives`, etc. The daemon does not yet check that those capabilities are a subset of what the parent namespace's policy allows.
 - **Store-level partitioning**: records are tagged with `body.namespace` but the SQLite store does not yet index by namespace, and read queries return records across all namespaces a caller can reach.
 
-For a single-tenant deployment or trusted-actor multi-tenant setup, v0.10.0's HTTP-boundary enforcement is sufficient. For untrusted multi-tenant where a customer might try to inject records claiming another customer's namespace, you also want the policy YAML + store-level isolation gaps closed before going live.
+For a single-tenant deployment or trusted-actor multi-tenant setup, the HTTP-boundary enforcement is sufficient. For untrusted multi-tenant where a customer might try to inject records claiming another customer's namespace, you also want the policy YAML + store-level isolation gaps closed before going live.
 
 ## Reference
 

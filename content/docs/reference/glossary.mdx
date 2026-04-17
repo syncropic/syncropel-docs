@@ -49,13 +49,13 @@ A configuration that dispatches to an actor when a matching record appears or on
 
 ## F
 
-**Fan-out** (v0.11+)
+**Fan-out**
 A parent INTEND that declares `body.subtasks` as a list of descriptors and `body.join` as a predicate. The engine's fan-out reconciler spawns one child INTEND per descriptor, dispatches each to a target worker instance via the instance registry, and emits the parent KNOW when the CEL join predicate is satisfied.
 
-**Fleet** (v0.11+)
+**Fleet**
 Two or more `spl` instances coordinating via the instance registry. One instance is the coordinator (holds the registry thread, receives heartbeats, processes fan-out); the others are workers (execute dispatched work, report heartbeats). The distinction is config, not code — any instance can play either role.
 
-**Fleet Control Registry** (v0.11+)
+**Fleet Control Registry**
 The in-memory snapshot of freeze / emergency-stop LEARN records on the well-known thread `th_fleet_control`, built by the engine and queried by CEL permission rules at every record write. Same reload pattern as the namespace registry and permission rules.
 
 **Fold**
@@ -63,20 +63,20 @@ Computing the current state by replaying all records on a thread. `state = fold(
 
 ## H
 
-**Heartbeat** (v0.11+)
+**Heartbeat**
 A `DO topic: "heartbeat"` record emitted by each live instance on `th_instance_registry` at a configured interval (default 15 seconds), carrying the instance DID, endpoint URL, version, uptime, active dispatch count, and health status. The coordinator's fold treats the latest heartbeat per DID as authoritative and classifies instances as live / stale / archived by comparing `last_heartbeat_unix` to `now()`.
 
 ## I
 
-**Instance** (v0.11+)
+**Instance**
 A single `spl serve` daemon process with its own `SYNCROPEL_HOME` state root, its own `hub.db`, its own port binding, and (once the instance DID work lands) its own canonical `did:sync:instance:*` DID derived from the bootstrap record. An instance may run as a standalone single-node deployment or as a coordinator/worker in a fleet.
 
-**Instance Registry** (v0.11+)
+**Instance Registry**
 The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local (single writer).
 
 ## K
 
-**Kill Switch** (v0.11+)
+**Kill Switch**
 A reversible freeze mechanism with three escalation levels implemented as LEARN records on `th_fleet_control`. **Soft** denies new INTEND/DO/CALL in a namespace while allowing KNOW/LEARN for drain. **Hard** adds a grace window after which all ingest is refused. **Emergency** forces the engine-wide dial to 0 (REPLAY only) across every namespace. All levels are reversed by counter-records.
 
 ## N

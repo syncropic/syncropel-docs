@@ -4,7 +4,7 @@ description: The 5-minute version. Boot a 3-instance fleet, fan out a trivial ta
 ---
 
 <Callout type="info">
-Requires **Syncropel v0.11.0 or later**. If you want the full hands-on walkthrough with real work and mid-run failures, go to [Parallel Dev — Monday Morning Walkthrough](/docs/tutorials/parallel-dev). If you just want to see what a fan-out *looks like*, you're in the right place.
+Requires **a version of `spl` with fleet support**. If you want the full hands-on walkthrough with real work and mid-run failures, go to [Parallel Dev — Monday Morning Walkthrough](/docs/tutorials/parallel-dev). If you just want to see what a fan-out *looks like*, you're in the right place.
 </Callout>
 
 ## What you'll see
@@ -134,12 +134,12 @@ You're back to a single-instance setup.
 
 ## What just happened
 
-You exercised the four primitives that make up v0.11.0's Fleet release:
+You exercised the four primitives of the Fleet release:
 
 1. **Instance registry** — `spl fleet list` shows you the registered instances.
 2. **Fan-out** — `spl task fan-out` writes one parent INTEND with a subtask descriptor list, and the engine's fan-out handler spawns child INTENDs on the targeted workers.
 3. **Barrier join** — the parent's completion waits until the join predicate (`all`, `any`, `k_of_n`, or any CEL expression) is satisfied by the child completions.
-4. **Speedup measurement** (v0.11 addition) — the `spl task speedup` tool reads `fanout_child_done` records and reports the ratio you care about.
+4. **Speedup measurement** — the `spl task speedup` tool reads `fanout_child_done` records and reports the ratio you care about.
 
 ## Next steps
 

@@ -190,7 +190,7 @@ spl completion fish > ~/.config/fish/completions/spl.fish
 ## Fleet
 
 <Callout type="warning">
-This section targets v0.11.0+ multi-instance deployments. The commands below do not exist in v0.10.x.
+This section covers multi-instance deployments.
 </Callout>
 
 Multi-instance coordination primitives (instance registry + kill switch) and the task fan-out + barrier. See [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) for a hands-on walkthrough and [Operator Runbook: Fleet Operations](/docs/operate/runbook#multi-instance-fleet-operations) for day-2 procedures.
@@ -262,7 +262,7 @@ Each `--subtask` flag is a comma-separated list of `key=value` pairs. Supported 
 - **`depends`** (optional) — plus-separated list of 0-based subtask indices this child depends on. `depends=0+1` means "wait for subtasks 0 and 1 to accept before spawning this one." The reconciler validates depends indices for cycles at parse time.
 
 <Callout type="info">
-v0.11 does not support declaring subtasks via a task body file. The `--subtask` CLI flag form is the only shape shipped. A future release may add body-file parsing as an alternative form.
+Declaring subtasks via a task body file isn't supported yet. The `--subtask` CLI flag form is the only shape shipped. A future release may add body-file parsing as an alternative form.
 </Callout>
 
 The `--join` flag accepts shorthands (`all`, `any`, `k_of_n:K`) or a custom CEL expression evaluating against the `children` binding. Examples:

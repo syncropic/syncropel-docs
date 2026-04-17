@@ -7,7 +7,7 @@ description: When something isn't doing what you expect — daemon won't respond
 
 You're staring at output you don't understand. A `spl status` returned something wrong, a task is in a status you didn't expect, a record didn't trigger the routing rule you thought it would, or the daemon isn't responding at all. Before you start grepping logs, work through these tools in order.
 
-The four debugging commands shipped in v0.10.0 (`spl doctor`, `spl debug replay`, `spl debug thread-diff`, `spl audit export`) cover ~95% of the failure modes you'll hit operating Syncropel. Each one is read-only — none of them mutate state, so you can use them freely without worrying about making things worse.
+The four debugging commands (`spl doctor`, `spl debug replay`, `spl debug thread-diff`, `spl audit export`) cover ~95% of the failure modes you'll hit operating Syncropel. Each one is read-only — none of them mutate state, so you can use them freely without worrying about making things worse.
 
 ## Order of operations
 
@@ -38,7 +38,7 @@ spl doctor
 ```
 spl doctor
 
-  ✓ daemon reachable          v0.10.0 on sqlite:///home/you/.syncro/hub.db
+  ✓ daemon reachable          <version> on sqlite:///home/you/.syncro/hub.db
   ✓ pid file                  /home/you/.syncro/run/spl.pid → live spl serve (pid 264247)
   ✓ store has records         4690 records across 232 threads
   ✓ store path agreement      daemon reports sqlite:///home/you/.syncro/hub.db
@@ -85,7 +85,7 @@ If doctor was clean and you're still confused, look at the high-level state:
 spl status                     # engine counters, store, intelligence, uptime
 spl task list                  # full task table with status, priority, cost
 spl trust                      # trust scores per (actor, domain)
-spl namespace list             # registered namespaces (v0.10.0+)
+spl namespace list             # registered namespaces
 ```
 
 These are read-only summary commands. Together they tell you "the daemon thinks the world looks like X". If X doesn't match what you expected, you've narrowed the problem to a single task, thread, or actor.
@@ -181,7 +181,7 @@ spl audit export --since 24h --thread th_be084400...
 
 The output is JSONL — each line is independent, suitable for piping to `jq`, ingest into Splunk/Elastic/Loki, or grep. See [SIEM Integration](/docs/guides/siem-integration) for production pipeline recipes.
 
-### What's NOT in audit export today (v0.10.0)
+### What's NOT in audit export today
 
 HTTP middleware permission denials are currently `tracing::warn!` events in the daemon log, not records. They show up in `~/.syncro/logs/spl.log` filtered with `grep "PERMISSION DENIED"` but won't appear in `spl audit export`. Promoting them to first-class audit records is tracked as a follow-up — for now, log + audit are two complementary streams.
 

@@ -45,7 +45,7 @@ Every record carries its namespace in `body.namespace`:
 }
 ```
 
-Records that omit `body.namespace` fall through to the implicit `default`. Every existing record from before v0.10.0 continues working — `default` is always Active and always allowed.
+Records that omit `body.namespace` fall through to the implicit `default`. Every existing record continues working — `default` is always Active and always allowed.
 
 ## Lifecycle
 
@@ -117,18 +117,18 @@ Three concrete reasons the spec mandates this shape:
 - **You have one team and one production environment.** A single ORG is overkill — `default` is fine.
 - **You're prototyping.** Namespaces are about boundaries, and prototyping is about not having boundaries. Add namespaces when the boundaries become real (a second customer, a second product, a regulated environment).
 
-The implicit `default` namespace is always there, always Active, and never goes away. v0.10.0 is fully backward compatible with every pre-namespace record — you only think about namespaces when you actively need them.
+The implicit `default` namespace is always there, always Active, and never goes away. The namespace system is fully backward compatible with every pre-namespace record — you only think about namespaces when you actively need them.
 
-## What's enforced today (v0.10.0) vs the spec
+## What's enforced today vs the spec
 
-The v0.10.0 release implements the **existence layer** of the spec's narrowing guarantee: every record's claimed namespace and every ancestor must be Active in the registry. This is enforced at the HTTP boundary by the daemon's `validate_namespace_for_ingest` check.
+The current implementation covers the **existence layer** of the narrowing guarantee: every record's claimed namespace and every ancestor must be Active in the registry. This is enforced at the HTTP boundary by the daemon's `validate_namespace_for_ingest` check.
 
 Two pieces from the spec §08-governance/04 are not yet implemented and are tracked as follow-up tasks:
 
 - **Policy composition** — the YAML policy language with `dial`, `primitives`, `max_effects`, etc. and the intersect-on-allow / union-on-deny composition rules. Today, the `policy` field on a namespace entry is opaque text. The narrowing check only validates existence + status, not capability subsets.
 - **Store-level isolation** — the spec mandates that backends partition records by namespace at the storage layer for hard isolation. Today, records are tagged but not indexed by namespace, and read queries return records from all namespaces a caller has access to.
 
-Both are bounded follow-ups, not show-stoppers. The HTTP-boundary enforcement that landed in v0.10.0 is what most operators actually need: an attacker on the network cannot inject records into namespaces that don't exist.
+Both are bounded follow-ups, not show-stoppers. The HTTP-boundary enforcement is what most operators actually need: an attacker on the network cannot inject records into namespaces that don't exist.
 
 ## Next steps
 

@@ -41,7 +41,7 @@ curl -X POST http://localhost:9100/v1/records \
   }'
 ```
 
-#### Namespace-scoped ingest (v0.10.0+)
+#### Namespace-scoped ingest
 
 Records can target a specific [namespace](/docs/concepts/namespaces) by setting `body.namespace`. The daemon walks the namespace's ancestor chain and rejects the record with `403 NAMESPACE_REJECTED` if any ancestor is missing or not Active. Records that omit `body.namespace` fall through to the implicit `default` namespace and are always accepted.
 
@@ -163,7 +163,7 @@ Returns a JSON object with `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `
 
 ## Audit
 
-There is no dedicated `/v1/audit/*` endpoint family in v0.10.0. The [`spl audit export`](/docs/reference/cli#developer-tools-v0100) CLI command produces JSONL by querying existing endpoints client-side:
+There is no dedicated `/v1/audit/*` endpoint family. The [`spl audit export`](/docs/reference/cli#developer-tools) CLI command produces JSONL by querying existing endpoints client-side:
 
 1. `GET /v1/threads` → enumerate threads
 2. `GET /v1/threads/:id/records` → fetch records per thread
