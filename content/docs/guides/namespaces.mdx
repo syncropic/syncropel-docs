@@ -381,14 +381,13 @@ Run through this before you start gating real records on namespace existence:
 
 The narrowing guarantee in v0.10.0 enforces **existence** — every ancestor in the chain must be in the registry and Active. It does NOT yet enforce:
 
-- **Capability subsets**: a record can claim any `body.dial`, `body.primitives`, etc. The daemon does not yet check that those capabilities are a subset of what the parent namespace's policy allows. (Tracked as [Namespace sub-task 8: policy YAML parser](https://github.com/syncropic/syncropel-core/blob/main/docs/namespace-spec-alignment.md).)
-- **Store-level partitioning**: records are tagged with `body.namespace` but the SQLite store does not yet index by namespace, and read queries return records across all namespaces a caller can reach. (Tracked as [Namespace sub-task 9: store-level indexing](https://github.com/syncropic/syncropel-core/blob/main/docs/namespace-spec-alignment.md).)
+- **Capability subsets**: a record can claim any `body.dial`, `body.primitives`, etc. The daemon does not yet check that those capabilities are a subset of what the parent namespace's policy allows.
+- **Store-level partitioning**: records are tagged with `body.namespace` but the SQLite store does not yet index by namespace, and read queries return records across all namespaces a caller can reach.
 
 For a single-tenant deployment or trusted-actor multi-tenant setup, v0.10.0's HTTP-boundary enforcement is sufficient. For untrusted multi-tenant where a customer might try to inject records claiming another customer's namespace, you also want the policy YAML + store-level isolation gaps closed before going live.
 
 ## Reference
 
 - **Spec**: §08-governance/04 Namespaces — normative source
-- **Implementation alignment**: [`docs/namespace-spec-alignment.md`](https://github.com/syncropic/syncropel-core/blob/main/docs/namespace-spec-alignment.md) — what's done, what's deferred, scorecard per spec section
 - **CLI reference**: [`spl namespace`](/docs/reference/cli#namespaces-v0100)
 - **CEL bindings**: [`current_namespace()`](/docs/guides/cel-expressions#current_actor-current_namespace-and-now)

@@ -59,7 +59,7 @@ spl thread records <id>
 ## Tasks
 
 ```bash
-spl task add "goal" [--priority P] [--label L] [--assign @actor] [--alias SKL-0001]
+spl task add "goal" [--priority P] [--label L] [--assign @actor] [--alias]
 spl task list [--all]
 spl task show <id|alias>
 spl task start <id|alias>
@@ -257,7 +257,7 @@ Each `--subtask` flag is a comma-separated list of `key=value` pairs. Supported 
 
 - **`goal`** (required) — the child subtask's INTEND goal, passed verbatim to the worker
 - **`target`** (required) — one of `worker-<alias>`, `specific:<full-did>`, `least-loaded-worker`, `round-robin` (see §"Routing strategies" below)
-- **`budget`** (optional) — advisory per-subtask USD budget (not enforced in v0.11; Phase 3/v0.12+ enforces)
+- **`budget`** (optional) — advisory per-subtask USD budget
 - **`timeout`** (optional) — worker-side timeout in seconds, default 600
 - **`depends`** (optional) — plus-separated list of 0-based subtask indices this child depends on. `depends=0+1` means "wait for subtasks 0 and 1 to accept before spawning this one." The reconciler validates depends indices for cycles at parse time.
 
@@ -287,7 +287,7 @@ Fan-out descriptors set `target` to one of:
 - **`least-loaded-worker`** — live worker with lowest `active_dispatches`, tie-break on longest uptime
 - **`round-robin`** — deterministic pick based on `hash(parent_id + descriptor_index) mod live_worker_count`
 
-Custom strategies (e.g. trust-weighted selection) are a Phase 3 concern.
+Custom strategies (e.g. trust-weighted selection).
 
 ## Federation — Pair Sync
 

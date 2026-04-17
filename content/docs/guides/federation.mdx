@@ -1,35 +1,33 @@
 ---
 title: Federation — pairing two instances
-description: Set up record sync between two Syncropel daemons. Covers identity, pair creation, propagation semantics, consent for cross-namespace sharing, and the common misconfigurations.
+description: Set up record sync between two Syncropel daemons. Covers identity setup, creating pairs, how propagation works, cross-namespace consent, and the common misconfigurations.
 ---
 
 ## Who this is for
 
-You have two Syncropel daemons — say, one on your laptop and one on a server — and you want records emitted on one to show up on the other. That's what the federation layer does.
+You have two Syncropel daemons — one on your laptop and one on a server, or two servers, or any combination — and you want records emitted on one to show up on the other. This guide walks you through the setup.
 
-This is the minimal, hands-on walk-through. For the architectural rationale (why pull-first HTTP, why content-addressed dedup, why consent-gated), see the corresponding design discussion in the spec.
+## How federation works
 
-## What federation actually is
+A **pair** is a unidirectional, thread-scoped subscription. When you create a pair on instance B pointing at instance A for thread T, you are saying: *"B will continuously pull changes for thread T from A."* Records emitted on A (in thread T) will appear on B.
 
-A **pair** is a unidirectional, thread-scoped subscription. When you create a pair on instance B with `peer_did=A, peer_url=http://A, thread_id=T`, you are saying: *"B will continuously pull changes for thread T from A."* Records emitted on A (in thread T) will appear on B. For the reverse direction, you create a second pair on A tracking B.
+Three things to keep in mind:
 
-Three consequences of that model:
+- **Pair direction is data flow direction, inverted.** A pair on B pointing at A means records flow A → B.
+- **Bidirectional sync means two pairs — one on each side.** There is no "bidirectional" flag.
+- **Pairs are per-thread.** Syncing five threads means five pairs.
 
-- **Pair direction = data flow direction, inverted.** Pair on B tracking A means records flow A→B.
-- **Bidirectional sync = two pairs, one on each side.** No "bidirectional" flag.
-- **Pairs are per-thread.** Syncing five threads = five pairs.
-
-Records are signed on emit and verified on ingest. Content-addressed dedup means the same record submitted twice is a no-op — replay attacks don't produce duplicate records.
+Records are signed when emitted and verified when received. Duplicate records are automatically de-duplicated by their content hash, so replaying the same record twice has no effect.
 
 ## Prerequisites
 
 - `spl` installed on both instances. Verify with `spl version`.
-- Both daemons reachable from each other over HTTP. **If one is behind NAT or on `127.0.0.1`, see the common misconfigurations section below.**
-- Each daemon has an identity generated. First-time users should run `spl init` once — it generates an Ed25519 keypair and writes the `did:key:...` identity to `~/.syncro/config.toml`. Existing daemons without a DID in config need `spl init --force` once.
+- Both daemons reachable from each other over HTTP. If one is behind NAT or bound to `127.0.0.1`, see the troubleshooting section.
+- Each daemon has an identity configured. Run `spl init` once on a fresh install — it generates a keypair and a `did:key:...` identity in `~/.syncro/config.toml`. Upgraded daemons without a DID in config need `spl init --force` once.
 
 ## Walk-through: pair two local daemons
 
-For this walk-through we'll run two daemons on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250.
+For demonstration, let's run two daemons on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250. The same commands apply when the daemons are on different machines.
 
 ### 1. Start both daemons
 
@@ -38,30 +36,16 @@ For this walk-through we'll run two daemons on the same machine using different 
 export SYNCROPEL_HOME=/tmp/spl-a
 spl init --force
 spl serve --daemon --port 9200 --host 0.0.0.0
-# wait for "API: http://0.0.0.0:9200"
 
 # Terminal 2: instance B
 export SYNCROPEL_HOME=/tmp/spl-b
 spl init --force
 spl serve --daemon --port 9250 --host 0.0.0.0
-# wait for "API: http://0.0.0.0:9250"
 ```
 
-**Why `--host 0.0.0.0`?** The default `--host 127.0.0.1` only accepts loopback connections. If instance B lives on a different machine (or in a Docker container reaching the host), the default won't work. `spl doctor` will warn you about this if you configure pairs on a loopback-bound daemon.
+Pass `--host 0.0.0.0` when you want the daemon reachable from other machines or containers. The default `--host 127.0.0.1` only accepts loopback connections.
 
 ### 2. Capture each instance's DID
-
-```bash
-# Instance A's DID
-curl -s http://localhost:9200/v1/identity | jq -r '.did'
-# did:key:z6Mk...
-
-# Instance B's DID
-curl -s http://localhost:9250/v1/identity | jq -r '.did'
-# did:key:z6Mk...
-```
-
-Save these in environment variables for the rest of the walk-through:
 
 ```bash
 export DID_A=$(curl -s http://localhost:9200/v1/identity | jq -r '.did')
@@ -70,7 +54,7 @@ export DID_B=$(curl -s http://localhost:9250/v1/identity | jq -r '.did')
 
 ### 3. Create a pair: propagate A → B
 
-To send records from A to B, create the pair on **B** (since B is the one that will pull from A):
+To send records from A to B, create the pair on **B** (since B will pull from A):
 
 ```bash
 spl fleet sync add \
@@ -86,25 +70,26 @@ curl -X POST http://localhost:9250/v1/sync/pairs \
     -d "{\"peer_did\":\"$DID_A\",\"peer_url\":\"http://localhost:9200\",\"thread_id\":\"th_federation_demo\"}"
 ```
 
-Response includes a `pair_id` you'll use for status/pause/remove.
+The response includes a `pair_id` you'll use for status, pause, and remove.
 
 ### 4. Emit on A, observe on B
 
 ```bash
-# On instance A, emit a record
+# On instance A
 SYNCROPEL_HOME=/tmp/spl-a spl intend --thread th_federation_demo "hello from A"
 
-# Give the sync loop a moment (poll interval defaults to 5s)
+# Give the sync loop a moment (poll interval defaults to 5 seconds)
 sleep 6
 
 # On instance B, query the thread
 SYNCROPEL_HOME=/tmp/spl-b spl thread records th_federation_demo
-# You should see the record emitted on A
 ```
+
+You should see the record emitted on A.
 
 ### 5. Go bidirectional
 
-To also propagate B → A, create a pair on **A** tracking B:
+To also propagate B → A, create a pair on **A** pointing at B:
 
 ```bash
 SYNCROPEL_HOME=/tmp/spl-a spl fleet sync add \
@@ -117,52 +102,49 @@ Now records emitted on either side appear on the other within the sync poll inte
 ### 6. Inspect pair status
 
 ```bash
-# List all pairs
 spl fleet sync list
-
-# Detail on one pair
 spl fleet sync status <pair_id>
 ```
 
-The `state` field reports one of:
+The `state` field shows one of:
 
-- `starting` — pair created, first poll hasn't completed yet
+- `starting` — pair just created, first poll hasn't completed yet
 - `running` — actively syncing, last poll succeeded
 - `paused` — pair is paused via `spl fleet sync pause <pair_id>`
-- `failing` — pair is retrying with exponential backoff. `last_error` field has the reason.
-- `stopped` — pair removed
+- `failing` — pair is retrying with exponential backoff; `last_error` has the reason
+- `stopped` — pair has been removed
 
-## Pair error classification
+## Pair error codes
 
-When a pair is in `failing` state, the `last_error` field uses structured buckets instead of raw HTTP library strings:
+When a pair is in `failing` state, `last_error` uses structured codes:
 
-| Bucket | Meaning | Fix |
+| Code | Meaning | Fix |
 |---|---|---|
-| `CONNECT_REFUSED` | Peer daemon not reachable | Check peer is running; verify `--host` isn't `127.0.0.1` if cross-machine |
+| `CONNECT_REFUSED` | Peer daemon not reachable | Check peer is running; if cross-machine, make sure it's not bound only to `127.0.0.1` |
 | `TIMEOUT` | Peer didn't respond in time | Network slow or peer overloaded |
-| `DNS_FAILURE` | peer_url hostname doesn't resolve | Typo in `peer_url`, or DNS unavailable |
-| `HTTP_4XX (code)` | Peer rejected the request | Check namespaces registered, consent grants, signatures |
-| `HTTP_5XX (code)` | Peer daemon error | Check peer's logs |
-| `PARSE_ERROR` | Peer returned malformed JSON | Version mismatch or non-spl peer? |
+| `DNS_FAILURE` | `peer_url` hostname doesn't resolve | Typo in the URL, or DNS is unavailable |
+| `HTTP_4XX` | Peer rejected the request | Check namespaces registered, consent grants, signatures |
+| `HTTP_5XX` | Peer daemon error | Check the peer's logs |
+| `PARSE_ERROR` | Peer returned malformed JSON | Version mismatch, or the peer isn't an `spl` daemon |
 
-## Cross-namespace sharing: consent grants
+## Cross-namespace sharing
 
-By default, records in namespace X are not visible to a peer in namespace Y — the consent filter blocks them. To grant cross-namespace consent, use `spl consent grant` on the **source** daemon:
+By default, records in one namespace are not visible to a peer in a different namespace — the consent filter blocks them. To grant cross-namespace consent, use `spl consent grant` on the source daemon:
 
 ```bash
-# On instance A: allow sharing records from "default" to namespace "beta"
-spl consent grant --to-namespace beta --hash-levels L0,L1,L2,L3
+spl consent grant --to-namespace partner-team --hash-levels L0,L1,L2,L3
 ```
-
-After the grant, a sync pair with `target_namespace=beta` can pull records across the boundary. Without `L0` in `hash_levels`, records are downgraded to `{"redacted": true}` (metadata shape preserved; body redacted).
 
 See the [consent management guide](./consent) for the full flow.
 
-## Common misconfigurations
+## Troubleshooting
 
 ### "My pair was created but no records propagate"
 
-The most frequent cause is **daemon bound to `127.0.0.1`** but peer_url points to a non-loopback host. The response to `POST /v1/sync/pairs` includes a `warning` field when we detect this, and `spl doctor` flags it:
+The most common cause is a daemon bound to `127.0.0.1` while the pair points at a non-loopback host. Two signals to check:
+
+- The response to `POST /v1/sync/pairs` includes a `warning` field when this is detected.
+- `spl doctor` flags it:
 
 ```
 ! federation bind host      1 sync pair(s) configured but daemon is bound
@@ -171,7 +153,7 @@ The most frequent cause is **daemon bound to `127.0.0.1`** but peer_url points t
                             `spl serve --host 0.0.0.0 --daemon`.
 ```
 
-Fix: restart with `spl serve --host 0.0.0.0 --daemon`.
+Fix: restart the daemon with `--host 0.0.0.0`.
 
 ### "Daemon rejects records with namespace X"
 
@@ -183,15 +165,15 @@ Namespaces must be registered before records in them can be emitted:
 spl namespace create X --description "..."
 ```
 
-This is an intentional security default. No auto-creation.
+This is an intentional security default. Namespaces are never created implicitly.
 
 ### "Pairs disappear after restart"
 
-Currently, `SyncRegistry` is in-memory — pairs don't persist across daemon restart. After restart, re-create any pairs you need. Pair persistence is on the roadmap; for now, script your pair setup on startup if you rely on it.
+Sync pair state is held in memory. After a daemon restart, pairs need to be recreated — `spl fleet sync add ...` again. Script your pair setup into your daemon startup procedure if you rely on long-running pairs.
 
 ### "Pulls return zero records on a thread that should have some"
 
-Check the consent filter. If the source and target namespaces differ and there's no consent grant on `th_consent` matching the pair, records are filtered out silently. `spl consent list` on the source shows active grants.
+Check the consent filter. If the source and target namespaces differ and there's no matching consent grant, records are filtered out silently. `spl consent list` on the source shows active grants.
 
 ## What's next
 

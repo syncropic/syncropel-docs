@@ -4,7 +4,7 @@ description: Measure your own fleet's parallel speedup honestly — how to run r
 ---
 
 <Callout type="info">
-**Audience**: operators who want to verify v0.11.0's parallel velocity claim against their own workloads, or who want a repeatable benchmark to track regressions across Syncropel versions. This page is the actionable companion to the bootstrap measurement methodology used internally for the v0.11.0 release gate.
+**Audience**: operators who want to verify v0.11.0's parallel velocity claim against their own workloads. This page is the actionable companion to the bootstrap measurement methodology .
 </Callout>
 
 ## What you're measuring
@@ -15,14 +15,14 @@ A **parallel speedup ratio** — the wall-clock time of a fan-out run divided in
 speedup = serial_wall_clock / parallel_wall_clock
 ```
 
-A 2-worker fan-out on independent equal-sized subtasks has a theoretical ceiling of 2.0×. Realistic workloads lose fractional speedup to spawn overhead, completion reporting, and the irreducible cost of the slowest subtask. **Any real 2-worker drill over 1.5× is a clear win** — that's the threshold v0.11.0 committed to before its own bootstrap gate ran, and it's the same threshold this guide recommends.
+A 2-worker fan-out on independent equal-sized subtasks has a theoretical ceiling of 2.0×. Realistic workloads lose fractional speedup to spawn overhead, completion reporting, and the irreducible cost of the slowest subtask. **Any real 2-worker drill over 1.5× is a clear win** — that's a useful threshold to commit to.
 
 Speedup is the ONLY quantity this guide measures. You are not measuring:
 
 - Raw throughput (records/second) — that's a platform benchmark, not a parallelism benchmark
 - Cost per outcome (dollars/subtask) — that's a budget question for v0.12+
-- Trust convergence across instances — that's Phase 4 federation
-- Recovery time after a crash — that's a chaos-engineering question (Phase 3)
+- Trust convergence across instances
+- Recovery time after a crash — that's a chaos-engineering question
 
 Keeping the measurement narrow is what makes the number credible.
 
@@ -194,7 +194,7 @@ You should see three records with `speedup_ratio` values that you can list, anal
 
 The most important thing this guide insists on is **pre-committing your pass threshold before you run the first drill**. If you decide what "good" means after the numbers come in, you will unconsciously reshape the definition to match.
 
-**Recommended threshold** (same as v0.11.0's own release gate):
+**Recommended threshold** (same as v0.11.0 — the standard threshold):
 
 > **Pass**: at least 2 of the 3 drills show `speedup_ratio ≥ 1.5` AND no drill shows `speedup_ratio < 1.0` *without a named confounder* that explains the regression.
 >
@@ -268,11 +268,11 @@ Result: <PASS | FAIL | PARTIAL>
 
 This guide measures **local-host fleets** in the 3-instance range. It is not yet validated for:
 
-- Fleets larger than 10 instances — scalability testing is a Phase 4/5 concern
+- Fleets larger than 10 instances — scalability testing of that size is outside the scope of this guide
 - Cross-host fleets over real networks — network latency becomes a dominant factor the guide does not yet measure
 - Fleets running on containers / VMs / cloud — the overhead profiles differ; re-run the methodology in your specific environment rather than assuming local-host numbers transfer
 
-If you run the benchmark in one of these less-tested configurations, your drill records are extra valuable — please share them (via a PR against this page's examples, or via [filing an issue](https://github.com/syncropic/syncropel-core/issues)) so the community can learn from real-world data.
+If you run the benchmark in one of these less-tested configurations, your drill records are extra valuable — please share them so the community can learn from real-world data.
 
 ## References
 

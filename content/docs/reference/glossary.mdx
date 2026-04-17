@@ -72,7 +72,7 @@ A `DO topic: "heartbeat"` record emitted by each live instance on `th_instance_r
 A single `spl serve` daemon process with its own `SYNCROPEL_HOME` state root, its own `hub.db`, its own port binding, and (once the instance DID work lands) its own canonical `did:sync:instance:*` DID derived from the bootstrap record. An instance may run as a standalone single-node deployment or as a coordinator/worker in a fleet.
 
 **Instance Registry** (v0.11+)
-The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local in v0.11 (single writer); Phase 4 federation sync will migrate this to a peer-replicated CRDT.
+The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local (single writer).
 
 ## K
 

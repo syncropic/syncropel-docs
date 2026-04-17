@@ -53,7 +53,7 @@ kill <pid>
 ss -tlnp 2>/dev/null | grep 9100
 ```
 
-Then restart cleanly. If this becomes a pattern, see SKL-0202 (daemon lifecycle robustness — pending fix).
+Then restart cleanly.,
 
 ### Reading daemon logs
 
@@ -89,7 +89,7 @@ On every startup, `spl serve` checks if `~/.syncro/hub.db` exists. If it does, t
 
 The instance key is one of:
 
-1. `instance-<did-tail>` if a content-addressed instance DID is bootstrapped (Phase 2+).
+1. `instance-<did-tail>` if a content-addressed instance DID is bootstrapped.
 2. `home-<short-hash>` if `SYNCROPEL_HOME` is set but no DID exists yet.
 3. The legacy single path `~/.local/share/syncropel/backups/hub.db.bak` for the default instance.
 
@@ -368,7 +368,7 @@ For deep inspection of a specific instance, SSH into its host and run `spl docto
 
 ### Coordinator replacement (manual failover)
 
-The coordinator is a single writer for the registry thread. If it dies, workers continue operating locally but cannot register or coordinate fan-out until a new coordinator is nominated. v0.11.0 does not automatic failover — that's Phase 4 (v0.13+).
+The coordinator is a single writer for the registry thread. If it dies, workers continue operating locally but cannot register or coordinate fan-out until a new coordinator is nominated. v0.11.0 does not automatic failover.13+).
 
 To replace a dead coordinator:
 
@@ -379,174 +379,3 @@ To replace a dead coordinator:
 5. **Update remaining workers** to point their `[fleet] coordinator_url` at the new coordinator's endpoint. Restart each.
 6. **Verify**: `spl fleet list` against the new coordinator should show all workers live.
 
-For a scriptable check that phases 1-3 of this procedure work end-to-end on a fresh sandbox (boot → kill coordinator → promote worker-a as new coordinator with health-check verification), see [`tests/drills/coordinator-failover.sh`](https://github.com/syncropic/syncropel-core/blob/main/tests/drills/coordinator-failover.sh) in `syncropel-core`. Phase 4-5 (re-pointing surviving workers and waiting for the new registry to converge) is operator-driven and not scripted — a single bash harness can't reliably orchestrate four background daemons through stop/config-rewrite/restart cycles plus poll for fold convergence without becoming flaky.
-
-Expected downtime: ~2-5 minutes for a 3-instance fleet. In-flight fan-outs on the old coordinator are lost; they need to be re-issued by the operator after failover.
-
-### Worker crash recovery
-
-When a worker crashes (OOM, panic, kill -9), its heartbeat goes stale within `fleet.heartbeat_interval_secs * 2` seconds. The coordinator's `spl fleet list` transitions it from `live` → `stale` → `archived`.
-
-For the fleet at large this is low-impact:
-
-- **No in-flight work on the crashed worker**: just restart it. `SYNCROPEL_HOME=~/.syncro-worker-<x> spl serve --daemon --port <port>`. First heartbeat re-registers it as `live` within ~15 seconds.
-- **In-flight fan-out subtask on the crashed worker**: the parent fan-out on the coordinator sees no `fanout_child_done` record for that child. v0.11.0 does not auto-reassign. Operator procedure:
-  1. `spl kill --namespace <fanout-namespace> --level soft` — freezes new work in the namespace so the dead subtask's slot can be reclaimed.
-  2. Identify the stuck parent: `spl task join-status <parent-alias>` shows which subtasks are pending.
-  3. `spl task retry <parent-alias> --subtask <index>` — re-dispatches the stuck subtask to a different worker (chooses via `least-loaded-worker` strategy by default).
-  4. `spl unkill --namespace <fanout-namespace>` — resumes normal operation.
-  5. Restart the crashed worker cleanly.
-
-`spl task retry <parent-alias> --subtask <index>` ships in v0.11.0 (SKL-0211). It emits a `LEARN topic: "fanout_retry_subtask"` record on the parent thread; the engine's fan-out reconciler picks it up on the next broadcast and re-spawns that index using the configured routing strategy. The content-addressed child thread ID makes the retry idempotent — if the original spawn POST landed but the worker died mid-execution, the same thread receives the second INTEND and the worker's local store deduplicates it.
-
-Phase 3 (v0.12+) adds automatic reassignment; v0.11 requires the manual procedure.
-
-### Fleet-wide in-place upgrade
-
-Upgrading all instances from vX → vY without losing state.
-
-**Prerequisites:**
-- Every instance's `hub.db` has a current backup (the daemon auto-backs-up on startup to `~/.local/share/syncropel/backups/hub.db.bak`; copy to off-host for extra safety).
-- No in-flight fan-outs. If there are, let them drain or `spl kill --emergency` first.
-
-**Procedure:**
-
-1. **Freeze new work** across the fleet: `spl kill --emergency --reason "vX → vY upgrade"`. All instances stop accepting new INTEND/DO/CALL records; only GETs and KNOWs/LEARNs pass.
-2. **Drain in-flight dispatches**. Watch `spl fleet status --live` until `active_dispatches` hits 0 on every instance.
-3. **Upgrade coordinator first**: stop, install new binary (`curl get.syncropic.com/spl | sh`), start.
-4. **Upgrade workers in sequence**: one at a time to preserve fleet observability throughout. For each: stop, install new binary, start, verify `spl fleet list` shows it back as `live` before moving to the next.
-5. **Unfreeze the fleet**: `spl unkill --emergency`. Normal operation resumes.
-6. **Verify**: `spl fleet list` shows all instances on the new version, `spl doctor` passes against each.
-
-A concrete vX → vY worked example will land here after the first real point release that's deployed to a multi-instance fleet (likely v0.11.0 → v0.11.1). Until then, follow the procedure above and substitute your own version strings; the upgrade drill at [`tests/drills/upgrade.sh`](https://github.com/syncropic/syncropel-core/blob/main/tests/drills/upgrade.sh) validates the binary-swap-on-persistent-volume flow against a single-instance Docker harness.
-
-If any instance fails to come back up, its hub.db backup is at `~/.local/share/syncropel/backups/hub.db.bak` on that instance's host. Restore and retry.
-
-### Graceful fleet teardown
-
-End-of-day or end-of-sprint teardown when the fleet has served its purpose.
-
-```bash
-spl fleet stop --workers   # stop worker instances, keep coordinator
-spl fleet stop --all       # stop everything
-```
-
-Each instance emits a final `DO topic: "heartbeat"` with `health: "draining"` on its way out (best-effort; may not arrive if shutdown is fast). The coordinator marks that instance as `archived` after the heartbeat window expires.
-
-If you intend to rebuild the fleet from scratch next time, the per-worker homes at `~/.syncro-worker-{a,b,...}` are preserved — next `spl fleet start --workers N` reuses them. To start truly fresh, delete the worker home directories first.
-
-### Kill switch drills
-
-The three kill levels (soft / hard / emergency) exist for different escalation scenarios. Drill each one at least once per fleet per month so you know the procedure when you actually need it.
-
-**Soft freeze** — release-window lockdown or debugging one namespace:
-
-```bash
-spl kill --namespace <ns> --level soft --reason "deploy freeze"
-# ... investigate or wait for window ...
-spl unkill --namespace <ns>
-```
-
-The kill command emits a one-line confirmation; verify the freeze landed via `spl fleet status`:
-
-```text
-Fleet status
-  Coordinator URL:  http://127.0.0.1:9100
-  Heartbeat:        every 5s
-  Instances:        3 live · 0 stale · 0 archived
-
-  Active freezes:
-    [soft] acme/payments — deploy freeze for v0.11.1 release
-
-  Emergency stop:   inactive
-```
-
-In-flight dispatches in that namespace drain within the configured grace window (default 60s); new INTEND/DO/CALL records are denied; KNOW/LEARN records still pass (so completion reporting drains cleanly).
-
-**Hard freeze** — a specific dispatch is going off the rails and you want it stopped immediately:
-
-```bash
-spl kill --namespace <ns> --level hard --grace 30 --reason "runaway dispatch"
-# ... investigate, then unkill or let it expire ...
-spl unkill --namespace <ns>
-```
-
-Same as soft freeze plus: after the grace window, the engine refuses *all* record ingest for the namespace including KNOW/LEARN. Use when the drain-cleanly semantics of soft freeze aren't safe.
-
-**Emergency engine-wide stop** — you don't know what's wrong, you just want everything to stop:
-
-```bash
-spl kill --emergency --reason "unknown incident, investigating"
-# ... investigate at leisure; fleet is inspectable but not doing new work ...
-spl unkill --emergency
-```
-
-```text
-Fleet status
-  Coordinator URL:  http://127.0.0.1:9100
-  Heartbeat:        every 5s
-  Instances:        3 live · 0 stale · 0 archived
-
-  Active freezes:   (none)
-
-  ⚠ EMERGENCY STOP ACTIVE
-    Reason: unknown incident, investigating
-    Issued by: did:sync:user:dpwanjala
-```
-
-Every namespace's effective dial drops to 0. No new CALL or DO records land with non-trivial effects. GET and KNOW/LEARN records still pass so you can inspect state post-hoc. This is the "pull the handbrake" move; use when you're scared and need a moment to think.
-
-#### Post-incident audit — what was the fleet doing when the kill fired?
-
-After unwinding a kill drill (or a real incident), reconstruct what was in flight at the moment the freeze landed:
-
-```bash
-# Pull every governance record from the last hour as JSONL — freezes,
-# emergencies, permission denials all surface here.
-spl audit export --since 1h --categories governance | jq
-
-# Find every dispatch that was in progress when the kill fired. The
-# audit trail keys off `topic` so you can filter for fanout_spawned
-# without a fanout_join_complete on the same parent thread.
-spl audit export --since 1h --categories dispatch | jq '
-  select(.record.body.topic == "fanout_spawned") |
-  {parent: .record.thread, children: .record.body.children}
-'
-
-# For each affected parent thread, walk its records and find which
-# subtask was mid-execution.
-spl task join-status <parent-alias>
-
-# Cross-check against the freeze records themselves to confirm the
-# scope (which namespaces, what level, when issued, by whom).
-spl audit export --since 1h --categories governance | jq '
-  select(.record.body.topic == "freeze" or .record.body.topic == "emergency_stop") |
-  {topic: .record.body.topic, ns: .record.body.namespace, by: .record.body.issued_by, at: .record.body.issued_at_unix, reason: .record.body.reason}
-'
-```
-
-The audit trail is the source of truth — every freeze, unfreeze, emergency stop, and emergency clear is a record on `th_fleet_control`. After the incident write-up, archive the relevant audit slice alongside the incident report so the timeline is recoverable years later without depending on the live store.
-
-### Worker not registering
-
-Symptom: `spl fleet list` does not show a worker you just started.
-
-Check order:
-1. **Worker is up**: on the worker's host, `spl serve --status` and `spl doctor`. Both should report healthy.
-2. **Coordinator URL is correct**: `spl config show | grep coordinator` on the worker. Compare to the actual coordinator endpoint (port and host).
-3. **Network reachability**: from the worker, `curl -fsS <coordinator_url>/health`. Should return `{"status": "ok"}`. If not, you have a network or firewall problem.
-4. **Worker heartbeat log**: tail the worker's daemon log at `~/.syncro-worker-<x>/logs/spl.log`. Look for `heartbeat_loop` lines. Should see one POST every ~15 seconds.
-5. **Coordinator ingest log**: tail the coordinator's log for inbound records on `th_instance_registry`. Should see one record ingested per worker per heartbeat interval.
-6. **Permission denial**: if the coordinator's CEL permission rules deny record writes from the worker's DID, the heartbeat POST returns 403. Check recent audit records: `spl audit export --since 10m --categories governance | jq 'select(.record.body.reason | contains("instance"))'`.
-
-If the first five pass but heartbeats still don't arrive, it's almost certainly a config mismatch. Stop the worker, fix config, restart.
-
-## When to reach for the spec
-
-If a recovery procedure here doesn't match the daemon's behavior, the daemon is either buggy or the docs are stale. The spec is the source of truth — the relevant sections:
-
-- §07/01 Engine Loops — what the daemon's 4 loops do on startup
-- §09/01 Trust Rebuild — how trust derives from records
-- §12/08 Task Lifecycle — task fold semantics
-
-If you find a gap between this runbook and reality, please file it as a `spl task add` against the `syncropel-core` repo with the `docs` label.

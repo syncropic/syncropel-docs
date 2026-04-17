@@ -13,23 +13,42 @@ The `syncropic/spl` Docker image gives you Syncropel as a self-contained, rootle
 
 The image is multi-stage: a `rust:1-bookworm` builder produces a stripped release binary, and a `debian:bookworm-slim` runtime carries only `ca-certificates`, `tini`, and `curl`. Final size is ~80–100 MB.
 
-## Image build
+## Building your own image
 
-The Dockerfile lives at the root of `syncropel-core`:
+A minimal Dockerfile that wraps the released binary:
 
-```bash
-git clone https://github.com/syncropic/syncropel-core
-cd syncropel-core
-docker build -t syncropic/spl:dev .
+```dockerfile
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates tini curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSf https://get.syncropic.com/spl | sh \
+    && install -Dm755 /root/.local/bin/spl /usr/local/bin/spl
+
+RUN groupadd --system --gid 10001 syncropel \
+    && useradd --system --uid 10001 --gid syncropel \
+               --create-home --home-dir /home/syncropel syncropel
+
+ENV SYNCROPEL_HOME=/syncropel \
+    SPL_SERVE_HOST=0.0.0.0
+
+RUN mkdir -p /syncropel && chown syncropel:syncropel /syncropel
+VOLUME /syncropel
+USER syncropel
+EXPOSE 9100
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:9100/health || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/spl"]
+CMD ["serve", "--port", "9100", "--host", "0.0.0.0"]
 ```
 
-First build pulls the Rust toolchain image and runs `cargo build --release`, which takes 5–10 minutes depending on CPU. Subsequent builds reuse the cargo dependency layer and finish in under a minute when only source files change.
-
-To build a tagged release image:
+Build it:
 
 ```bash
-docker build -t syncropic/spl:0.9.1 .
-docker tag syncropic/spl:0.9.1 syncropic/spl:latest
+docker build -t myorg/spl:latest .
 ```
 
 ## Single-instance deployment
