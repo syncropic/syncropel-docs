@@ -289,6 +289,44 @@ Fan-out descriptors set `target` to one of:
 
 Custom strategies (e.g. trust-weighted selection) are a Phase 3 concern.
 
+## Federation — Pair Sync (v0.13.0+)
+
+Continuous record sync between two daemons per ADR-027. See the [federation guide](/docs/guides/federation) for walk-through and semantics.
+
+```bash
+spl fleet sync add [--peer-url URL] <PEER_DID> <THREAD_ID>   # Create a pair
+spl fleet sync list [--json]                                 # List all pairs
+spl fleet sync status <PAIR_ID> [--json]                     # Detail on one pair
+spl fleet sync trace <PAIR_ID>                               # Recent sync events
+spl fleet sync pause <PAIR_ID>                               # Stop pulling
+spl fleet sync resume <PAIR_ID>                              # Resume a paused pair
+spl fleet sync kick <PAIR_ID>                                # Force immediate poll
+spl fleet sync remove <PAIR_ID>                              # Delete pair
+```
+
+**Pair direction**: a pair on X with `peer_did=Y` means X pulls from Y (records flow Y→X). For bidirectional sync, create one pair on each side. `--peer-url` overrides DID resolution — useful when the peer's DID isn't in a shared directory.
+
+**One-shot sync** (bulk-fetch a thread from a peer without a continuous pair):
+
+```bash
+spl sync <THREAD_ID> from <PEER>   # PEER is URL or DID
+```
+
+Uses [ADR-023 thread snapshot/restore](https://github.com/syncropic/syncropel-spec) under the hood. Useful for onboarding a new instance with existing history.
+
+## Federation — Consent (v0.13.0+)
+
+Grant and manage cross-namespace record-sharing per ADR-024 / Frozen Foundation F8. See the [consent guide](/docs/guides/consent).
+
+```bash
+spl consent grant --to-namespace <NS> [--hash-levels L0,L1,L2,L3] \
+                  [--threads IDS] [--purpose TEXT] [--expires ISO8601]
+spl consent list [--namespace NS]
+spl consent revoke <GRANT_ID>
+```
+
+Source namespace is `default` in v0.13.0. Without L0 in `--hash-levels`, records are downgraded to `{"redacted": true}` when they cross the boundary.
+
 ## Emergency Recovery (v0.10.0+)
 
 ```bash

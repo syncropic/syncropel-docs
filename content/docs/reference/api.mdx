@@ -187,3 +187,79 @@ HTTP middleware permission denials are emitted as `tracing::warn!` events to the
 | POST | `/v1/proxy/messages` | Anthropic Messages API proxy (translates to records) |
 
 The proxy endpoint accepts the Anthropic Messages API format and translates requests into Syncropel records. Use this to route existing AI tool calls through Syncropel for observability and trust tracking.
+
+## Capabilities manifest (v0.13.0+)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/.well-known/syncropel` | Progressive-enablement manifest for clients |
+
+Returns the kernel version, tier, and a map of boolean capability flags. Clients use this to enable/disable features based on what the connected daemon actually supports. Advertised capabilities in v0.13.0 include `sync`, `directory` (gated by `config.directory_enabled`), `federation_consent`, `identity`, `dispatch_observability`, `cusum_alerts`, `trust_detail`, and `reconcile_queue`.
+
+## Identity (v0.13.0+)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/identity` | The daemon's own identity (DID + public-key info) |
+
+Returns `{actor, display_name, did, method, key_path, key_fingerprint}`. Populated from `~/.syncro/config.toml` at daemon startup. New installs from v0.13.0 generate a `did:key:...` on `spl init`; older installs need `spl init --force` once to upgrade.
+
+## Federation sync (v0.13.0+)
+
+Federation is ADR-027 "The Pair" — pull-first HTTP replication between two daemons. Both flat (`/v1/sync/*`) and domain-grouped (`/v1/federation/sync/*`) routes are served.
+
+### Changes feed
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/sync/changes?thread=X&since=CURSOR&limit=N&feed=MODE&target_namespace=NS` | Cursor-paginated changes feed |
+
+Feed modes:
+- `normal` (default) — single response, returns up to `limit` (default 1000, max 10000) records
+- `longpoll` — holds the connection up to 30s waiting for new records
+- `continuous` — Server-Sent Events stream (for live subscriptions)
+
+Response: `{records: [{id, record}], next_cursor: "opaque", has_more: bool}`. Records are consent-filtered per `target_namespace` (see [consent guide](../guides/consent)).
+
+### Record batch fetch
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/sync/records` | Fetch specific records by ID (federation-flagged path requires sig) |
+
+Request body: `{ids: [...]}` or `{records: [...]}`. When the `x-syncropel-federation: 1` header is set, each record must include a `sig` field — Ed25519 over canonical JSON. Unsigned federation requests return HTTP 422. Replay of previously-accepted records is deduped via content-addressed hash.
+
+### Pair management
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/sync/pairs` | List all sync pairs on this daemon |
+| POST | `/v1/sync/pairs` | Create a pair (target pulls from source) |
+| GET | `/v1/sync/pairs/{id}` | Pair detail (state, cursor, retries, last_error) |
+| DELETE | `/v1/sync/pairs/{id}` | Remove a pair |
+| POST | `/v1/sync/pairs/{id}/pause` | Pause pulling |
+| POST | `/v1/sync/pairs/{id}/resume` | Resume pulling |
+| POST | `/v1/sync/pairs/{id}/kick` | Force immediate poll regardless of backoff |
+
+Create body: `{peer_did, peer_url, thread_id}`. Response includes `pair_id` and, if the daemon detects a loopback misconfiguration, a `warning` field with the recovery command.
+
+The pair direction is semantically "target pulls source" — creating a pair on B with `peer_did=A` means records flow A→B. For bidirectional sync, create a pair on each side.
+
+**Known limitation (v0.13.0)**: `SyncRegistry` is in-memory. Pairs are lost on daemon restart and must be re-created. Persistence is on the v0.13.1 roadmap.
+
+## did:sync directory (v0.13.0+)
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/directory/genesis` | Create a new did:sync identity (genesis operation) |
+| POST | `/directory/update/{hash}` | Rotate keys or update service endpoints |
+| POST | `/directory/revoke/{hash}` | Revoke a did:sync identity |
+| GET | `/directory/{hash}/did.json` | Resolve a did:sync to its DID document |
+| GET | `/directory/{hash}/operations` | Full operation log for a did:sync |
+| GET | `/directory/handle/{handle}` | Resolve a human-readable handle to its did:sync |
+
+Gated by `config.directory_enabled` — off by default. A daemon can act as a did:sync directory provider; most installs don't need to. See [ADR-028 Federated Identity](https://github.com/syncropic/syncropel-spec) for the directory protocol design (Bluesky did:plc-inspired).
+
+## CORS
+
+All `/v1/*` + `/.well-known/*` + `/directory/*` endpoints include CORS headers (`tower-http::CorsLayer` with permissive defaults). The daemon at `localhost:9100` is reachable from web UI origins without proxy configuration.

@@ -1,0 +1,212 @@
+---
+title: Federation — pairing two instances
+description: Set up record sync between two Syncropel daemons using the v0.13 "The Pair" federation layer. Covers identity, pair creation, propagation semantics, consent for cross-namespace sharing, and the common misconfigurations.
+---
+
+## Who this is for
+
+You have two Syncropel daemons — say, one on your laptop and one on a server — and you want records emitted on one to show up on the other. That's what the v0.13 federation layer does.
+
+This is the minimal, hands-on walk-through. For the architectural rationale (why pull-first HTTP, why content-addressed dedup, why consent-gated), see [ADR-027 Federation Transport](https://github.com/syncropic/syncropel-spec) in the spec repo.
+
+## What federation actually is in v0.13
+
+A **pair** is a unidirectional, thread-scoped subscription. When you create a pair on instance B with `peer_did=A, peer_url=http://A, thread_id=T`, you are saying: *"B will continuously pull changes for thread T from A."* Records emitted on A (in thread T) will appear on B. For the reverse direction, you create a second pair on A tracking B.
+
+Three consequences of that model:
+
+- **Pair direction = data flow direction, inverted.** Pair on B tracking A means records flow A→B.
+- **Bidirectional sync = two pairs, one on each side.** No "bidirectional" flag in v0.13.
+- **Pairs are per-thread.** Syncing five threads = five pairs. (A "track everything" mode is on the v0.14 roadmap.)
+
+Records are signed on emit and verified on ingest. Content-addressed dedup means the same record submitted twice is a no-op — replay attacks don't produce duplicate records.
+
+## Prerequisites
+
+- `spl` v0.13.0 or later on both instances. Verify with `spl version`.
+- Both daemons reachable from each other over HTTP. **If one is behind NAT or on `127.0.0.1`, see the common misconfigurations section below.**
+- Each daemon has an identity generated. First-time users should run `spl init` once — it generates an Ed25519 keypair and writes the `did:key:...` identity to `~/.syncro/config.toml`. Existing daemons from before v0.13 need `spl init --force` once to get a DID.
+
+## Walk-through: pair two local daemons
+
+For this walk-through we'll run two daemons on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250. This matches the topology used by the synthetic pair drill (`syncropel-research/docs/drills/synthetic-pair-drill.sh`).
+
+### 1. Start both daemons
+
+```bash
+# Terminal 1: instance A
+export SYNCROPEL_HOME=/tmp/spl-a
+spl init --force
+spl serve --daemon --port 9200 --host 0.0.0.0
+# wait for "API: http://0.0.0.0:9200"
+
+# Terminal 2: instance B
+export SYNCROPEL_HOME=/tmp/spl-b
+spl init --force
+spl serve --daemon --port 9250 --host 0.0.0.0
+# wait for "API: http://0.0.0.0:9250"
+```
+
+**Why `--host 0.0.0.0`?** The default `--host 127.0.0.1` only accepts loopback connections. If instance B lives on a different machine (or in a Docker container reaching the host), the default won't work. `spl doctor` will warn you about this if you configure pairs on a loopback-bound daemon.
+
+### 2. Capture each instance's DID
+
+```bash
+# Instance A's DID
+curl -s http://localhost:9200/v1/identity | jq -r '.did'
+# did:key:z6Mk...
+
+# Instance B's DID
+curl -s http://localhost:9250/v1/identity | jq -r '.did'
+# did:key:z6Mk...
+```
+
+Save these in environment variables for the rest of the walk-through:
+
+```bash
+export DID_A=$(curl -s http://localhost:9200/v1/identity | jq -r '.did')
+export DID_B=$(curl -s http://localhost:9250/v1/identity | jq -r '.did')
+```
+
+### 3. Create a pair: propagate A → B
+
+To send records from A to B, create the pair on **B** (since B is the one that will pull from A):
+
+```bash
+spl fleet sync add \
+    --peer-url http://localhost:9200 \
+    "$DID_A" th_federation_demo
+```
+
+Or via HTTP (useful when scripting):
+
+```bash
+curl -X POST http://localhost:9250/v1/sync/pairs \
+    -H "content-type: application/json" \
+    -d "{\"peer_did\":\"$DID_A\",\"peer_url\":\"http://localhost:9200\",\"thread_id\":\"th_federation_demo\"}"
+```
+
+Response includes a `pair_id` you'll use for status/pause/remove.
+
+### 4. Emit on A, observe on B
+
+```bash
+# On instance A, emit a record
+SYNCROPEL_HOME=/tmp/spl-a spl intend --thread th_federation_demo "hello from A"
+
+# Give the sync loop a moment (poll interval defaults to 5s)
+sleep 6
+
+# On instance B, query the thread
+SYNCROPEL_HOME=/tmp/spl-b spl thread records th_federation_demo
+# You should see the record emitted on A
+```
+
+### 5. Go bidirectional
+
+To also propagate B → A, create a pair on **A** tracking B:
+
+```bash
+SYNCROPEL_HOME=/tmp/spl-a spl fleet sync add \
+    --peer-url http://localhost:9250 \
+    "$DID_B" th_federation_demo
+```
+
+Now records emitted on either side appear on the other within the sync poll interval.
+
+### 6. Inspect pair status
+
+```bash
+# List all pairs
+spl fleet sync list
+
+# Detail on one pair
+spl fleet sync status <pair_id>
+```
+
+The `state` field reports one of:
+
+- `starting` — pair created, first poll hasn't completed yet
+- `running` — actively syncing, last poll succeeded
+- `paused` — pair is paused via `spl fleet sync pause <pair_id>`
+- `failing` — pair is retrying with exponential backoff. `last_error` field has the reason.
+- `stopped` — pair removed
+
+## Pair error classification
+
+When a pair is in `failing` state, the `last_error` field uses structured buckets instead of raw HTTP library strings:
+
+| Bucket | Meaning | Fix |
+|---|---|---|
+| `CONNECT_REFUSED` | Peer daemon not reachable | Check peer is running; verify `--host` isn't `127.0.0.1` if cross-machine |
+| `TIMEOUT` | Peer didn't respond in time | Network slow or peer overloaded |
+| `DNS_FAILURE` | peer_url hostname doesn't resolve | Typo in `peer_url`, or DNS unavailable |
+| `HTTP_4XX (code)` | Peer rejected the request | Check namespaces registered, consent grants, signatures |
+| `HTTP_5XX (code)` | Peer daemon error | Check peer's logs |
+| `PARSE_ERROR` | Peer returned malformed JSON | Version mismatch or non-spl peer? |
+
+## Cross-namespace sharing: consent grants
+
+By default, records in namespace X are not visible to a peer in namespace Y — the [consent filter (ADR-024, Frozen Foundation F8)](https://github.com/syncropic/syncropel-spec) blocks them. To grant cross-namespace consent, use `spl consent grant` on the **source** daemon:
+
+```bash
+# On instance A: allow sharing records from "default" to namespace "beta"
+spl consent grant --to-namespace beta --hash-levels L0,L1,L2,L3
+```
+
+After the grant, a sync pair with `target_namespace=beta` can pull records across the boundary. Without `L0` in `hash_levels`, records are downgraded to `{"redacted": true}` (metadata shape preserved; body redacted).
+
+See the [consent management guide](./consent) for the full flow.
+
+## Common misconfigurations
+
+### "My pair was created but no records propagate"
+
+The most frequent cause is **daemon bound to `127.0.0.1`** but peer_url points to a non-loopback host. The response to `POST /v1/sync/pairs` includes a `warning` field when we detect this, and `spl doctor` flags it:
+
+```
+! federation bind host      1 sync pair(s) configured but daemon is bound
+                            to 127.0.0.1. Remote peers cannot reach this
+                            instance. Restart with
+                            `spl serve --host 0.0.0.0 --daemon`.
+```
+
+Fix: restart with `spl serve --host 0.0.0.0 --daemon`.
+
+### "Daemon rejects records with namespace X"
+
+Error: `NAMESPACE_REJECTED: ancestor 'X' is not Active in the registry.`
+
+Namespaces must be registered before records in them can be emitted:
+
+```bash
+spl namespace create X --description "..."
+```
+
+This is an intentional security default (ADR-032 D5 — impersonation defense). No auto-creation.
+
+### "Pairs disappear after restart"
+
+In v0.13, `SyncRegistry` is in-memory — pairs don't persist across daemon restart. After restart, re-create any pairs you need. **Pair persistence is planned for v0.13.1**; for now, script your pair setup on startup if you rely on it.
+
+### "Pulls return zero records on a thread that should have some"
+
+Check the consent filter. If the source and target namespaces differ and there's no consent grant on `th_consent` matching the pair, records are filtered out silently. `spl consent list` on the source shows active grants.
+
+## What's next
+
+- **[Consent management](./consent)** — the full flow for cross-namespace grants
+- **[API reference: /v1/sync/*](../reference/api#federation-sync-v0130)** — the HTTP surface, for building clients
+- **[CLI reference: spl fleet sync](../reference/cli#fleet-sync-v0130)** — all subcommands
+- **ADR-027 + ADR-028** in the spec repo — the "why" behind these decisions
+
+## Verification
+
+Before depending on federation in production, **run the synthetic pair drill** on your setup to verify end-to-end correctness:
+
+```bash
+# From a checkout of syncropel-research
+bash docs/drills/synthetic-pair-drill.sh
+```
+
+The drill runs 26 scenarios in ~65 seconds covering two-peer propagation, consent enforcement, N=3 topology (fan-out + chain), CLI surface parity, signature depth, and concurrent bidirectional convergence. If all 26 are green on your machine, the federation layer is behaving correctly for your platform.
