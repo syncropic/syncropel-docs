@@ -4,7 +4,7 @@ description: Measure your own fleet's parallel speedup honestly — how to run r
 ---
 
 <Callout type="info">
-**Audience**: operators who want to verify v0.11.0's parallel velocity claim against their own workloads. This page is the actionable companion to the bootstrap measurement methodology .
+**Audience**: operators who want to verify parallel speedup on their own fleet. 
 </Callout>
 
 ## What you're measuring
@@ -20,7 +20,7 @@ A 2-worker fan-out on independent equal-sized subtasks has a theoretical ceiling
 Speedup is the ONLY quantity this guide measures. You are not measuring:
 
 - Raw throughput (records/second) — that's a platform benchmark, not a parallelism benchmark
-- Cost per outcome (dollars/subtask) — that's a budget question for v0.12+
+
 - Trust convergence across instances
 - Recovery time after a crash — that's a chaos-engineering question
 
@@ -28,7 +28,7 @@ Keeping the measurement narrow is what makes the number credible.
 
 ## Prerequisites
 
-- **v0.11.0 or later** spl binary installed on the host. `spl --version` must report `0.11.x`.
+- `spl` installed on the host with fleet support (`spl fleet --help` lists the start/stop/list/ping commands).
 - A **3-instance local fleet** booted — either via `spl fleet start --workers 2` (simplest) or the [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) walkthrough.
 - At least **three real multi-subtask tasks** on your backlog that have natural parallel decomposition — "I'll do part A first, then B in parallel, then synthesize." Synthetic benchmarks produce misleading numbers; this guide only measures real work.
 - A willingness to run each task **twice** (once serial, once parallel) during the benchmark window. That's the most honest baseline comparison.
@@ -49,11 +49,11 @@ A task qualifies as a fan-out benchmark candidate if all four are true:
 Ineligible candidates:
 - Tutorial walkthroughs or the "Monday morning" transcript — synthetic subtasks
 - CI/test suite runs — too uniform, bounded by slowest fixture
-- Any task requiring merge-conflict resolution across workers — v0.11 has no merge queue
+
 
 ### 2. Run the serial baseline
 
-Pick ONE worker instance (or the coordinator itself) and run the three subtasks sequentially, like you would have before v0.11.0:
+Pick ONE worker instance (or the coordinator itself) and run the three subtasks sequentially, as you would on a single instance:
 
 ```bash
 # No fan-out, no workers. Just the task.
@@ -91,7 +91,7 @@ spl task fan-out <new-alias> \
   --join all
 ```
 
-Each `--subtask` flag is a comma-separated list of `key=value` pairs. Keys: `goal` (required), `target` (required; one of `worker-<alias>`, `specific:<did>`, `least-loaded-worker`, `round-robin`), `budget` (advisory in v0.11, enforced in v0.12+), `timeout` (seconds), `depends` (plus-separated list of 0-based indices that must accept first). Join shorthand accepts `all`, `any`, `k_of_n:K`, or a full CEL expression in quotes.
+Each `--subtask` flag is a comma-separated list of `key=value` pairs. Keys: `goal` (required), `target` (required; one of `worker-<alias>`, `specific:<did>`, `least-loaded-worker`, `round-robin`), `budget`, `timeout` (seconds), `depends` (plus-separated list of 0-based indices that must accept first). Join shorthand accepts `all`, `any`, `k_of_n:K`, or a full CEL expression in quotes.
 
 Watch the drill live:
 
@@ -131,9 +131,9 @@ Emit a LEARN record on a well-known benchmarking thread (e.g. `th_v0_11_bench_YY
   "body": {
     "topic": "fleet_benchmark_drill",
     "drill_index": 1,
-    "benchmark_version": "v0.11.0",
+    "benchmark_version": "fleet",
     "task_alias": "SKL-XXXX",
-    "workload_description": "Docs v0.4.0 integration recipes (3 subtasks)",
+    "workload_description": "integration recipes (3 subtasks)",
     "fleet_topology": {
       "coordinator": "did:sync:instance:coordinator",
       "workers": ["did:sync:instance:worker-a", "did:sync:instance:worker-b"],
@@ -194,7 +194,7 @@ You should see three records with `speedup_ratio` values that you can list, anal
 
 The most important thing this guide insists on is **pre-committing your pass threshold before you run the first drill**. If you decide what "good" means after the numbers come in, you will unconsciously reshape the definition to match.
 
-**Recommended threshold** (same as v0.11.0 — the standard threshold):
+**Recommended threshold** (the standard threshold for 2-worker fan-out):
 
 > **Pass**: at least 2 of the 3 drills show `speedup_ratio ≥ 1.5` AND no drill shows `speedup_ratio < 1.0` *without a named confounder* that explains the regression.
 >
@@ -237,17 +237,17 @@ Re-run after each fix. Replace the failing drills with new drills. Keep the old 
 
 ### If you can't find qualifying workloads
 
-If your day-to-day work genuinely doesn't decompose into parallelizable subtasks, that's valuable signal. v0.11.0 is designed for workloads that have natural parallelism. Workloads that are fundamentally sequential don't benefit and that's not a Syncropel bug.
+If your day-to-day work genuinely doesn't decompose into parallelizable subtasks, that's valuable signal. Syncropel is designed for workloads that have natural parallelism. Workloads that are fundamentally sequential don't benefit and that's not a Syncropel bug.
 
 ## Reporting template
 
 Copy this into a release post, a status update, or a LEARN record for future reference:
 
 ```text
-v0.11.0 fleet benchmark — <date>
+fleet benchmark — <date>
 Host: <hostname>
 Fleet: <coordinator + N workers>
-Binary: spl v0.11.0 (commit <hash>)
+Binary: spl <version> (commit <hash>)
 
 Drill 1: <task-alias>
   Workload: <one sentence>
@@ -276,7 +276,5 @@ If you run the benchmark in one of these less-tested configurations, your drill 
 
 ## References
 
-- Bootstrap Measurement Methodology — the full research document this guide distills
 - [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) — hands-on walkthrough of the fan-out workflow
 - [Operator Runbook: Multi-instance fleet operations](/docs/operate/runbook#multi-instance-fleet-operations) — day-2 procedures
-- [v0.11.0 Release Notes](/docs/operate/release-notes-v0.11) — the release that introduced these primitives
