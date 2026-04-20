@@ -1,0 +1,194 @@
+---
+title: Projections
+description: Schema, validators, and a markdown-subset parser for the Syncropel Rendering Protocol (SRP) — the declarative document format for query-driven and AI-generated UI.
+---
+
+## What this is
+
+`@syncropel/projections` is a **types-only** TypeScript package that ships the canonical schema for SRP v0.1 — a constrained JSON document format for rendering user interfaces declaratively. Think of an SRP document as a portable, validated blueprint for a UI view: a query result, a dashboard, a form, a report.
+
+It pairs with:
+
+- [`@syncropel/sdk`](/docs/guides/typescript-sdk) — emit SRP documents as record bodies
+- [`@syncropel/react`](/docs/guides/react-components) — render SRP documents into live React components
+
+On its own, this package is useful anywhere you need to validate an SRP document, parse inline markdown in a text node, or share SRP types across services without pulling in a UI framework.
+
+## Install
+
+```bash
+npm install @syncropel/projections
+```
+
+Zero dependencies. Works in every JavaScript runtime.
+
+## Document shape
+
+An SRP document has three top-level fields:
+
+```typescript
+interface SRPDocument {
+  srp: "0.1";           // version tag
+  meta: {                // optional metadata
+    name?: string;
+    description?: string;
+  };
+  root: SRPNode;         // the root node (usually a Column or Grid)
+}
+```
+
+A `SRPNode` is a discriminated union of 19 node types:
+
+```text
+Layout:       column, row, grid, card, divider
+Content:      heading, text, stat, keyValue, chip, code
+Records:      recordLine, recordLineList
+Interactive:  button, iconButton, copyButton, select
+State:        emptyState, errorState, skeleton
+```
+
+Each node has a `type` discriminator and a `props` object with type-checked fields. Example:
+
+```typescript
+const doc: SRPDocument = {
+  srp: "0.1",
+  meta: { name: "Dashboard" },
+  root: {
+    type: "column",
+    props: { gap: "md" },
+    children: [
+      { type: "heading", props: { level: 2, text: "Summary" } },
+      { type: "stat", props: { label: "Records", value: 42, delta: 3 } },
+      { type: "chip", props: { label: "live", tone: "info" } },
+    ],
+  },
+};
+```
+
+## Validation
+
+```typescript
+import { validateSRP, isSRPDocument } from "@syncropel/projections";
+
+const result = validateSRP(doc);
+if (result.valid) {
+  // Safe to render
+} else {
+  result.errors.forEach((e) => {
+    console.error(`${e.path}: ${e.message}`);
+  });
+}
+
+// Type guard
+if (isSRPDocument(unknown)) {
+  // unknown is now narrowed to SRPDocument
+}
+```
+
+`validateSRP` walks every node, checks required fields, and reports structured errors with `path`, `code`, and `message`. Use it on any input that claims to be SRP — records you received from a daemon, documents an AI generated, user-submitted JSON.
+
+Per-node validation is also exposed:
+
+```typescript
+import { validateNode, isSRPNode } from "@syncropel/projections";
+
+validateNode(someNode, "root.children[0]");
+```
+
+## Markdown-subset parser
+
+Every `text` node and `recordLine` supports a constrained inline-markdown subset: bold, italic, code, links, strikethrough. The package ships a parser for this subset so renderers can turn strings into structured AST:
+
+```typescript
+import { parseInline, stripFormatting } from "@syncropel/projections";
+
+const ast = parseInline("This is **bold** and `code`, see [the docs](https://docs.syncropel.com).");
+// → [{ kind: "text", text: "This is " },
+//    { kind: "bold", children: [{ kind: "text", text: "bold" }] },
+//    { kind: "text", text: " and " },
+//    { kind: "code", text: "code" },
+//    ...]
+
+stripFormatting(ast);
+// → "This is bold and code, see the docs."
+```
+
+Node shape:
+
+```typescript
+type InlineNode =
+  | { kind: "text"; text: string }
+  | { kind: "bold"; children: InlineNode[] }
+  | { kind: "italic"; children: InlineNode[] }
+  | { kind: "code"; text: string }
+  | { kind: "link"; url: string; children: InlineNode[] }
+  | { kind: "strike"; children: InlineNode[] };
+```
+
+Block-level markdown (headings, lists, tables) is not in the subset — use dedicated SRP nodes (`heading`, `column` with item children, `grid`) for those.
+
+## Exported types
+
+Every SRP node type is exported as an interface for typed code:
+
+```typescript
+import type {
+  SRPDocument, SRPNode, SRPMeta,
+  ColumnNode, RowNode, GridNode, CardNode, DividerNode,
+  HeadingNode, TextNode, StatNode, KeyValueNode,
+  ChipNode, CodeNode,
+  RecordLineNode, RecordLineListNode,
+  ButtonNode, IconButtonNode, CopyButtonNode, SelectNode,
+  EmptyStateNode, ErrorStateNode, SkeletonNode,
+} from "@syncropel/projections";
+```
+
+Design tokens (gap scale, column counts, tones, typography sizes, etc.) are exported as string literal unions:
+
+```typescript
+import type {
+  Gap, Padding, DividerSpacing, Cols,
+  ColumnAlign, RowAlign, Justify,
+  ChipTone, TextSize, TextWeight, TextTone,
+  ButtonVariant, ButtonSize, SkeletonShape, GlyphKind,
+} from "@syncropel/projections";
+```
+
+These are the same tokens consumed by `@syncropel/react` — your type-checked `props` in `@syncropel/projections` automatically match what the React components accept.
+
+## Using alongside the record SDK
+
+Projections are most useful when they travel as record bodies — e.g., a daemon emits a KNOW record whose body *is* a projection document, and the UI queries that thread and renders the documents.
+
+```typescript
+import { Client, Identity } from "@syncropel/sdk";
+import { validateSRP } from "@syncropel/projections";
+
+const client = new Client({
+  endpoint: "http://localhost:9100",
+  identity: Identity.static("did:example:dashboard"),
+});
+
+const doc = {
+  srp: "0.1",
+  meta: { name: "Session recap" },
+  root: { type: "column", props: { gap: "md" }, children: [/* ... */] },
+};
+
+if (validateSRP(doc).valid) {
+  await client.emit({
+    act: "KNOW",
+    kind: "ui.view.summary",
+    body: doc,
+    thread: "th_dashboards",
+  });
+}
+```
+
+Downstream readers do the symmetric query + validate + render.
+
+## What's next
+
+- [TypeScript SDK](/docs/guides/typescript-sdk) — emit and query records containing projection documents
+- [React components](/docs/guides/react-components) — drop-in components that render SRP documents
+- [Extensions SDK](/docs/guides/extensions) — embed UIs that produce + consume projections inside a Syncropel host

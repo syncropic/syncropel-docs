@@ -1,0 +1,183 @@
+---
+title: React Components
+description: A constrained palette of 21 React atoms and molecules that render Syncropel projection documents natively, with CSS-variable theming and no provider required.
+---
+
+## What this is
+
+`@syncropel/react` ships 21 React components — 17 atoms + 4 molecules — designed to render [SRP projection documents](/docs/guides/projections) and to compose small, opinionated UIs for Syncropel workspaces. The component palette is intentionally fixed: same design tokens, same structural constraints, same visual vocabulary everywhere a Syncropel UI renders.
+
+Key properties:
+
+- **No provider** — no `<ThemeProvider>` wrapper. Styles work via CSS variables at `:root`
+- **Constrained palette** — 4 layout atoms, 6 content atoms, 4 interactive atoms, 3 state atoms, plus 4 molecules
+- **Structure-frozen, tokens-customizable** — component shape doesn't change; colors, spacing, type scale do via CSS
+- **Works with projections** — prop types line up 1:1 with the SRP schema from [`@syncropel/projections`](/docs/guides/projections)
+- **Client components** — interactive atoms are `"use client"` internally; safe to use in React Server Components where appropriate
+
+## Install
+
+```bash
+npm install @syncropel/react @syncropel/projections
+```
+
+Requires React 18+ and React DOM 18+ (peer deps).
+
+## Wire up the styles
+
+Import the compiled CSS once at your app root — usually `app/layout.tsx` (Next.js), `main.tsx` (Vite), or `_app.tsx` (pages router):
+
+```typescript
+import "@syncropel/react/styles.css";
+```
+
+Optionally import the token sheet separately if you want to override tokens in isolation:
+
+```typescript
+import "@syncropel/react/tokens.css";
+```
+
+## Hello component
+
+```tsx
+import "@syncropel/react/styles.css";
+import { Card, Column, Heading, Stat, Grid } from "@syncropel/react";
+
+export function Dashboard() {
+  return (
+    <Card padding="lg">
+      <Column gap="md">
+        <Heading level={2}>Session</Heading>
+        <Grid cols={3} gap="sm">
+          <Stat label="Tracks" value={47} />
+          <Stat label="Artists" value={14} delta={3} />
+          <Stat label="Transitions" value={12} />
+        </Grid>
+      </Column>
+    </Card>
+  );
+}
+```
+
+## The component catalog
+
+### Layout atoms
+
+| Component | Use for |
+|---|---|
+| `Column` | Vertical flex container with `gap`, `align`, `justify` tokens |
+| `Row` | Horizontal flex container |
+| `Grid` | CSS grid with `cols` (1–12) and `gap` |
+| `Card` | Container with padding and optional interactive/selected state |
+| `Divider` | Horizontal or vertical separator with `spacing` |
+
+### Content atoms
+
+| Component | Use for |
+|---|---|
+| `Heading` | `h1`–`h6` with typography tokens |
+| `Text` | Paragraph/inline text (supports inline markdown: `**bold**`, `*italic*`, `` `code` ``, `[link](url)`, `~~strike~~`) |
+| `Stat` | Metric tile: `label`, `value`, optional `delta` |
+| `KeyValue` | Label + value pair |
+| `Chip` | Inline label with optional `glyph` and `tone` |
+| `Code` | Inline monospace text |
+
+### Interactive atoms
+
+| Component | Use for |
+|---|---|
+| `Button` | Primary/secondary/ghost/danger variants in `xs`/`sm`/`md` sizes |
+| `IconButton` | Icon-only button |
+| `CopyButton` | Copy-to-clipboard button with transient confirmation |
+| `Link` | Anchor with `href`, styled consistently with Text |
+
+### State atoms
+
+| Component | Use for |
+|---|---|
+| `EmptyState` | Zero-state UI with message + optional action (molecule) |
+| `ErrorState` | Error display with message + retry action (molecule) |
+| `Skeleton` | Placeholder (`rect` / `circle` / `text` shapes) |
+| `Pulse` | Pulsing animation wrapper for loading indicators |
+
+### Semantic atoms
+
+| Component | Use for |
+|---|---|
+| `Glyph` | Semantic icon, 21 fixed kinds (INTEND, DO, KNOW, LEARN, GET, PUT, CALL, MAP, AITL, thread, fork, record-parent, namespace, actor, file, pattern, page, view, state-open, state-active, state-converged, state-closed, state-abandoned) |
+| `StatusDot` | Status indicator with `state` prop |
+
+## Theming via CSS variables
+
+All design tokens are exposed as CSS custom properties at `:root`. Override in your own stylesheet:
+
+```css
+/* your-app.css — loaded after @syncropel/react/styles.css */
+:root {
+  --sp-color-primary: #b45309;
+  --sp-color-bg: #0a0a0a;
+  --sp-spacing-md: 14px;
+  --sp-font-sans: "Inter", system-ui, sans-serif;
+  --sp-radius-md: 10px;
+}
+```
+
+Token scales exposed:
+
+- **Color**: `--sp-color-primary`, `--sp-color-secondary`, `--sp-color-bg`, `--sp-color-fg`, `--sp-color-muted`, tones (info, success, warning, danger)
+- **Spacing**: `--sp-spacing-none` through `--sp-spacing-xl`
+- **Typography**: `--sp-font-sans`, `--sp-font-mono`, scale `--sp-text-xs` through `--sp-text-lg`
+- **Radius**: `--sp-radius-sm` through `--sp-radius-lg`
+
+Because there's no provider, tokens cascade naturally and scope via any CSS selector — light/dark themes, per-component overrides, even per-namespace accent colors are a media query or class away.
+
+## Rendering a projection document
+
+When you receive an SRP document from a daemon, walk the tree and map node types to components. A minimal renderer:
+
+```tsx
+import { Card, Column, Row, Grid, Heading, Text, Stat, Chip } from "@syncropel/react";
+import type { SRPNode } from "@syncropel/projections";
+
+function Render({ node }: { node: SRPNode }) {
+  switch (node.type) {
+    case "column":
+      return (
+        <Column {...node.props}>
+          {node.children?.map((child, i) => <Render key={i} node={child} />)}
+        </Column>
+      );
+    case "grid":
+      return (
+        <Grid {...node.props}>
+          {node.children?.map((child, i) => <Render key={i} node={child} />)}
+        </Grid>
+      );
+    case "heading":
+      return <Heading {...node.props} />;
+    case "text":
+      return <Text {...node.props} />;
+    case "stat":
+      return <Stat {...node.props} />;
+    case "chip":
+      return <Chip {...node.props} />;
+    case "card":
+      return (
+        <Card {...node.props}>
+          {node.children?.map((child, i) => <Render key={i} node={child} />)}
+        </Card>
+      );
+    // ...cover the remaining 12 node types
+    default:
+      return null;
+  }
+}
+```
+
+A full projection renderer is a small exercise because props types match the schema 1:1.
+
+## What's next
+
+- [Projections SDK](/docs/guides/projections) — the schema these components render
+- [TypeScript SDK](/docs/guides/typescript-sdk) — query records whose bodies are projection documents
+- [Extensions SDK](/docs/guides/extensions) — build iframe extensions that consume projection streams
