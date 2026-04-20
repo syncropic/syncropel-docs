@@ -1,0 +1,229 @@
+---
+title: Extensions SDK
+description: Build iframe-embedded applications that run inside Syncropel workspaces — handles postMessage handshake, capability negotiation, and typed emit/query/subscribe operations.
+---
+
+## What this is
+
+`@syncropel/extensions` is the SDK for building **in-workspace applications** — iframe-embedded tools that run inside a Syncropel host (web workspace, desktop app, etc.) and participate in the user's live record stream. Think of it as the contract that lets a third-party panel, inspector, or mini-app talk to the host workspace without either side trusting the other.
+
+The SDK handles:
+
+- The postMessage handshake (`hello` → `ready` → granted capabilities)
+- Capability negotiation (your extension requests, the host's policy decides)
+- Typed emit / query / subscribe / navigate operations with request-response correlation
+- iframe lifecycle: height adjustments, status indicators, goodbye signals
+- Message validation (clock skew, envelope shape, version)
+
+## Install
+
+```bash
+npm install @syncropel/extensions
+```
+
+Zero runtime deps. Pure TypeScript, pure postMessage — works in any web extension context.
+
+## Hello extension
+
+```typescript
+import { createAdapter } from "@syncropel/extensions";
+
+const adapter = createAdapter({
+  ext: { name: "MyApp", version: "1.0.0" },
+  capabilities: ["records.emit", "records.query"],
+
+  onInit: ({ actor, namespace, capabilities_granted }) => {
+    console.log(`Ready as ${actor} in ${namespace}`);
+    console.log("Granted:", capabilities_granted);
+  },
+
+  onSelectionChange: ({ selection }) => {
+    console.log("Host selected:", selection);
+  },
+
+  onRecords: ({ subscription_id, records }) => {
+    console.log(`Sub ${subscription_id} delivered`, records.length, "records");
+  },
+});
+
+// Emit a record
+const result = await adapter.emit({
+  act: "PUT",
+  body: { title: "Event", at: Date.now() },
+  thread: "th_app_events",
+});
+```
+
+The adapter handles the `hello` message from the host, sends `ready` with your capability list, and resolves `onInit` once the handshake completes with the intersection of what you asked for and what the host's policy grants.
+
+## Capabilities
+
+An extension requests a subset of 11 capabilities. The host's policy may grant all, some, or none — always check `capabilities_granted` before calling features that depend on them.
+
+| Capability | What it grants |
+|---|---|
+| `records.emit` | `adapter.emit()` |
+| `records.query` | `adapter.query()` |
+| `records.subscribe` | `adapter.subscribe()` + `adapter.unsubscribe()` |
+| `navigate` | `adapter.navigate()` to change host view |
+| `permissions.camera` | iframe can request `navigator.mediaDevices.getUserMedia({ video })` |
+| `permissions.microphone` | same for audio |
+| `permissions.clipboard` | clipboard read/write in iframe |
+| `permissions.fullscreen` | fullscreen API |
+| `permissions.notifications` | notification API |
+| `sharedArrayBuffer` | cross-origin isolation for WASM threading |
+| `persistent-storage` | IndexedDB persistence guarantee |
+
+## The adapter API
+
+### Records
+
+```typescript
+// Emit a record — resolves when the host confirms ingest
+const emit = await adapter.emit({
+  act: "PUT",          // "GET" | "PUT" | "CALL" | "MAP" | "INTEND" | "DO" | "KNOW" | "LEARN"
+  body: { /* your payload */ },
+  thread: "th_optional",
+  parents: ["record_id_optional"],
+});
+if (emit.status === "ok") {
+  console.log("record id:", emit.result.id);
+}
+
+// One-shot query (VQL-shaped object; the host validates)
+const q = await adapter.query({ kind: "app.note", limit: 20 });
+
+// Live subscription — records arrive via onRecords hook
+const sub = await adapter.subscribe({ kind: "app.notification" });
+const subscriptionId = sub.result.subscription_id;
+
+// Stop receiving
+await adapter.unsubscribe(subscriptionId);
+```
+
+### Navigation
+
+```typescript
+await adapter.navigate("/docs/operate/keyring");
+```
+
+Takes the host to the given URL (host validates that it's an allowed route).
+
+### iframe chrome
+
+```typescript
+// Tell the host how tall you need to be (px, clamped 0–10000)
+adapter.setHeight(800);
+
+// Update the status pill shown in the host chrome
+adapter.setStatus({
+  label: "Syncing…",
+  tone: "info",         // "info" | "warn" | "error" | "success"
+  indicator: "pulse",   // "pulse" | "static" | null
+});
+```
+
+### Cleanup
+
+```typescript
+// Unbind listeners, stop processing messages. Safe to call from
+// a React useEffect cleanup or a web-component disconnectedCallback.
+adapter.destroy();
+```
+
+## Message protocol (reference)
+
+The adapter hides most of this — you only need it for debugging or building custom hosts. Messages flow bidirectionally over `window.postMessage`, validated on both sides.
+
+**Host → Extension:** `hello`, `context.update`, `records.update`, `action.result`, `goodbye`
+
+**Extension → Host:** `ready`, `records.emit`, `records.query`, `records.subscribe`, `records.unsubscribe`, `navigate`, `height`, `status`
+
+Every envelope has:
+
+```typescript
+{
+  sap: "0.1",                    // protocol version
+  kind: "<message-kind>",
+  id: "<uuid>",                  // for request/response correlation
+  ts: "<ISO 8601>",              // clock skew ≤ 5 min enforced
+  payload: { /* per-kind */ }
+}
+```
+
+If you need to build your own host or custom-validate messages, the package exports:
+
+```typescript
+import {
+  validateMessage,              // (raw, direction) => { ok, reason? }
+  intersectCapabilities,        // (requested, policy) => granted
+  SAP_VERSION,                  // "0.1"
+  MAX_CLOCK_SKEW_MS,            // 300000
+} from "@syncropel/extensions";
+
+import type {
+  SAPCapability, SAPEnvelope, ActType,
+  HelloPayload, RecordsEmitPayload, ActionResultPayload,
+  // ...every payload + message type
+} from "@syncropel/extensions";
+```
+
+## Minimal end-to-end example
+
+A tiny extension that subscribes to one kind and emits an acknowledgment for each record:
+
+```typescript
+import { createAdapter } from "@syncropel/extensions";
+
+const adapter = createAdapter({
+  ext: { name: "AckBot", version: "0.1.0" },
+  capabilities: ["records.emit", "records.subscribe"],
+
+  onInit: async ({ capabilities_granted }) => {
+    if (!capabilities_granted.includes("records.subscribe")) {
+      adapter.setStatus({
+        label: "No subscribe capability",
+        tone: "error",
+      });
+      return;
+    }
+
+    await adapter.subscribe({ kind: "user.request" });
+    adapter.setStatus({ label: "Listening", tone: "info", indicator: "pulse" });
+  },
+
+  onRecords: async ({ records }) => {
+    for (const record of records) {
+      await adapter.emit({
+        act: "KNOW",
+        body: {
+          kind: "user.request.ack",
+          acks: record.id,
+        },
+        thread: "th_acks",
+      });
+    }
+  },
+});
+
+// Tell host the iframe's real content height
+const resizeObserver = new ResizeObserver((entries) => {
+  adapter.setHeight(entries[0].contentRect.height);
+});
+resizeObserver.observe(document.body);
+```
+
+## Best practices
+
+- **Ask for the minimum capabilities.** Users and host policies both scrutinize broad asks; narrow asks get approved faster and survive policy changes.
+- **Handle partial grants.** Check `capabilities_granted` inside `onInit` — don't assume every requested capability was given.
+- **Update height accurately.** Hosts rely on your `setHeight` call to avoid scroll-within-scroll or clipped content. Use `ResizeObserver`.
+- **Use status for long-running work.** Pulse + label is much better UX than a silent spinner inside your iframe.
+- **Always `destroy()` on unmount.** Leaked adapters keep processing messages after the user has navigated away.
+
+## What's next
+
+- [Records concept](/docs/concepts/records) — what you're emitting from your extension
+- [TypeScript SDK](/docs/guides/typescript-sdk) — the same record model, but from a non-iframe context
+- [Projections SDK](/docs/guides/projections) — render declarative UI inside your extension
+- [React components](/docs/guides/react-components) — component palette for extensions that want a native Syncropel look

@@ -1,1 +1,25 @@
-{"title":"Guides","pages":["task-management","routing-rules","cel-expressions","namespaces","federation","consent","debugging","actors-and-adapters","agent-integration","python-sdk","backup-restore","docker-deployment","siem-integration"]}
+{
+  "title": "Guides",
+  "pages": [
+    "task-management",
+    "routing-rules",
+    "cel-expressions",
+    "namespaces",
+    "federation",
+    "consent",
+    "---Integration---",
+    "actors-and-adapters",
+    "agent-integration",
+    "debugging",
+    "---SDKs---",
+    "typescript-sdk",
+    "python-sdk",
+    "projections",
+    "react-components",
+    "extensions",
+    "---Operations---",
+    "backup-restore",
+    "docker-deployment",
+    "siem-integration"
+  ]
+}

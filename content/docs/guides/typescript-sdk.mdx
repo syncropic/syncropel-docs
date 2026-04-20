@@ -1,0 +1,239 @@
+---
+title: TypeScript SDK
+description: Integrate with Syncropel from JavaScript or TypeScript — emit records, query threads, enforce grammar, fail open on transport errors. Works in Node, Deno, Bun, Cloudflare Workers, and modern browsers.
+---
+
+## Install
+
+```bash
+npm install @syncropel/sdk
+# or: pnpm add / yarn add / bun add
+```
+
+Requires Node 18+ or any runtime with a global `fetch`. Zero native dependencies.
+
+## Hello, Syncropel
+
+Start a Syncropel daemon locally (`spl serve --daemon`), then:
+
+```typescript
+import { Client, Identity, Ref } from "@syncropel/sdk";
+
+const client = new Client({
+  endpoint: "http://localhost:9100",
+  identity: Identity.static("did:example:my-app"),
+});
+
+const result = await client.emit({
+  act: "PUT",
+  kind: "music.catalog.track",
+  body: { title: "Glow", artists: ["Zonke"] },
+  refs: [Ref.musicTrack({ isrc: "USJI19810404" })],
+  thread: "th_library",
+});
+
+console.log(result.success, result.recordId);
+```
+
+One call validates the `body.kind` grammar, builds the 8-field record envelope, retries on transient 5xx and network errors, and resolves cleanly on transport failures — so a flaky network never crashes your handler.
+
+## What you get
+
+- **Universal runtime** — Node, Deno, Bun, Cloudflare Workers, browsers. Uses platform `fetch`.
+- **Async client** — `emit`, `query`, `queryThread`, `intend`, `fulfill`, plus reserved-kind helpers
+- **Grammar enforcement** — `body.kind` validated client-side before any network call
+- **Canonical references** — 11 built-in constructors for cross-publisher correlation
+- **Fail-open transport** — every emit returns a result; transport errors never raise
+- **Identity-aware** — records carry the configured DID
+- **`MockKernel`** — in-memory fake at `@syncropel/sdk/testing` for adapter unit tests
+- **Companion types** — pair with [`@syncropel/projections`](/docs/guides/projections) when you're working with rendered document schemas
+
+## Core API
+
+### Client
+
+| Method | Purpose |
+|---|---|
+| `emit(opts)` | Primary emit. Validates, envelopes, retries on transient errors. Returns `EmitResult`. Never raises on transport failures. |
+| `intend(opts)` | Open a thread with an `INTEND` record. Generates a thread id if none supplied. |
+| `fulfill(opts)` | Close a thread with a `KNOW` record. `fulfills` accepts one record id or an array. |
+| `queryThread(opts)` | All records in a thread. Fail-open (returns `[]` on transport error). |
+| `query(opts)` | Filtered records by kind/actor/thread. Fail-open. |
+| `health()` | Server health probe. Fail-open. |
+| `close()` | No-op today (kept for API stability); reserved for pooled-client variants. |
+
+**Constructor options (`ClientOptions`):**
+
+```typescript
+new Client({
+  endpoint?: string,              // default: http://localhost:9100
+  identity: Identity,             // required
+  timeoutMs?: number,             // per-request timeout
+  maxRetries?: number,            // transient 5xx/network retry count
+  backoffMs?: number,             // base backoff between retries
+  onEmit?: (result) => void,      // observation hook (fires after every emit)
+  apiKey?: string,                // bearer token for authenticated daemons
+  fetch?: typeof fetch,           // custom transport (use for testing)
+});
+```
+
+### Identity
+
+```typescript
+Identity.static("did:example:my-app")    // Available today
+Identity.key(pathOrBytes)                 // Planned — raises if called
+Identity.federated(...)                   // Planned — raises if called
+```
+
+### Reserved-kind helpers
+
+For records that participate in the protocol's coherence story:
+
+```typescript
+await client.emitCorrection({
+  corrects: [recordId],
+  revisedFields: { title: "Glow (Remastered)" },
+  reason: "updated metadata",
+  thread: "th_library",
+});
+
+await client.emitErasure({
+  erases: [recordId],
+  reason: "GDPR request",
+  thread: "th_library",
+});
+
+await client.emitAlias({
+  oldKind: "music.song",
+  newKind: "music.catalog.track",
+  reason: "grammar migration",
+  thread: "th_library",
+});
+
+await client.emitScopeTransfer({
+  scope: "music.catalog",
+  fromPublisher: "did:web:old-label.example.com",
+  toPublisher: "did:web:new-label.example.com",
+  reason: "catalog transfer",
+  thread: "th_library",
+});
+
+await client.emitScopeClaim({
+  scope: "music.catalog",
+  governancePolicy: { versioning: "semver" },
+  thread: "th_library",
+});
+```
+
+### Canonical references (`Ref`)
+
+Canonical refs let records about the same real-world entity correlate across apps:
+
+```typescript
+Ref.musicTrack({ isrc: "USJI19810404" })            // → @music.track
+Ref.codeFile({ repo: "syncropic/syncropel-core",
+               path: "crates/spl/src/main.rs" })    // → @code.file
+Ref.opsIncident({ pagerduty: "ABC123" })            // → @ops.incident
+Ref.calEvent({ uid: "abc@google.com" })             // → @cal.event
+Ref.socialPerson({ email: "alice@example.com" })    // → @social.person
+Ref.mediaPhoto({ sha256: "..." })                   // → @media.photo
+Ref.mediaVideo({ youtube: "abc123" })               // → @media.video
+Ref.docText({ doi: "10.1234/example" })             // → @doc.text
+Ref.finTransaction({ stripe: "ch_abc123" })         // → @fin.transaction
+Ref.researchPaper({ arxiv: "2401.12345" })          // → @research.paper
+Ref.coreThread({ id: "th_abc123" })                 // → @core.thread
+```
+
+### Types
+
+```typescript
+type ActType = "GET" | "PUT" | "CALL" | "MAP" | "INTEND" | "DO" | "KNOW" | "LEARN";
+type DataType = "SCALAR" | "FORMULA" | "DISTRIBUTION" | "REFERENCE" | "MORPHISM" | "VOID";
+
+interface CanonicalRef { kind: string; id: string; }
+
+interface EmitResult {
+  success: boolean;
+  recordId?: string;
+  clock?: number;
+  error?: string;
+  retried: number;
+  kind: string;
+  act: string;
+  thread: string;
+}
+```
+
+## Authenticating to a remote daemon
+
+When the Syncropel daemon has bearer-token auth enabled (v0.15+), pass the token via `apiKey`:
+
+```typescript
+const client = new Client({
+  endpoint: "https://your-host.example.com:9100",
+  identity: Identity.static("did:example:my-app"),
+  apiKey: process.env.SPL_TOKEN,
+});
+```
+
+The client sends `Authorization: Bearer <token>` on every outbound request. See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint the token.
+
+## Testing without a daemon
+
+Use `MockKernel` to write unit tests against the SDK interface without running `spl serve`:
+
+```typescript
+import { Client, Identity, Ref } from "@syncropel/sdk";
+import { MockKernel } from "@syncropel/sdk/testing";
+
+test("my adapter emits a track", async () => {
+  const kernel = new MockKernel();
+  const client = new Client({
+    endpoint: "http://mock",
+    identity: Identity.static("did:example:test"),
+    fetch: kernel.fetch,
+  });
+
+  await myAdapter(client);
+
+  const tracks = kernel.recordsByKind("music.catalog.track");
+  expect(tracks).toHaveLength(1);
+  expect(tracks[0].body.title).toBe("Glow");
+});
+```
+
+Useful `MockKernel` helpers: `recordsIn(thread)`, `recordsByKind(kind)`, `recordsByActor(did)`, `count()`, `clear()`, `failNextPostCall(n)`, `failNextGetCall(n)` (for transport-failure testing).
+
+## Running in Cloudflare Workers
+
+Because the SDK uses global `fetch`, it runs unmodified in Workers. Pass the Worker's environment bindings explicitly if you're using them:
+
+```typescript
+export default {
+  async fetch(request: Request, env: Env) {
+    const client = new Client({
+      endpoint: env.SYNCROPEL_ENDPOINT,
+      identity: Identity.static(env.APP_DID),
+      apiKey: env.SPL_TOKEN,
+    });
+
+    await client.emit({
+      act: "KNOW",
+      kind: "ops.request.observed",
+      body: { path: new URL(request.url).pathname },
+      thread: "th_ops",
+    });
+
+    return new Response("ok");
+  },
+};
+```
+
+## What's next
+
+- [Records concept](/docs/concepts/records) — the 8-field envelope and why it's content-addressed
+- [Threads concept](/docs/concepts/threads) — how records group into workflows
+- [Projections SDK](/docs/guides/projections) — schema + validators for rendered documents you emit or consume
+- [React components](/docs/guides/react-components) — UI atoms that render projection documents
+- [Python SDK](/docs/guides/python-sdk) — the equivalent package for Python code
+- [Authentication & Service Accounts](/docs/operate/keyring) — securing the daemon your code talks to
