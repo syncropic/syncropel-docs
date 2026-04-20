@@ -1,17 +1,17 @@
 ---
-title: Exposing spl serve securely
-description: Enable bearer-token authentication, create service accounts, pair devices, and manage token lifecycle. Covers the substrate shipped in v0.15 "The Keyring" and when you need it.
+title: Authentication & Service Accounts
+description: Enable bearer-token authentication, create service accounts, pair devices, and manage token lifecycle. Covers the authentication substrate shipped in v0.15 and when you need it.
 ---
 
 ## TL;DR
 
 - On a **single-user laptop** running `spl serve --daemon` with localhost-only access: **do nothing**. v0.15 preserves v0.14 behavior. Everything keeps working.
-- On a **shared server / cloud VM / Tailscale-exposed daemon**: enable bearer-token auth. Five steps in [Quick-start](#3-quick-start-enabling-auth-on-a-tailscale-exposed-daemon) below.
+- On **any remote or shared host** (cloud VM, private network, reverse proxy, tunnel): enable bearer-token auth. Five steps in [Quick-start](#3-quick-start-enabling-auth-on-a-remote-host) below.
 - On the **default-secure path** (opt-in today, kernel default in v0.16): create a service account, mint a token, store it, enable enforcement.
 
 ## 1. What changed in v0.15
 
-Before v0.15, `spl serve` accepted every HTTP request without authentication. The `X-Syncropel-Actor` header was trusted verbatim — any caller could claim any DID identity and POST records. That was tolerable on a single-user laptop ("if you can reach localhost, you own it"). It was catastrophic the moment the daemon was reachable from any other machine — over LAN, Tailscale, Cloudflare Tunnel, a reverse proxy, or an accidentally-bound `0.0.0.0` interface.
+Before v0.15, `spl serve` accepted every HTTP request without authentication. The `X-Syncropel-Actor` header was trusted verbatim — any caller could claim any DID identity and POST records. That was tolerable on a single-user laptop ("if you can reach localhost, you own it"). It was catastrophic the moment the daemon was reachable from any other machine — over LAN, a private network, a tunnel, a reverse proxy, or an accidentally-bound `0.0.0.0` interface.
 
 v0.15 ships the substrate to fix this:
 
@@ -22,7 +22,7 @@ v0.15 ships the substrate to fix this:
 - **A privileged bootstrap endpoint** lets operators create the first SA on a fresh install without needing an existing token.
 - **A `spl pair` command + QR rendering** makes phone pairing a one-command flow.
 
-The kernel-level enforcement default stays `auth.required = false` in v0.15 — the substrate ships, but enforcement is opt-in. This is because the CLI does not yet auto-inject bearer tokens on outgoing requests (tracked as SKL-0315 for v0.16). Flipping the default without client-side plumbing would silently break every existing `spl task` / `spl intend` workflow on upgrade. **v0.16 "Default-Secure" closes that loop.**
+The kernel-level enforcement default stays `auth.required = false` in v0.15 — the substrate ships, but enforcement is opt-in. This is because the CLI does not yet auto-inject bearer tokens on outgoing requests (coming in v0.16). Flipping the default without client-side plumbing would silently break every existing `spl task` / `spl intend` workflow on upgrade. **v0.16 closes that loop.**
 
 ## 2. The scope model
 
@@ -38,11 +38,11 @@ Capabilities are a closed enum (seven scopes). Tokens carry a snapshot of the SA
 | `config:write` | `POST /v1/config/*` |
 | `admin` | Everything incl. service-account + token mutations |
 
-Use the narrowest scope that covers the use case. A phone client emitting `cmv.dj.play` records needs `records:write`. A Grafana dashboard that only reads metrics needs `records:read`. A federation peer needs `federation:manage`.
+Use the narrowest scope that covers the use case. A phone client emitting records needs `records:write`. A Grafana dashboard that only reads metrics needs `records:read`. A federation peer needs `federation:manage`.
 
-## 3. Quick-start: enabling auth on a Tailscale-exposed daemon
+## 3. Quick-start: enabling auth on a remote host
 
-Assume you have `spl serve --daemon` running on `localhost:9100`, and you've exposed it to your phone via Tailscale Serve at `https://laptop.tail-XXXX.ts.net:9100`. Starting from v0.15 defaults (auth off).
+Assume you have `spl serve --daemon` running on `localhost:9100`, and you've exposed it to another device at `https://your-host.example.com:9100` (via reverse proxy, private network, or tunnel of your choice). Starting from v0.15 defaults (auth off).
 
 ### 3.1 Bootstrap the first service account
 
@@ -97,7 +97,7 @@ curl -v http://localhost:9100/v1/records \
 
 ### 3.5 CLI usage until v0.16
 
-Until SKL-0315 ships (v0.16), the `spl` CLI does not auto-inject the bearer token. Your choices:
+Until v0.16 ships, the `spl` CLI does not auto-inject the bearer token. Your choices:
 
 - Use `curl -H "Authorization: Bearer $SPL_TOKEN"` directly for HTTP calls
 - Run `spl serve --insecure-localhost` on localhost for CLI workflows (the daemon force-binds `127.0.0.1` and disables enforcement — safe for single-user machines)
@@ -110,7 +110,7 @@ Once auth is on, you want a simpler flow than dictating a 50-char token over the
 ```bash
 spl pair \
   --device "iPhone 17" \
-  --url "https://laptop.tail-XXXX.ts.net:9100" \
+  --url "https://your-host.example.com:9100" \
   --scopes records:write,records:read
 ```
 
@@ -118,9 +118,9 @@ The command creates a dedicated service account, mints a token, and renders both
 
 **Choose `--url` carefully.** It's the URL the phone will call — not your daemon's `localhost:9100`. In order of typical preference:
 
-- Tailscale: `https://laptop.tail-XXXX.ts.net:9100` (works from anywhere the phone is Tailnet-joined)
+- Private network / VPN: `https://your-host.example.com:9100` (works from anywhere the phone is on that network)
 - LAN: `http://192.168.1.50:9100` (works on home Wi-Fi; breaks when away)
-- Hosted: `https://syncropel.com/api/<your-did>` (future, after ADR-029)
+- Hosted: `https://syncropel.com/api/<your-did>` (future)
 
 One pairing per device. Revoke via `spl service-account revoke <sa_id>` if the phone is lost.
 
@@ -206,14 +206,14 @@ Someone (possibly you, possibly a previous admin) already created an SA in this 
 
 ### `spl task list` breaks after enabling auth
 
-This is expected until SKL-0315 lands in v0.16. Workarounds:
+This is expected until v0.16 lands. Workarounds:
 
 - Use `spl serve --insecure-localhost` on the local daemon for CLI work
 - Or disable auth locally by emitting a `{"topic":"auth_required","enabled":false}` LEARN record and restarting
 
 ## 8. Federation + auth
 
-Federation between two `spl serve` instances uses bearer tokens at the HTTP boundary and Ed25519 signatures at the record boundary (ADR-027 + ADR-028 + ADR-035 D10).
+Federation between two `spl serve` instances uses bearer tokens at the HTTP boundary and Ed25519 signatures at the record boundary. Two defense layers compose: even a correctly-authenticated HTTP request is still bound to a cryptographically-verified DID author at the record level.
 
 When establishing a federation pair, create a dedicated SA on each side:
 
@@ -235,7 +235,8 @@ Exchange the tokens securely — these federate authority. Each side stores the 
 
 ## 9. Further reading
 
-- **ADR-035** — [Bearer-token authentication + service account model](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-035-bearer-token-authentication.md) — full decision rationale, 14 NORMATIVE decisions, federation composition, migration path to v0.16
-- **ADR-027** (federation transport), **ADR-028** (federated identity), **ADR-030** (persistent sync registry) — context for the federation + bearer composition
-- **ADR-034** (body.kind naming convention) — the grammar that service accounts, tokens, and revocations conform to
-- `spl service-account --help`, `spl token --help`, `spl pair --help` — full CLI reference
+- [CLI reference — `spl service-account`, `spl token`, `spl pair`](/docs/reference/cli#authentication-v0150)
+- [HTTP API reference — authentication endpoints](/docs/reference/api#authentication)
+- [Configuration reference — auth settings](/docs/reference/configuration#authentication)
+- [Federation guide](/docs/guides/federation) — how bearer tokens compose with Ed25519 signatures for peer-to-peer sync
+- `spl service-account --help`, `spl token --help`, `spl pair --help` — inline CLI reference

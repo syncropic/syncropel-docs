@@ -24,7 +24,8 @@ Step-by-step learning — follow along from start to finish.
 | [Your First Task](/docs/tutorials/first-task) | Create, complete, and see trust grow |
 | [Working with Threads](/docs/tutorials/first-thread) | Open, fork, and close coordinated workflows |
 | [Your First Multi-Namespace Setup](/docs/tutorials/multi-namespace) | Set up two isolated environments under one ORG with the 5-level hierarchy |
-| [Parallel Dev: Monday Morning Walkthrough](/docs/tutorials/parallel-dev) | start a 3-instance fleet, fan out a task, handle failure with kill switch, watch the barrier join |
+| [Your First Fan-Out](/docs/tutorials/first-fanout) | 5-minute version: boot a fleet, fan out a task, watch the barrier join |
+| [Parallel Dev: Monday Morning Walkthrough](/docs/tutorials/parallel-dev) | Start a 3-instance fleet, fan out a task, handle failure with kill switch, watch the barrier join |
 
 ## Concepts
 
@@ -38,6 +39,7 @@ Understand how Syncropel works under the hood.
 | [Trust](/docs/concepts/trust) | Evidence-based reputation with the dial |
 | [Patterns](/docs/concepts/patterns) | Proven workflows that replay automatically |
 | [Namespaces](/docs/concepts/namespaces) | 5-level hierarchy for tenancy and policy isolation |
+| [Federation](/docs/concepts/federation) | How two instances sync records with consent and signatures |
 | [The Engine](/docs/concepts/engine) | Four loops from ingest to learning |
 
 ## Guides
@@ -50,8 +52,11 @@ Solve specific problems — task-oriented, practical.
 | [Routing Rules](/docs/guides/routing-rules) | Control how work flows to actors |
 | [CEL Expressions](/docs/guides/cel-expressions) | Author rules for triggers, routing, fold, health, AITL, permissions |
 | [Namespaces](/docs/guides/namespaces) | Set up multi-tenant scoping with the 5-level hierarchy |
+| [Federation](/docs/guides/federation) | Pair two instances and sync records across the boundary |
+| [Consent Management](/docs/guides/consent) | Control what crosses namespace boundaries |
 | [Actors & Adapters](/docs/guides/actors-and-adapters) | Register participants and connect them |
 | [Agent Integration](/docs/guides/agent-integration) | Connect AI agents to dispatch and trust |
+| [Python SDK](/docs/guides/python-sdk) | Emit records and query threads from Python |
 | [Backup & Recovery](/docs/guides/backup-restore) | Protect your data and recover safely |
 | [Docker Deployment](/docs/guides/docker-deployment) | Multi-stage image, compose topology, smoke test |
 | [Debugging Syncropel](/docs/guides/debugging) | When something doesn't work — doctor → status → debug replay → audit export → log |
@@ -64,7 +69,8 @@ Day-2 operations for production instances.
 | Page | Description |
 |---|---|
 | [Operator Runbook](/docs/operate/runbook) | Daemon lifecycle, recovery from corruption, backup discipline, in-place upgrades |
-| [Fleet Benchmarking](/docs/operate/fleet-benchmarking) | measure your own fleet's parallel speedup honestly, pre-committed pass criteria, reporting template |
+| [Authentication & Service Accounts](/docs/operate/keyring) | Enable bearer-token auth, create service accounts, pair devices, rotate and revoke tokens |
+| [Fleet Benchmarking](/docs/operate/fleet-benchmarking) | Measure your own fleet's parallel speedup honestly, pre-committed pass criteria, reporting template |
 
 ## Reference
 

@@ -253,7 +253,7 @@ parent.body.subtasks.size()   // total subtask count
 spl config add-trigger \
   --name on-approval \
   --expression 'record.act == "KNOW" && record.body.verdict == "accept"' \
-  --target did:sync:agent:director
+  --target did:sync:agent:reviewer
 ```
 
 ### Routing Rule by Domain

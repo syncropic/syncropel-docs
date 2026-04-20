@@ -91,7 +91,7 @@ The instance key is one of:
 
 1. `instance-<did-tail>` if a content-addressed instance DID is bootstrapped.
 2. `home-<short-hash>` if `SYNCROPEL_HOME` is set but no DID exists yet.
-3. The legacy single path `~/.local/share/syncropel/backups/hub.db.bak` for the default instance.
+3. The default single path `~/.local/share/syncropel/backups/hub.db.bak` for the default instance.
 
 ### What the daemon does NOT do — and the trap to avoid
 
@@ -139,7 +139,7 @@ The record log IS the truth. Everything else is a fold over it. As long as `hub.
 ### What needs separate attention
 
 - **`~/.syncro/secrets/`**: API keys (Anthropic, OpenAI). Not in the record log. If you lose this, you lose your provider keys — back them up to a password manager or secure vault.
-- **`~/.syncro-data/`** (legacy): task content files and aliases. Used by the Python CLI; the Rust kernel stores all this in records. Only matters if you've been running both.
+- **`~/.syncro-data/`** (optional): task content files and aliases used by earlier CLI versions. The current Rust kernel stores all this in records. Only matters if you've been running an older CLI alongside.
 
 ## Recovery from corruption or data loss
 
@@ -262,7 +262,7 @@ spl serve --daemon
 
 ### `spl task done` returns "uncommitted changes"
 
-The dev evaluation gate refuses to mark a task complete when the working tree has uncommitted changes — it's protecting against attributing wrong commits to the task. Either commit your work first, or use `--force` if you're sure (e.g. for triage of pre-existing tasks).
+The task completion gate refuses to mark a task complete when the working tree has uncommitted changes — it's protecting against attributing wrong commits to the task. Either commit your work first, or use `--force` if you're sure (e.g. for triage of pre-existing tasks).
 
 ### Health check returning non-200 even though the daemon is up
 
@@ -313,9 +313,9 @@ spl fleet list
 
 ```text
   DID                                      ENDPOINT                  STATUS   VERSION  UPTIME     HEALTH
-  did:sync:instance:923a4e6d10646e27       http://127.0.0.1:9201     live     0.11.0   0s         healthy
-  did:sync:instance:dfe40ff4272ad900       http://127.0.0.1:9202     live     0.11.0   0s         healthy
-  did:sync:instance:e6f09984f9ccd634       http://127.0.0.1:9100     live     0.11.0   0s         healthy
+  did:sync:instance:923a4e6d10646e27       http://127.0.0.1:9201     live     0.15.0   0s         healthy
+  did:sync:instance:dfe40ff4272ad900       http://127.0.0.1:9202     live     0.15.0   0s         healthy
+  did:sync:instance:e6f09984f9ccd634       http://127.0.0.1:9100     live     0.15.0   0s         healthy
 
   3 live · 0 stale · 0 archived
 ```

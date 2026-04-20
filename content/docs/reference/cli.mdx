@@ -18,6 +18,7 @@ All commands support:
 ```bash
 spl serve [--daemon] [--port 9100] [--memory] [--echo] [--store sqlite:///path]
 spl serve --stop
+spl serve --insecure-localhost
 spl status
 spl version
 ```
@@ -29,6 +30,7 @@ spl version
 | `serve --memory` | Use ephemeral in-memory store (for development) |
 | `serve --echo` | Echo mode — no AI provider needed |
 | `serve --stop` | Stop the background daemon |
+| `serve --insecure-localhost` | Force-bind to `127.0.0.1` and disable auth enforcement (recovery only; WARN-logged) |
 | `status` | Show server health, uptime, record count |
 | `version` | Show version |
 
@@ -364,6 +366,89 @@ spl config permissions-unlock [--force]    # Unlock from permission lockout
 `permissions-unlock` writes a `permissions_enabled=false` LEARN record directly to the SQLite store, bypassing the HTTP middleware that would otherwise deny the disable (the classic lockout trap). Refuses to run while the daemon is up unless `--force` is passed — you still need to restart the daemon for the change to take effect. Only sqlite stores are supported.
 
 See [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the pre-flight check that prevents the trap from firing in the first place.
+
+## Authentication (v0.15+)
+
+Service accounts, bearer tokens, and device pairing. See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full story — when to use each, security model, federation composition.
+
+### Service accounts
+
+```bash
+spl service-account create --name "<label>" [--scopes <csv>] [--actors <csv>] [--with-token] [--env-tag <tag>] [--namespace <ns>] [--bootstrap]
+spl service-account list [--namespace <ns>]
+spl service-account describe <sa_id> [--namespace <ns>]
+spl service-account revoke <sa_id> [--reason "<text>"] [--namespace <ns>]
+```
+
+| Flag | Applies to | Description |
+|---|---|---|
+| `--name <label>` | `create` | Human-readable label (required) |
+| `--scopes <csv>` | `create` | Capability scopes (default `records:read,records:write`). Valid: `records:read`, `records:write`, `threads:write`, `federation:manage`, `config:read`, `config:write`, `admin` |
+| `--actors <csv>` | `create` | DIDs allowed to claim this SA via `X-Syncropel-Actor`. Empty ⇒ SA derives its own DID |
+| `--with-token` | `create` | Mint an initial bearer token atomically with the SA |
+| `--env-tag <tag>` | `create` | Env tag on the minted token (default `prod`). Only meaningful with `--with-token` |
+| `--bootstrap` | `create` | Use the privileged bootstrap endpoint (no auth required). One-shot per namespace — closes after first SA exists |
+| `--reason "<text>"` | `revoke` | Revocation reason recorded in the audit trail |
+| `--namespace <ns>` | all | Namespace scope (default `default`) |
+
+**Plaintext bearer tokens are printed once to stdout only.** They never appear in `--json` output. Save the token immediately on creation; you cannot recover it later (rotate to replace).
+
+### Tokens
+
+```bash
+spl token create --sa <sa_id> [--env-tag <tag>] [--namespace <ns>]
+spl token list [--sa <sa_id>] [--namespace <ns>]
+spl token info <bearer_token>
+spl token rotate <sa_id> [--env-tag <tag>] [--reason "<text>"] [--namespace <ns>]
+spl token revoke --sa <sa_id> --token-id <token_id> [--reason "<text>"] [--namespace <ns>]
+```
+
+| Command | Description |
+|---|---|
+| `create` | Mint a new bearer token for an existing SA. Prints plaintext token once |
+| `list` | List tokens (all, or filtered by `--sa`). Shows status `active` or `REVOKED` |
+| `info` | Parse a token client-side — no network. Reports env_tag, sa_id, token_id (SHA-256 of secret) |
+| `rotate` | Mint a fresh token FIRST, then revoke old ones. Safe against partial failure |
+| `revoke` | Revoke a single token. SA and its other tokens keep working |
+
+### Device pairing
+
+```bash
+spl pair --device "<label>" --url "<remote_url>" [--scopes <csv>] [--namespace <ns>] [--env-tag <tag>] [--actors <csv>]
+```
+
+Creates a dedicated service account, mints a token, and renders both as a QR code in the terminal (plus a plain-text fallback). Used to connect phones, browsers, and other devices to a `spl serve` daemon.
+
+| Flag | Description |
+|---|---|
+| `--device "<label>"` | Device name (e.g. `"iPhone 17"`, `"browser-chrome"`) — required |
+| `--url "<remote_url>"` | URL the device will call — required. Must be reachable from the device |
+| `--scopes <csv>` | Token scopes (default `records:read,records:write`) |
+| `--env-tag <tag>` | Env tag on the token (default `prod`) |
+| `--namespace <ns>` | Namespace (default `default`) |
+| `--actors <csv>` | Allowed claimable DIDs (empty ⇒ SA derives its own DID) |
+
+Examples:
+
+```bash
+# Bootstrap the first service account on a fresh install
+spl service-account create --bootstrap --name "First admin" --scopes admin --with-token
+
+# Mint a read-only token for a dashboard
+spl service-account create --name "Grafana" --scopes records:read --with-token
+
+# Pair a phone
+spl pair --device "iPhone" --url "https://your-host.example.com:9100" --scopes records:write
+
+# Rotate a token (device stays connected; old token killed last)
+spl token rotate sa_abc123def456ghi7
+
+# Revoke just the lost-phone token
+spl token revoke --sa sa_abc123def456ghi7 --token-id 7a2936eccf...
+
+# Nuke the whole service account
+spl service-account revoke sa_abc123def456ghi7 --reason "laptop stolen"
+```
 
 ## Other
 

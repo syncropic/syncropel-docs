@@ -119,7 +119,7 @@ The arrow (`→`) marks records that caused a status transition. The yellow stat
 - **clock 2**: dev claimed completion → transition to `review`
 - **clock 3**: dev claimed completion AGAIN → no transition (still review)
 
-Now you can see why the task isn't approved: there's no KNOW record from a *different actor* with a `verdict` field. The `spl task done` from dev moved the task to review, but no evaluator (director or another distinct actor) has approved it yet. The fix: have a director run `spl task approve SKL-0042`.
+Now you can see why the task isn't approved: there's no KNOW record from a *different actor* with a `verdict` field. The `spl task done` from dev moved the task to review, but no evaluator has approved it yet. The fix: have a distinct reviewer actor run `spl task approve SKL-0042`.
 
 This kind of investigation used to require reading raw record JSON and tracing the fold logic by hand. Now it's one command.
 

@@ -116,10 +116,10 @@ Fan-out speedup report: th_abc123...
   Weak estimate (single-run, sanity check only):
     serial estimate:   2s  (sum of subtask walls)
     estimated speedup: 2.00×
-    caveat:            research/09 §1 option C — useful as a sanity check,
-                       not a methodology-compliant measurement. For release-
-                       gate drills, pass a matched serial baseline via
-                       `--vs-serial <thread>` (path B, concurrent matched).
+    caveat:            summing subtask walls is a sanity check, not a
+                       rigorous measurement. For a clean comparison, run
+                       the same workload serially and pass the resulting
+                       thread via `--vs-serial <thread>`.
 ```
 
 In echo mode every subtask takes ~1 second, so the ratio is trivial. In a real fan-out with non-trivial subtasks, this is where you see whether parallelism is buying you anything.

@@ -14,11 +14,13 @@ Every actor has a DID (Decentralized Identifier):
 ```
 did:sync:user:alice          — a human user
 did:sync:agent:dev           — an AI development agent
-did:sync:sa:github-ci        — a service account
+did:sync:system:sa_abc123    — a service account (bearer-token authenticated)
 did:sync:system:engine       — a system component
 ```
 
 The DID is permanent — it doesn't change when the underlying model, tool, or person changes. This means trust earned by an agent carries forward even if the AI model is upgraded.
+
+**Service accounts** are a special actor kind used for machines and devices calling the HTTP API — phones, CI pipelines, webhooks, federation peers. They authenticate via bearer tokens minted by `spl service-account create` (v0.15+). See [Authentication & Service Accounts](/docs/operate/keyring) for the full model.
 
 ## Three Layers
 

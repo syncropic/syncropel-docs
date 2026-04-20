@@ -11,6 +11,24 @@ http://localhost:9100
 
 The server listens on port 9100 by default. All endpoints return JSON.
 
+## Authentication
+
+When `auth.required = true` (default in v0.16+, opt-in in v0.15), every `/v1/*` endpoint requires a bearer token:
+
+```
+Authorization: Bearer spl_<env>_<sa_id>_<secret>
+```
+
+Tokens are minted against service accounts with a closed scope list. The middleware validates the token, checks the requested endpoint's required scope, and verifies the claimed actor DID (`X-Syncropel-Actor`) is in the SA's allowed-actors list.
+
+Exempt routes (unauthenticated even when auth is enforced):
+
+- `GET /health`
+- `POST /v1/bootstrap/service-account` (one-shot per namespace)
+- `GET /.well-known/syncropel`
+
+For the full model — scopes, token format, rotation, federation composition — see the [Authentication & Service Accounts guide](/docs/operate/keyring). Endpoints for managing service accounts and tokens are documented in the [Service accounts](#service-accounts) section below.
+
 ## Health
 
 | Method | Path | Description |
@@ -294,6 +312,133 @@ The daemon advertises itself on `_syncropel._tcp.local` when `[sync.discovery] m
 | GET | `/directory/handle/{handle}` | Resolve a human-readable handle to its did:sync |
 
 Gated by `config.directory_enabled` — off by default. A daemon can act as a did:sync directory provider; most installs don't need to.
+
+## Service accounts
+
+| Method | Path | Scope | Description |
+|---|---|---|---|
+| POST | `/v1/bootstrap/service-account` | — (unauthenticated) | Create the first SA on a fresh install. One-shot per namespace |
+| GET | `/v1/service-accounts` | `admin` | List service accounts |
+| POST | `/v1/service-accounts` | `admin` | Create a new service account + token |
+| DELETE | `/v1/service-accounts/{id}` | `admin` | Revoke a service account (invalidates all its tokens) |
+| POST | `/v1/service-accounts/{id}/rotate-key` | `admin` | Mint a new token for an SA and revoke previous tokens |
+
+### Bootstrap the first service account
+
+`POST /v1/bootstrap/service-account` is a one-shot, unauthenticated endpoint used to create the first SA on a fresh daemon. Once any SA exists in the target namespace, the endpoint returns `409 BOOTSTRAP_CLOSED` and you must use the authenticated `POST /v1/service-accounts` path instead.
+
+```bash
+curl -X POST http://localhost:9100/v1/bootstrap/service-account \
+  -H "Content-Type: application/json" \
+  -d '{
+    "service_account_id": "sa_abc123def456ghi7",
+    "display_name": "First admin",
+    "scopes": ["admin"],
+    "namespace": "default",
+    "with_token": {
+      "token_id": "a3f9e7d1c8b2h6j4k5m7n9p1q3r5t7v9",
+      "env_tag": "prod",
+      "created_at": "2026-04-20T12:30:00Z"
+    }
+  }'
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "object": "bootstrap_result",
+  "service_account_id": "sa_abc123def456ghi7",
+  "sa_record_id": "7a2936eccf6b...",
+  "namespace": "default",
+  "token_id": "a3f9e7d1c8b2...",
+  "token_record_id": "151439fe2972..."
+}
+```
+
+The client is responsible for generating `service_account_id` + `token_id`. The CLI (`spl service-account create --bootstrap --with-token`) handles this automatically.
+
+### List service accounts
+
+```bash
+curl -H "Authorization: Bearer $SPL_TOKEN" \
+  http://localhost:9100/v1/service-accounts
+```
+
+Returns an array. `api_key` is always `null` in list responses — plaintext tokens are only disclosed at creation time.
+
+```json
+[
+  {
+    "id": "sa_abc123def456ghi7",
+    "name": "CI runner",
+    "did": "did:sync:system:sa_abc123def456ghi7",
+    "api_key": null,
+    "active": true,
+    "created_at": null
+  }
+]
+```
+
+### Create a service account + token
+
+```bash
+curl -X POST http://localhost:9100/v1/service-accounts \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Webhook integration"}'
+```
+
+Response (`201 Created`) includes the plaintext bearer token **once** — save it immediately:
+
+```json
+{
+  "id": "sa_new123...",
+  "name": "Webhook integration",
+  "did": "did:sync:system:sa_new123...",
+  "api_key": "spl_prod_sa_new123_a3f9e7d1c8b2h6j4k5m7n9p1q3r5t7v9",
+  "active": true,
+  "created_at": null
+}
+```
+
+### Revoke a service account
+
+`DELETE /v1/service-accounts/{id}` performs **per-SA revocation**: every token ever minted for the SA becomes invalid, and future token mints for the SA are blocked.
+
+```bash
+curl -X DELETE -H "Authorization: Bearer $SPL_TOKEN" \
+  http://localhost:9100/v1/service-accounts/sa_abc123def456ghi7
+```
+
+Response (`200`): `{"status": "revoked"}`.
+
+### Rotate an SA's key
+
+`POST /v1/service-accounts/{id}/rotate-key` mints a new token **first**, then revokes previous tokens. Guarantees callers don't get locked out on partial failure.
+
+```bash
+curl -X POST -H "Authorization: Bearer $SPL_TOKEN" \
+  http://localhost:9100/v1/service-accounts/sa_abc123def456ghi7/rotate-key
+```
+
+Response (`200`):
+
+```json
+{
+  "id": "sa_abc123def456ghi7",
+  "api_key": "spl_prod_sa_abc123_new_secret_here"
+}
+```
+
+### Error codes
+
+| Code | Name | Meaning |
+|---|---|---|
+| `401` | `AUTH_REQUIRED` | No bearer token sent, or token is invalid / revoked |
+| `403` | `SCOPE_FORBIDDEN` | Token is valid but lacks the required scope for this endpoint |
+| `403` | `DID_CLAIM_DENIED` | `X-Syncropel-Actor` is not in the SA's allowed-actors list |
+| `409` | `BOOTSTRAP_CLOSED` | Bootstrap endpoint called but namespace already has an SA |
 
 ## CORS
 

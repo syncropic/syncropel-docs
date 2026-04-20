@@ -229,7 +229,7 @@ Publish **ratios, not absolutes**. Wall-clock seconds invite "but your workload 
 Possible causes to investigate:
 1. **Workloads are too small** — each subtask needs ~10+ minutes for fan-out overhead to amortize. Re-pick tasks.
 2. **Workloads are secretly coupled** — "independent" subtasks that actually hit the same file or fixture will serialize at the merge step. Look for hidden dependencies.
-3. **Coordinator is overloaded** — if the coordinator is itself doing work (running the director agent, processing triggers) while hosting the fleet, it can become a bottleneck. Move the coordinator to a dedicated instance.
+3. **Coordinator is overloaded** — if the coordinator is itself doing work (processing triggers, running approval agents) while hosting the fleet, it can become a bottleneck. Move the coordinator to a dedicated instance.
 4. **Heartbeat interval is too aggressive** — if `fleet.heartbeat_interval_secs` is 5 instead of 15, the coordinator is ingesting 3× the heartbeat traffic for no benefit at small fleet sizes.
 5. **Network latency between instances** — if the workers are on different hosts, cross-instance POST latency adds up. Local-host fleets should be within 1-2 seconds of the theoretical ceiling.
 

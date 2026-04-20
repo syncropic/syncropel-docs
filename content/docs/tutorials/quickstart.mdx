@@ -5,17 +5,33 @@ description: Install Syncropel and create your first record in under two minutes
 
 ## Install
 
-Download and install the `spl` binary:
+### Linux
 
 ```bash
 curl -sSf https://get.syncropic.com/spl | sh
 ```
 
-This installs `spl` to `~/.local/bin/`. Verify the installation:
+Installs to `~/.local/bin/spl`.
+
+### Windows (PowerShell)
+
+```powershell
+irm https://get.syncropic.com/spl.ps1 | iex
+```
+
+Installs to `%LOCALAPPDATA%\Programs\spl\spl.exe`.
+
+### macOS
+
+macOS currently requires building from source. See the [full quickstart](/docs/start#macos-build-from-source) for instructions.
+
+### Verify
 
 ```bash
 spl version
 ```
+
+You should see `spl 0.15.0 (Rust kernel)` or whatever the latest is.
 
 ## Initialize
 

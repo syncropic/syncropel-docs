@@ -9,15 +9,23 @@ A running `spl serve` daemon on your machine, your first task tracked through co
 
 This page is for **humans** who want to use Syncropel directly. If you're integrating an AI agent, see [Agent Integration](/docs/guides/agent-integration) instead.
 
-**Time**: 10 minutes. **Prerequisites**: macOS or Linux (x86_64 or aarch64). No Rust toolchain, no Docker, no API key required for this walkthrough.
+**Time**: 10 minutes. **Prerequisites**: Linux (x86_64 or aarch64) or Windows. No Rust toolchain, no Docker, no API key required for this walkthrough. macOS users need to [build from source](#macos-build-from-source) today — a prebuilt binary is coming.
 
 ## 1. Install
+
+### Linux
 
 ```bash
 curl -sSf https://get.syncropic.com/spl | sh
 ```
 
-The install script downloads the right binary for your platform from `releases.syncropic.com`, atomically moves it into `~/.local/bin/spl`, and verifies the version. If `~/.local/bin` isn't already in your `PATH`, the script will tell you what to add to your shell rc.
+### Windows (PowerShell)
+
+```powershell
+irm https://get.syncropic.com/spl.ps1 | iex
+```
+
+Both scripts download the right binary for your platform from `releases.syncropic.com`, place it in `~/.local/bin/spl` (Linux) or `%LOCALAPPDATA%\Programs\spl\spl.exe` (Windows), and verify the version. If the install location isn't already on your `PATH`, the script will tell you what to add to your shell or environment.
 
 Verify it landed:
 
@@ -25,7 +33,7 @@ Verify it landed:
 spl version
 ```
 
-You should see `spl 0.9.1 (Rust kernel)` or whatever the latest is. If not, check the install script's output for errors — it's verbose by design.
+You should see `spl 0.15.0 (Rust kernel)` or whatever the latest is. If not, check the install script's output for errors — it's verbose by design.
 
 ## 2. Initialize your environment
 
@@ -170,10 +178,30 @@ You now have a working kernel, a completed task, a trust score, and an understan
 The daemon may have failed to bind the port. Check `~/.syncro/logs/spl.log` for the error. Most common cause: another process is on `localhost:9100` (a previous daemon, or another tool).
 
 **`spl task done` complains about uncommitted changes.**
-The dev evaluation gate refuses to mark a task complete when the working tree has uncommitted git changes — it's protecting against attributing wrong commits. Either commit your work first (you don't need to push), or pass `--force` if the change is unrelated to the task.
+The task completion gate refuses to mark a task complete when the working tree has uncommitted git changes — it's protecting against attributing wrong commits. Either commit your work first (you don't need to push), or pass `--force` if the change is unrelated to the task.
 
 **`spl task approve` refuses self-evaluation.**
 Single-actor approval is gated by design — multi-user governance assumes the evaluator is someone other than the executor. The workaround for solo use is the `SPL_ACTOR=...` env var trick shown above. A future release will add a single-user mode flag.
 
 **The CLI hangs on `spl serve --stop`.**
 The daemon may have lost its PID file. Use `pgrep -af "spl serve"` to find the process, then `kill <pid>`. See the [Operator Runbook](/docs/operate/runbook#when-spl-serve---stop-says-not-running-but-the-daemon-clearly-is) for the detail.
+
+## macOS: build from source
+
+A prebuilt macOS binary is on the roadmap. Until then, build from source:
+
+```bash
+# Install Rust via rustup if you don't have it
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Clone and build
+git clone https://github.com/syncropic/syncropel-core.git
+cd syncropel-core
+cargo build --release
+
+# Install into your PATH
+cp target/release/spl ~/.local/bin/
+spl version
+```
+
+Build time is ~5-10 minutes on a modern Mac. Subsequent rebuilds are seconds via `cargo`'s incremental compilation. If Rust isn't your thing, you can also run `spl` in Docker — see the [Docker deployment guide](/docs/guides/docker-deployment).

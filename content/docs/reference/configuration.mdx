@@ -99,6 +99,44 @@ spl config set-key anthropic sk-ant-...
 spl config model claude-sonnet-4-20250514
 ```
 
+### Authentication (v0.15+)
+
+Bearer-token authentication for `spl serve` is governed by two config surfaces:
+
+**1. Server-side toggle** — a LEARN record on `th_engine_config`:
+
+```bash
+# Enable enforcement
+spl learn \
+  --thread th_engine_config \
+  --body '{"topic":"auth_required","enabled":true}' \
+  --actor did:sync:system:engine
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `topic` | string | — | Must be `"auth_required"` |
+| `enabled` | bool | `false` | When `true`, every non-exempt endpoint requires `Authorization: Bearer <token>` |
+
+Exempt routes (always unauthenticated): `GET /health`, `POST /v1/bootstrap/service-account`, `GET /.well-known/syncropel`.
+
+The daemon reloads `th_engine_config` on broadcast, so new records take effect on the next request — no restart needed.
+
+**2. CORS allow-list** — a separate LEARN record:
+
+```bash
+spl learn \
+  --thread th_engine_config \
+  --body '{"topic":"auth_cors_origins","origins":["https://your-app.example.com"]}' \
+  --actor did:sync:system:engine
+```
+
+CORS headers are sent only when `auth.required = true`. With auth off, CORS is permissive by default.
+
+**3. Escape hatch** — `spl serve --insecure-localhost` force-binds the daemon to `127.0.0.1` and disables auth enforcement, regardless of the `auth.required` setting. Used for emergency recovery when tokens are lost. A WARN log is emitted on every startup when this flag is active. **Never use in production.**
+
+See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full workflow — first-SA bootstrap, token lifecycle, federation pairing, and emergency recovery.
+
 ## Data Locations
 
 | Path | Purpose |

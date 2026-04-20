@@ -16,7 +16,7 @@ If you just want to look at what would be exported without setting up a pipeline
 | Category | What it captures | Example records |
 |---|---|---|
 | `system` | Records authored by `did:sync:system:*` actors | Engine bootstrap, intelligence proposals, trust feedback |
-| `aitl` | KNOW records with `body.verdict` (accept/reject) | Director approvals, dispatch verdicts |
+| `aitl` | KNOW records with `body.verdict` (accept/reject) | Reviewer approvals, dispatch verdicts |
 | `dispatch` | KNOW records with `body.topic == "dispatch_complete"` | Every adapter invocation outcome |
 | `governance` | Records authored by `did:sync:system:governance` | Policy decisions (when permissions are enabled) |
 
@@ -29,7 +29,7 @@ Each emitted line has the shape:
   "record": {
     "id": "151439fe29726ddc8958a70b2ce003f78d8a2a024fb0317f555376927b1ec437",
     "act": "KNOW",
-    "actor": "did:sync:agent:director",
+    "actor": "did:sync:agent:reviewer",
     "thread": "th_03f822528448c2a0439a7292df96518dd8c899436f7386d2ba88c45113fc0e6c",
     "clock": 12,
     "data_type": "SCALAR",
