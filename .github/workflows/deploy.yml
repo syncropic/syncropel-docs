@@ -10,7 +10,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, syncropel-do-vm]
     name: Lint, Build & Deploy
     permissions:
       contents: read
