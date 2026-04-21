@@ -1,0 +1,183 @@
+---
+title: Migrating to v0.16 (Default-Secure)
+description: Upgrade guide for operators moving from v0.15 to v0.16. Bearer-token authentication is now enforced by default. Three operator archetypes, recovery paths, and rollback.
+---
+
+## TL;DR
+
+- **The kernel now rejects unauthenticated requests by default.** `auth.required` flipped from `false` (v0.15) to `true` (v0.16).
+- **The CLI now reads bearer tokens automatically** — precedence: `--token` flag, `SPL_TOKEN` env, then `~/.syncro/token` file.
+- **New subcommands**: `spl token save`, `spl token unset`, `spl token show-source`.
+- **A one-command escape hatch**: `spl serve --insecure-localhost` forces 127.0.0.1 bind and disables auth. For local dev only.
+- **Downgrading to v0.15.0 is always safe** — same database schema, same record formats.
+
+Three operator archetypes below. Find the one that matches you.
+
+## Archetype A — Single-user laptop, localhost-only daemon
+
+**Who**: you run `spl serve --daemon` on one machine that nobody else reaches. The daemon binds `127.0.0.1:9100`. Your `spl task list` / `spl intend` workflow has always Just Worked.
+
+**What breaks on upgrade**: the first `spl task list` after upgrade returns:
+
+```text
+API error (401): bearer-token authentication required: missing or malformed bearer token
+
+No token configured.
+
+Recovery (pick one):
+  • First install: `spl service-account create --bootstrap --name local --with-token`, then save the printed token with `spl token save <token>`
+  • Existing install: `spl token create --sa <sa_id>`, then `spl token save <token>`
+  • Rotate if a token was compromised: `spl token rotate <sa_id>`
+  • Local dev only: restart the daemon with `spl serve --insecure-localhost` (forces 127.0.0.1 bind, disables auth)
+```
+
+### Recovery — 5 commands, one-time
+
+```bash
+# 1. Create your first service account + mint a token.
+#    The bootstrap endpoint works without a token (auth-exempt by design)
+#    precisely because no token exists yet. This flag is one-shot per
+#    namespace — once an SA exists, bootstrap closes.
+spl service-account create --bootstrap --name local --with-token
+
+# Output (the token is shown ONCE — save it before you lose it):
+#   ✓ service account created
+#     id:      sa_<crockford>
+#     TOKEN (shown once — save it now):
+#       spl_prod_sa_<crockford>_<secret>
+
+# 2. Persist the token so spl injects it automatically from here on.
+spl token save spl_prod_sa_<crockford>_<secret>
+
+# 3. Verify.
+spl token show-source   # should print "in use: ~/.syncro/token file"
+spl task list            # should succeed
+```
+
+Optional: grant your user DID to the SA so `X-Syncropel-Actor` works when you emit records as `did:sync:user:you` rather than as the SA identity:
+
+```bash
+spl service-account create --bootstrap --name local --with-token \
+    --actors did:sync:user:your-username
+```
+
+### Alternate — stay on v0.15 behavior (not recommended)
+
+If you prefer v0.15's "trust localhost, no auth" model, emit one LEARN record on `th_engine_config`:
+
+```bash
+# Opt-out: restore auth.required=false for this install.
+# The daemon reads this on every startup via the config reload path.
+curl -s -X POST http://127.0.0.1:9100/v1/records \
+    -H 'content-type: application/json' \
+    -d '{
+      "actor":"did:sync:user:your-username",
+      "act":"LEARN",
+      "body":{"topic":"auth_required","enabled":false},
+      "clock":0,
+      "thread":"th_engine_config"
+    }'
+```
+
+You can only emit this record while auth is off. If you already restarted with auth on, use `--insecure-localhost` once to get a working channel, emit the LEARN, then restart without the flag.
+
+### Alternate — ephemeral dev daemons
+
+If you spin up `spl serve --memory` daemons for testing, add `--insecure-localhost`:
+
+```bash
+spl serve --memory --insecure-localhost --port 9200
+```
+
+The flag forces 127.0.0.1 bind regardless of `--host`, so you can't accidentally expose an unauthenticated daemon to the LAN by passing `--host 0.0.0.0`.
+
+## Archetype B — Shared server with auth already enabled
+
+**Who**: you followed the [Authentication & Service Accounts guide](/docs/operate/keyring) and turned on `auth.required=true` via a config LEARN record. Your operators already have tokens.
+
+**What breaks on upgrade**: nothing. Your config record is still in the store, the reload path replays it on startup, and `auth.required=true` stays on either way. The only difference now is that a fresh install with no config record will also default to `true` — which is what the default-flip delivers.
+
+**Action required**: none.
+
+**Recommended**: verify your operators' tokens still work after the upgrade via a quick health probe:
+
+```bash
+spl thread list -o json | head
+```
+
+## Archetype C — Multi-user server without auth
+
+**Who**: you run `spl serve` on a host several operators reach (LAN, VPN), but you never turned on `auth.required`. Everyone has been emitting records under their own `X-Syncropel-Actor` header.
+
+**What breaks on upgrade**: every operator's first command returns 401 (same error as Archetype A).
+
+### C.1 Turn on auth — recommended
+
+Now is the time. See the full [Authentication & Service Accounts guide](/docs/operate/keyring) for the playbook. Short version:
+
+```bash
+# 1. Bootstrap the first SA on the server.
+spl service-account create --bootstrap --name bootstrap-admin \
+    --with-token \
+    --scopes admin \
+    --actors did:sync:user:admin
+
+# 2. For each operator, create a service account + token.
+spl service-account create --name alice \
+    --scopes records:read,records:write,threads:write \
+    --actors did:sync:user:alice
+
+spl token create --sa <alice_sa_id>
+# → prints the token — hand to Alice over a secure channel
+
+# 3. Each operator saves their token locally.
+alice$ spl token save spl_prod_sa_<alice_id>_<secret>
+
+# 4. No config change needed — auth.required=true is the v0.16 default.
+```
+
+### C.2 Explicit opt-out — stay unauthenticated (strongly discouraged)
+
+Same as Archetype A's opt-out. Emit a LEARN record with `{"topic":"auth_required","enabled":false}` and the daemon preserves v0.15 behavior.
+
+**Why this is strongly discouraged for shared hosts**: records carry `actor` fields that downstream projections trust (trust scores, judged-by chains, thread merges). An unauthenticated caller can impersonate any actor, corrupting the lineage the protocol depends on. If multiple operators reach the host, enabling auth is the correct path.
+
+## Rollback
+
+v0.15.0 runs safely against a v0.16-touched database:
+
+- Same record schema — no v0.16 migrations ran.
+- Same store backend — no file-format changes.
+- Same config LEARN records.
+- The only new artifact `spl` writes at `~/.syncro/` is a plaintext `token` file. v0.15 ignores it.
+
+Rollback:
+
+```bash
+# 1. Stop the v0.16 daemon.
+spl serve --stop
+
+# 2. Install the v0.15.0 binary.
+curl -fsSL https://get.syncropic.com/spl | sh -s -- --version 0.15.0
+
+# 3. Restart.
+spl serve --daemon
+```
+
+The only v0.16-only behavior your v0.15 daemon will NOT replicate is the `auth.required=true` default. If you had manually turned auth on via a config LEARN record, that record is still in the store and still applies — no action needed. If you relied on the v0.16 default, you're back on v0.15's "auth off" default.
+
+## Common pitfalls
+
+**`spl token save <token>` warns "token does not match the expected shape".** You pasted something that isn't `spl_<env>_<sa_id>_<secret>`. The file saves anyway (the client is permissive), but the daemon will 401 on the next request. Re-run `spl service-account create --bootstrap --with-token` or `spl token create --sa <sa_id>` and save the exact string it prints.
+
+**`spl token save` fails with "insecure permissions".** The file already exists with group-readable or world-readable bits. Fix with `chmod 600 ~/.syncro/token`, then re-run save.
+
+**401 persists after `spl token save`.** Run `spl token show-source`. If it reports `SPL_TOKEN env` as the active source but you expected the file, unset the env var (`unset SPL_TOKEN`) and retry. Env beats file per the precedence rule.
+
+**The daemon rejects a newly-minted token with "token not recognized".** The SA or token may have been revoked. `spl service-account describe <sa_id>` shows the SA's current `revoked` state; `spl token list --sa <sa_id>` shows active tokens. If the SA is revoked, mint a new one and update saved state.
+
+## See also
+
+- [Authentication & Service Accounts](/docs/operate/keyring) — the full model: scopes, bootstrap, pairing, rotation
+- [Configuration — Authentication](/docs/reference/configuration#authentication-v015) — the LEARN record format for `auth_required` and CORS
+- [CLI — Authentication](/docs/reference/cli#authentication-v015) — every `spl service-account`, `spl token`, `spl pair` flag

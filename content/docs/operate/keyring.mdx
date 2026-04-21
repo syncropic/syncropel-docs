@@ -1,28 +1,34 @@
 ---
 title: Authentication & Service Accounts
-description: Enable bearer-token authentication, create service accounts, pair devices, and manage token lifecycle. Covers the authentication substrate shipped in v0.15 and when you need it.
+description: Enable bearer-token authentication, create service accounts, pair devices, and manage token lifecycle. As of v0.16 "Default-Secure", bearer-token auth is enforced by default on every spl serve daemon.
 ---
+
+<Callout type="info">
+**v0.16 is default-secure.** As of v0.16.0, `auth.required = true` is the kernel default — every `spl serve` daemon rejects unauthenticated requests out of the box. If you're upgrading from v0.15 or earlier, see the [Migrating to v0.16 guide](/docs/migrate/v0.16) for the one-time recovery path. If you want to stay on v0.15-style "trust localhost, no auth" behavior, that guide shows the opt-out LEARN record.
+</Callout>
 
 ## TL;DR
 
-- On a **single-user laptop** running `spl serve --daemon` with localhost-only access: **do nothing**. v0.15 preserves v0.14 behavior. Everything keeps working.
-- On **any remote or shared host** (cloud VM, private network, reverse proxy, tunnel): enable bearer-token auth. Five steps in [Quick-start](#3-quick-start-enabling-auth-on-a-remote-host) below.
-- On the **default-secure path** (opt-in today, kernel default in v0.16): create a service account, mint a token, store it, enable enforcement.
+- On a **fresh v0.16 install**: bootstrap your first service account, save the token, and every `spl` command Just Works. Five-step [Quick-start](#3-quick-start-enabling-auth-on-a-remote-host) below.
+- **Upgrading from v0.15?** Read the [migration guide](/docs/migrate/v0.16) first — three operator archetypes, each with a recovery path.
+- On a **shared or remote host** (cloud VM, private network, reverse proxy, tunnel): v0.16 default-secure protects you. Nothing additional to do beyond the bootstrap above.
+- **Escape hatch for local dev**: `spl serve --insecure-localhost` forces 127.0.0.1 bind and disables auth. Never use this in production.
 
-## 1. What changed in v0.15
+## 1. What the authentication layer does
 
 Before v0.15, `spl serve` accepted every HTTP request without authentication. The `X-Syncropel-Actor` header was trusted verbatim — any caller could claim any DID identity and POST records. That was tolerable on a single-user laptop ("if you can reach localhost, you own it"). It was catastrophic the moment the daemon was reachable from any other machine — over LAN, a private network, a tunnel, a reverse proxy, or an accidentally-bound `0.0.0.0` interface.
 
-v0.15 ships the substrate to fix this:
+v0.15 and v0.16 close that hole:
 
 - **Service accounts** are first-class records with stable identifiers, DID-claim allowlists, and closed scope lists.
 - **Bearer tokens** authenticate HTTP callers. Format: `spl_<env>_<sa_id>_<secret>`. Hashed on the server; plaintext shown once on mint.
 - **A three-layer middleware pipeline** validates bearer tokens, verifies DID claims, and enforces CEL permission policies — in that order.
 - **Federation sync + discovery endpoints** require the `federation:manage` scope.
 - **A privileged bootstrap endpoint** lets operators create the first SA on a fresh install without needing an existing token.
-- **A `spl pair` command + QR rendering** makes phone pairing a one-command flow.
+- **`spl pair` + QR rendering** makes phone pairing a one-command flow.
+- **The CLI auto-injects tokens** (v0.16+) — reads from `--token` flag, `SPL_TOKEN` env, or `~/.syncro/token` file, so `spl task list` / `spl intend` / everything else Just Works once you've saved a token.
 
-The kernel-level enforcement default stays `auth.required = false` in v0.15 — the substrate ships, but enforcement is opt-in. This is because the CLI does not yet auto-inject bearer tokens on outgoing requests (coming in v0.16). Flipping the default without client-side plumbing would silently break every existing `spl task` / `spl intend` workflow on upgrade. **v0.16 closes that loop.**
+v0.15 shipped the substrate. v0.16 flipped the default so enforcement is on out of the box. If you're upgrading, the [migration guide](/docs/migrate/v0.16) walks you through the one-time recovery.
 
 ## 2. The scope model
 
@@ -95,13 +101,23 @@ curl -v http://localhost:9100/v1/records \
 # → 201 Created (or validation error on the body, but auth passed)
 ```
 
-### 3.5 CLI usage until v0.16
+### 3.5 Save the token for the CLI
 
-Until v0.16 ships, the `spl` CLI does not auto-inject the bearer token. Your choices:
+Save the token so `spl` injects it on every outbound request automatically:
 
-- Use `curl -H "Authorization: Bearer $SPL_TOKEN"` directly for HTTP calls
-- Run `spl serve --insecure-localhost` on localhost for CLI workflows (the daemon force-binds `127.0.0.1` and disables enforcement — safe for single-user machines)
-- Wait for v0.16, which reads `$SPL_TOKEN` automatically
+```bash
+spl token save spl_prod_sa_<id>_<secret>
+```
+
+This writes `~/.syncro/token` with 0600 permissions. From here on, every `spl task list`, `spl intend`, `spl thread records`, etc. sends the correct `Authorization: Bearer` header.
+
+Token discovery precedence (first non-empty wins):
+
+1. `--token <value>` — global CLI flag for single-invocation override
+2. `SPL_TOKEN` env — useful in CI and one-off shells
+3. `~/.syncro/token` — the persistent default after `spl token save`
+
+`spl token show-source` reports which source is currently in use (masked; never prints the full secret).
 
 ## 4. Pairing a phone (or any device) to the daemon
 
@@ -204,12 +220,20 @@ Look at the `scopes` field. Either mint a new token with broader scopes, or chan
 
 Someone (possibly you, possibly a previous admin) already created an SA in this namespace. Bootstrap is permanently closed once any SA exists. Use the escape hatch (`--insecure-localhost`) to authenticate and create more SAs via the regular `spl service-account create` command.
 
-### `spl task list` breaks after enabling auth
+### `spl task list` returns 401
 
-This is expected until v0.16 lands. Workarounds:
+Your CLI doesn't have a saved token yet. Run:
 
-- Use `spl serve --insecure-localhost` on the local daemon for CLI work
-- Or disable auth locally by emitting a `{"topic":"auth_required","enabled":false}` LEARN record and restarting
+```bash
+spl service-account create --bootstrap --name local --with-token  # if no SA exists
+# or:
+spl token create --sa <sa_id>                                     # if SA already exists
+
+# Then save what the previous command printed:
+spl token save spl_prod_sa_<id>_<secret>
+```
+
+Verify with `spl token show-source` — it should report `~/.syncro/token file` as the active source. If you see `SPL_TOKEN env` instead and that token is bad, `unset SPL_TOKEN` (env beats file).
 
 ## 8. Federation + auth
 
