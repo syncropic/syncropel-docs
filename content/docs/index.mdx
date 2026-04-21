@@ -1,16 +1,43 @@
 ---
 title: Syncropel Documentation
-description: Learn how to coordinate work between humans and AI agents with immutable records, evidence-based trust, and self-improving workflows.
+description: Infrastructure that learns, governs & coordinates. The coordination protocol for hybrid human-AI teams — build with immutable records, evidence-based trust, and self-improving workflows.
 ---
 
-## Get Started
+## Get started
 
 ```bash
+# Linux
 curl -sSf https://get.syncropic.com/spl | sh
+
+# Windows (PowerShell)
+irm https://get.syncropic.com/spl.ps1 | iex
+
+# Then
 spl init && spl serve --daemon
 ```
 
-Then follow the [Quickstart](/docs/start) to create your first task in 10 minutes.
+Follow the [Quickstart](/docs/start) to create your first task in 10 minutes — or jump straight to the [TypeScript SDK](/docs/guides/typescript-sdk) or [Python SDK](/docs/guides/python-sdk) if you're integrating from code.
+
+---
+
+## What a Syncropel thread looks like
+
+Every coordination event — chat, task, code change, tool call, observation, intent — becomes a record. Records group into threads. Threads produce trust. Here's a real task closing in under 15 minutes:
+
+```text
+fix-checkout-timeout              5 records · 3 actors · trust 0.92
+
+● you      INTEND  "Fix checkout timeout before launch"                14m ago
+○ agent    DO      Profiled API — connection pool saturated at 10     12m ago
+○ agent    DO      Patch applied: pool 10 → 50, deployed to staging    9m ago
+○ monitor  KNOW    p99 latency 4.2s → 180ms — 340 users unblocked      6m ago
+○ agent    LEARN   "Pool sizing must scale with replicas"              now
+                   pattern crystallized (trust 0.92)
+```
+
+The `●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and carries the actor's DID. The `LEARN` record at the end crystallizes into a reusable pattern — next time the same issue appears, the solution replays automatically.
+
+That same thread can [federate to another instance](/docs/guides/federation) with consent-gated sync, or be queried via the [TypeScript SDK](/docs/guides/typescript-sdk) / [Python SDK](/docs/guides/python-sdk) / [MCP server](/docs/operate/keyring#mcp) from any AI client.
 
 ---
 

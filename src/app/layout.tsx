@@ -19,12 +19,12 @@ export const metadata: Metadata = {
     default: 'Syncropel Docs',
   },
   description:
-    'Documentation for the Syncropel Protocol — the substrate for digital sovereignty and economic agency.',
+    'Infrastructure that learns, governs & coordinates. The coordination protocol for hybrid human-AI teams.',
   metadataBase: new URL('https://docs.syncropel.com'),
   openGraph: {
     title: 'Syncropel Docs',
     description:
-      'Documentation for the Syncropel Protocol — the substrate for digital sovereignty and economic agency.',
+      'Infrastructure that learns, governs & coordinates. The coordination protocol for hybrid human-AI teams.',
     siteName: 'Syncropel Docs',
   },
   twitter: {
