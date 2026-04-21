@@ -1,10 +1,10 @@
 ---
 title: AI Clients — three integration patterns
-description: Connect Syncropel to Claude Desktop, Cursor, Claude Code, Cline, Zed, and any other AI client. Three patterns — traditional MCP, shell-integrated, and Code Mode — each matching a different client's capabilities and a different workflow shape.
+description: Connect Syncropel to Claude Desktop, Claude Code, Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI, and Codex CLI. Three patterns — traditional MCP, shell-integrated, and Code Mode — cover every major AI client shipping in 2026.
 ---
 
 <Callout type="info">
-**Status**: This page is the SKL-0317 v0.17 deliverable. Layout is final; examples and config snippets will be filled in during implementation. Last updated 2026-04-20.
+**Status**: Shipped in v0.17 "Exposure" (SKL-0317). Every setup command on this page works against a built `spl` binary (0.17.0+). Last updated 2026-04-21.
 </Callout>
 
 ## The three patterns
@@ -13,40 +13,59 @@ Different AI clients take different approaches to tool use. Syncropel ships a ma
 
 | Pattern | For | What you install | What you configure |
 |---|---|---|---|
-| **MCP server** | Claude Desktop, Cursor, Cline, Zed, Continue.dev | `spl mcp serve` (ships with spl) | One JSON entry in the client's config |
-| **Shell-integrated** | Claude Code, Cursor agent mode | Nothing extra — spl CLI is already there | A system-prompt recipe |
-| **Code Mode** | Any agent that writes code (Claude code_execution, Workers agents, custom harnesses) | `@syncropel/sdk` (npm) or `syncropel` (PyPI) | Pass a bearer token at Client construction |
+| **MCP server** | Claude Desktop, Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI | `spl mcp serve` (ships with spl) | One JSON entry in the client's config file |
+| **Shell-integrated** | Claude Code, Codex CLI, any bash-capable agent | Nothing extra — `spl` is on your PATH | A copy-paste system-prompt recipe |
+| **Code Mode** | Any agent that writes code (Claude `code_execution`, Workers agents, custom harnesses) | `@syncropel/sdk` (npm) or `syncropel` (PyPI) | A bearer token at `Client` construction |
 
 None of these require the agent to "know what Syncropel is." They plug in, emit records as the agent works, and every action becomes part of the causal trail.
 
 ## Pattern 1 — Traditional MCP (stdio)
 
-For AI clients that natively speak the [Model Context Protocol](https://spec.modelcontextprotocol.io/). The agent calls Syncropel tools directly; results flow back through the model's context. Simple, fast, works today.
+For AI clients that natively speak the [Model Context Protocol](https://modelcontextprotocol.io/). The agent calls Syncropel tools directly; results flow back through the model's context. Simple, fast, works today.
 
 ### Quickstart — `spl mcp setup-<client>`
 
-Use the built-in setup commands:
+Syncropel ships nine setup commands. Each resolves the client's config path for your OS, reads the existing file (merging preserves any other entries), adds a `syncropel` entry, and writes back atomically.
 
 ```bash
-spl mcp setup-claude-code
-spl mcp setup-cursor
-spl mcp setup-cline
-spl mcp setup-zed
+# File-based clients — one-shot JSON patch
+spl mcp setup-claude-desktop     # Claude Desktop (macOS + Windows only)
+spl mcp setup-cursor             # Cursor (global, all OS)
+spl mcp setup-cline              # Cline VS Code extension
+spl mcp setup-zed                # Zed editor (macOS + Linux)
+spl mcp setup-kiro               # Kiro (AWS)
+spl mcp setup-opencode           # OpenCode
+spl mcp setup-gemini             # Gemini CLI
+
+# Shell-out clients — delegate to the client's own mcp add command
+spl mcp setup-claude-code        # calls `claude mcp add ...`
+spl mcp setup-codex              # calls `codex mcp add ...`
 ```
 
-Each command detects your OS, locates the client's config file, and adds a `spl mcp serve` entry. Use `--dry-run` to preview the change without writing.
+**Common flags** (all setup commands):
+
+- `--dry-run` — print the planned change without writing the file
+- `--force` — replace an existing `syncropel` entry instead of bailing
+- `--create` — create the config file (and parent dirs) if it doesn't yet exist
+- `-o json` — emit JSON instead of human text (pipe-friendly)
+
+**Scope flags** (file-based clients with both global and per-project configs):
+
+- `--project` — write to the project-local config (`<cwd>/.cursor/mcp.json`, etc.) instead of global
+- `--flavor code|cursor|windsurf` — Cline only; tell the installer which VS Code host has the Cline extension
+
+Once the command returns `✓`, restart the client and the `syncropel` tools appear in its tool panel.
 
 ### Manual configuration
 
-If you'd rather edit the config by hand, or the setup commands don't recognize your client:
+If you'd rather edit the config by hand (scripted provisioning, operator audit, or `spl` isn't on the client's host):
 
 #### Claude Desktop
 
-Add to `claude_desktop_config.json`:
+Add to `claude_desktop_config.json` — Claude Desktop is **not available on Linux**; use `setup-claude-code`, `setup-cursor`, `setup-cline`, or `setup-zed` instead.
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
@@ -61,9 +80,19 @@ Add to `claude_desktop_config.json`:
 
 Restart Claude Desktop. The Syncropel tools appear in the Tools panel.
 
+#### Claude Code
+
+No file edit needed. Claude Code owns its own MCP registry via its `mcp` subcommand:
+
+```bash
+claude mcp add syncropel -- spl mcp serve
+```
+
+`spl mcp setup-claude-code` shells out to exactly that command.
+
 #### Cursor
 
-Add to `~/.cursor/mcp.json` (macOS/Linux) or `%USERPROFILE%\.cursor\mcp.json` (Windows):
+Global at `~/.cursor/mcp.json` (all OS); per-project at `<project-root>/.cursor/mcp.json` (project-level wins precedence):
 
 ```json
 {
@@ -76,15 +105,21 @@ Add to `~/.cursor/mcp.json` (macOS/Linux) or `%USERPROFILE%\.cursor\mcp.json` (W
 }
 ```
 
-Cursor will hot-reload the server on save.
+Cursor hot-reloads on save.
 
 #### Cline (VS Code extension)
 
-In VS Code `settings.json`:
+Cline stores its MCP config in a dedicated file under VS Code's globalStorage, **not** in `settings.json`:
+
+- **Linux**: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+- **macOS**: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+- **Windows**: `%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
+
+Replace `Code` with `Cursor` or `Windsurf` if Cline is installed on those hosts (use `--flavor cursor|windsurf` with the setup command).
 
 ```json
 {
-  "cline.mcpServers": {
+  "mcpServers": {
     "syncropel": {
       "command": "spl",
       "args": ["mcp", "serve"]
@@ -95,101 +130,147 @@ In VS Code `settings.json`:
 
 #### Zed
 
-Add to `~/.config/zed/settings.json`:
+Add to `~/.config/zed/settings.json`. Zed calls MCP servers "context servers" and **requires** a `"source": "custom"` field — without it, Zed silently ignores the entry:
 
 ```json
 {
   "context_servers": {
     "syncropel": {
-      "command": {
-        "path": "spl",
-        "args": ["mcp", "serve"]
-      }
+      "source": "custom",
+      "command": "spl",
+      "args": ["mcp", "serve"],
+      "env": {}
     }
   }
 }
 ```
 
-#### Continue.dev
+Zed is macOS + Linux only (no official Windows build).
 
-Add to `~/.continue/config.json` under `mcpServers`.
+#### Kiro (AWS)
+
+Global at `~/.kiro/settings/mcp.json`; per-project at `<project-root>/.kiro/settings/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "syncropel": {
+      "command": "spl",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+#### OpenCode
+
+Global at `~/.config/opencode/opencode.json`; per-project at `<project-root>/opencode.json`. OpenCode uses the top-level key **`mcp`** (not `mcpServers`) and requires a `"type": "stdio"` discriminator:
+
+```json
+{
+  "mcp": {
+    "syncropel": {
+      "type": "stdio",
+      "command": "spl",
+      "args": ["mcp", "serve"],
+      "enabled": true
+    }
+  }
+}
+```
+
+#### Gemini CLI
+
+Global at `~/.gemini/settings.json`; per-project at `<project-root>/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "syncropel": {
+      "command": "spl",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+#### Codex CLI
+
+Codex stores MCP config in TOML at `~/.codex/config.toml`. Don't hand-edit it — Codex ships `codex mcp add` which owns its own file format:
+
+```bash
+codex mcp add syncropel -- spl mcp serve
+```
+
+`spl mcp setup-codex` shells out to exactly that command.
 
 ### The 7 tools
 
 Every MCP client sees the same tool surface:
 
-- `syncropel_intend` — emit an INTEND record (start a thread)
-- `syncropel_do` — emit a DO record (record an action)
-- `syncropel_know` — emit a KNOW record (record an observation)
-- `syncropel_learn` — emit a LEARN record (crystallize insight)
-- `syncropel_query` — list records filtered by thread/actor/kind
-- `syncropel_thread_records` — fetch records in a specific thread
-- `syncropel_trust_show` — get trust scores for an actor+domain
+- `create_thread` — create a new thread with an INTEND record
+- `emit_record` — emit a record (INTEND, DO, KNOW, or LEARN act)
+- `read_thread` — read records from a thread (most recent first)
+- `fold_thread` — derive the current state of a thread (status, participants, head records)
+- `trust_query` — query trust scores by actor / domain
+- `dispatch` — dispatch work to an actor via adapter routing (stdio transport only in v0.17)
+- `fan_out` — fan-out work to multiple actors with a join predicate (stdio transport only in v0.17)
 
 ### Remote MCP over HTTP (experimental, v0.17+)
 
-For hosted setups or agents running in the cloud, `spl serve` also exposes MCP over HTTP + SSE at `/mcp/sse`. Point a remote-capable MCP client at:
+For hosted setups, sandboxed agents, or when you want MCP tools reachable over the network, `spl serve` also exposes MCP over HTTP at `/v1/mcp`. Speaks the same JSON-RPC 2.0 envelope as stdio; streaming SSE responses are not implemented in v0.17 (every tool returns a single JSON body fast enough).
 
-```
-https://your-host.example.com:9100/mcp/sse
-Authorization: Bearer <SPL_TOKEN>
+```bash
+curl -X POST https://your-host.example.com/v1/mcp \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
 See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint `SPL_TOKEN`.
 
+**v0.17 limitation**: the `dispatch` and `fan_out` tools return an `isError: true` response over HTTP — they need the full drain-state + orchestration machinery and are stdio-only for this cut. Restoring full parity is tracked for v0.17.1. The other 5 tools work identically on both transports.
+
 ### When to choose this pattern
 
-- You use an AI client with native MCP support (Claude Desktop, Cursor, Cline, Zed, Continue.dev)
-- You want zero-setup integration — one config file edit and it works
+- You use an AI client with native MCP support (any of the nine above)
+- You want zero-setup integration — one command and it works
 - Your workflow has fewer than ~10 tool calls per session (MCP's tool-definition loading scales fine up to ~50 tools; our 7 is well within)
 
 ## Pattern 2 — Shell-integrated (zero MCP required)
 
-For AI clients that can run bash commands but don't speak MCP natively — notably Claude Code and Cursor agent mode. The agent calls `spl` as a shell command; output is plain text the agent reads. Zero configuration beyond an optional system-prompt recipe.
+For AI clients that can run bash commands but don't speak MCP natively — notably Claude Code and Cursor's agent mode. The agent calls `spl` as a shell command; output is plain text (or `-o json`) the agent reads. Zero configuration beyond an optional system-prompt recipe.
 
 ### Quickstart
 
 ```bash
-spl mcp recipe claude-code     # prints the recipe — paste into Claude Code's custom instructions
-spl mcp recipe cursor          # same for Cursor agent mode
-spl mcp recipe generic         # for any bash-capable AI client
+spl mcp recipe claude-code     # recipe for Claude Code
+spl mcp recipe cursor          # recipe for Cursor agent mode
+spl mcp recipe generic         # recipe for any bash-capable AI client
 ```
 
-### The recipe
+Each command emits a pastable system-prompt block on stdout — pipe it into your client's custom-instructions field, or redirect it to a file and `@` it.
 
-```text
-You have access to the `spl` CLI, a coordination substrate that records your work
-as immutable records for later review and trust accumulation.
+### What the recipe does
 
-When you start a meaningful task, run:
-  spl intend "<goal>" --thread <task_alias>
+The recipe teaches your agent the minimum Syncropel contract:
 
-When you complete an action (code change, test run, research step), run:
-  spl do "<one-line description>" --thread <task_alias>
+- Open a thread with `spl intend "<goal>"`
+- For each meaningful step, emit `spl do`, `spl know`, or `spl learn`
+- Close the thread with `spl know "<summary>" --fulfills <intend_record_id>`
+- Don't narrate internal reasoning — only outcomes and artifacts
 
-When you observe something worth remembering (a test result, user confirmation, bug):
-  spl know "<observation>" --thread <task_alias>
-
-When you identify a pattern worth crystallizing:
-  spl learn "<insight>" --thread <task_alias>
-
-You can check your current trust before choosing approaches:
-  spl trust <your_actor_did> <domain>
-
-Everything you emit becomes a record the user can review. Be concise in the
-body — records are immutable, and the thread accumulates meaning from the
-sequence.
-```
+See `spl mcp recipe generic` for the full default recipe.
 
 ### Why this works
 
-AI clients like Claude Code have been shown to use CLI tools more efficiently than MCP for simple operations (fewer tokens in context, no tool-definition loading overhead). Parsing `spl`'s JSON output (`-o json` / `-o stream-json` flags are on every command) is lighter-weight than maintaining a rich MCP tool schema.
+Recent analysis of coding agents (Claude Code, Cursor agent mode) shows they use CLI tools more efficiently than MCP for simple operations — fewer tokens in context, no tool-definition loading overhead. `spl` ships `-o json` and `-o stream-json` output modes on every command, so the agent can parse results without screen-scraping.
 
 ### When to choose this pattern
 
-- Your AI client doesn't have native MCP support but can run bash
-- You want the agent's actions in your terminal history AND in Syncropel records (one source of truth)
-- You're writing custom agents that drive development workflows
+- Your AI client doesn't have native MCP support but can run bash (Claude Code, Cursor agent mode)
+- You want the agent's actions visible in BOTH your terminal history AND Syncropel records (one shell line, one immutable record)
+- You're writing custom agents driven by shell harnesses
 
 ## Pattern 3 — Code Mode (for agents that write code)
 
@@ -197,57 +278,9 @@ For agents that accomplish tasks by writing code — Claude with `code_execution
 
 ### Why Code Mode
 
-[Cloudflare](https://blog.cloudflare.com/code-mode-mcp/) and [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) both argue the same case: LLMs are trained on far more code than tool-call protocols. Presenting tools as a typed SDK in a sandboxed code environment yields [98.7% token savings](https://www.anthropic.com/engineering/code-execution-with-mcp) for multi-step workflows. Chain 20 emits into one context round-trip instead of 20.
+[Cloudflare](https://blog.cloudflare.com/code-mode-mcp/) and [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) both argue the same case: LLMs are trained on far more code than tool-call protocols. Presenting tools as a typed SDK in a sandboxed code environment yields large token savings for multi-step workflows. Chain 20 emits into one context round-trip instead of 20.
 
-### Worked example — Python, Claude code_execution
-
-```python
-# The agent writes this, Claude runs it in its sandbox, returns only the summary
-from syncropel import Client, Identity, Ref
-
-client = Client(
-    endpoint="http://localhost:9100",
-    identity=Identity.static("did:sync:user:me"),
-    api_key="spl_prod_...",
-)
-
-# Open a thread
-result = client.intend("Refactor auth module", thread_prefix="refactor-auth")
-thread = result.thread
-
-# Do the work (in the agent's own workflow), emit as we go
-for step in ["profile current code", "write tests", "apply refactor", "verify"]:
-    client.do(step, thread=thread)
-
-# Query back the work
-records = client.query_thread(thread)
-summary = f"Emitted {len(records)} records in thread {thread}"
-```
-
-The agent returns `summary` to context — one line instead of twenty tool-call round-trips.
-
-### Worked example — TypeScript, Workers agent
-
-```typescript
-import { Client, Identity, Ref } from "@syncropel/sdk";
-
-export default {
-  async fetch(request: Request, env: Env) {
-    const client = new Client({
-      endpoint: env.SYNCROPEL_URL,
-      identity: Identity.static(env.AGENT_DID),
-      apiKey: env.SPL_TOKEN,
-    });
-
-    // Multi-step coordination, one HTTP request per emit but zero LLM round-trips
-    await client.intend({ goal: "Process incoming webhook", thread: "th_webhooks" });
-    await client.do({ body: { event: request.headers.get("x-event") }, thread: "th_webhooks" });
-    await client.know({ body: { handled: true }, thread: "th_webhooks" });
-
-    return new Response("ok");
-  },
-};
-```
+See the [Code Mode guide](/docs/integrate/code-mode) for worked examples in Python and TypeScript.
 
 ### When to choose this pattern
 
@@ -262,31 +295,31 @@ A rough decision tree:
 
 ```
 Does your client support MCP natively?
-├── Yes → Pattern 1 (MCP server)
-└── No → Can the client run bash commands?
-    ├── Yes, for simple operations → Pattern 2 (Shell-integrated)
-    └── Yes, and the agent writes code for the task → Pattern 3 (Code Mode)
+├── Yes → Pattern 1 (MCP server) — one `spl mcp setup-<client>` command
+└── No → Can the client run bash?
+    ├── Yes, for simple operations → Pattern 2 (`spl mcp recipe <client>`)
+    └── Yes, and the agent writes code for the task → Pattern 3 (SDK in sandbox)
 ```
 
 Many teams use all three — MCP for interactive sessions, shell-integrated for coding agents, Code Mode for production workers.
 
 ## Authentication across all three patterns
 
-All three patterns authenticate the same way: a bearer token against the Syncropel daemon. See [Authentication & Service Accounts](/docs/operate/keyring) for the full setup. Quick path:
+All three patterns authenticate against the Syncropel daemon the same way: a bearer token. See [Authentication & Service Accounts](/docs/operate/keyring) for the full setup. Quick path:
 
 ```bash
 # One-time per install
 spl service-account create --bootstrap --name local --with-token
-# Copy the printed token, then:
+# Copy the printed token — `spl`, @syncropel/sdk, and syncropel (Python)
+# all read it from ~/.syncro/token automatically.
 spl token save <token>
-# spl, @syncropel/sdk, and syncropel (Python) all read from ~/.syncro/token automatically
 ```
 
-For remote deployments with auth enabled, pass the token via `SPL_TOKEN` env var or the `apiKey` option.
+Local-only loopback deployments can skip auth with `--insecure-localhost`, but production deployments and any remote MCP usage should always require a bearer token.
 
 ## What's next
 
 - [Code Mode guide](/docs/integrate/code-mode) — deeper walk through Pattern 3 with full examples
 - [TypeScript SDK reference](/docs/guides/typescript-sdk) — the Pattern 3 surface
 - [Python SDK reference](/docs/guides/python-sdk) — the Python equivalent
-- [Authentication & Service Accounts](/docs/operate/keyring) — how to mint + rotate tokens for any of these patterns
+- [Authentication & Service Accounts](/docs/operate/keyring) — how to mint + rotate tokens
