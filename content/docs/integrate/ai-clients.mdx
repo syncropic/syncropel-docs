@@ -52,7 +52,10 @@ spl mcp setup-codex              # calls `codex mcp add ...`
 **Scope flags** (file-based clients with both global and per-project configs):
 
 - `--project` — write to the project-local config (`<cwd>/.cursor/mcp.json`, etc.) instead of global
-- `--flavor code|cursor|windsurf` — Cline only; tell the installer which VS Code host has the Cline extension
+- `--flavor code|cursor|windsurf` — Cline only. Tells the installer **where Cline is installed**, not which client you're targeting. The Cline extension itself is always the target:
+  - `--flavor code` → Cline extension in VS Code (default)
+  - `--flavor cursor` → Cline extension in Cursor (Cursor can host VS Code extensions)
+  - `--flavor windsurf` → Cline extension in Windsurf (Codeium's VS Code fork)
 
 Once the command returns `✓`, restart the client and the `syncropel` tools appear in its tool panel.
 
@@ -130,7 +133,7 @@ Replace `Code` with `Cursor` or `Windsurf` if Cline is installed on those hosts 
 
 #### Zed
 
-Add to `~/.config/zed/settings.json`. Zed calls MCP servers "context servers" and **requires** a `"source": "custom"` field — without it, Zed silently ignores the entry:
+Add to `~/.config/zed/settings.json`. Zed calls MCP servers "context servers" (not `mcpServers`):
 
 ```json
 {
@@ -144,6 +147,10 @@ Add to `~/.config/zed/settings.json`. Zed calls MCP servers "context servers" an
   }
 }
 ```
+
+<Callout type="warn">
+**Zed gotcha**: the `"source": "custom"` field is required. Without it, Zed silently ignores the entry — no error, no log message, the tools just never appear. If `spl mcp setup-zed` seems to have worked but the tools aren't showing up in Zed, verify your `settings.json` has this field under each `context_servers.*` entry.
+</Callout>
 
 Zed is macOS + Linux only (no official Windows build).
 
@@ -213,12 +220,14 @@ Every MCP client sees the same tool surface:
 - `read_thread` — read records from a thread (most recent first)
 - `fold_thread` — derive the current state of a thread (status, participants, head records)
 - `trust_query` — query trust scores by actor / domain
-- `dispatch` — dispatch work to an actor via adapter routing (stdio transport only in v0.17)
-- `fan_out` — fan-out work to multiple actors with a join predicate (stdio transport only in v0.17)
+- `dispatch` — dispatch work to an actor via adapter routing
+- `fan_out` — fan-out work to multiple actors with a join predicate
 
-### Remote MCP over HTTP (experimental, v0.17+)
+All 7 tools are available on both stdio and HTTP transports as of v0.18.1. The HTTP dispatch path stays leaner than `POST /v1/dispatch` directly (no budget admission layer, no lifecycle-event emission); clients that need the full production dispatch semantics should hit `POST /v1/dispatch` directly, not via MCP.
 
-For hosted setups, sandboxed agents, or when you want MCP tools reachable over the network, `spl serve` also exposes MCP over HTTP at `/v1/mcp`. Speaks the same JSON-RPC 2.0 envelope as stdio; streaming SSE responses are not implemented in v0.17 (every tool returns a single JSON body fast enough).
+### Remote MCP over HTTP
+
+For hosted setups, sandboxed agents, or when you want MCP tools reachable over the network, `spl serve` exposes MCP over HTTP at `/v1/mcp`. Speaks the same JSON-RPC 2.0 envelope as stdio.
 
 ```bash
 curl -X POST https://your-host.example.com/v1/mcp \
@@ -227,9 +236,24 @@ curl -X POST https://your-host.example.com/v1/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint `SPL_TOKEN`.
+#### Response transport negotiation
 
-**v0.17 limitation**: the `dispatch` and `fan_out` tools return an `isError: true` response over HTTP — they need the full drain-state + orchestration machinery and are stdio-only for this cut. Restoring full parity is tracked for v0.17.1. The other 5 tools work identically on both transports.
+Two response shapes, selected by the `Accept` header per MCP 2025-03-26's Streamable-HTTP spec:
+
+- **`Accept: application/json`** (or no Accept header) — a single JSON body. Default, matches the v0.17 behaviour.
+- **`Accept: text/event-stream`** — an SSE-framed response. The JSON-RPC body is wrapped in a single `data:` event, then the connection closes. Useful for clients that want to opt into streaming today so their code is forward-compatible when multi-event streams (keepalives, progress updates) ship in a future release.
+
+```bash
+# Opt into SSE framing — same JSON-RPC body inside
+curl -X POST https://your-host.example.com/v1/mcp \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+# Returns: data: {"jsonrpc":"2.0","id":1,"result":{"tools":[...]}}\n\n
+```
+
+See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint `SPL_TOKEN`.
 
 ### When to choose this pattern
 
