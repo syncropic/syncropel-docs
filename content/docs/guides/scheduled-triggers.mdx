@@ -1,0 +1,144 @@
+---
+title: Scheduled triggers
+description: Use cron-schedule event triggers to run periodic work — daily summaries, stale-task reminders, trust decay audits — without external schedulers.
+---
+
+<Callout type="info">
+**Since v0.9** (CEL-enabled since v0.12). Schedule + CEL both supported.
+</Callout>
+
+## What they are
+
+Event triggers in Syncropel are stored as LEARN records on
+`th_engine_config` with `body.topic = "event_trigger"`. They come in
+two flavors:
+
+- **Record-matching** — fire when a record matching a CEL expression is
+  ingested (documented in [Routing rules](/docs/guides/routing-rules))
+- **Schedule-based** (this guide) — fire when a cron schedule elapses
+
+This guide is about the schedule flavor — the "give me a daily summary
+at 9am" pattern. No external scheduler needed; the kernel's CRON loop
+evaluates schedules on every tick.
+
+## Prerequisites
+
+- Running `spl serve` daemon (v0.14+)
+- An actor DID to dispatch to (typically `did:sync:agent:<role>`)
+- The actor must have a registered adapter (see [Actors and adapters](/docs/guides/actors-and-adapters))
+
+## Quickstart — daily summary
+
+Dispatch your dev agent every morning at 9am to summarize yesterday's work:
+
+```bash
+spl config add-trigger \
+  --name "daily-summary" \
+  --schedule "0 9 * * *" \
+  --target "did:sync:agent:dev" \
+  --goal "Summarize yesterday's commits + open tasks, post as KNOW on th_daily_summary" \
+  --cooldown 300 \
+  --budget 0.5 \
+  --timeout 600
+```
+
+Cron format is standard: `minute hour day month weekday`. The above
+reads "at 9am UTC every day". The daemon evaluates each cron on every
+`tick_interval_ms` (default 1s), so firing resolution is ~1s.
+
+## Verify the trigger
+
+```bash
+spl config list-triggers
+```
+
+Look for your new entry. Confirm it's `enabled: true` and the schedule
+matches. To see past firings:
+
+```bash
+spl config trigger-history --limit 10
+```
+
+Each row shows the trigger name, firing time, thread id produced, and
+cost.
+
+## Common patterns
+
+### Stale-task reminder
+
+Fire every 4 hours, poke any tasks that have been `in_progress` >48h:
+
+```bash
+spl config add-trigger \
+  --name "stale-task-check" \
+  --schedule "0 */4 * * *" \
+  --target "did:sync:agent:ops" \
+  --goal "For each task where status == in_progress and age > 48h, emit KNOW with reminder" \
+  --budget 0.2 \
+  --timeout 300
+```
+
+### Trust decay audit
+
+Weekly Wilson-LB-dropped actors get surfaced for operator review:
+
+```bash
+spl config add-trigger \
+  --name "weekly-trust-audit" \
+  --schedule "0 10 * * MON" \
+  --target "did:sync:agent:auditor" \
+  --goal "List actors whose trust.code.effective dropped >0.1 in the past 7 days" \
+  --budget 0.3
+```
+
+### Fleet heartbeat verification
+
+Every 15 minutes, fail-fast if any fleet peer hasn't posted health:
+
+```bash
+spl config add-trigger \
+  --name "fleet-peer-liveness" \
+  --schedule "*/15 * * * *" \
+  --target "did:sync:agent:ops" \
+  --goal "Alert if any fleet peer has not heartbeat in 5 minutes" \
+  --budget 0.1 \
+  --timeout 180
+```
+
+## Cron expression cheatsheet
+
+| Spec | Fires |
+|---|---|
+| `0 9 * * *` | 9:00am every day (UTC) |
+| `*/15 * * * *` | Every 15 minutes |
+| `0 */4 * * *` | Every 4 hours on the hour |
+| `0 10 * * MON` | 10:00am every Monday |
+| `0 0 1 * *` | Midnight on the 1st of every month |
+| `30 8 * * MON-FRI` | 8:30am on weekdays |
+
+Schedules are UTC. If you want a local-time firing, offset accordingly.
+
+## Rate limiting
+
+`--cooldown <secs>` throttles a trigger's firings. Useful if the CEL
+schedule somehow produces double fires, or if you want a defensive
+minimum gap.
+
+## Turn a trigger off
+
+```bash
+# Remove by name
+spl config remove-trigger --name daily-summary
+
+# Or disable without removing (preserves history)
+spl config update-trigger --name daily-summary --enabled false
+```
+
+## Pairs with
+
+- **[Routing rules](/docs/guides/routing-rules)** — record-matching
+  triggers with actions
+- **[CEL expressions](/docs/guides/cel-expressions)** — the expression
+  language for record-matching trigger conditions
+- **[Actors and adapters](/docs/guides/actors-and-adapters)** — how
+  dispatched actors actually run

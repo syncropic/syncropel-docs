@@ -1,0 +1,117 @@
+---
+title: spl doctor
+description: Top-down diagnostic that audits a daemon's filesystem state, PID files, ports, config, and permissions. Run this first when something feels wrong.
+---
+
+<Callout type="info">
+**Since v0.10** (expanded v0.16.1 for file-mode checks).
+</Callout>
+
+## What it does
+
+`spl doctor` is the "something's wrong, where do I start?" command. It
+runs 7 sanity checks against a running or intended daemon and reports
+pass / warn / fail per check. Exit code reflects the worst finding:
+
+- `0` — all checks pass
+- `1` — one or more warnings (non-fatal; daemon likely works but is
+  misconfigured)
+- `2` — one or more failures (daemon likely broken)
+
+Run it before opening an issue, after a suspicious restart, or after
+any upgrade.
+
+## Quickstart
+
+```bash
+# Human-readable output
+spl doctor
+
+# JSON for scripting / dashboards
+spl doctor --json
+```
+
+## What it checks
+
+| # | Check | Pass criterion | Common fix |
+|---|---|---|---|
+| 1 | **spl binary is on PATH** | `which spl` resolves | Install or re-source shell |
+| 2 | **`~/.syncro/` exists + readable** | Dir present, current user can read | `mkdir -p ~/.syncro && chmod 0700 ~/.syncro` |
+| 3 | **PID file sanity** | If present, the PID belongs to a running `spl serve` | Recover orphan per [runbook](/docs/operate/runbook) |
+| 4 | **Bind port reachable** | `curl /health` on configured port returns 200 | Restart daemon; check firewall |
+| 5 | **Config file parses** | `~/.syncro/config.toml` is valid TOML | Repair or restore from backup |
+| 6 | **Auth state sanity** | Either `auth.required = false` OR at least one SA exists | Bootstrap an SA via `spl service-account create --bootstrap` |
+| 7 | **File mode audit** (v0.16.1+) | `~/.syncro/token` is `0600`, `config.toml` not world-readable, `secrets/*` is `0600` | `chmod 0600 <file>` |
+
+## Typical output
+
+```text
+spl doctor — kernel diagnostic
+====================================
+✓ spl binary on PATH (/usr/local/bin/spl)
+✓ ~/.syncro directory exists and is readable
+✓ PID file clean (pid 12847, process alive)
+✓ /health reachable on 127.0.0.1:9100
+✓ ~/.syncro/config.toml parses
+✓ Auth sane (1 service account; auth.required = true)
+✓ File modes OK (token = 0600, config = 0644, secrets/*)
+
+all checks passed (7/7)
+```
+
+Or on a daemon with issues:
+
+```text
+spl doctor — kernel diagnostic
+====================================
+✓ spl binary on PATH
+✓ ~/.syncro directory exists
+⚠ PID file references pid 12847, but no such process is alive.
+  Recovery:
+    pgrep -af "spl serve"
+    kill <pid>      # if a daemon is running
+    spl serve --daemon   # restart cleanly
+✗ /health not reachable on 127.0.0.1:9100 (connection refused)
+✓ ~/.syncro/config.toml parses
+✗ Auth required but no service accounts found
+  Fix: spl service-account create --bootstrap --name admin --scopes admin --with-token
+⚠ ~/.syncro/token mode 0644 (expected 0600)
+  Fix: chmod 0600 ~/.syncro/token
+
+2 failures, 2 warnings, 3 passes
+```
+
+## Running against a non-default port
+
+```bash
+# Check a dev daemon on 9200 instead of prod on 9100
+SPL_SERVE_URL=http://127.0.0.1:9200 spl doctor
+```
+
+## JSON mode for monitoring
+
+```bash
+spl doctor --json | jq '.checks[] | select(.status != "pass")'
+```
+
+Each check object has `name`, `status` (`pass` / `warn` / `fail`),
+`message`, and optionally `fix` with the exact recovery command.
+
+## When to reach past doctor
+
+`spl doctor` is designed as the fast triage. If all 7 checks pass but
+behavior is still wrong, escalate to:
+
+- **[`spl debug replay <thread>`](/docs/reference/cli)** — step through
+  a specific thread's records
+- **[`spl debug thread-diff <a> <b>`](/docs/reference/cli)** — side-by-side
+  structural diff
+- **[`spl audit export`](/docs/operate/audit-export)** — dump recent
+  security-relevant events and eyeball them
+
+## Pairs with
+
+- **[Runbook](/docs/operate/runbook)** — operational procedures for
+  daemon orphans, data-dir recovery, and upgrade drills
+- **[Keyring](/docs/operate/keyring)** — authentication + service
+  account management
