@@ -17,49 +17,60 @@ Three operator archetypes below. Find the one that matches you.
 
 **Who**: you run `spl serve --daemon` on one machine that nobody else reaches. The daemon binds `127.0.0.1:9100`. Your `spl task list` / `spl intend` workflow has always Just Worked.
 
-**What breaks on upgrade**: the first `spl task list` after upgrade returns:
+**What breaks on upgrade**: the daemon won't start cleanly on v0.16 because the preflight check refuses to run with `auth.required=true` and no service account authorizing your configured user DID. You'll see:
 
 ```text
-API error (401): bearer-token authentication required: missing or malformed bearer token
-
-No token configured.
-
-Recovery (pick one):
-  • First install: `spl service-account create --bootstrap --name local --with-token`, then save the printed token with `spl token save <token>`
-  • Existing install: `spl token create --sa <sa_id>`, then `spl token save <token>`
-  • Rotate if a token was compromised: `spl token rotate <sa_id>`
-  • Local dev only: restart the daemon with `spl serve --insecure-localhost` (forces 127.0.0.1 bind, disables auth)
+error: auth.required is enabled but no service account authorizes did:sync:user:<you>.
 ```
 
-### Recovery — 5 commands, one-time
+The daemon exits before binding. This is intentional — it's preventing you from accidentally locking yourself out. To get running on v0.16 you first create a service account that authorizes your user DID, then restart normally.
+
+### Recovery — the three-phase path
+
+**Phase 1 — find your daemon's configured user DID.** `spl init` picked this when you first ran it; it's stored at `~/.syncro/config.toml`:
 
 ```bash
-# 1. Create your first service account + mint a token.
-#    The bootstrap endpoint works without a token (auth-exempt by design)
-#    precisely because no token exists yet. This flag is one-shot per
-#    namespace — once an SA exists, bootstrap closes.
-spl service-account create --bootstrap --name local --with-token
+awk -F'"' '/^actor/{print $2}' ~/.syncro/config.toml
+# → did:sync:user:<your-name>
+```
 
-# Output (the token is shown ONCE — save it before you lose it):
-#   ✓ service account created
-#     id:      sa_<crockford>
-#     TOKEN (shown once — save it now):
-#       spl_prod_sa_<crockford>_<secret>
+Keep this exact string. You'll use it as `--actors` in the next step. This is important — if you use `whoami` or `$USER` and the daemon chose something different at init time, the SA you create won't authorize the right DID and startup will keep failing.
 
-# 2. Persist the token so spl injects it automatically from here on.
+**Phase 2 — start the daemon in insecure-localhost mode so you can bootstrap.**
+
+```bash
+# Run in the foreground (or via nohup & if you want the shell back).
+# --insecure-localhost force-binds 127.0.0.1 and skips auth enforcement
+# so the bootstrap endpoint can be reached.
+nohup spl serve --insecure-localhost > /tmp/spl-bootstrap.log 2>&1 &
+sleep 3
+```
+
+**Phase 3 — create the SA, save the token, restart normally.**
+
+```bash
+# Replace <DAEMON_ACTOR> with the DID you found in Phase 1.
+spl service-account create --bootstrap \
+    --name local --scopes admin --with-token \
+    --actors <DAEMON_ACTOR>
+
+# Copy the printed token (shown once only) and save it.
 spl token save spl_prod_sa_<crockford>_<secret>
 
-# 3. Verify.
+# Shut down the insecure daemon.
+pkill -f "spl serve.*insecure-localhost"
+
+# Restart cleanly with auth enforced.
+spl serve --daemon
+
+# Verify.
 spl token show-source   # should print "in use: ~/.syncro/token file"
 spl task list            # should succeed
 ```
 
-Optional: grant your user DID to the SA so `X-Syncropel-Actor` works when you emit records as `did:sync:user:you` rather than as the SA identity:
-
-```bash
-spl service-account create --bootstrap --name local --with-token \
-    --actors did:sync:user:your-username
-```
+<Callout type="warn">
+**Known v0.16.0 gotcha**: `spl serve --daemon --insecure-localhost` in combination does not skip the preflight — the daemon mode spawns a background process that runs the check anyway. The workaround shown above (foreground `nohup spl serve --insecure-localhost &`) is the supported path until v0.16.1 patches the combined-flag behavior.
+</Callout>
 
 ### Alternate — stay on v0.15 behavior (not recommended)
 
@@ -79,7 +90,7 @@ curl -s -X POST http://127.0.0.1:9100/v1/records \
     }'
 ```
 
-You can only emit this record while auth is off. If you already restarted with auth on, use `--insecure-localhost` once to get a working channel, emit the LEARN, then restart without the flag.
+You can only emit this record while auth is off. If you already restarted with auth on, start the daemon in foreground with `nohup spl serve --insecure-localhost > /tmp/spl.log 2>&1 &` once, emit the LEARN record, kill the daemon, and restart normally. See the [Phase 2 bootstrap flow](#recovery--the-three-phase-path) above for the exact commands.
 
 ### Alternate — ephemeral dev daemons
 
