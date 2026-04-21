@@ -4,7 +4,7 @@ description: Integrate Syncropel with agents that accomplish tasks by writing an
 ---
 
 <Callout type="info">
-**Status**: Code Mode is the third of three integration patterns documented in [AI Clients](/docs/integrate/ai-clients). This page is the deep dive. Last updated 2026-04-20.
+**Status**: Code Mode is the third of three integration patterns documented in [AI Clients](/docs/integrate/ai-clients). Shipped with v0.17 "Exposure" (SKL-0317). Last updated 2026-04-21.
 </Callout>
 
 ## What is Code Mode
@@ -62,47 +62,60 @@ pip install syncropel anthropic
 
 ### 2. The agent writes this (or you give it a starter template)
 
+The Python SDK is async; wrap the work in an `async` function and `asyncio.run` it, or use `emit_sync` for synchronous harnesses. Every record needs a `body.kind` per ADR-034 — the SDK validates it before the network call so bad kinds fail fast.
+
 ```python
+import asyncio
 import os
-from syncropel import Client, Identity, Ref
+from syncropel import Client, Identity
 
-client = Client(
-    endpoint=os.environ.get("SYNCROPEL_URL", "http://localhost:9100"),
-    identity=Identity.static(os.environ.get("AGENT_DID", "did:example:agent")),
-    api_key=os.environ.get("SPL_TOKEN"),
-)
+async def main():
+    async with Client(
+        endpoint=os.environ.get("SYNCROPEL_URL", "http://localhost:9100"),
+        identity=Identity.static(os.environ.get("AGENT_DID", "did:sync:agent:investigator")),
+        api_key=os.environ.get("SPL_TOKEN"),
+    ) as client:
+        # Open a thread with an INTEND
+        opened = await client.intend(goal="Investigate auth bug #342")
+        thread = opened.thread
 
-# Start a thread
-intend = client.intend("Investigate auth bug #342", thread_prefix="bug-342")
-thread = intend.thread
+        # Each step of the work becomes a DO record
+        for step in [
+            "Read the auth module source",
+            "Identified the token-refresh race condition",
+            "Wrote a failing test for the race",
+            "Applied fix: wrap refresh in mutex",
+            "Test now passes",
+        ]:
+            await client.emit(
+                act="DO",
+                kind="bug.investigation.step",
+                body={"description": step},
+                thread=thread,
+            )
 
-# Do the work — each step is a record
-for step in [
-    "Read the auth module source",
-    "Identified the token-refresh race condition",
-    "Wrote a failing test for the race",
-    "Applied fix: wrap refresh in mutex",
-    "Test now passes",
-]:
-    client.do(step, thread=thread)
+        # Observe + crystallize
+        await client.emit(
+            act="KNOW",
+            kind="bug.investigation.finding",
+            body={"topic": "Root cause was lock-free optimistic refresh retry loop."},
+            thread=thread,
+        )
+        await client.emit(
+            act="LEARN",
+            kind="engineering.insight.concurrency",
+            body={"insight": "Token refresh in concurrent contexts must be mutexed"},
+            thread=thread,
+        )
 
-# Observe + learn
-client.know(
-    f"Fix committed. Root cause was lock-free optimistic refresh retry loop.",
-    thread=thread,
-)
-client.learn(
-    "Token refresh in concurrent contexts must be mutexed",
-    thread=thread,
-)
+        # Query back + return summary — one line of context-visible output
+        records = await client.query_thread(thread=thread)
+        print(f"Bug #342 investigation complete — {len(records)} records in thread {thread}")
 
-# Return summary to the agent's context
-records = client.query_thread(thread)
-print(f"Bug #342 investigation complete — {len(records)} records in thread {thread}")
-print(f"Trust events recorded for did:sync:agent:auth-reviewer")
+asyncio.run(main())
 ```
 
-The agent's context sees the final `print()` output (2 lines) instead of 5-7 tool calls worth of chatter.
+The agent's context sees one line of output instead of 5-7 tool calls worth of chatter. For fully synchronous harnesses (Claude Code Interpreter, scripts), swap every `await client.emit(...)` for `client.emit_sync(...)` — same signature, no event loop required.
 
 ### 3. Claude returns the summary + reasoning
 
@@ -134,25 +147,29 @@ export default {
       apiKey: env.SPL_TOKEN,
     });
 
-    // Start a thread
-    const intent = await client.intend({
-      goal: "Process incoming webhook",
-      thread: "th_webhooks",
+    const threadId = "th_webhooks";
+
+    // Record the incoming event
+    await client.emit({
+      act: "DO",
+      kind: "webhook.event.received",
+      body: {
+        description: "Received webhook",
+        event: request.headers.get("x-event"),
+        path: new URL(request.url).pathname,
+      },
+      thread: threadId,
     });
 
-    // Coordinated work — zero model round-trips between these
-    await client.do({
-      body: { event: request.headers.get("x-event"), path: new URL(request.url).pathname },
-      thread: "th_webhooks",
-    });
-
-    // Process the webhook content (your actual business logic here)
+    // Business logic — not Syncropel's concern
     const result = await processWebhook(request);
 
     // Record the outcome
-    await client.know({
-      body: { status: "processed", result_code: result.code },
-      thread: "th_webhooks",
+    await client.emit({
+      act: "KNOW",
+      kind: "webhook.event.processed",
+      body: { topic: "processed", result_code: result.code },
+      thread: threadId,
     });
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -162,7 +179,6 @@ export default {
 };
 
 async function processWebhook(request: Request) {
-  // Business logic — not Syncropel's concern
   return { code: "ok" };
 }
 ```
@@ -177,7 +193,7 @@ For agents that run for hours or days, use session checkpoints to persist progre
 
 ```python
 # Save at end of each work session
-result = client.emit(
+result = await client.emit(
     act="LEARN",
     kind="agent.session.checkpoint",
     body={
@@ -193,33 +209,35 @@ The next session resumes by reading the latest checkpoint on the thread. No cont
 
 ### Pattern: fan-out with independent verification
 
-When the agent delegates subtasks to other agents:
+When the agent delegates subtasks to other agents, open a parent thread then one INTEND per subtask:
 
 ```python
 # Parent agent creates subtasks
 for worker in ["agent-a", "agent-b", "agent-c"]:
-    child = client.intend(
-        f"Review module X for {worker}",
-        thread_prefix=f"review-{worker}",
-    )
-    # Each worker independently emits its records
-    # Parent polls or subscribes for completion
+    child = await client.intend(goal=f"Review module X for {worker}")
+    # Each worker reads child.thread_id, does the work,
+    # and emits records on that thread. The parent folds
+    # them back via query_thread for the join decision.
 ```
 
 Uses Syncropel's [fleet + fan-out primitives](/docs/tutorials/first-fanout) under the hood.
 
-### Pattern: trust-aware dispatch
+### Pattern: trust-aware behavior
 
-Before choosing an approach, the agent reads trust:
+The SDK doesn't expose trust reads directly; go through the HTTP API via your agent's `fetch`:
 
 ```python
-coding_trust = client.get_trust("did:sync:agent:me", "code")
-if coding_trust.wilson_lb < 0.5:
-    # Low confidence — emit an INTEND with `body.awaits: "actor_decision"`
-    # for human review before proceeding
-    pass
-else:
-    # High confidence — proceed + emit DO records
+import httpx
+
+r = httpx.get(
+    f"{endpoint}/v1/trust",
+    headers={"Authorization": f"Bearer {api_key}"},
+)
+scores = r.json()["data"]
+mine = [s for s in scores if s["actor"] == my_did and s["domain"] == "code"]
+if not mine or mine[0]["effective_trust"] < 0.5:
+    # Low confidence — emit an INTEND with body.awaits = "actor_decision"
+    # so a human reviews before proceeding
     pass
 ```
 
@@ -228,7 +246,7 @@ else:
 The SDK is **fail-open** on transport errors. Every emit returns an `EmitResult`:
 
 ```python
-result = client.emit(...)
+result = await client.emit(...)
 if not result.success:
     # Transport error — log locally, retry later, but don't crash
     print(f"Syncropel unreachable: {result.error}")
