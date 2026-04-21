@@ -1,0 +1,142 @@
+---
+title: Audit export
+description: The `spl audit export` CLI emits security-relevant records as JSON Lines for SIEM ingestion, compliance archives, and retention workflows.
+---
+
+<Callout type="info">
+**Since v0.10**. Shipped command, minimal documentation until v0.18.
+</Callout>
+
+## What it does
+
+`spl audit export` writes security-relevant records from the kernel's
+record log to stdout as JSON Lines (one record per line). It's the
+shipped bridge between Syncropel's content-addressed record substrate
+and your existing SIEM / compliance archive / log-aggregation pipeline.
+
+Four categories are emitted; filter any subset with `--categories`:
+
+| Category | What it captures |
+|---|---|
+| `system` | Records authored by `did:sync:system:*` actors — engine bootstrap, intelligence proposals, trust feedback, recovery events |
+| `aitl` | KNOW records with `body.verdict` (accept/reject) — reviewer approvals, dispatch verdicts |
+| `dispatch` | KNOW records with `body.topic == "dispatch_complete"` — every adapter invocation outcome + metrics |
+| `governance` | Records authored by `did:sync:system:governance` — policy decisions when permissions are enabled |
+
+## Quickstart
+
+```bash
+# Last hour, all categories
+spl audit export --since 1h
+
+# Last 24 hours, AITL + dispatch only, piped to jq
+spl audit export --since 24h --categories aitl,dispatch | jq '.'
+
+# Single actor, single thread — useful for incident scoping
+spl audit export --actor did:sync:agent:dev --thread th_abc123...
+
+# Retained forever — pipe to your shipper
+spl audit export --since 24h | /usr/local/bin/fluent-bit-stdin-plugin
+```
+
+## Output shape
+
+Each line is a self-contained JSON object:
+
+```json
+{
+  "category": "aitl",
+  "thread": "th_03f822528448c2a0439a7292df96518dd8c899436f7386d2ba88c45113fc0e6c",
+  "record": {
+    "id": "151439fe29726ddc8958a70b2ce003f78d8a2a024fb0317f555376927b1ec437",
+    "act": "KNOW",
+    "actor": "did:sync:agent:reviewer",
+    "thread": "th_03f822528448c2a0439a7292df96518dd8c899436f7386d2ba88c45113fc0e6c",
+    "clock": 12,
+    "data_type": "SCALAR",
+    "body": {
+      "verdict": "accept",
+      "review_notes": "All gates pass.",
+      "fulfills": "d403d0c24f03b2f0d18c8725b83804cce3b83786eca0cba607533d15bdfd4c0b"
+    }
+  }
+}
+```
+
+Top-level `category` makes filtering trivial. The complete record is
+nested under `record`, so you have every field required to reconstruct
+the event downstream (content-addressed `id`, all 8 fields, etc.).
+
+## Time filters
+
+`--since` accepts:
+
+- Relative: `1h`, `24h`, `7d`, `30d`
+- Absolute RFC3339: `--since 2026-04-01T00:00:00Z`
+
+No time filter → full record log. Be careful on long-running prod
+daemons — the output can be large.
+
+## Retention patterns
+
+Syncropel's record log is the source of truth; `spl audit export` is a
+projection over it. Three common operator patterns:
+
+### Daily rotation to object storage
+
+```bash
+# /etc/cron.daily/syncropel-audit
+#!/bin/bash
+set -euo pipefail
+DATE=$(date -u +%Y-%m-%d)
+spl audit export --since 24h \
+  | gzip -9 \
+  > /var/log/syncropel/audit-${DATE}.jsonl.gz
+aws s3 mv /var/log/syncropel/audit-${DATE}.jsonl.gz \
+  s3://my-compliance-archive/syncropel/${DATE}/
+```
+
+### Continuous shipping
+
+```bash
+# /etc/systemd/system/syncropel-audit.service
+[Service]
+ExecStart=/bin/sh -c 'spl audit export --since 5m | /usr/local/bin/fluentbit -i tail ...'
+Restart=always
+RestartSec=300
+```
+
+Run it every 5 minutes via `.timer`; the 5m overlap guarantees no
+missed events.
+
+### Category-specific pipelines
+
+```bash
+# AITL-only → review dashboard
+spl audit export --since 24h --categories aitl \
+  | jq -c 'select(.record.body.verdict == "reject")' \
+  | /usr/local/bin/review-alerts-webhook
+```
+
+## Pairs with
+
+- **[SIEM integration guide](/docs/guides/siem-integration)** — concrete
+  pipeline recipes for Splunk, Elastic, Loki, and Datadog
+- **[Debug replay](/docs/reference/cli)** (`spl debug replay`) — step
+  through individual threads when an audit event surfaces something
+  interesting
+
+## Operational notes
+
+- The command runs against the daemon over the Unix socket (prod) or
+  `SPL_SERVE_URL` (dev). No SQL-level access required.
+- JSON Lines are newline-delimited; if your SIEM expects JSON arrays,
+  wrap with `jq -s`.
+- Record IDs are content-addressed SHA-256 — stable across federation,
+  so the same audit event lands with the same id on every peer that
+  replicated the record.
+- Retention is a function of the underlying store backend (SQLite by
+  default). `spl audit export` does not deletion — it's a projection.
+  For deletion / GDPR, use `spl debug replay` to verify nothing depends
+  on the target record, then issue a dedicated `core.erasure` record
+  per ADR-034.
