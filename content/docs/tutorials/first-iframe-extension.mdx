@@ -1,0 +1,250 @@
+---
+title: Your First Iframe Extension
+description: 30-minute walk from npm create vite to a working iframe extension that handshakes with a host, emits records, and renders live updates. Builds against @syncropel/extensions and a tiny reference host.
+---
+
+<Callout type="info">
+This tutorial assumes you've completed [Your First SDK Integration](/docs/tutorials/first-sdk-integration). It uses the [reference iframe host snippet](/docs/reference/iframe-host-snippet) as the outer page so you can run end-to-end without setting up a full workspace product.
+</Callout>
+
+## What you'll build
+
+A small Vite + TypeScript app that runs **inside an iframe**, completes the host handshake, lets the user click a button to emit a record back through the host, and renders any record updates the host pushes.
+
+The end result is what every Syncropel-aware embeddable surface looks like — Notion-style page widgets, IDE side panels, in-app inspectors, dashboards. Same protocol, same SDK, same security envelope.
+
+Total time: **about 30 minutes**, split into five short sections.
+
+## Section A — Scaffold the extension (5 minutes)
+
+```bash
+npm create vite@latest my-ext -- --template vanilla-ts
+cd my-ext
+npm install
+npm install @syncropel/extensions
+```
+
+Open `src/main.ts` and replace the contents with:
+
+```typescript
+import { createAdapter, type SAPCapability } from "@syncropel/extensions";
+
+const root = document.querySelector<HTMLDivElement>("#app")!;
+root.innerHTML = `
+  <main style="padding:1rem;font-family:system-ui;">
+    <h2 style="margin:0 0 .25rem">My first extension</h2>
+    <p id="status" style="color:#666;font-size:.85rem">connecting…</p>
+    <button id="emit-btn" disabled>Emit a record</button>
+    <h3>Live records</h3>
+    <ol id="record-list" style="font-size:.85rem"></ol>
+  </main>
+`;
+
+const status = document.querySelector<HTMLElement>("#status")!;
+const emitBtn = document.querySelector<HTMLButtonElement>("#emit-btn")!;
+const recordList = document.querySelector<HTMLElement>("#record-list")!;
+
+const requested: SAPCapability[] = [
+  "records.emit",
+  "records.query",
+  "records.subscribe",
+];
+
+const adapter = createAdapter({
+  ext: { name: "MyExt", version: "0.1.0", publisher: "my-org" },
+  capabilities: requested,
+
+  onInit: ({ actor, namespace, capabilities_granted }) => {
+    status.textContent =
+      `ready as ${actor} in ${namespace} ` +
+      `(granted: ${capabilities_granted.join(", ") || "none"})`;
+    emitBtn.disabled = !capabilities_granted.includes("records.emit");
+  },
+
+  onRecords: ({ records }) => {
+    for (const r of records) {
+      const li = document.createElement("li");
+      li.textContent = `${r.act} — ${JSON.stringify(r.body).slice(0, 80)}`;
+      recordList.prepend(li);
+    }
+  },
+
+  onGoodbye: ({ reason }) => {
+    status.textContent = `goodbye: ${reason}`;
+    emitBtn.disabled = true;
+  },
+});
+
+emitBtn.addEventListener("click", async () => {
+  const result = await adapter.emit({
+    act: "DO",
+    body: {
+      kind: "core.action",
+      description: "User clicked the button at " + new Date().toISOString(),
+    },
+  });
+  status.textContent =
+    result.status === "ok"
+      ? `emitted ${String(result.result?.record_id).slice(0, 12)}…`
+      : `emit failed: ${result.error?.message ?? "unknown"}`;
+});
+
+// Tell the host how tall to make the iframe.
+adapter.setHeight(document.body.scrollHeight);
+new ResizeObserver(() => adapter.setHeight(document.body.scrollHeight)).observe(
+  document.body,
+);
+```
+
+Start the dev server:
+
+```bash
+npm run dev
+```
+
+Vite serves it at `http://localhost:5173`. Open the URL in a browser — the page renders, but `status` reads `connecting…` forever and the button stays disabled. That's expected: there is no host yet.
+
+## Section B — The handshake (5 minutes)
+
+The Syncropel host-to-extension protocol is a small four-message exchange:
+
+| Direction | Kind | When |
+|---|---|---|
+| host → ext | `hello` | Host sends as soon as the iframe `load` event fires. Carries `actor`, `namespace`, `selection`, and the host's policy-granted capabilities. |
+| ext → host | `ready` | Extension confirms protocol version and lists requested capabilities. |
+| host → ext | `action.result` | Host's reply confirming the final capability grant. |
+| host → ext | `context.update` / `records.update` / `goodbye` | Lifecycle events thereafter. |
+
+**Origin checks happen on both sides.** The host validates the iframe origin against an allowlist before sending `hello`. The extension captures the host's window + origin from the first inbound message and posts back to that origin only. The SDK handles both halves of the validation; you don't write the checks yourself.
+
+Because the iframe runs sandboxed with `allow-same-origin` (or doesn't — depends on the host), the SDK posts replies with target origin `*` and lets the host correlate by source-window identity. This is the standard postMessage pattern for cross-origin iframes; see [the host snippet](/docs/reference/iframe-host-snippet) for the matching outer-page code.
+
+## Section C — Wire up the reference host (10 minutes)
+
+For a working end-to-end demo we need a host page. Copy [the reference host snippet](/docs/reference/iframe-host-snippet) into `host.html` next to your `package.json`:
+
+```bash
+# from inside my-ext/
+cp /path/to/iframe-host-snippet.html host.html  # or paste from the docs page
+```
+
+Edit two things in `host.html`:
+
+1. Set the `EXT_URL` constant near the top to your Vite dev server URL:
+
+   ```javascript
+   const EXT_URL = "http://localhost:5173/";
+   ```
+
+2. Set the `DAEMON_URL` to your local Syncropel kernel:
+
+   ```javascript
+   const DAEMON_URL = "http://localhost:9100";
+   ```
+
+3. Paste your bearer token (from `~/.syncro/token`) into the `DAEMON_TOKEN` constant.
+
+Serve the host page from a different port so the origin separation is real:
+
+```bash
+npx serve -l 4173 .
+```
+
+Open `http://localhost:4173/host.html`. The host page loads, you see the Vite extension inside an `<iframe>`, the handshake completes, and the status line changes to:
+
+```text
+ready as did:example:my-app in default (granted: records.emit, records.query, records.subscribe)
+```
+
+The button is now enabled.
+
+## Section D — Emit + verify (5 minutes)
+
+Click **Emit a record** a couple of times. Each click shows a confirmation in the status line:
+
+```text
+emitted 9f8e7d6c5b4a…
+```
+
+In a separate terminal, watch the records flow into the kernel:
+
+```bash
+spl thread records <th-from-host> -o json | jq '.data[] | {clock, act, body}'
+```
+
+Replace `<th-from-host>` with the thread the host snippet selected when it bootstrapped (the snippet logs it on the host page).
+
+You should see:
+
+```text
+{ "clock": ..., "act": "DO", "body": { "description": "User clicked the button at 2026-04-21T...", "kind": "core.action", ... } }
+```
+
+The DID on the records is `did:example:my-app` — the actor the host announced in the `hello` payload, **not** the extension itself. Extensions never speak as themselves; they speak as the host's currently-authenticated user. That's what makes capability gating safe: the host's permission model decides what records the user is allowed to write, and the extension inherits that grant for the lifetime of the session.
+
+## Section E — Subscribe to live updates (5 minutes)
+
+So far the extension only emits. Let's make it react to live record changes too.
+
+In `src/main.ts`, after the `createAdapter` call, add:
+
+```typescript
+// Subscribe to records on the same thread the host selected.
+let subId: string | null = null;
+window.addEventListener("DOMContentLoaded", async () => {
+  // Wait one tick for the handshake to complete.
+  await new Promise((r) => setTimeout(r, 100));
+  if (!adapter.capabilities.includes("records.subscribe")) return;
+
+  const result = await adapter.subscribe({
+    where: { act: "DO" },
+    limit: 50,
+  });
+  if (result.status === "ok") {
+    subId = String(result.result?.subscription_id ?? "");
+    console.log("subscribed:", subId);
+  }
+});
+```
+
+Reload the iframe — every time you click the button, the new record appears at the top of the **Live records** list because the `onRecords` callback fires from the subscription.
+
+Open another terminal and emit a record manually with the SDK or CLI:
+
+```bash
+spl emit --thread <same-th> --act DO \
+  --kind core.action --body '{"description":"manual emit"}'
+```
+
+It shows up in the iframe within a second. The extension is now a live participant in the thread, not just an emitter.
+
+When the user navigates away, clean up:
+
+```typescript
+window.addEventListener("beforeunload", () => {
+  if (subId) adapter.unsubscribe(subId);
+  adapter.destroy();
+});
+```
+
+## What you have now
+
+A working iframe extension that:
+
+- ✅ Completes the host handshake via `@syncropel/extensions`
+- ✅ Renders inside any host that implements the matching protocol
+- ✅ Requests capabilities the host's policy can grant or deny
+- ✅ Emits records as the host's authenticated actor
+- ✅ Subscribes to live record updates and renders them
+- ✅ Reports its content height for proper iframe sizing
+- ✅ Cleans up subscriptions on unload
+
+This is the same shape every published Syncropel extension takes — the SDK doesn't know whether your iframe is a one-button demo or a 50-route SPA.
+
+## What's next
+
+- **Ship it** — [Extension publishing playbook](/docs/operate/extension-publishing) covers naming, hosting, capability declarations, and security expectations.
+- **Embed it in your own product** — [The reference iframe host snippet](/docs/reference/iframe-host-snippet) is ~200 lines of vanilla JS you can drop into any web app.
+- **Deeper SDK reference** — [Extensions SDK guide](/docs/guides/extensions) has the full capability table, message envelopes, and the validator behavior.
+- **Build a richer UI** — [React Components](/docs/guides/react-components) ships a 21-component palette you can use inside the extension.
+- **Render server-derived UI** — [Projections (SRP)](/docs/guides/projections) lets the host hand the extension a declarative UI document instead of streaming raw records.
