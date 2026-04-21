@@ -1,0 +1,292 @@
+---
+title: AI Clients — three integration patterns
+description: Connect Syncropel to Claude Desktop, Cursor, Claude Code, Cline, Zed, and any other AI client. Three patterns — traditional MCP, shell-integrated, and Code Mode — each matching a different client's capabilities and a different workflow shape.
+---
+
+<Callout type="info">
+**Status**: This page is the SKL-0317 v0.17 deliverable. Layout is final; examples and config snippets will be filled in during implementation. Last updated 2026-04-20.
+</Callout>
+
+## The three patterns
+
+Different AI clients take different approaches to tool use. Syncropel ships a matching access pattern for each — pick the one that fits the client you already use.
+
+| Pattern | For | What you install | What you configure |
+|---|---|---|---|
+| **MCP server** | Claude Desktop, Cursor, Cline, Zed, Continue.dev | `spl mcp serve` (ships with spl) | One JSON entry in the client's config |
+| **Shell-integrated** | Claude Code, Cursor agent mode | Nothing extra — spl CLI is already there | A system-prompt recipe |
+| **Code Mode** | Any agent that writes code (Claude code_execution, Workers agents, custom harnesses) | `@syncropel/sdk` (npm) or `syncropel` (PyPI) | Pass a bearer token at Client construction |
+
+None of these require the agent to "know what Syncropel is." They plug in, emit records as the agent works, and every action becomes part of the causal trail.
+
+## Pattern 1 — Traditional MCP (stdio)
+
+For AI clients that natively speak the [Model Context Protocol](https://spec.modelcontextprotocol.io/). The agent calls Syncropel tools directly; results flow back through the model's context. Simple, fast, works today.
+
+### Quickstart — `spl mcp setup-<client>`
+
+Use the built-in setup commands:
+
+```bash
+spl mcp setup-claude-code
+spl mcp setup-cursor
+spl mcp setup-cline
+spl mcp setup-zed
+```
+
+Each command detects your OS, locates the client's config file, and adds a `spl mcp serve` entry. Use `--dry-run` to preview the change without writing.
+
+### Manual configuration
+
+If you'd rather edit the config by hand, or the setup commands don't recognize your client:
+
+#### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "syncropel": {
+      "command": "spl",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. The Syncropel tools appear in the Tools panel.
+
+#### Cursor
+
+Add to `~/.cursor/mcp.json` (macOS/Linux) or `%USERPROFILE%\.cursor\mcp.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "syncropel": {
+      "command": "spl",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+Cursor will hot-reload the server on save.
+
+#### Cline (VS Code extension)
+
+In VS Code `settings.json`:
+
+```json
+{
+  "cline.mcpServers": {
+    "syncropel": {
+      "command": "spl",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+#### Zed
+
+Add to `~/.config/zed/settings.json`:
+
+```json
+{
+  "context_servers": {
+    "syncropel": {
+      "command": {
+        "path": "spl",
+        "args": ["mcp", "serve"]
+      }
+    }
+  }
+}
+```
+
+#### Continue.dev
+
+Add to `~/.continue/config.json` under `mcpServers`.
+
+### The 7 tools
+
+Every MCP client sees the same tool surface:
+
+- `syncropel_intend` — emit an INTEND record (start a thread)
+- `syncropel_do` — emit a DO record (record an action)
+- `syncropel_know` — emit a KNOW record (record an observation)
+- `syncropel_learn` — emit a LEARN record (crystallize insight)
+- `syncropel_query` — list records filtered by thread/actor/kind
+- `syncropel_thread_records` — fetch records in a specific thread
+- `syncropel_trust_show` — get trust scores for an actor+domain
+
+### Remote MCP over HTTP (experimental, v0.17+)
+
+For hosted setups or agents running in the cloud, `spl serve` also exposes MCP over HTTP + SSE at `/mcp/sse`. Point a remote-capable MCP client at:
+
+```
+https://your-host.example.com:9100/mcp/sse
+Authorization: Bearer <SPL_TOKEN>
+```
+
+See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint `SPL_TOKEN`.
+
+### When to choose this pattern
+
+- You use an AI client with native MCP support (Claude Desktop, Cursor, Cline, Zed, Continue.dev)
+- You want zero-setup integration — one config file edit and it works
+- Your workflow has fewer than ~10 tool calls per session (MCP's tool-definition loading scales fine up to ~50 tools; our 7 is well within)
+
+## Pattern 2 — Shell-integrated (zero MCP required)
+
+For AI clients that can run bash commands but don't speak MCP natively — notably Claude Code and Cursor agent mode. The agent calls `spl` as a shell command; output is plain text the agent reads. Zero configuration beyond an optional system-prompt recipe.
+
+### Quickstart
+
+```bash
+spl mcp recipe claude-code     # prints the recipe — paste into Claude Code's custom instructions
+spl mcp recipe cursor          # same for Cursor agent mode
+spl mcp recipe generic         # for any bash-capable AI client
+```
+
+### The recipe
+
+```text
+You have access to the `spl` CLI, a coordination substrate that records your work
+as immutable records for later review and trust accumulation.
+
+When you start a meaningful task, run:
+  spl intend "<goal>" --thread <task_alias>
+
+When you complete an action (code change, test run, research step), run:
+  spl do "<one-line description>" --thread <task_alias>
+
+When you observe something worth remembering (a test result, user confirmation, bug):
+  spl know "<observation>" --thread <task_alias>
+
+When you identify a pattern worth crystallizing:
+  spl learn "<insight>" --thread <task_alias>
+
+You can check your current trust before choosing approaches:
+  spl trust <your_actor_did> <domain>
+
+Everything you emit becomes a record the user can review. Be concise in the
+body — records are immutable, and the thread accumulates meaning from the
+sequence.
+```
+
+### Why this works
+
+AI clients like Claude Code have been shown to use CLI tools more efficiently than MCP for simple operations (fewer tokens in context, no tool-definition loading overhead). Parsing `spl`'s JSON output (`-o json` / `-o stream-json` flags are on every command) is lighter-weight than maintaining a rich MCP tool schema.
+
+### When to choose this pattern
+
+- Your AI client doesn't have native MCP support but can run bash
+- You want the agent's actions in your terminal history AND in Syncropel records (one source of truth)
+- You're writing custom agents that drive development workflows
+
+## Pattern 3 — Code Mode (for agents that write code)
+
+For agents that accomplish tasks by writing code — Claude with `code_execution`, Cloudflare Workers agents, custom harnesses with sandboxed execution. The agent writes a short program using `@syncropel/sdk` (TypeScript) or `syncropel` (Python) that does multi-step work entirely in the sandbox. Only the final result flows back to context.
+
+### Why Code Mode
+
+[Cloudflare](https://blog.cloudflare.com/code-mode-mcp/) and [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) both argue the same case: LLMs are trained on far more code than tool-call protocols. Presenting tools as a typed SDK in a sandboxed code environment yields [98.7% token savings](https://www.anthropic.com/engineering/code-execution-with-mcp) for multi-step workflows. Chain 20 emits into one context round-trip instead of 20.
+
+### Worked example — Python, Claude code_execution
+
+```python
+# The agent writes this, Claude runs it in its sandbox, returns only the summary
+from syncropel import Client, Identity, Ref
+
+client = Client(
+    endpoint="http://localhost:9100",
+    identity=Identity.static("did:sync:user:me"),
+    api_key="spl_prod_...",
+)
+
+# Open a thread
+result = client.intend("Refactor auth module", thread_prefix="refactor-auth")
+thread = result.thread
+
+# Do the work (in the agent's own workflow), emit as we go
+for step in ["profile current code", "write tests", "apply refactor", "verify"]:
+    client.do(step, thread=thread)
+
+# Query back the work
+records = client.query_thread(thread)
+summary = f"Emitted {len(records)} records in thread {thread}"
+```
+
+The agent returns `summary` to context — one line instead of twenty tool-call round-trips.
+
+### Worked example — TypeScript, Workers agent
+
+```typescript
+import { Client, Identity, Ref } from "@syncropel/sdk";
+
+export default {
+  async fetch(request: Request, env: Env) {
+    const client = new Client({
+      endpoint: env.SYNCROPEL_URL,
+      identity: Identity.static(env.AGENT_DID),
+      apiKey: env.SPL_TOKEN,
+    });
+
+    // Multi-step coordination, one HTTP request per emit but zero LLM round-trips
+    await client.intend({ goal: "Process incoming webhook", thread: "th_webhooks" });
+    await client.do({ body: { event: request.headers.get("x-event") }, thread: "th_webhooks" });
+    await client.know({ body: { handled: true }, thread: "th_webhooks" });
+
+    return new Response("ok");
+  },
+};
+```
+
+### When to choose this pattern
+
+- Your agent harness supports code execution (Claude `code_execution`, Cloudflare Workers, custom Python/Node sandbox)
+- Your workflow has >10 coordinated operations per session
+- You want the SDK's fail-open transport semantics (emits never crash the agent on transient network errors)
+- You care about token efficiency at scale
+
+## Choosing between patterns
+
+A rough decision tree:
+
+```
+Does your client support MCP natively?
+├── Yes → Pattern 1 (MCP server)
+└── No → Can the client run bash commands?
+    ├── Yes, for simple operations → Pattern 2 (Shell-integrated)
+    └── Yes, and the agent writes code for the task → Pattern 3 (Code Mode)
+```
+
+Many teams use all three — MCP for interactive sessions, shell-integrated for coding agents, Code Mode for production workers.
+
+## Authentication across all three patterns
+
+All three patterns authenticate the same way: a bearer token against the Syncropel daemon. See [Authentication & Service Accounts](/docs/operate/keyring) for the full setup. Quick path:
+
+```bash
+# One-time per install
+spl service-account create --bootstrap --name local --with-token
+# Copy the printed token, then:
+spl token save <token>
+# spl, @syncropel/sdk, and syncropel (Python) all read from ~/.syncro/token automatically
+```
+
+For remote deployments with auth enabled, pass the token via `SPL_TOKEN` env var or the `apiKey` option.
+
+## What's next
+
+- [Code Mode guide](/docs/integrate/code-mode) — deeper walk through Pattern 3 with full examples
+- [TypeScript SDK reference](/docs/guides/typescript-sdk) — the Pattern 3 surface
+- [Python SDK reference](/docs/guides/python-sdk) — the Python equivalent
+- [Authentication & Service Accounts](/docs/operate/keyring) — how to mint + rotate tokens for any of these patterns
