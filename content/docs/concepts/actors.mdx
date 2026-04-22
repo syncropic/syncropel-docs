@@ -1,78 +1,136 @@
 ---
 title: Actors
-description: Every participant in Syncropel — human or AI — is an actor with an identity, trust profile, and memory.
+description: Every participant — human, AI agent, service account, system component — is an actor with a DID, a trust profile, and a memory. The protocol treats them uniformly.
 ---
 
 ## Overview
 
-An actor is any entity that creates records — a person, an AI agent, a CI pipeline, or an automated service. The protocol treats all actors uniformly. A human typing a command and an AI agent calling a tool both produce the same 8-field records and accumulate trust the same way.
+An actor is any entity that emits records. A person typing at a terminal, an AI agent running in a subprocess, a CI pipeline posting via HTTP, a federation peer syncing records from across the network — all of them are actors. The kernel does not distinguish "user" from "agent" at the data plane. Everyone produces the same 8-field record shape and accumulates the same kind of trust evidence.
 
-## Identity
+This uniformity is the design. A hybrid human-AI team needs a model where "who did it" is a first-class field with consistent semantics; two separate identity models (one for humans, one for AIs) would force every downstream consumer — trust, governance, audit — to branch. The actor model collapses that into one.
 
-Every actor has a DID (Decentralized Identifier):
+An actor consists of four pieces: a DID (the permanent handle), a trust profile (domain-scoped evidence), a memory (persistent context across sessions), and — for anything calling the HTTP API — an authenticator (a bearer token, a federation signature, or a keychain-held private key).
+
+## DID: the permanent handle
+
+Every actor has a Decentralized Identifier:
 
 ```
-did:sync:user:alice          — a human user
+did:sync:user:alice          — a human
 did:sync:agent:dev           — an AI development agent
+did:sync:agent:director      — an AI review agent
+did:sync:system:engine       — the kernel itself (emits notifications)
+did:sync:system:intelligence — the kernel's reasoning agent
 did:sync:system:sa_abc123    — a service account (bearer-token authenticated)
-did:sync:system:engine       — a system component
+did:key:z6Mk...              — a self-describing public-key identity
+did:web:alice.dev            — a domain-rooted identity
 ```
 
-The DID is permanent — it doesn't change when the underlying model, tool, or person changes. This means trust earned by an agent carries forward even if the AI model is upgraded.
+The last segment (`alice`, `dev`, `director`) is a human-readable label — the suffix is arbitrary. What matters is the full DID, because that's what every record carries in `record.actor` and what the fold keys on.
 
-**Service accounts** are a special actor kind used for machines and devices calling the HTTP API — phones, CI pipelines, webhooks, federation peers. They authenticate via bearer tokens minted by `spl service-account create` (v0.15+). See [Authentication & Service Accounts](/docs/operate/keyring) for the full model.
+Three properties hold across all DIDs:
 
-## Three Layers
+1. **Permanence.** Once trust is accumulated under a DID, it does not migrate to a different one. Swap the AI model behind `did:sync:agent:dev` and its trust persists — the DID is the identity, not the substrate.
+2. **Global uniqueness at the namespace level.** Two records with `actor = did:sync:user:alice` on the same namespace mean the same person. Two people named Alice at different orgs get different DIDs (`did:sync:user:alice@acme` vs `did:sync:user:alice@bigcorp`) or different namespaces.
+3. **No authority needed.** `did:key` is self-describing (the DID *is* the public key). `did:web` resolves over HTTPS at a domain you control. `did:sync` resolves through the Syncropic-hosted or self-hosted directory. Pick whichever matches your trust model.
 
-Actor identity has three layers:
+## The three-layer separation
 
-| Layer | What It Is | How Often It Changes |
+Actor identity is layered to make substrate changes invisible to anyone but the operator:
+
+| Layer | What it is | How often it changes |
 |---|---|---|
-| **Identity (DID)** | The permanent identifier | Never |
-| **Substrate** | The current implementation (which AI model, which tool) | Occasionally |
-| **Instance** | The active session or process | Every session |
+| **Identity (DID)** | The permanent handle. `did:sync:agent:dev`. | Never. |
+| **Substrate** | The current implementation backing the actor — which AI model, which CLI binary, which version of your fine-tune. | Occasionally — a model upgrade, a new adapter version. |
+| **Instance** | The currently-running process or session. PID, port, token. | Every session. |
 
-This separation means you can swap the AI model behind an agent without losing its accumulated trust, memory, or reputation.
+When you upgrade the AI model behind `did:sync:agent:dev`, its DID and trust profile don't change. The accumulated `trust(did:sync:agent:dev, code)` stays where it was — because the evidence is about *what this actor produced under review*, not about *which model produced it*.
 
-## Trust Profile
+This also means the trust evidence is worth reading carefully when you *do* swap a substrate. If the new model is meaningfully different, you may want to reset trust manually (emit a `LEARN` record marking a substrate change) rather than letting old evidence persist.
 
-Every actor accumulates a trust profile from the outcomes of their work:
+## Actor kinds
 
-```bash
-spl trust
-```
+The second-to-last segment of the DID classifies the actor's kind:
 
-```
-ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
-did:sync:user:alice     code            8       9   0.473
-did:sync:agent:dev      code            5       6   0.388
-```
+- **`user`** — a human, typically with a keyboard. Emits records via `spl intend/do/know/learn`, through the web UI, or via SDK calls.
+- **`agent`** — an AI. Usually dispatched via an adapter (`cli_adapter`, `proxy_adapter`). Every AI in a dispatched session is a distinct agent DID.
+- **`system`** — a kernel component. Writes notifications (`did:sync:system:engine`), proposes routing rules (`did:sync:system:intelligence`), emits governance denials (`did:sync:system:governance`).
+- **`service`** — a machine calling the HTTP API. Phones, CI pipelines, webhooks, federation peers. Authenticated by bearer token minted from `spl service-account create`.
 
-Trust is domain-specific — an actor can be highly trusted in `code` but untrusted in `ops`. Trust is computed from evidence (approved work), not granted by permission.
+The kernel treats all four uniformly for trust, routing, and governance. The distinction is editorial — it helps the `spl actor list` view group them and helps humans reading audit logs make sense of what they're looking at.
 
-## Memory
+## Registration and the actor registry
 
-Actors accumulate memories across sessions — learned preferences, techniques, and context:
+Before an actor appears in routing rules or CEL expressions, it should be registered:
 
 ```bash
-spl memory list
-```
-
-Memories persist across session restarts. When an actor starts a new session, its memories provide context about past work, preferences, and lessons learned.
-
-## Registration
-
-Actors are registered in the actor registry:
-
-```bash
-spl actor register did:sync:agent:reviewer --display-name Reviewer
+spl actor register did:sync:agent:reviewer --display-name "Reviewer"
 spl actor list
+spl actor lookup did:sync:agent:reviewer
 ```
 
-The registry tracks all known actors, their categories, and their current status.
+Registration writes a `LEARN` record to `th_actor_registry`. The engine folds that thread to build the live registry in memory, which is what `record.actor` resolution and the CEL `trust()` function consult. Unknown DIDs aren't rejected — they can still appear in `record.actor` — but they won't be found by name-based routing until registered.
 
-## What's Next
+You usually only register every non-human actor you dispatch to. Users can register themselves through `spl init`, which sets up their identity; they don't need to re-register every fresh session.
 
-- [Trust](/docs/concepts/trust) — how outcomes build evidence-based reputation
-- [Actors and adapters guide](/docs/guides/actors-and-adapters) — register and configure actors
-- [Records](/docs/concepts/records) — what actors produce
+## Trust: domain-scoped evidence
+
+Trust is the visible output of the actor model. Every completed task that passes review adds success evidence; every rejection adds failure evidence. The system tracks this per `(actor, domain, judged_by)`:
+
+```
+                          ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
+did:sync:user:alice     code            12      14   0.438
+did:sync:user:alice     ops              3       3   0.097
+did:sync:agent:dev      code             8       9   0.473
+did:sync:agent:dev      ops              1       4   0.012
+did:sync:agent:director research         0       0   0.000
+```
+
+Trust starts at zero. With few observations, the score stays conservative (Wilson lower bound is low on small samples). With many observations, it converges to the empirical success rate. See [Trust](/docs/concepts/trust) for the full model — how decay works, why self-evaluation is structurally ignored, what the dial does with the score.
+
+Trust is domain-scoped on purpose. An actor can be excellent in `code` and untrusted in `ops`. Routing rules that match on domain will correctly prefer one actor for code and another for ops without needing a second score.
+
+## Memory: persistent context across sessions
+
+Most actors accumulate memories — learned preferences, techniques, gotchas, references — that persist across session restarts:
+
+```bash
+spl memory list                         # list an actor's memories
+spl memory list --actor did:sync:agent:dev -v   # with full descriptions
+spl memory show <name>                  # read one in full
+spl memory add <name> --type feedback --description "..."
+spl memory remove <name>
+spl memory search <keyword>
+```
+
+Memories are stored as LEARN records on the actor's memory thread. There are four kinds: `user` (stable user preferences), `feedback` (corrections applied in past sessions), `project` (state of ongoing work), and `reference` (useful URLs, conventions, file locations).
+
+When the claude CLI adapter dispatches an agent, it loads the agent's manual from `~/.syncro/<agent>-prompt.md` and the agent's memories from the memory thread, then appends both to the session system prompt. That's how an agent remembers "David doesn't want emojis in commit messages" across sessions even though the underlying LLM has no persistent memory of its own.
+
+## Authenticators: how actors prove they're themselves
+
+For CLI work on the local daemon, no authenticator is needed — the actor is inferred from `config.toml` or `SPL_ACTOR` env var. For HTTP API calls, an authenticator is required once the daemon has `auth.required = true` (the v0.16+ default):
+
+- **Bearer tokens** — minted per service account via `spl service-account create`. Injected by the SDK, the CLI, federation peers, and webhooks. Revocable per-token via `spl service-account revoke`.
+- **Signed records for federation** — every record pulled from a peer includes an Ed25519 signature over its canonical form. The signature is verified against the actor's DID document on ingest.
+- **Keychain-held private keys** — for operators running their own `did:key` or `did:web` identity. The key lives in `~/.syncro/secrets/`; the daemon signs on the actor's behalf.
+
+See the [Keyring guide](/docs/operate/keyring) for the full auth workflow — first-SA bootstrap, token lifecycle, federation pairing, emergency recovery.
+
+## What actors don't do
+
+Worth naming explicitly because the actor model is compact.
+
+**Actors don't carry capability grants.** A DID is *who*, not *what they can do*. Authorization comes from namespace narrowing, permission rules (CEL), and consent grants (for federation). An actor with a valid bearer token hitting a namespace they don't have permission records for still gets a 403.
+
+**Actors don't have private state known only to themselves.** Everything is records. An agent's memory, preferences, history — all of it is in the log. This is how a dispatched session picks up where the last one left off, and how audit can answer "what did this actor ever do" in one query.
+
+**Actors don't own their records.** A record's `actor` field says who *emitted* it; it does not grant that actor ongoing authority over the record. Corrections, cancellations, and supersessions can come from any actor with permission, not just the original.
+
+## What's next
+
+- **[Trust](/docs/concepts/trust)** — the evidence model that ranks actors per domain.
+- **[Records](/docs/concepts/records)** — what actors produce.
+- **[Threads](/docs/concepts/threads)** — the coordination context actors participate in.
+- **[Actors and adapters guide](/docs/guides/actors-and-adapters)** — register, dispatch, and configure.
+- **[Keyring guide](/docs/operate/keyring)** — service accounts, bearer tokens, federation auth.

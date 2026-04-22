@@ -100,6 +100,18 @@ A typical end-to-end flow:
 
 The whole flow is about two minutes of setup. Once a pair exists, propagation is automatic and continuous.
 
+## What's enforced today vs the spec
+
+The v0.14 federation substrate covers pair creation, signature verification, consent filtering, discovery (mDNS and `did:web` + `did:sync`), and the pull loop with classified error codes. That's enough for "run two daemons, pair them, share a thread" as a real workflow — see [tests/e2e_federation_real.sh](https://github.com/syncropic/syncropel-core/blob/main/tests/e2e_federation_real.sh) for the end-to-end harness.
+
+Three pieces are on the v0.19 "Discovery" track and not yet shipped:
+
+- **Async relay for offline peers** (ADR-040, Path A) — today, both peers must be reachable during a pull. Offline-tolerant federation via a hosted relay is designed, not yet built.
+- **MLS end-to-end encryption for pairs** (ADR-041) — opt-in per pair. Today, pair traffic is TLS-secured point-to-point; MLS would add forward-secrecy and post-compromise security to the record bodies themselves.
+- **Federation discovery beyond LAN / directory** (ADR-038, ADR-039) — DNS-based federation manifests and optional DHT discovery. The library choice (libp2p vs Iroh) is a v0.19 research-then-decide step.
+
+What's enforced today is the strict default: no consent, no crossing. An operator who pairs two instances and emits records on a shared thread sees them propagate; an operator who wants to sync across namespaces without an explicit consent grant sees nothing propagate. That's the intended behaviour, and it holds.
+
 ## What's next
 
 - **[Federation — pairing two instances](/docs/guides/federation)** — hands-on quickstart with two local daemons

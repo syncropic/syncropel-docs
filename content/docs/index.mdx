@@ -93,6 +93,18 @@ Solve specific problems — task-oriented, practical.
 | [Debugging Syncropel](/docs/guides/debugging) | When something doesn't work — doctor → status → debug replay → audit export → log |
 | [SIEM Integration](/docs/guides/siem-integration) | Pipe `spl audit export` into Splunk, Elastic, Loki, Datadog with cron recipes |
 
+## Cookbook
+
+Short, tested recipes for common operational shapes. Copy, adapt, ship.
+
+| Recipe | Problem it solves |
+|---|---|
+| [Route by domain](/docs/cookbook/route-by-domain) | Dispatch code work to one agent and ops work to another without a rule explosion |
+| [Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) | Let high-trust actors ship without blocking on human review |
+| [Federate one thread](/docs/cookbook/federate-one-thread) | Share a single task thread with a collaborator on a different instance |
+| [Scheduled daily digest](/docs/cookbook/scheduled-daily-digest) | Fire a cron trigger at 09:00 that summarises the last 24 hours |
+| [Audit export to Elastic](/docs/cookbook/audit-export-to-elastic) | Pipe the security-relevant record stream into your SIEM |
+
 ## Operate
 
 Day-2 operations for production instances.

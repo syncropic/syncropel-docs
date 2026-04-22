@@ -1,72 +1,127 @@
 ---
 title: Trust
-description: Trust in Syncropel is earned from evidence — completed work reviewed by independent evaluators, not granted by policy.
+description: Evidence-based reputation computed from outcomes reviewed by independent evaluators — domain-scoped, statistically honest, and decaying over time. Not a policy, not a vote, not an opinion.
 ---
 
 ## Overview
 
-Syncropel computes trust from outcomes, not opinions. When an actor completes work and an independent reviewer approves it, that creates a data point. Thousands of data points produce a reliable trust score. This is how the system learns who is good at what.
+Syncropel computes trust from what actually happened. An actor completes work. An independent evaluator reviews it. The verdict creates a data point. Thousands of data points produce a score that tracks the actor's empirical success rate in that domain. That's trust.
 
-## Three Dimensions
+The contrast is deliberate. Trust is **not** a policy ("Alice is approved for prod") because policies stay fixed while reality changes. Trust is **not** a vote ("the team voted Alice in") because votes don't compound. Trust is **not** an opinion because opinions are cheap. Trust is the statistical lower bound on a success rate, maintained by continuous evidence, with an honest answer when evidence is thin.
 
-Trust has three dimensions:
+This is the substrate that lets the system automate more work over time. As trust in an actor on a domain accumulates, their work becomes cheaper to dispatch, more of it can be pre-approved via routing rules, and proven patterns can be replayed without re-computation. Nothing moves faster than the evidence allows.
+
+## Three dimensions
+
+Trust is a three-valued function:
 
 ```
 trust(actor, domain, judged_by)
 ```
 
-- **Actor**: who performed the work
-- **Domain**: what kind of work (code, ops, data, research, etc.)
-- **Judged by**: who evaluated the outcome
+- **`actor`** — the DID of the participant whose work we're scoring.
+- **`domain`** — the category of work: `code`, `ops`, `data`, `research`, `shell`, `api`, `spec`, `agent`, `meta`, `browser`, `workflow`. Domains are declared by whoever emits the verdict; the system doesn't enforce a fixed list.
+- **`judged_by`** — the DID of the evaluator who produced the verdict. This matters because two evaluators can legitimately disagree, and the system preserves both perspectives instead of averaging them into noise.
 
-A developer might have high trust in `code` but low trust in `ops`. The same work evaluated by different reviewers creates different trust entries. This captures the full picture — not just "is this actor good?" but "is this actor good at THIS, according to WHOM?"
-
-## How Trust Grows
-
-Trust accumulates from the evaluation gate:
-
-1. An actor completes work → claims done
-2. An independent evaluator reviews → approves or rejects
-3. Approval creates a success observation: `trust += success`
-4. Rejection creates a failure observation: `trust += failure`
-
-```bash
-spl trust
-```
+So a single actor can have many trust entries:
 
 ```
-ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
-did:sync:user:alice     code           12      14   0.438
-did:sync:agent:dev      code            5       5   0.299
+trust(did:sync:agent:dev, code, did:sync:user:dpwanjala)      = 0.82  ← 47 reviews
+trust(did:sync:agent:dev, code, did:sync:agent:director)      = 0.76  ← 31 reviews
+trust(did:sync:agent:dev, ops,  did:sync:user:dpwanjala)      = 0.05  ← 2 reviews
+trust(did:sync:agent:director, research, did:sync:user:dpwanjala) = 0.64
 ```
 
-The trust score is a statistical lower bound — it reflects confidence based on the amount of evidence. With few observations, trust stays low (conservative). With many observations, trust converges to the true success rate.
+The agent is strongly trusted in `code` by two independent evaluators; weakly trusted in `ops` because only two reviews exist; and its review trust is tracked separately from its execution trust.
 
-## The Dial
+In most deployments, the `judged_by` dimension is mostly-invisible — you typically care about "how good is this actor in this domain?" and let the fold aggregate across evaluators. But the dimension is there when you need it. Routing rules can ask for trust scored by a specific reviewer; audit can ask "what did *this* reviewer approve?" without double-counting.
 
-Trust feeds into the dial — a continuous value from 0 to 1 that maps to four zones:
+## The evaluation gate
 
-| Zone | Range | What It Means | Cost |
+Trust is produced at exactly one place: the evaluation gate. The flow:
+
+1. An actor claims work is complete — `spl task done` or equivalent. This emits a `KNOW` with `body.topic: "task_done_claim"`. **This does not produce trust.**
+2. An evaluator reviews the outcome. In Syncropel's dogfood, that's `spl task approve` or `spl task reject`, which emits a `KNOW` with `body.verdict: "accept"` (or `"reject"`) and `body.judged_by: <completer_did>`. **This produces one trust observation.**
+3. The trust fold (on `TICK` loop) ingests the verdict and updates `(actor, domain, judged_by)` evidence.
+4. The next query of `trust(actor, domain)` returns the updated Wilson score.
+
+The approve/reject records are the observations. Nothing else generates trust evidence. Self-reported success, heuristic judgments, fold-derived "this looks like it worked" — none of these contribute. The rule is: **no verdict record, no trust delta**.
+
+## Independence is structural, not advisory
+
+The evaluator must be a different DID than the executor. If Alice approves her own work, the record is accepted into the log (the kernel doesn't reject it), but the trust fold structurally discards self-verdicts. No trust is earned from self-approval.
+
+This has teeth in day-to-day use: the dev agent that closes SKL-0334 cannot approve SKL-0334. Its evidence for SKL-0334 is its claim of completion; the evidence that produces trust comes from the director agent or the human reviewing the PR.
+
+For agent-to-agent review (`did:sync:agent:dev` reviewed by `did:sync:agent:director`), independence holds trivially — two different DIDs, two separate trust chains. The evaluator's trust itself accumulates independently, which is why `trust(did:sync:agent:director, review)` is a legitimate score you can query.
+
+## The Wilson lower bound
+
+The raw success rate (`successes / total`) is the wrong aggregator. With 1 success out of 1 observation, `1.0` looks perfect but carries almost no information. With 100 out of 100, `1.0` looks identical but is far more reliable.
+
+Syncropel uses the Wilson score lower bound at 95% confidence. This gives a statistically honest answer that rises with evidence:
+
+| Success / Total | Wilson LB (95%) | What it means |
+|---|---|---|
+| 1 / 1  | 0.05 | Almost no evidence; score stays near zero. |
+| 5 / 5  | 0.57 | Promising; worth routing simple work to. |
+| 10 / 10 | 0.72 | Strong; routing rules can pre-approve. |
+| 50 / 50 | 0.93 | Crystallization territory. |
+| 10 / 12 | 0.57 | Same ceiling as 5/5, accounting for the 2 failures. |
+| 45 / 50 | 0.79 | High but not perfect — occasional misses weigh down the lower bound. |
+
+The lower bound under-counts on purpose. You cannot bootstrap high trust from a handful of lucky approvals; you have to keep producing.
+
+## The dial and the cost curve
+
+Trust feeds the dial — a continuous value in `[0, 1]` that maps into four zones:
+
+| Zone | Dial range | What it means | Typical cost |
 |---|---|---|---|
-| **REPLAY** | 0.0 - 0.33 | Pattern is proven, replay it directly | Near zero |
-| **ADAPT** | 0.33 - 0.50 | Known pattern, minor adaptation needed | Low |
-| **EXPLORE** | 0.50 - 0.67 | Moderate novelty, iterative approach | Moderate |
-| **CREATE** | 0.67 - 1.0 | Genuinely novel, full reasoning required | Higher |
+| **REPLAY** | 0.00 – 0.33 | A proven pattern is replaying. | Near zero. |
+| **ADAPT** | 0.33 – 0.50 | Known pattern, minor adaptation. | Low. |
+| **EXPLORE** | 0.50 – 0.67 | Moderate novelty, iterative approach. | Moderate. |
+| **CREATE** | 0.67 – 1.00 | Genuinely novel; full reasoning required. | Higher. |
 
-As an actor builds trust in a domain, their work costs less — proven patterns can be replayed without re-computation. This is the economic engine: every successful completion makes the next similar task cheaper.
+The dial is derived from trust *and* pattern match strength — a well-trusted actor doing novel work still lands in EXPLORE/CREATE, and an untrusted actor touching a well-matched pattern lands in REPLAY. Trust shifts where on the curve a task sits; pattern match determines which curve.
+
+Over time, a domain dominated by a high-trust actor and a well-matched pattern shifts most of the distribution into REPLAY. That's the economic payoff — not cheaper LLM calls, but *fewer LLM calls*, because replay doesn't call the model at all.
 
 ## Decay
 
-Trust decays over time. Evidence from 6 months ago carries less weight than evidence from last week. The default decay half-life is 90 days — trust must be continuously maintained through recent work.
+Evidence gets stale. The default decay half-life is 90 days: an approval from three months ago counts as 0.5 of an approval from today; one from six months ago counts as 0.25. The Wilson computation runs over the decayed counts, so the score drifts downward as evidence ages unless refreshed.
 
-This prevents stale trust from persisting. An actor who was excellent a year ago but hasn't worked recently returns to a neutral trust score, requiring fresh evidence.
+This is what keeps the model honest. An actor who was great a year ago but hasn't worked recently returns to a neutral score, and any renewed work has to re-prove itself. Teams that rotate responsibilities, agents whose substrate has changed, domains whose requirements have drifted — all of them get rescored continuously without needing a manual reset.
 
-## Independence Requirement
+Decay is a fold-time operation, not an ingest-time one. Nothing happens to the underlying records as they age; only the computed score reflects decay. You can query "what was the trust score on 2025-11-01?" by running the fold with a reference date.
 
-The evaluator must be different from the executor. An actor cannot approve their own work — self-evaluation is structurally ignored by the trust computation. This ensures trust evidence comes from independent judgment, not self-reported success.
+## What's enforced today vs the spec
 
-## What's Next
+Current implementation covers the core trust loop end-to-end: verdict records produce evidence, Wilson LB computes scores, self-verdicts are discarded, decay runs on schedule, scores are exposed via `spl trust` and the `trust()` CEL function in all 7 CEL contexts.
 
-- [Patterns](/docs/concepts/patterns) — how trust enables pattern crystallization
-- [The engine](/docs/concepts/engine) — the 4-loop system that processes records
-- [Task management](/docs/guides/task-management) — the evaluation gate in practice
+Two pieces are partially implemented and tracked as follow-ups:
+
+- **CUSUM drift detection** is in the algebra crate (see `syncropel-trust/src/cusum.rs`) but the alert surface isn't wired to push notifications yet. The counters are observable at `GET /v1/governance/cusum-alerts`.
+- **Crystallization of patterns from trusted actors** works — a pattern from an actor with trust ≥ 0.90 and 100+ observations crystallizes per the C1-C4 criteria — but the REPLAY path doesn't yet fully bypass the LLM for crystallized patterns in all 7 decision points; it short-circuits in routing but not yet in AITL.
+
+Both are bounded gaps. The trust layer is statistically honest and domain-scoped today; the full payoff (automatic replay everywhere) lands as the remaining consumers are wired.
+
+## When trust won't help you
+
+Worth flagging up front — trust is not a universal solvent.
+
+**Cold start.** A brand-new actor has zero observations and therefore zero trust. The first few dispatches are expensive because nothing has crystallized and nothing routes via trust. This is unavoidable and intentional — artificially bootstrapping trust defeats the purpose.
+
+**Domain mismatch.** An actor with high trust in `code` has none in `ops`. Routing an ops task to them produces a low-evidence verdict that doesn't leverage their code trust. Either tag the domain correctly or accept the lower confidence.
+
+**Rare-event tasks.** If a task type happens once per year, you won't accumulate observations fast enough to build trust. These are legitimately EXPLORE/CREATE; the model is telling the truth when it stays expensive.
+
+**Evaluator disagreement.** If two evaluators give consistently opposite verdicts on the same actor's work, the aggregated trust score is misleading. Look at `trust(actor, domain, judged_by)` separately per evaluator before making routing decisions.
+
+## What's next
+
+- **[Patterns](/docs/concepts/patterns)** — how trust feeds pattern crystallization.
+- **[The engine](/docs/concepts/engine)** — where trust is consulted during routing.
+- **[Actors](/docs/concepts/actors)** — the DID model trust is keyed on.
+- **[Task management guide](/docs/guides/task-management)** — the evaluation gate in practice.
+- **[CEL expressions](/docs/guides/cel-expressions#trust)** — using `trust()` in routing, permission, and health rules.

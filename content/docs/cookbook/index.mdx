@@ -1,0 +1,37 @@
+---
+title: Cookbook
+description: Short, tested recipes for common operational shapes. Copy, adapt, ship. Each recipe names a real problem, shows the commands, and explains the trade-off.
+---
+
+## What this section is
+
+A cookbook is not a tutorial and not a guide. A tutorial teaches a concept; a guide explains a subsystem. A recipe solves one specific problem in one specific way. You arrive, you copy commands, you leave.
+
+Every recipe on the next pages:
+
+1. **Names a problem** in one sentence at the top.
+2. **Gives the commands** in runnable form — you can paste them at a terminal with only the names swapped out.
+3. **Explains the one trade-off** you should know before you ship the result.
+4. **Points to the underlying concept** if you want to know why the recipe works.
+
+If a recipe gets long, it probably belongs in a guide. Recipes stay short on purpose.
+
+## Recipes
+
+| Recipe | Problem it solves |
+|---|---|
+| [Route by domain](/docs/cookbook/route-by-domain) | Dispatch code work to one agent and ops work to another without a rule explosion. |
+| [Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) | Let high-trust actors ship without blocking on human review; require review for low-trust ones. |
+| [Federate one thread](/docs/cookbook/federate-one-thread) | Share a single task thread with a collaborator on a different `spl` instance, nothing more. |
+| [Scheduled daily digest](/docs/cookbook/scheduled-daily-digest) | Emit a daily summary record at 09:00 containing what closed in the last 24 hours. |
+| [Audit export to Elastic](/docs/cookbook/audit-export-to-elastic) | Pipe the security-relevant record stream into Elasticsearch or another SIEM. |
+
+## How these relate to guides
+
+Guides explain a subsystem end-to-end ([CEL](/docs/guides/cel-expressions), [Federation](/docs/guides/federation), [Task management](/docs/guides/task-management)). Recipes are cross-cutting — they pick pieces from multiple subsystems to solve one operational problem.
+
+When a recipe starts to grow into a full subsystem explanation, it graduates into a guide. When a guide accumulates too many "how do I X?" questions in comments, the Xs become recipes. Both directions happen.
+
+## Contributing
+
+Every recipe should be verified by running the commands in a clean shell. Copy-paste quality is the acceptance criterion. If a recipe's commands don't work when you follow them, open an issue — a broken recipe is worse than a missing one.
