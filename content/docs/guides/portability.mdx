@@ -1,0 +1,149 @@
+---
+title: Portability
+description: Move records, threads, and federation pairs between Syncropel instances. Export from one steward, import into another, with zero data loss.
+---
+
+## What this is
+
+`spl export` produces a signed, content-addressed bundle of one Syncropel instance's state. `spl import` ingests that bundle into another instance. After a round-trip, every record, thread, federation pair, and consent grant is present on the new side — bit for bit identical.
+
+This is the mechanism behind **steward equivalence**: any Syncropel instance can be moved between hosts, between operators, between hosted and self-hosted, without losing data or relationships.
+
+## What's portable
+
+Everything that's part of the substrate:
+
+- **Records** — every record on every thread, content-addressed (so re-importing the same bundle is a no-op, automatically)
+- **Threads** — derived state rebuilds from the record fold on import
+- **Federation pairs** — the persistent relationships established via `spl federation pair`. URLs auto-refresh on first contact post-migration; you don't need to re-pair.
+- **Consent grants** — cross-namespace permissions via the `th_consent` thread
+- **Identity** — the DID document + private key (optional, see below)
+- **Service accounts + adapter registry** — the structural metadata
+- **Engine config** — routing rules, fold rules, AITL rules, permission rules
+
+What's **not** in the bundle:
+
+- **Plaintext secret values.** Secrets live in your secret backend (env vars, vault, OS keyring). The bundle has handle-references only. To complete the migration, bring up the same secret backend on the new instance separately.
+- **Bearer tokens** — by default, service-account tokens are revoked on export so a leaked bundle can't grant access. Pass `--carry-tokens` if you intend to preserve them across the migration.
+- **Trust scores** — these rebuild automatically from the imported records (`KNOW`/`DO` outcomes replay through the trust math).
+
+## Export
+
+The minimal command:
+
+```bash
+spl export --out /tmp/my-instance.tar.zst
+```
+
+This produces a `tar.zst` bundle signed by your daemon's identity. The signature ties the bundle to the issuing instance — a tampered bundle won't verify on import.
+
+Useful flags:
+
+| Flag | What it does |
+|---|---|
+| `--out PATH` | Bundle output path (required) |
+| `--uncompressed` | Plain `.tar` instead of `.tar.zst` (inspectable; larger) |
+| `--no-identity` | Don't include private key + DID document (then the bundle isn't importable) |
+| `--carry-tokens` | Keep service-account tokens valid across migration |
+
+Inspect a bundle without unpacking:
+
+```bash
+tar -tzf /tmp/my-instance.tar.zst | head
+# manifest.json
+# manifest.sig
+# identity/did_document.json
+# identity/private_key.bin
+# records/<thread_id>/<record_id>.json
+# ...
+```
+
+The `manifest.json` carries:
+- `bundle_version` — schema version
+- `source_did` — issuing instance DID
+- `record_count` — total records
+- `bundle_sha256` — hash over all staged files in path-sorted order
+
+## Import
+
+Importing into a fresh instance:
+
+```bash
+spl import /tmp/my-instance.tar.zst
+```
+
+Importing into an existing instance (force overwrite — see safety below):
+
+```bash
+spl import /tmp/my-instance.tar.zst --force-overwrite
+```
+
+Useful flags:
+
+| Flag | What it does |
+|---|---|
+| `--dry-run` | Read-only verification. Reports counts without ingesting. |
+| `--force-overwrite` | Allow import into a non-empty store. |
+| `-o json` | Machine-readable output. |
+
+## Safety: refusing to clobber
+
+By default `spl import` refuses to import into a non-empty store. This prevents accidentally overwriting work on a populated steward with a snapshot from somewhere else.
+
+To override:
+
+```bash
+spl import bundle.tar.zst --force-overwrite
+```
+
+Use this flag deliberately. Re-imports are idempotent (same bundle → same record IDs → no double-ingestion), so the typical migration flow is:
+
+1. Import once on a fresh instance (no `--force-overwrite` needed)
+2. Re-import later if you need to verify it (idempotent — `records_inserted: 0`, `records_deduplicated: 100`)
+
+## Migrating between instances
+
+The canonical pattern: hosted → local.
+
+Imagine you've been running on a hosted instance. You want to move to your laptop:
+
+```bash
+# On the hosted side
+spl export --out ~/migration.tar.zst
+
+# Locally
+spl serve --daemon
+spl identity generate
+spl import ~/migration.tar.zst
+```
+
+After import, the federation pair records still reference the hosted URL. The first time you `spl sync` from a paired peer, the local instance discovers the cached URL is stale. It re-resolves the peer via DID lookup, updates the pair's `peer_base_url`, and proceeds. **You don't need to re-pair.**
+
+The reverse migration (local → hosted) works the same way.
+
+## What round-trip means
+
+The bundle format and import logic together guarantee a property the v1.0 vision depends on: any Syncropel instance can be exported and re-imported into a fresh instance with **zero divergence on the substrate surfaces**:
+
+- Same record IDs (records are content-addressed, so this is structural — not luck)
+- Same threads (threads rebuild from the record fold)
+- Same federation pairs (state derives from `th_federation_pairs` records)
+- Same consent grants (state derives from `th_consent` records)
+
+This isn't aspirational — it's tested on every release as a CI gate. If round-trip ever produces a non-zero diff, the release is held until the divergence is fixed. "You can leave any time and take your records" has a mechanism, not just a promise.
+
+## Troubleshooting
+
+**`bundle malformed: identity/did_document.json has no Ed25519VerificationKey2020`** — The export side wrote a DID document the import side can't parse. Either the bundle was produced by an incompatible instance, or the bundle is corrupted. Re-export.
+
+**`import refused: local store has N records; pass --force-overwrite to import anyway`** — Safety gate. Either start with a fresh instance, or pass `--force-overwrite` if you mean it.
+
+**`signature verification failed`** — Bundle signature doesn't match the included identity. Either tampered or corrupted. Re-export from a trusted source.
+
+**Federation pair shows stale URL after import** — Expected. The URL refreshes on first contact via DID resolution. If your pair's peer is unreachable at the cached URL AND the peer DID is unresolvable, sync will surface a clear error pointing you at `spl federation refresh <peer-did>`.
+
+## See also
+
+- [Federation pairing](./federation-pair) — the relationship that survives migration
+- [Backup & restore](./backup-restore) — local snapshot/restore (different mechanism, similar shape)
+- [Consent](./consent) — the cross-namespace policy layer that round-trips with the bundle
