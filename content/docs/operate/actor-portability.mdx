@@ -1,0 +1,145 @@
+---
+title: Actor portability
+description: Export an actor's identity + work trail from one Syncropel instance and import it into another. What migrates, what doesn't, and the consent implications.
+---
+
+## The problem
+
+Actor identities in Syncropel are content-addressed DIDs (e.g.
+`did:sync:agent:dev`). If you're moving from a self-hosted instance to
+a managed one, consolidating across teams, or sunsetting an instance,
+you want the actor's **work trail** to move with them — not just the
+bare DID.
+
+`spl actor export` and `spl actor import` cover that migration with
+explicit consent, verifiable hashes, and clear boundaries on what
+crosses the line.
+
+## What moves
+
+| Migrates by default | Tool flag | Description |
+|---|---|---|
+| Actor registration record | always | The DID, display name, category, and metadata |
+| Records authored by the actor | always | Every INTEND / DO / KNOW / LEARN the actor emitted |
+| Trust observations **for** the actor | always | Wilson-LB inputs that fed `trust(actor, ...)` |
+| Memories **of** the actor | `--include-memories` (default: on) | The actor's stored `spl memory` entries |
+
+## What does NOT move
+
+| Stays behind | Why |
+|---|---|
+| Trust scores **about other actors** | The importing instance builds its own trust graph from ingested records |
+| Bearer tokens + service accounts | Security boundary — the new instance mints its own credentials |
+| Federation pairs | The importing instance pairs explicitly on its own |
+| Consent records `th_consent` | Consent is per-instance; re-issue in the target |
+| Routing rules / triggers / health checks | Config is per-deployment |
+
+## Quickstart
+
+### Export from the source instance
+
+```bash
+# Exports to stdout as NDJSON (one record per line)
+spl actor export did:sync:agent:dev > /tmp/dev-actor-export.ndjson
+
+# Drop memories if the target doesn't need them
+spl actor export did:sync:agent:dev --no-memories > /tmp/dev-actor-export.ndjson
+
+# Discount trust contributions by 0.5 on import (see Trust discounting below)
+spl actor export did:sync:agent:dev --trust-discount 0.5 > /tmp/dev-actor-export.ndjson
+```
+
+Content is a newline-delimited JSON stream — safe to `gzip`, `scp`, or
+`cat` across hosts.
+
+### Import to the target instance
+
+```bash
+# Dry run — shows what would happen
+spl actor import /tmp/dev-actor-export.ndjson --dry-run
+
+# Actual import
+spl actor import /tmp/dev-actor-export.ndjson
+
+# Merge into existing actor of the same DID instead of rejecting
+spl actor import /tmp/dev-actor-export.ndjson --merge
+```
+
+The import is **transactional**: either the entire trail is ingested or
+none of it, so a partial failure doesn't leave the target in a
+mixed-state.
+
+## Trust discounting
+
+When an actor moves instances, their accumulated trust on the source
+may not fully transfer. A dev-agent that scored 0.95 on a 10-engineer
+team's work isn't automatically a 0.95 on a different team's work —
+the domain distribution is different, the expectations are different.
+
+`--trust-discount` multiplies every trust observation on import:
+
+```bash
+# Full trust preserved (default)
+spl actor import --trust-discount 1.0 export.ndjson
+
+# Half-weight on import — start from a conservative baseline
+spl actor import --trust-discount 0.5 export.ndjson
+
+# Trust reset — records ingested, but the actor starts with no trust evidence
+spl actor import --trust-discount 0.0 export.ndjson
+```
+
+Discount applies only to trust *inputs* — the records themselves
+preserve their original semantics.
+
+## Consent implications
+
+Exporting an actor does NOT automatically export records **about** the
+actor emitted by other parties. Those records belong to their
+emitters, not the exported actor.
+
+If a third-party agent emitted KNOW records scoring your exported
+actor's work, those KNOW records remain on the source instance. They
+don't move with the actor.
+
+If you need cross-actor consent for a migration (e.g. importing a
+federation peer's review verdicts alongside the actor's work), the
+source instance must emit `core.scope_transfer` records before export.
+See [Consent model](/docs/guides/consent) for details.
+
+## Idempotency
+
+`spl actor import` is **idempotent** at the record-id level. Running
+the same export twice produces the same records; the store's
+content-addressing ensures duplicates are not stored twice. This makes
+`spl actor import` safe to re-run on transient failures.
+
+## When you might migrate
+
+- **Hosted → self-hosted** — spin up a local daemon, move your actor
+  onto it, keep working locally
+- **Instance consolidation** — two teams that have been running
+  separate instances merge; actors from both unify on the new shared
+  instance
+- **Sunsetting an instance** — before tearing down, export all actors
+  to a consolidated archive instance
+
+## What the command does NOT do
+
+- No network federation — you're producing a portable file, not a
+  live sync channel. Federation is a separate subsystem
+  ([see Federation](/docs/guides/federation)).
+- No automatic authorization — a target operator must import
+  deliberately. There's no "pull" from the source.
+- No scope translation — if the source used custom scopes, you may
+  need to adjust them on the target. Standard scopes migrate
+  identically.
+
+## Pairs with
+
+- **[Actors and adapters](/docs/guides/actors-and-adapters)** — how
+  actors are registered and dispatched
+- **[Federation](/docs/guides/federation)** — live network sync, the
+  complement to portable export/import
+- **[Backup + restore](/docs/guides/backup-restore)** — whole-daemon
+  migration, if you want to move everything not just one actor

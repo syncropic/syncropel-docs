@@ -1,0 +1,55 @@
+---
+title: Scheduled daily digest
+description: Fire a cron trigger every morning at 09:00 that dispatches an agent to summarise what closed in the last 24 hours. One trigger, one target.
+---
+
+## Problem
+
+You want a daily check-in record — a compact summary of what tasks closed, what dispatches cost, and any alerts that fired in the last 24 hours. It should land on a shared thread at 09:00 local time every day without anyone triggering it by hand. The agent producing the summary can be an existing review agent; you don't need a new one.
+
+## Recipe
+
+One scheduled trigger. Dispatches your review agent at 09:00 with the goal "produce daily digest".
+
+```bash
+# Create the scheduled trigger.
+spl config add-trigger \
+  --name "daily-digest-0900" \
+  --schedule "0 9 * * *" \
+  --target "did:sync:agent:director" \
+  --goal "Summarise yesterday's closed tasks, dispatch costs, and alerts. Emit a KNOW on th_daily_digest with body.topic=daily_digest." \
+  --budget 0.50 \
+  --timeout 600 \
+  --max-concurrent 1
+
+# Verify.
+spl config list-triggers
+
+# See when it last fired and what it emitted.
+spl config trigger-history --limit 10
+```
+
+The cron expression `0 9 * * *` fires at 09:00 every day (minute=0, hour=9, any day of month / month / day of week). Standard 5-field cron. The trigger dispatches the target actor with the given goal, then emits a `KNOW` on `th_engine_config` capturing the trigger event. The agent's own work (fetching the data, composing the digest, emitting the digest record) happens on a dispatch sub-thread.
+
+The agent should emit the digest to a stable thread — here we're using `th_daily_digest`. Create it once if it doesn't exist:
+
+```bash
+# Open the digest thread with a root INTEND so it has a name and a home.
+spl intend "Daily digests" --thread th_daily_digest
+```
+
+Subsequent KNOWs from the agent land on that same thread and fold into a chronological log of daily summaries. `spl thread records th_daily_digest` reads the archive.
+
+## The trade-off
+
+**Cron triggers are instance-local.** If you're running a fleet, the trigger fires on whichever instance owns the `th_engine_config` record (the coordinator in most deployments). If that instance is offline at 09:00, the digest skips — there's no makeup run. For a multi-instance fleet that must run the digest regardless, author the trigger on the fleet's coordinator thread and rely on the coordinator-redundancy story.
+
+**The goal text is the entire brief the agent sees.** Rich briefs produce better digests. The goal above asks for a specific thread (`th_daily_digest`) and a specific body topic (`daily_digest`), which means you can CEL-match on the digest records later (e.g., route them through a notification webhook, alert on missing digests). A vague goal ("summarise yesterday") will work but produces less structured output.
+
+**Budget caps the dispatch.** 0.50 USD on a competent reasoning agent is enough for a focused digest over ~50 closed tasks. Raise if the team is bigger; lower if you want to force conciseness. The trigger will emit `TIMEOUT` if the dispatch exceeds 600 seconds or the budget; the next day's 09:00 fire is unaffected.
+
+## See also
+
+- **[Scheduled triggers guide](/docs/guides/scheduled-triggers)** — cron syntax, schedule + match combinations, history inspection.
+- **[CEL expressions](/docs/guides/cel-expressions)** — if you want the trigger to also fire on record events instead of (or in addition to) cron.
+- **[The Engine — CRON loop](/docs/concepts/engine#cron-hours-daily)** — what else runs on the CRON timescale.

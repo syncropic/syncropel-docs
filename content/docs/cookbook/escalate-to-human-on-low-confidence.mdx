@@ -1,0 +1,159 @@
+---
+title: Escalate to a human on low confidence
+description: An LLM handles the normal case; when it returns low confidence, the query escalates to a human. No routing rules, no hard-coded fallback — just one orchestration spec.
+---
+
+## Problem
+
+Your support triage system classifies incoming tickets. An LLM handles the common patterns (shipping question, refund request, account lock). Occasionally the LLM isn't sure, and you'd rather hand the unclear cases to a human than let a low-confidence guess hit production.
+
+You want: dispatch to the LLM first; if its confidence is below 0.7, escalate to a named human support lead. End-to-end in one query.
+
+## Recipe
+
+`escalate` orchestration with two tiers. Tier 1 is Claude Sonnet. Tier 2 is Priya (the support lead). Escalation fires when confidence is below threshold.
+
+```json
+{
+  "kind": "infer.query.v1",
+  "input": {
+    "inline": {
+      "ticket_id": "SUP-4821",
+      "subject": "Package arrived open",
+      "body": "Hi, my box arrived with the tape cut and one item missing. Help?"
+    }
+  },
+  "responders": [
+    { "kind": "llm", "model": "~sonnet" },
+    { "kind": "actor", "did": "did:example:priya", "capability": "support:triage" }
+  ],
+  "fold": { "function": "best_of" },
+  "orchestration": {
+    "pattern": "escalate",
+    "tiers": [
+      { "responders": [{ "kind": "llm", "model": "~sonnet" }] },
+      { "responders": [{ "kind": "actor", "did": "did:example:priya" }] }
+    ],
+    "escalation_expression": "fold.answer.confidence < 0.7"
+  },
+  "answer_shape": {
+    "kind": "core.triage_decision.v1",
+    "required_fields": ["body.category", "body.priority", "body.confidence"]
+  },
+  "side_effects": {
+    "reversible": true,
+    "max_cost_usd": 0.50,
+    "max_latency_secs": 14400
+  }
+}
+```
+
+Run it:
+
+```bash
+spl infer --query-file triage-query.json --wait --poll-timeout-secs 14400
+```
+
+## The high-confidence path
+
+The LLM returns:
+
+```json
+{
+  "category": "damage_claim",
+  "priority": "p2",
+  "confidence": 0.91,
+  "rationale": "Explicit mention of damage + missing item."
+}
+```
+
+`fold.answer.confidence` is 0.91, which is not less than 0.7, so no escalation fires. KNOW commits. Total latency ~5s, cost ~$0.003.
+
+End-to-end trace (records on the query's thread, via `spl thread records <id>`):
+
+```text
+clock  actor                    act     body.kind
+  1    did:example:support-sys  INTEND  infer.query.v1
+  2    did:sync:system:engine   CALL    infer.call.v1      (→ sonnet)
+  3    did:sync:llm:sonnet      DO      core.triage_decision.v1
+  4    did:sync:system:engine   KNOW    core.triage_decision.v1   ← final
+```
+
+## The escalation path
+
+The LLM returns:
+
+```json
+{
+  "category": "account_issue",
+  "priority": "p3",
+  "confidence": 0.58,
+  "rationale": "Unclear whether to route to damage-claims or fraud team."
+}
+```
+
+`fold.answer.confidence < 0.7` is true. Escalation fires.
+
+End-to-end trace:
+
+```text
+clock  actor                    act     body.kind                              notes
+  1    did:example:support-sys  INTEND  infer.query.v1
+  2    did:sync:system:engine   CALL    infer.call.v1                          → sonnet (tier 1)
+  3    did:sync:llm:sonnet      DO      core.triage_decision.v1                confidence=0.58
+  4    did:sync:system:engine   LEARN   infer.orchestration.escalate.state.v1  tier=0 failed
+  5    did:sync:system:engine   CALL    infer.call.v1                          → priya (tier 2)
+  6    did:example:priya        DO      infer.accept.v1                        eta_seconds=7200
+  7    did:example:priya        DO      core.triage_decision.v1                confidence=0.95
+  8    did:sync:system:engine   KNOW    core.triage_decision.v1                ← final, priya's answer
+```
+
+Priya gets her notification (SSE if her PWA is open, webhook / Slack / SMS otherwise). She first sends `infer.accept.v1` with `eta_seconds: 7200` — this extends the executor's await window by 2 hours without counting toward fold quorum. She then submits her verdict, which is terminal and does count. `best_of` with two contributors (Priya at trust 0.95 vs Sonnet at 0.62) picks Priya. Her full body commits.
+
+## Why escalate, not verify?
+
+`verify` requires **both** primary and verifier to run every time. `escalate` only pulls in tier 2 when tier 1 fails the expression. If 90% of your tickets are handled at tier 1 with high confidence, escalate costs ~1 LLM call most of the time and only reaches out to Priya on the hard 10%. Verify would always call both.
+
+## The trade-off
+
+`escalate` serialises tiers. Tier 2 doesn't start until tier 1 returns. That's its whole value but it also means your worst-case latency is sum-of-tiers — if Priya takes 2 hours, the query takes ~2 hours + 5 seconds.
+
+Human tier latency can blow your `max_latency_secs`. Budget liberally — 14400s (4 hours) or 86400s (24 hours) are reasonable for non-urgent human escalation. If the query times out before Priya responds, the executor emits `latency_timeout` and the LLM's tier-1 answer never commits (you get an error KNOW, not the low-confidence answer).
+
+If you want the LLM's best-effort answer preserved even on human timeout, use `retry_on_low_confidence` with `max_attempts: 2` and retry LLMs of increasing capability instead. That keeps the whole loop machine-paced.
+
+## Run this against a dev daemon
+
+Register Priya:
+
+```bash
+spl actor register \
+  --did did:example:priya \
+  --kind actor \
+  --capability "support:triage" \
+  --trust-hint 0.9
+```
+
+Optionally wire a webhook so you can manually reply from `webhook.site`:
+
+```bash
+spl actor update did:example:priya \
+  --webhook-url https://webhook.site/your-test-id
+```
+
+Emit the query as above. Watch the thread. If Priya doesn't respond and you want to simulate her DO, you can `spl do` directly:
+
+```bash
+spl do "triage response" \
+  --thread <query-thread-id> \
+  --actor did:example:priya \
+  --body '{"kind":"core.triage_decision.v1","category":"damage_claim","priority":"p1","confidence":0.95}'
+```
+
+The KNOW will commit once the DO lands.
+
+## See also
+
+- **[Orchestration Patterns — escalate](/docs/guides/inference/orchestration-patterns#pattern-escalate)** — full description and human-in-the-loop specifics.
+- **[Translate with human verification](/docs/cookbook/translate-with-human-verification)** — the verify variant where a human resolves disagreement rather than fills in for low confidence.
+- **[Dispatch observability](/docs/guides/dispatch-observability)** — how to trace queries through CALL + DO + LEARN records.

@@ -1,0 +1,67 @@
+---
+title: Route by domain
+description: Dispatch code work to one agent and ops work to another, using a single CEL rule per domain. No rule explosion, no per-user config.
+---
+
+## Problem
+
+Your team has two active AI agents — one specialised for code (`did:sync:agent:dev`) and one for ops (`did:sync:agent:ops-bot`). When you open a task with `domain: code`, you want it dispatched to the code agent. When you open one with `domain: ops`, you want the ops agent. You don't want to target the agent explicitly every time, and you don't want one rule per user.
+
+## Recipe
+
+Two routing rules. One per domain. Authored as CEL expressions.
+
+```bash
+# Route every INTEND with domain=code to the dev agent.
+spl config add-rule \
+  --name "route-code-to-dev" \
+  --expression "record.act == 'INTEND' && record.body.domain == 'code'" \
+  --target "did:sync:agent:dev" \
+  --priority 100
+
+# Route every INTEND with domain=ops to the ops bot.
+spl config add-rule \
+  --name "route-ops-to-bot" \
+  --expression "record.act == 'INTEND' && record.body.domain == 'ops'" \
+  --target "did:sync:agent:ops-bot" \
+  --priority 100
+
+# Verify what's loaded.
+spl config list-rules
+```
+
+That's it. From this point on, any task opened with the right `body.domain` routes automatically.
+
+Try it:
+
+```bash
+# This dispatches to did:sync:agent:dev.
+spl task add "Refactor the auth middleware" \
+  --alias REFACTOR-001 \
+  --assigned-to did:sync:agent:dev \
+  --domain code
+
+# This dispatches to did:sync:agent:ops-bot.
+spl task add "Rotate the TLS cert on api.example.com" \
+  --alias CERT-ROTATE-001 \
+  --assigned-to did:sync:agent:ops-bot \
+  --domain ops
+```
+
+Or let the rule route for you by omitting `--assigned-to` — the routing cascade will pick up the domain-based rule when it hits step 3 (see [The Engine — routing cascade](/docs/concepts/engine#routing-cascade)).
+
+## The trade-off
+
+**These rules match every INTEND at their priority**, not just task opens. If you emit a manual `INTEND` for some other purpose (a diagnostic ping, a dispatch sub-thread opener) with `body.domain: code`, it will also route to the dev agent. If that's not what you want, narrow the expression:
+
+```bash
+--expression "record.act == 'INTEND' && record.body.domain == 'code' && record.body.task == true"
+```
+
+The `record.body.task == true` clause restricts matching to task INTENDs only. Adjust priority (higher number = evaluated first) if you have other rules that also match task INTENDs.
+
+## See also
+
+- **[Routing rules guide](/docs/guides/routing-rules)** — the full rule authoring model.
+- **[CEL expressions](/docs/guides/cel-expressions)** — every binding available in the routing context.
+- **[The Engine — routing cascade](/docs/concepts/engine#routing-cascade)** — where routing rules fit in the 6-step match.

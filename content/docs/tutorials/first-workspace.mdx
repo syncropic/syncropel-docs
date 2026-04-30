@@ -1,0 +1,258 @@
+---
+title: Build your first workspace in 10 minutes
+description: Scaffold, edit, test, publish, and share a recipe-collection workspace your friends can install. The complete happy path, end-to-end.
+---
+
+By the end of this tutorial, you'll have published a recipe-collection
+workspace your friends can install and use. We'll go from `spl
+workspace init` to a draft, to a release listed in the catalog, to a
+friend's Studio rendering your work.
+
+The recipe-collection template demonstrates the multiple components, each surfacing the same body
+kind (`recipe.entry.v1`) through different folds. It works for solo
+publishing and for sharing.
+
+Allow ~10 minutes for the happy path. If you're learning the moving
+parts as you go, plan ~20 minutes.
+
+## Prerequisites
+
+- `spl serve --daemon` running locally — see [Run the daemon](/docs/get-started/daemon)
+- Identity initialized via `spl init` — see [First run](/docs/get-started/first-run)
+- A browser pointed at [`syncropel.com/local`](https://syncropel.com/local) (Studio)
+- `spl version` reports `0.21` or newer
+
+If anything above is missing, the tutorial flow won't work — fix it
+first.
+
+## 1. Scaffold
+
+```bash
+spl workspace init my-recipes --template recipe-collection
+```
+
+Output:
+
+```
+✓ Created my-recipes/
+  ├── workspace.json              core.workspace.v1 manifest
+  ├── README.md
+  └── tests/
+      ├── fixtures/basic.json
+      └── expected/basic.fold.json
+
+Next steps:
+  cd my-recipes
+  spl workspace test
+  spl workspace publish --draft
+```
+
+What you got:
+
+- **`workspace.json`** — a `core.workspace.v1` manifest with three
+  components (an index view, a featured page, a recently-added view)
+  all surfacing `recipe.entry.v1` records. The schema lives at
+  [`core.workspace.v1`](https://syncropel.com/schemas/config/core-workspace.v1.schema.json).
+- **`tests/fixtures/basic.json`** — one input record (a pancake
+  recipe) the runner replays through your workspace's fold.
+- **`tests/expected/basic.fold.json`** — the fold output your test
+  asserts against. The `spl workspace test` runner compares this
+  byte-for-byte.
+
+```bash
+cd my-recipes
+cat workspace.json
+```
+
+The placeholder strings (`__NAME__`, `__SLUG__`, `__DID__`) have been
+substituted with values derived from your invocation and current
+identity. The manifest is a record waiting to be emitted.
+
+## 2. Edit
+
+Add a second recipe by editing `tests/fixtures/basic.json` to look
+like this:
+
+```json
+[
+  {
+    "body": {
+      "kind": "recipe.entry.v1",
+      "_v": 1,
+      "title": "Pancakes",
+      "ingredients": ["flour", "milk", "eggs"],
+      "steps": ["mix", "cook", "serve"]
+    }
+  },
+  {
+    "body": {
+      "kind": "recipe.entry.v1",
+      "_v": 1,
+      "title": "Toast",
+      "ingredients": ["bread", "butter"],
+      "steps": ["toast", "spread"]
+    }
+  }
+]
+```
+
+You're not editing the workspace's records directly here — you're
+editing **test fixtures** that exercise the workspace's fold. Once the
+workspace is published and a friend subscribes, real records of kind
+`recipe.entry.v1` flow into the same components and get folded the
+same way.
+
+(You can also add recipes via Studio at
+`syncropel.com/local/workspaces/my-recipes` once you've published the
+draft below — pick whichever editing path you prefer.)
+
+## 3. Test
+
+```bash
+spl workspace test
+```
+
+The runner discovers fixtures, runs the workspace's fold against each,
+compares to expected output, and reports pass/fail.
+
+For the moment your fixture has changed but the expected hasn't, so the
+test fails:
+
+```
+✗ basic
+  diff:
+  - count: 1
+  + count: 2
+  - recipes: [{"title": "Pancakes", ...}]
+  + recipes: [{"title": "Pancakes", ...}, {"title": "Toast", ...}]
+
+1 failed, 0 passed
+```
+
+Update the expected file to reflect your new fixture. The fast path is
+to let the runner do it:
+
+```bash
+spl workspace test --update
+```
+
+This regenerates `tests/expected/basic.fold.json` from the current
+fold output. Re-run without `--update` to confirm:
+
+```bash
+spl workspace test
+# ✓ basic — 1 passed, 0 failed
+```
+
+The full testing flow — adding new fixtures, validating against
+schemas, watching with `--watch` — is documented in [Testing
+workspaces](/docs/operate/workspace/testing).
+
+## 4. Publish a draft
+
+```bash
+spl workspace publish --draft
+```
+
+Output:
+
+```
+✓ Published draft
+  record: <sha256>
+  lifecycle: draft
+  view: https://syncropel.com/local/workspaces/my-recipes
+```
+
+A **draft** is local-only. The manifest is stored as a record in your
+namespace, but it does not federate, does not appear in any catalog,
+and only your `publisher_did` can subscribe to it. Drafts are for
+iteration — see [Workspace lifecycle](/docs/operate/workspace/lifecycle)
+for the full state machine.
+
+Open the link in your browser. Studio renders the manifest's three
+components live against your local kernel.
+
+## 5. Publish a release
+
+When you're satisfied:
+
+```bash
+spl workspace publish --release --catalog https://catalog.syncropel.com/threads/main
+```
+
+Output:
+
+```
+✓ Published release
+  record: <sha256>
+  lifecycle: published
+  catalog listing: https://catalog.syncropel.com/threads/main/<slug>
+```
+
+Two records were emitted:
+
+1. The workspace manifest, with `lifecycle: published` — federates
+   per the workspace's policy.
+2. A `core.artifact_listing.v1` record on the catalog thread — signed
+   by your `publisher_did`, names your workspace, and points at the
+   manifest's content hash.
+
+Your workspace is now discoverable. Browse the catalog at
+[`syncropel.com/catalog`](https://syncropel.com/catalog) and find your
+slug.
+
+The publish flow runs `spl workspace test` first by default — you
+cannot publish a workspace whose tests don't pass. Use `--skip-tests`
+to override (with a warning).
+
+## 6. Share with a friend
+
+Tell your friend:
+
+> Open https://syncropel.com/catalog/my-recipes (or replace
+> `my-recipes` with whatever slug got listed). Click "Subscribe."
+
+Their Studio resolves your workspace by content hash, fetches the
+manifest, and renders the three components against records they fetch
+from your published thread. They are now consumers of your recipes.
+
+If a friend prefers DID resolution over the catalog browser, they can
+also resolve directly:
+
+```
+did:sync:<your-did>/my-recipes
+```
+
+Either path lands them at the same manifest.
+
+For one-off sharing — bug reports, debug bundles, point-in-time
+snapshots that *don't* go through the catalog — see
+[`spl share`](/docs/operate/workspace/sharing).
+
+## 7. Iterate
+
+Want to update? Edit `workspace.json` (add a fourth component, change
+a fold), re-run `spl workspace test`, then:
+
+```bash
+spl workspace publish --release --version 0.2.0 --catalog https://catalog.syncropel.com/threads/main
+```
+
+The `--version` flag writes a label into the manifest before emit.
+Subscribers see the new version through the catalog. Their Studio
+shows them an update prompt; they accept (or not) per their own
+policies.
+
+Re-publishing an *unchanged* manifest is a no-op — content hashes are
+content-addressed and identical hashes don't re-emit.
+
+## Next steps
+
+- Add a `View` component with a custom projection — see [Projections](/docs/guides/projections)
+- Try a different `display_kind` (recipe-collection, course, newsletter, …)
+- Write your own template and submit to the [templates gallery](/docs/templates)
+- Browse the [templates gallery](/docs/templates) for more worked examples
+
+You're done. You scaffolded, edited, tested, published, and shared a
+workspace. The same pattern scales — every workspace in the catalog
+followed exactly this path.

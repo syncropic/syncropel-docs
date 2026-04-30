@@ -1,0 +1,165 @@
+---
+title: Exposing the Daemon Securely
+description: Make `spl serve` reachable from other machines without putting an unauthenticated SQLite-backed HTTP server on the public internet. Tailscale, reverse proxy with TLS, CORS, and what never to do.
+---
+
+By default `spl serve --daemon` binds `127.0.0.1` and is unreachable from anywhere else on your network. You'll want to change that when:
+
+- You're pairing a phone that lives on the same home network.
+- You're running a federation peer that needs to sync with another host.
+- You want to use the CLI from a second machine.
+- You're hosting a shared team instance.
+
+Three safe paths, and one you should never take.
+
+## Preferred: Tailscale (or any WireGuard-based private network)
+
+Tailscale gives each machine an address in the `100.x.y.z` space. The addresses are only routable between machines you've explicitly joined to your tailnet. No public IP is exposed. Access control is built in.
+
+Install Tailscale on the daemon host and any device that needs to reach it. Then:
+
+```bash
+# Find the host's tailnet address
+tailscale ip -4
+
+# Bind the daemon to that address
+spl serve --stop
+spl serve --daemon --host 100.x.y.z
+```
+
+Devices on the same tailnet reach the daemon at `http://100.x.y.z:9100`. That becomes the `--url` you pass to `spl pair`.
+
+Tailscale's ACLs further narrow which devices can reach the daemon. Default-allow across your own tailnet is fine for personal use; tighten for shared machines.
+
+## Alternative: reverse proxy with TLS
+
+A reverse proxy — Caddy, nginx, Traefik, or Cloudflare Tunnel — terminates TLS on a public hostname and forwards to the daemon on loopback. This is the right answer when you need a public URL (say, `https://syncropel.your-domain.com`) for a federation peer or a web dashboard hosted elsewhere.
+
+Keep the daemon bound to loopback:
+
+```bash
+spl serve --daemon                                 # stays on 127.0.0.1:9100
+```
+
+### Caddy example
+
+```
+syncropel.your-domain.com {
+  reverse_proxy 127.0.0.1:9100
+}
+```
+
+Caddy handles certificate issuance via Let's Encrypt automatically.
+
+### nginx example
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name syncropel.your-domain.com;
+  ssl_certificate     /etc/letsencrypt/live/syncropel.your-domain.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/syncropel.your-domain.com/privkey.pem;
+
+  location / {
+    proxy_pass http://127.0.0.1:9100;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # Server-Sent Events for /v1/sync/subscribe
+    proxy_buffering off;
+    proxy_read_timeout 3600s;
+  }
+}
+```
+
+### Daemon-side hardening when behind a proxy
+
+When a proxy terminates connections, the daemon sees `127.0.0.1` as the client IP for everything. Two config flags harden against header spoofing in this mode:
+
+```bash
+spl config set strict_actor_header true
+spl config set strict_impersonation_enforcement true
+```
+
+Both take effect on the next request — no restart needed.
+
+- **`strict_actor_header`** rejects requests that claim a DID via header without a matching token.
+- **`strict_impersonation_enforcement`** blocks admin tokens from acting as arbitrary actors unless an explicit allowlist is set.
+
+## Alternative: Cloudflare Tunnel
+
+A variant of the reverse-proxy pattern that doesn't require opening a port on your firewall. The daemon stays on loopback; a `cloudflared` agent establishes an outbound tunnel to Cloudflare's edge and they terminate TLS on the public hostname.
+
+```bash
+cloudflared tunnel create syncropel
+cloudflared tunnel route dns syncropel syncropel.your-domain.com
+# ~/.cloudflared/config.yml:
+#   tunnel: <id>
+#   ingress:
+#     - hostname: syncropel.your-domain.com
+#       service: http://127.0.0.1:9100
+#     - service: http_status:404
+cloudflared tunnel run syncropel
+```
+
+Same hardening flags apply (`strict_actor_header`, `strict_impersonation_enforcement`).
+
+## Do not: public internet without TLS
+
+```bash
+# NEVER
+spl serve --daemon --host 0.0.0.0
+```
+
+On a cloud VM, `--host 0.0.0.0` exposes the daemon on port 9100 to the entire internet. Even with auth on, you are one config mistake away from a token leak that compromises the whole record store. Even with perfect auth hygiene, you're paying every bot on the internet to probe your daemon's surface.
+
+If you find yourself wanting `--host 0.0.0.0`, pick one of the three safer alternatives above. The only legitimate use of `0.0.0.0` is on a host that is itself behind a firewall, reverse proxy, or tunnel — and in that case, `--host 127.0.0.1` would also work and is simpler.
+
+## CORS — when a browser calls your daemon
+
+The daemon's HTTP API rejects cross-origin requests by default. To let a browser at `https://syncropel.com` (or any other origin) call your locally-running daemon, add the origin to the allowlist:
+
+```bash
+spl config auth-set-cors-origins https://syncropel.com
+```
+
+Multiple origins:
+
+```bash
+spl config auth-set-cors-origins https://syncropel.com,https://app.example.com
+```
+
+The setting is a runtime record — it takes effect immediately and survives daemon restarts.
+
+Typical setups:
+
+- **`syncropel.com/local/dashboard` calling your daemon.** Add `https://syncropel.com`.
+- **A private web app calling a shared team daemon.** Add the app's origin.
+- **Developer localhost (rare).** Add `http://localhost:<port>`.
+
+### Verifying CORS
+
+From the browser's devtools network tab, the daemon's responses should include `Access-Control-Allow-Origin` matching the request's `Origin`. If they don't, the request is either coming from an origin not on the allowlist, or you haven't set the allowlist at all. `spl config show` lists current settings.
+
+## Federation pairing
+
+Once the daemon is reachable on a stable URL, a federation peer can pair to it. The pairing flow mints a `federation:manage` scoped service account, exchanges public keys, and sets up a sync subscription. See the [Federation guide](/docs/guides/federation) for the full flow and the [Discovery guide](/docs/guides/federation-discovery) for auto-discovery via DNS or mDNS.
+
+## Decision matrix
+
+| Use case | Recommended path |
+|---|---|
+| Phone on same home Wi-Fi | Bind to LAN IP, or use Tailscale |
+| CLI from a second personal machine | Tailscale |
+| Browser on `syncropel.com/local/dashboard` | Loopback daemon + CORS allowlist |
+| Federation peer on a cloud host | Reverse proxy with TLS or Cloudflare Tunnel |
+| Team-shared instance | Reverse proxy with TLS on a private network |
+| Single developer laptop | Loopback only — don't expose at all |
+
+## See also
+
+- [Authentication and service accounts](/docs/operate/keyring) — scopes, token lifecycle, emergency recovery
+- [Federation guide](/docs/guides/federation) — pair two daemons for bi-directional sync
+- [Operator runbook](/docs/operate/runbook) — backup discipline, recovery, upgrades
+- [Troubleshooting](/docs/get-started/troubleshooting) — when an exposed daemon isn't reachable or CORS is blocking

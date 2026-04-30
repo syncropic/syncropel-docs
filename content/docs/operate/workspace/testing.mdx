@@ -1,0 +1,209 @@
+---
+title: Testing Workspaces
+description: Run Syncropel-native tests against a workspace's folds. Fixtures are arrays of records, expected outputs are fold-state JSON. No Jest, no Vitest, no pytest — substrate is the test medium.
+---
+
+`spl workspace test` is a Syncropel-native test runner for `core.workspace.v1` manifests. It loads fixture records, runs the workspace's fold(s), and compares the output to a recorded expected file. Folds are deterministic given fixed input records, so tests are reproducible byte-for-byte.
+
+## TL;DR
+
+```bash
+mkdir -p tests/fixtures tests/expected
+
+# Drop a fixture: records that exercise your fold.
+cat > tests/fixtures/basic.json <<'EOF'
+[
+  {"body": {"kind": "compare.offer.v1", "company": "Acme", "salary": 100}},
+  {"body": {"kind": "compare.offer.v1", "company": "Beta", "salary": 120}}
+]
+EOF
+
+# Bootstrap the expected output.
+spl workspace test --update
+
+# Re-run any time. Exit 0 if all fixtures match.
+spl workspace test
+```
+
+## Why a Syncropel-native runner
+
+- **Substrate as test medium.** The workspace is records and folds. The natural test boundary is records-in / fold-out, not "spin up a JS test framework around it."
+- **Determinism by construction.** Fixed clock + fixed actor DID + fixed canonical-JSON id derivation = reproducible byte-for-byte. No flakes.
+- **Four-persona reach.** Hobbyists never have to learn Jest. LLMs can author and run tests with no toolchain bootstrap. End-users can verify a workspace before subscribing. Pros can layer this under CI without adopting a runner mismatch with their main repo.
+- **No daemon required.** The runner is in-process — no `spl serve`, no port allocation, no cleanup. Runs in a CI step with a single binary.
+
+## Layout
+
+```
+my-workspace/
+├── workspace.json
+├── tests/
+│   ├── fixtures/
+│   │   ├── basic.json          # array of records (input)
+│   │   ├── empty-thread.json
+│   │   └── ...
+│   └── expected/
+│       ├── basic.fold.json     # expected fold output (canonical)
+│       ├── empty-thread.fold.json
+│       └── ...
+└── README.md
+```
+
+Every `fixtures/*.json` is a JSON array of records. The runner discovers fixtures automatically — file names become test names (`basic.json` → fixture `basic`).
+
+## Fixture format
+
+Records may be **canonical** (every field populated, including `id`) or **skeletal** (just `body.kind` plus the body payload). Skeletal records get deterministic fill-in:
+
+| Field | Default for skeletal records |
+|---|---|
+| `actor` | `did:sync:user:test-actor` |
+| `thread` | `th_workspace_test` |
+| `act` | `KNOW` |
+| `data_type` | `SCALAR` |
+| `parents` | `[]` |
+| `clock` | sequential, starting at 1 in fixture order |
+| `id` | SHA-256 of the canonical 7-field record JSON |
+
+The same skeletal fixture file produces the same id for every run on every host. Canonical records are passed through untouched — if you've recorded an explicit `clock: 42`, the runner preserves it.
+
+## Expected output format
+
+The runner emits one `<fixture>.fold.json` per fixture, structured by component:
+
+```json
+{
+  "components": {
+    "<component_id>": {
+      "kind": "view",
+      "fold": {
+        "matched_records": [ /* records sorted by (clock, id) */ ],
+        "count": N
+      }
+    }
+  }
+}
+```
+
+Components other than `view` (page, thread_view, workspace, external) appear with `fold: null` — they project records but don't fold them.
+
+Records inside `matched_records` are sorted by `(clock, id)` for stable diffing.
+
+## Workflow
+
+### 1. Author a fixture
+
+Drop a JSON array of records that exercises one fold path. Skeletal records are usually enough:
+
+```json
+[
+  {"body": {"kind": "compare.offer.v1", "company": "Acme", "salary": 100}},
+  {"body": {"kind": "compare.offer.v1", "company": "Beta", "salary": 120}},
+  {"body": {"kind": "noise.v1", "irrelevant": true}}
+]
+```
+
+### 2. Bootstrap the expected output
+
+```bash
+spl workspace test --update
+```
+
+This writes `tests/expected/<fixture>.fold.json` for every fixture. Always review the diff before committing — `--update` is the "I trust this output" override, not a default.
+
+### 3. Run tests on every change
+
+```bash
+spl workspace test
+```
+
+Exit 0 if every fixture matched, non-zero if any drifted. The runner prints a unified diff per failing fixture.
+
+### 4. Iterate with `--watch` (optional)
+
+```bash
+spl workspace test --watch
+```
+
+Re-runs on every save to `workspace.json`, `tests/fixtures/`, or `tests/expected/`. Useful when authoring a fold — change → save → re-run loop is sub-second.
+
+### 5. Filter to one fixture
+
+```bash
+spl workspace test --fixture basic
+```
+
+Loads only `tests/fixtures/basic.json`. Useful when iterating on a specific failure.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | All fixtures passed |
+| 1 | At least one fixture failed (fold output diverged from expected) |
+| 2 | Manifest invalid (schema violation, malformed JSON) |
+| 3 | Fixture invalid (unparseable, wrong shape, missing) |
+| 4 | Internal error (runner crash) |
+
+In CI, `spl workspace test` slots cleanly into a step that fails on any non-zero exit.
+
+## JSON output
+
+```bash
+spl workspace test -o json
+```
+
+Emits a structured summary suitable for piping to `jq` or another CI consumer:
+
+```json
+{
+  "status": "passed",
+  "exit_code": 0,
+  "totals": {
+    "fixtures": 2,
+    "passed": 2,
+    "failed": 0,
+    "invalid": 0,
+    "updated": 0
+  },
+  "results": [
+    { "name": "basic", "status": "passed" },
+    { "name": "empty", "status": "passed" }
+  ]
+}
+```
+
+Failed fixtures include a `diff` field with the unified-diff text. Invalid fixtures include a `message` describing what failed to parse.
+
+## Determinism — what's guaranteed
+
+Two runs of the same `spl workspace test` against the same `workspace.json` and the same `tests/fixtures/` produce the **same byte sequence** in `tests/expected/`, regardless of:
+
+- The host clock
+- The host hostname or username
+- The order of files reported by the OS (the runner sorts)
+- Whether records were authored skeletal or canonical (skeletal fill-in is deterministic)
+
+This means `tests/expected/*.fold.json` is safe to commit, and CI runs against a fresh checkout produce identical bytes to a developer's local run.
+
+## What's *not* tested today
+
+The current release ships fold testing only. The following are tracked as follow-ups:
+
+- **Projection rendering.** A `<fixture>.projection.json` file is reserved by convention but not yet rendered. When projection rendering ships, the runner will compare rendered output to the expected file if it exists.
+- **CEL fold rules.** The current fold filter is a dot-path → scalar-equality predicate. CEL-grammar fold rules ship after the renderer — they'll re-use the same fixture format.
+- **Test parallelism.** Fixtures run sequentially. Parallelism is harmless but unimplemented.
+- **Coverage reporting.** No "which records exercised which fold branches" output yet.
+- **Property-based fuzzing.** Not on the current path.
+
+## Engineering principles
+
+- **Substrate as test medium.** Tests are records-and-folds, not framework abstractions.
+- **Determinism by construction.** Fixed clocks + actor DID = reproducible runs.
+- **Fail fast at boundaries.** Manifest is validated before any fold runs. Fixture parse errors surface before any test passes or fails.
+- **Make the right thing easy.** The native CLI works for all four developer personas without language- or framework-specific scaffolding.
+
+## Reference
+
+- [`spl workspace publish`](publishing) — emit the manifest after tests pass.
+- [`core.workspace.v1` schema](../../reference/body-kinds/core-workspace-v1) — what's in `workspace.json`.

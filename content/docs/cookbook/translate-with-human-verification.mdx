@@ -1,0 +1,97 @@
+---
+title: Translate with human verification
+description: Claude Sonnet translates, GPT-4 verifies, Alice is the tiebreaker — a verify-pattern query that only pulls in the human when the two LLMs actually disagree.
+---
+
+## Problem
+
+You need reliable en → es translations for user-facing strings. A single LLM usually gets it right but occasionally fumbles idioms, tone, or formality register. You have a trusted human reviewer (Alice, a native Spanish speaker), but asking her to review every translation doesn't scale — you want her pulled in only when the LLMs actually disagree.
+
+## Recipe
+
+One `spl infer` call with the `verify` orchestration pattern. Primary is Claude Sonnet. Verifier is GPT-4. Tiebreaker is Alice.
+
+```bash
+spl infer "Translate to Spanish: 'The early bird catches the worm.'" \
+  --kind core.translation.v1 \
+  --responder llm:sonnet \
+  --responder llm:gpt-4 \
+  --responder actor:did:example:alice \
+  --orchestration verify \
+  --fold best_of \
+  --budget 0.40 \
+  --timeout 1800 \
+  --wait
+```
+
+When they agree, the KNOW lands in ~5-15 seconds and Alice never hears about it. When they disagree, the executor dispatches to Alice. Alice gets a notification via her configured channel (SSE, webhook, Slack relay, or digest email depending on her availability window). She submits a `core.translation.v1` DO with the correct answer, and the executor commits that as the KNOW.
+
+Expected output on agreement (text mode):
+
+```text
+answer:
+  {
+    "text": "A quien madruga, Dios le ayuda.",
+    "target_language": "es",
+    "confidence": 0.92
+  }
+provenance (2 contributors)
+trust_summary: mean 0.81 min 0.78 max 0.84 n=2
+cost: $0.0062
+fold: best_of
+thread: th_4a7b3c...
+know_record: 8e2f19a4...
+```
+
+When they disagree and Alice steps in, the trust_summary reflects three contributors and the chosen answer is Alice's.
+
+## The trade-off
+
+`verify` costs ~2× a single-LLM query in the common case (primary + verifier). That's the whole point — you're trading cost for independent confirmation. If your translations are low-stakes (internal logs, developer-facing copy) use `single_shot` with one LLM instead.
+
+The `agreement_threshold` defaults to 0.85 on structural similarity. For translation, where phrasing differs but semantics are equivalent, you may want to author a `verify.agreement_threshold` expression that compares embeddings instead:
+
+```json
+{
+  "orchestration": {
+    "pattern": "verify",
+    "primary": [{ "kind": "llm", "model": "~sonnet" }],
+    "verifier": { "kind": "llm", "model": "~gpt-4" },
+    "tiebreaker": { "kind": "actor", "did": "did:example:alice" },
+    "agreement_threshold": 0.75
+  }
+}
+```
+
+Post that via `spl infer --query-file`:
+
+```bash
+spl infer --query-file query.json --wait
+```
+
+Loosening the threshold means fewer escalations to Alice but higher false-agreement rate.
+
+## Run this against a dev daemon
+
+With a local daemon and the sonnet + gpt-4 providers configured, register Alice as an actor:
+
+```bash
+spl actor register \
+  --did did:example:alice \
+  --kind actor \
+  --capability "translation:en-es" \
+  --trust-hint 0.9
+```
+
+Then run the infer command above. If Alice isn't responding (no session, no webhook configured), the executor will emit `latency_timeout` after 1800s. You can point Alice at a webhook in test:
+
+```bash
+spl actor update did:example:alice \
+  --webhook-url https://webhook.site/your-test-id
+```
+
+## See also
+
+- **[Orchestration Patterns — verify](/docs/guides/inference/orchestration-patterns#pattern-verify)** — how the flow works step-by-step.
+- **[Fold Functions — best_of](/docs/guides/inference/fold-functions#function-best_of)** — why `best_of` is right here.
+- **[Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence)** — variant where the human is the fallback, not the tiebreaker.

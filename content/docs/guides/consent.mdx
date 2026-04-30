@@ -1,0 +1,120 @@
+---
+title: Consent management
+description: Grant, list, and revoke consent for cross-namespace record sharing over federation.
+---
+
+## Who this is for
+
+You're running federation (see the [federation guide](./federation)) and you need to share records between two different namespaces — say, your default namespace and a partner team's namespace. By default, cross-namespace sharing is blocked. Consent grants open specific source → target paths.
+
+If all your federation is inside one namespace, skip this guide. Same-namespace sync always passes unchanged.
+
+## The model
+
+A consent grant is a record that says "records in source namespace X may be shared with target namespace Y, at these detail levels." Each grant has three fields:
+
+- **source_namespace** — where the records originate (typically `default`)
+- **target_namespace** — who's allowed to receive them
+- **hash_levels** — which levels of detail are shared (L0 full, down through L1, L2, L3 which are progressively redacted)
+
+When a sync pair tries to pull across namespaces, the consent filter looks up the most recent matching grant. Outcomes:
+
+| Grant state | What happens |
+|---|---|
+| No grant | 0 records pass — everything filtered out |
+| Grant includes L0 | Full records pass (body and signature intact) |
+| Grant excludes L0 (e.g. L1-only) | Records pass but the body is replaced with `{"redacted": true}` and the signature is stripped |
+
+## Grant consent
+
+```bash
+spl consent grant \
+    --to-namespace partner-team \
+    --hash-levels L0,L1,L2,L3
+```
+
+Options:
+
+- `--to-namespace <NS>` — target namespace (required)
+- `--hash-levels <LEVELS>` — comma-separated list. Default `L0,L1,L2,L3` (full sharing)
+- `--threads <IDS>` — comma-separated thread IDs, advisory metadata. Default `*` (all threads)
+- `--purpose <TEXT>` — optional human-readable rationale stored in the grant
+- `--expires <ISO8601>` — optional expiration
+
+Source namespace is `default`. If you need to grant from a non-default namespace, use a direct record write until `--from-namespace` is supported.
+
+## Common recipes
+
+### Full sharing between two teams
+
+```bash
+spl consent grant --to-namespace team-b --hash-levels L0,L1,L2,L3
+```
+
+### Metadata-only (schema propagation without payload)
+
+```bash
+spl consent grant --to-namespace analytics --hash-levels L1,L2,L3
+```
+
+The target receives records but bodies are replaced with `{"redacted": true}`. They can count events and observe shapes but not see content. Useful for telemetry collection.
+
+### Structural-only (the target knows a record exists, nothing about content)
+
+```bash
+spl consent grant --to-namespace audit-archive --hash-levels L2,L3
+```
+
+More restrictive than metadata-only.
+
+## List active grants
+
+```bash
+spl consent list
+```
+
+Shows a table:
+
+```
+  GRANT_ID              SOURCE          TARGET          LEVELS
+  abcd1234...           default         partner-team    L0,L1,L2,L3
+  efef5678...           default         analytics       L1,L2,L3
+```
+
+Filter by namespace:
+
+```bash
+spl consent list --namespace partner-team
+```
+
+## Revoke a grant
+
+```bash
+spl consent revoke <grant_id>
+```
+
+The filter treats the grant as inactive from that point forward. Historical records already delivered to a peer remain on the peer — revocation only affects future sync.
+
+## How the filter runs
+
+When instance B pulls from instance A:
+
+1. B sends its pull request for thread T with `target_namespace = B's namespace`.
+2. A resolves the thread's namespace from its records (`source_namespace`).
+3. A applies the filter:
+   - `source_namespace == target_namespace` → pass through unchanged
+   - Different namespaces + no grant → return empty
+   - Different namespaces + grant with L0 → return full records
+   - Different namespaces + grant without L0 → return records with redacted body
+
+This runs on every pull. If a grant is added or revoked, the change takes effect on the next poll — no daemon restart needed.
+
+## What the filter does not do
+
+- **Not retroactive.** Revoking a grant doesn't remove records already delivered.
+- **Not adversarial protection.** The filter runs on the source side, so it requires that the source daemon is honest. For protection against a compromised source, use namespace-based access control on who can reach the daemon in the first place.
+- **Not per-record.** Grants are namespace-pair scoped, not record-scoped. If you need per-record gating, combine with CEL rules on emit.
+
+## What's next
+
+- **[Federation quickstart](./federation)** — pair two instances end-to-end

@@ -1,0 +1,148 @@
+---
+title: Your First Fan-Out
+description: The 5-minute version. Boot a 3-instance fleet, fan out a trivial task to two workers, watch the join, inspect the speedup ratio, tear down. No real work, no LLM spend — just the shape of the thing.
+---
+
+<Callout type="info">
+Requires **a version of `spl` with fleet support**. If you want the full hands-on walkthrough with real work and mid-run failures, go to [Parallel Dev — Monday Morning Walkthrough](/docs/tutorials/parallel-dev). If you just want to see what a fan-out *looks like*, you're in the right place.
+</Callout>
+
+## What you'll see
+
+A 3-instance local fleet (1 coordinator + 2 workers), a parent task fanned out into 2 subtasks, each worker producing a completion record, the barrier join firing, and `spl task speedup` reporting a parallel-wall-clock / serial-estimate ratio.
+
+Total time: **under 5 minutes**. No API keys required (we use echo mode).
+
+## Step 1 — Start the fleet
+
+```bash
+spl fleet start --workers 2
+```
+
+You'll see convergence output like:
+
+```text
+fleet converged
+  coordinator did:sync:instance:f93a4ad9... on :9100
+  worker-a    did:sync:instance:fd29f647... on :9201
+  worker-b    did:sync:instance:6e22815e... on :9202
+```
+
+Verify everything is live:
+
+```bash
+spl fleet list
+```
+
+You should see 3 rows, all `live`, all `healthy`.
+
+## Step 2 — Create a parent task
+
+```bash
+spl task add "My first fan-out" --priority high --alias FIRST-001
+```
+
+Output:
+
+```text
+◇ Task created: My first fan-out
+  thread: th_abc123...
+  alias:  FIRST-001
+```
+
+Grab the worker DIDs from `spl fleet list` — you'll paste them into the next command.
+
+## Step 3 — Fan out to both workers
+
+Replace `<WORKER_A_DID>` and `<WORKER_B_DID>` with the actual DIDs from step 1.
+
+```bash
+spl task fan-out FIRST-001 \
+  --subtask "goal=do thing A,target=specific:<WORKER_A_DID>" \
+  --subtask "goal=do thing B,target=specific:<WORKER_B_DID>" \
+  --join all
+```
+
+Output:
+
+```text
+◇ Fan-out parent INTEND created
+  thread:   th_abc123...
+  record:   <id>
+  subtasks: 2
+  join:     all
+```
+
+The engine spawns child INTENDs on each worker. Since the workers are in echo mode (the default for local dev fleets), they produce synthetic completion records almost immediately.
+
+## Step 4 — Watch the join
+
+```bash
+spl task join-status FIRST-001
+```
+
+```text
+Fan-out join status: th_abc123...
+  Subtasks:        2
+  Spawned:         2 / 2
+  Completed:       2 / 2
+  Join predicate:  all
+  Join complete:   yes
+
+  Per-subtask:
+    [0] do thing A → specific:did:sync:instance:fd29f647...
+        accept ($0.00, 1s)
+    [1] do thing B → specific:did:sync:instance:6e22815e...
+        accept ($0.00, 1s)
+```
+
+The barrier fired; the parent is done.
+
+## Step 5 — Inspect the speedup
+
+```bash
+spl task speedup FIRST-001
+```
+
+```text
+Fan-out speedup report: th_abc123...
+
+  Parallel run:
+    subtasks:          2
+    per-subtask walls: [1, 1]
+    parallel wall:     1s  (critical path = max)
+    total cost:        $0.0000
+
+  Weak estimate (single-run, sanity check only):
+    serial estimate:   2s  (sum of subtask walls)
+    estimated speedup: 2.00×
+    caveat:            summing subtask walls is a sanity check, not a
+                       rigorous measurement. For a clean comparison, run
+                       the same workload serially and pass the resulting
+                       thread via `--vs-serial <thread>`.
+```
+
+In echo mode every subtask takes ~1 second, so the ratio is trivial. In a real fan-out with non-trivial subtasks, this is where you see whether parallelism is buying you anything.
+
+## Step 6 — Tear down
+
+```bash
+spl fleet stop --all
+```
+
+You're back to a single-instance setup.
+
+## What just happened
+
+You exercised the four primitives of the Fleet release:
+
+1. **Instance registry** — `spl fleet list` shows you the registered instances.
+2. **Fan-out** — `spl task fan-out` writes one parent INTEND with a subtask descriptor list, and the engine's fan-out handler spawns child INTENDs on the targeted workers.
+3. **Barrier join** — the parent's completion waits until the join predicate (`all`, `any`, `k_of_n`, or any CEL expression) is satisfied by the child completions.
+4. **Speedup measurement** — the `spl task speedup` tool reads `fanout_child_done` records and reports the ratio you care about.
+
+## Next steps
+
+- **[Parallel Dev — Monday Morning Walkthrough](/docs/tutorials/parallel-dev)** — the real hands-on version: non-trivial subtasks, mid-run failure, kill switch recovery, ~20 minutes.
+- **[Fleet Benchmarking](/docs/operate/fleet-benchmarking)** — the operator guide for running release-gate bootstrap drills and interpreting speedup ratios.
+- **[Runbook — fleet section](/docs/operate/runbook)** — the grim operational procedures for a live fleet.

@@ -1,0 +1,72 @@
+name: Vocabulary lint
+
+# Locks the canonical product vocabulary across docs.
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - "**/*.mdx"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.js"
+      - "**/*.jsx"
+      - "tools/lint-vocabulary.py"
+      - ".github/workflows/lint-vocabulary.yml"
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run vocabulary linter
+        id: lint
+        env:
+          VOCAB_LINT_MODE: warn
+          VOCAB_LINT_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          python tools/lint-vocabulary.py \
+            --mode "${VOCAB_LINT_MODE}" \
+            --repo "${VOCAB_LINT_REPO}" \
+            . 2> /tmp/vocab-lint-summary.md
+          echo "summary_exists=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Post / update PR-comment summary
+        if: github.event_name == 'pull_request' && steps.lint.outputs.summary_exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -eu
+          if [ ! -s /tmp/vocab-lint-summary.md ]; then
+            exit 0
+          fi
+          if ! grep -q "| File |" /tmp/vocab-lint-summary.md; then
+            exit 0
+          fi
+          MARKER='<!-- vocab-lint-summary -->'
+          BODY="$(printf '%s\n\n%s\n' "${MARKER}" "$(cat /tmp/vocab-lint-summary.md)")"
+          existing="$(gh api \
+            "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | startswith(\"${MARKER}\")) | .id" \
+            | head -1)"
+          if [ -n "${existing}" ]; then
+            gh api \
+              -X PATCH \
+              "repos/${{ github.repository }}/issues/comments/${existing}" \
+              -f body="${BODY}"
+          else
+            gh pr comment "${PR_NUMBER}" --body "${BODY}"
+          fi

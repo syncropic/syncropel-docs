@@ -1,0 +1,121 @@
+---
+title: "Cookbook: correlating records with agent CLI session state"
+description: "When the Syncropel-side records aren't enough, use the session.v1 record to find the raw agent-side tool-use history."
+---
+
+## When you need this
+
+`spl task diagnose` gives you the Syncropel view: records emitted, lifecycle transitions, completion codepath, cost reconstruction. That's the right level for 90% of debugging.
+
+The 10% case is when something about the agent CLI itself is weird — an unusual tool-call pattern, an input size you want to inspect, an API response that didn't parse cleanly, a model choice you didn't explicitly request. For that you need the agent's own per-session log, which lives entirely outside Syncropel's record log.
+
+The bridge between the two is the `syncropel.dispatch.session.v1` record.
+
+This guide uses **Claude Code** (the `claude` CLI) as the worked example because it's the most common today, but the same pattern applies to any agent CLI that writes session logs to disk (OpenCode, Pi, Codex CLI, etc.) — only the on-disk path differs.
+
+## The schema
+
+When a dispatched subprocess emits its first `system` init event, the stream monitor extracts the CLI's `session_id` + `cwd` + `model` and emits a record:
+
+```json
+{
+  "kind": "syncropel.dispatch.session.v1",
+  "topic": "agent_session_captured",
+  "session_id": "a3f29c4e-0b1d-4f8a-9e21-5b7c8d1e4f2a",
+  "project_cwd": "/home/you/projects/myproject",
+  "project_slug": "home-you-projects-myproject",
+  "model": "<model-id>",
+  "turn_id": "t_01"
+}
+```
+
+The important fields:
+
+- **`session_id`** — the CLI's internal UUID. Unique per agent invocation.
+- **`project_cwd`** — the working directory the subprocess saw. Verbatim from the init event.
+- **`project_slug`** — a best-effort slug of `cwd` (strip leading `/`, replace `/` with `-`). Many agent CLIs hash or slug `cwd` to pick a per-project directory, and the exact algorithm is an implementation detail; the slug lets `spl task diagnose` probe both the raw cwd and this form so we match regardless of algorithm version.
+
+## The walkthrough
+
+Say a task ended with a low-cost failure and you want to see exactly what the model saw.
+
+### 1. Find the session_id
+
+```bash
+spl task diagnose TASK-0042 | grep -E "session_id|project"
+```
+
+Or via records directly:
+
+```bash
+spl thread records <sub_thread> -o json | python3 -c "
+import sys, json
+for r in json.load(sys.stdin)['data']:
+    b = r.get('body', {})
+    if b.get('kind') == 'syncropel.dispatch.session.v1':
+        print(json.dumps(b, indent=2))
+        break
+"
+```
+
+### 2. Locate the agent-side log
+
+The on-disk location depends on which agent CLI ran. For **Claude Code**, sessions are typically under `~/.claude/projects/<slug>/sessions/<session_id>.jsonl`. Try the slug first:
+
+```bash
+SLUG=home-you-projects-myproject
+SID=a3f29c4e-0b1d-4f8a-9e21-5b7c8d1e4f2a
+
+ls ~/.claude/projects/$SLUG/sessions/$SID.jsonl
+```
+
+If that misses (the slug algorithm may differ between versions, or you're on a different agent CLI), fall back to a find:
+
+```bash
+find ~/.claude/projects -name "$SID.jsonl" 2>/dev/null
+# Or for a different agent CLI:
+find ~ -name "$SID.jsonl" 2>/dev/null
+```
+
+For other agents, check the CLI's documentation for where session logs live.
+
+### 3. Read the raw tool history
+
+For Claude Code's session format, the file is newline-delimited JSON, one entry per tool call + result:
+
+```bash
+jq -c '{type, name: (.tool_use.name // .tool_result.tool_use_id), success: (.tool_result.is_error | not // null)}' \
+    ~/.claude/projects/$SLUG/sessions/$SID.jsonl
+```
+
+The entries have more detail than the Syncropel-side `CALL` / `KNOW` records — specifically, the full `tool_use.input` JSON and the full `tool_result.content` string (Syncropel stores both but may truncate long outputs for projection).
+
+## Common uses
+
+**Verifying an agent claimed to have read a file it didn't touch.** Grep the session log for the filename — if no `Read` tool call with that path appears, the agent hallucinated. This happens enough that it's worth checking before chasing a harder explanation.
+
+**Understanding why a Bash command ran twice.** Agents sometimes retry a Bash call after a cached result. The session log shows the exact input both times; Syncropel's records show only the Syncropel-emitted one.
+
+**Inspecting the tool-call order.** The session log is strictly chronological. If you suspect an out-of-order race (e.g., the agent `Read` a file after `Edit`ing it and got stale content), this is where you'd see it.
+
+**Cross-checking model choice.** `session.v1.model` is what the CLI reported at init. If you expected one model and the field says another, something is routing incorrectly.
+
+## What you cannot get from the session log
+
+The session log is a pure record of one invocation. It doesn't have:
+
+- Cost (many CLIs don't emit cost in stream-json for every Assistant message; only the terminal Result, which may or may not arrive). Use `syncropel.dispatch.stream_event.v1` instead.
+- Sub-thread / dispatch_id / Syncropel-side metadata.
+- Anything that happened before the subprocess spawned or after it exited.
+- Multi-dispatch correlation (if a task fanned out to three workers, each has its own session log).
+
+For those, stay in `spl task diagnose`.
+
+## Security note
+
+Per-session log directories can contain arbitrary prompt content — including any source code, error messages, or context the agent was given. They're local only by default, but worth being aware of when you share a session log with someone outside your trust boundary.
+
+## Related
+
+- [Dispatch observability](/docs/guides/dispatch-observability) — the records-as-spans schema reference
+- [Recovery cookbook](/docs/guides/cookbook-dispatch-recovery) — higher-level operator workflow

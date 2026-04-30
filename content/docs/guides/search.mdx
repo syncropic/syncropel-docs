@@ -1,0 +1,257 @@
+---
+title: Semantic Search
+description: Free-text search over the record log. Embeds the query through a configured provider, ranks records by cosine similarity, and returns the top K. Envelope filters (thread, actor, kind) narrow the result after ranking so near-misses don't crowd out the best answer.
+---
+
+## Overview
+
+Semantic search answers the question _"give me records that mean something like X"_, where X is free-text and "means like" is cosine similarity in an embedding space. It complements [Query](./query): query is the right tool when you know the shape of what you want (`body.kind`, `body.priority`, exact thread); search is the right tool when you only know the _idea_ and want records nearby that idea regardless of surface form.
+
+Three entry points:
+
+- **CLI**: `spl search "query"`
+- **HTTP**: `POST /v1/records/search` with a JSON body
+- **SDK**: `client.search({ query })` (TypeScript) or `await client.search(query)` (Python)
+
+All three talk to the same embedding provider — configured once per daemon, used by every search. The **Ollama** provider (local, zero-cost) ships today; additional hosted providers land in later releases.
+
+## Prerequisites — configure an embedding provider
+
+Semantic search is off by default. Before any search works, configure a provider:
+
+```bash
+# One-time setup — installs nothing; requires an Ollama daemon already running.
+spl config embedding-provider set ollama \
+  --endpoint http://localhost:11434 \
+  --model nomic-embed-text
+```
+
+This writes an `embedding_provider` LEARN record on `th_engine_config`. The daemon rebuilds its embedder on the next broadcast of that record — no restart. Verify:
+
+```bash
+spl config embedding-provider show
+```
+
+When no provider is configured the daemon returns HTTP 503 on search requests. Both SDKs surface this distinctly (`disabled: true` on the result) so a UI can render a "set up Ollama" hint instead of treating it as an error.
+
+To disable search without clearing other config:
+
+```bash
+spl config embedding-provider clear
+```
+
+## Quick Start
+
+```bash
+# Top 5 records semantically near "authentication failure logs".
+spl search "authentication failure logs" -k 5
+```
+
+```text
+#1  0.847  r_3f4a...  KNOW   th_incident_42   ...
+#2  0.812  r_8b21...  KNOW   th_incident_42   ...
+#3  0.794  r_c0de...  DO     th_session_93    ...
+...
+```
+
+From TypeScript:
+
+```ts
+import { Client, Identity } from "@syncropel/sdk";
+
+const client = new Client({
+  endpoint: "http://localhost:9100",
+  identity: Identity.static("did:sync:user:alice"),
+});
+
+const result = await client.search({
+  query: "authentication failure logs",
+  k: 5,
+});
+
+if (result.disabled) {
+  console.log("Semantic search not configured — run `spl config embedding-provider set ollama`");
+} else {
+  for (const hit of result.hits) {
+    console.log(hit.score.toFixed(3), hit.record.id, hit.record.body);
+  }
+}
+```
+
+From Python:
+
+```python
+from syncropel import Client, Identity
+
+client = Client(
+    endpoint="http://localhost:9100",
+    identity=Identity.static("did:sync:user:alice"),
+)
+
+result = await client.search("authentication failure logs", k=5)
+
+if result.get("disabled"):
+    print("Semantic search not configured — run `spl config embedding-provider set ollama`")
+else:
+    for hit in result["hits"]:
+        print(f"{hit['score']:.3f}  {hit['record']['id']}  {hit['record']['body']}")
+```
+
+## Request Shape
+
+```json
+{
+  "query":        "free-text",
+  "k":            10,
+  "thread":       "th_optional",
+  "actor":        "did:sync:agent:dev",
+  "kind":         "core.task.record",
+  "after_clock":  12345
+}
+```
+
+- **`query`** (required) — the free-text string. Embedded verbatim through the configured provider.
+- **`k`** — top-K to return. Clamped to `[1, 100]`. Default `10`.
+- **`thread`** — restrict to one thread id.
+- **`actor`** — restrict to records emitted by a specific actor DID.
+- **`kind`** — restrict to records whose `body.kind` matches.
+- **`after_clock`** — restrict to records with `clock >= after_clock`. Useful for time-windowed searches.
+
+### Filters are _post_-ranking
+
+This is the important invariant: **envelope filters narrow the top-K _after_ cosine ranking**, not before. The engine embeds the query, scores every record that has an embedding, picks the top K globally, then applies your `thread` / `actor` / `kind` / `after_clock` predicates.
+
+Why: pre-filter search on a narrow slice of records can produce fewer than K hits (or none) when the closest matches sit just outside the filter. Post-filter preserves rank quality — you get the best near-matches that _also_ satisfy your constraints.
+
+If you need strict pre-filtering (e.g. "only look inside this thread"), combine with [Query](./query) instead: search broadly, then query each hit's thread. In practice the post-filter behavior is what you want 95% of the time.
+
+## Response Shape
+
+```json
+{
+  "embedder":  "ollama/nomic-embed-text",
+  "k":         5,
+  "hits": [
+    {
+      "score":  0.847,
+      "record": { /* full Record envelope */ }
+    },
+    ...
+  ]
+}
+```
+
+- **`embedder`** — provider identifier. `null` when search is disabled.
+- **`k`** — echoes the requested K (after clamp).
+- **`hits`** — ordered list, highest cosine similarity first.
+  - **`score`** — cosine similarity in `[-1, 1]`, though in practice `[0, 1]` for any healthy embedding model.
+  - **`record`** — the full Record — `id`, `thread`, `actor`, `act`, `body`, `clock`, and all the rest.
+
+When the provider is unreachable (daemon returns 503), the SDK returns:
+
+```json
+{
+  "embedder":  null,
+  "k":         5,
+  "hits":      [],
+  "disabled":  true
+}
+```
+
+Render this as a setup hint, not an error.
+
+## Patterns
+
+### "What have we said about X recently?"
+
+```bash
+spl search "migration concerns with the new auth layer" \
+  --after-clock $(($(date +%s) - 7 * 86400)) \
+  -k 20
+```
+
+Combines free-text relevance with a 7-day time window.
+
+### "Search this thread only"
+
+```bash
+spl search "race condition" --thread th_incident_42 -k 10
+```
+
+Useful for long-running threads where you want to find references to a concept inside the conversation.
+
+### "Search this actor's output"
+
+```bash
+spl search "feature flag rollout" --actor did:sync:agent:dev -k 10
+```
+
+Finds records written by a specific actor that match an idea. Handy for "what has the dev agent said about X?" or "what has this team member promised?"
+
+### "Search a specific kind"
+
+```bash
+spl search "login" --kind core.task.record -k 10
+```
+
+Narrows to task records whose body is semantically near "login."
+
+### Combining with query
+
+Search is often the top of a funnel: find candidates by meaning, then use [Query](./query) to drill into the structure. Example — find incident records semantically near "slow queries" and then query for their resolution status:
+
+```bash
+# 1. Find candidates
+HIT_THREADS=$(spl search "slow query performance" --kind incident.report -k 5 --json \
+  | jq -r '.hits[].record.thread')
+
+# 2. For each thread, find its KNOW-with-resolved body
+for thread in $HIT_THREADS; do
+  curl -s -X POST http://localhost:9100/v1/records/query \
+    -H 'content-type: application/json' \
+    -d "{\"filter\":{\"thread\":\"$thread\",\"act\":\"KNOW\",\"body.resolved\":true}}"
+done
+```
+
+## How Embeddings Enter the Record
+
+Records get embeddings at **ingest time**, before the response to `POST /v1/records` returns. The engine:
+
+1. Extracts text from `body` (currently: top-level string fields, concatenated).
+2. POSTs to the configured provider's embedding endpoint.
+3. Stores the returned vector in the sqlite-vec shadow table, keyed by record id.
+4. Returns the record (the embedding store is transparent to the caller).
+
+This means **every new record is searchable immediately**. There's no background indexer; there's no latency between ingest and searchability.
+
+Records that existed _before_ you configured a provider do **not** get back-filled automatically. To embed existing records, the easiest path today is re-ingest from a backup (see [Backup & recovery](/docs/guides/backup-restore)). A dedicated `spl embed backfill` command is on the roadmap.
+
+## Providers
+
+One provider ships today:
+
+| Provider | Default model        | Runs where        | Cost   |
+| -------- | -------------------- | ----------------- | ------ |
+| `ollama` | `nomic-embed-text`   | Local (your host) | $0     |
+
+`nomic-embed-text` is a 137M-param open-weights model producing 768-dim vectors. Pull it once:
+
+```bash
+ollama pull nomic-embed-text
+```
+
+Hosted provider kinds land in a subsequent release. The `spl config embedding-provider set` CLI will accept additional `<KIND>` values; the request/response shape for search stays identical.
+
+## Limits & Failure Modes
+
+- **Embedding provider reachability**: if Ollama isn't running, the daemon logs an embedder error at ingest time (the record ingests fine, the embedding is skipped) and returns 503 on search requests. Restart the provider and re-ingest if you care about the skipped records.
+- **`k` clamp**: `k > 100` is silently clamped to 100. For very large result sets, combine search (for relevance) with [Query](./query) (for structural pagination).
+- **Empty query**: both SDKs raise / throw on empty query — this is a programmer error, never fail-open.
+- **Filter + k interaction**: if `k=10` and your filters reject 9 of the top 10, you'll get a single hit — _not_ re-ranked. For dense filters where you need a guaranteed return size, request a larger `k` upfront.
+- **Fail-open SDK transport**: both SDKs return empty hits on network or 5xx failures. Check `result.hits.length` — zero with `disabled: false` is ambiguous between "nothing similar" and "transport failed." The CLI raises explicitly.
+
+## Next Steps
+
+- [**Query**](./query) — the structural complement. Use search to find candidates, query to drill into their structure.
+- [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk) — full client reference including transport details and identity configuration.
+- [**Body-Kind Manifests**](./body-kind-manifest) — for when you want rich-query filters on body fields to stay fast at scale.

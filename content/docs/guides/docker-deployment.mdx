@@ -1,0 +1,213 @@
+---
+title: Docker Deployment
+description: Run Syncropel in Docker — single-instance deployment, multi-instance topology with isolated volumes, and reproducible E2E test environments.
+---
+
+## Overview
+
+The `syncropic/spl` Docker image gives you Syncropel as a self-contained, rootless container. Use it for:
+
+- **Production deployment** — single instance behind a reverse proxy, persistent SQLite store on a docker volume.
+- **Multi-instance development** — coordinator + workers on a private network, each with isolated `SYNCROPEL_HOME`, no host state pollution.
+- **Reproducible E2E testing** — clean container per run, no risk of stale daemons or leaked PID files between tests.
+
+The image is multi-stage: a `rust:1-bookworm` builder produces a stripped release binary, and a `debian:bookworm-slim` runtime carries only `ca-certificates`, `tini`, and `curl`. Final size is ~80–100 MB.
+
+## Building your own image
+
+A minimal Dockerfile that wraps the released binary:
+
+```dockerfile
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates tini curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSf https://get.syncropic.com/spl | sh \
+    && install -Dm755 /root/.local/bin/spl /usr/local/bin/spl
+
+RUN groupadd --system --gid 10001 syncropel \
+    && useradd --system --uid 10001 --gid syncropel \
+               --create-home --home-dir /home/syncropel syncropel
+
+ENV SYNCROPEL_HOME=/syncropel \
+    SPL_SERVE_HOST=0.0.0.0
+
+RUN mkdir -p /syncropel && chown syncropel:syncropel /syncropel
+VOLUME /syncropel
+USER syncropel
+EXPOSE 9100
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:9100/health || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/spl"]
+CMD ["serve", "--port", "9100", "--host", "0.0.0.0"]
+```
+
+Build it:
+
+```bash
+docker build -t myorg/spl:latest .
+```
+
+## Single-instance deployment
+
+The simplest deployment — one daemon, one volume, one host port:
+
+```bash
+docker run -d \
+  --name spl \
+  -p 9100:9100 \
+  -v spl-home:/syncropel \
+  --restart unless-stopped \
+  syncropic/spl:dev
+```
+
+The container:
+
+- Runs as non-root user `syncropel` (UID 10001).
+- Uses `tini` as PID 1 so `SIGTERM` triggers a graceful shutdown.
+- Mounts a named volume at `/syncropel`, which is the value of `SYNCROPEL_HOME`. Everything (config, store, secrets, logs, run dir) lives inside that one path.
+- Listens on `0.0.0.0:9100` inside the container, mapped to `localhost:9100` on the host.
+- Reports a HEALTHCHECK every 10 seconds against `/health`. `docker ps` shows `(healthy)` once the daemon is ready.
+
+Verify it works:
+
+```bash
+docker ps                                       # status should show (healthy)
+curl http://localhost:9100/health               # returns version + record count
+docker exec spl spl version                    # CLI inside the container
+docker exec -it spl spl status                 # interactive status
+```
+
+## Configuration
+
+The image inherits a single env var convention: **everything is rooted at `SYNCROPEL_HOME`**. To customize, mount a host directory or write to the volume directly:
+
+```bash
+# Option 1: bind-mount a host directory
+docker run -d -p 9100:9100 \
+  -v $HOME/.syncro:/syncropel \
+  syncropic/spl:dev
+
+# Option 2: write a config.toml into a named volume before first start
+docker run --rm -v spl-home:/syncropel alpine sh -c \
+  'cat > /syncropel/config.toml <<TOML
+[identity]
+actor = "did:sync:user:prod"
+display_name = "Production"
+TOML'
+docker run -d -p 9100:9100 -v spl-home:/syncropel syncropic/spl:dev
+```
+
+Useful environment variables you can pass with `-e`:
+
+| Variable | Purpose |
+|---|---|
+| `RUST_LOG` | Log level (`info`, `debug`, `trace`). Default `info`. |
+| `SPL_ACTOR` | Override the daemon's identity actor (also settable via `config.toml`). |
+| `SYNCROPEL_HOME` | Override the home path inside the container. Default `/syncropel`. |
+
+API keys for any configured LLM provider (Anthropic, OpenAI, Google, etc.) are read from `${SYNCROPEL_HOME}/secrets/`. The simplest way to provide them is to copy the file into the volume after first start:
+
+```bash
+docker exec spl mkdir -p /syncropel/secrets
+docker cp ~/.syncro/secrets/<provider>.key spl:/syncropel/secrets/<provider>.key
+docker exec spl spl serve --stop && docker restart spl
+```
+
+## Multi-instance topology with docker-compose
+
+For multi-instance development — coordinator + worker pattern, federation experiments, or running a full E2E suite without polluting host state — use the included `docker-compose.yml`:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+The compose file defines three services on a private bridge network:
+
+| Service | Hostname | Host port | Volume | Identity |
+|---|---|---|---|---|
+| `coordinator` | `coordinator` | `9200` | `coordinator-home` | `did:sync:user:coordinator` |
+| `worker-a` | `worker-a` | `9201` | `worker-a-home` | `did:sync:user:worker-a` |
+| `worker-b` | `worker-b` | `9202` | `worker-b-home` | `did:sync:user:worker-b` |
+
+Host ports are in the 9200 range so they don't collide with a production daemon that may be running on `localhost:9100`. Inside each container the daemon still listens on its own port 9100 — only the host-side mapping changes.
+
+Each container has its own SQLite store, its own trust ledger, and its own config — fully isolated. Containers reach each other on the `syncropel` network by service name:
+
+```bash
+# From coordinator, ping worker-a's health endpoint
+docker compose exec coordinator curl -fsS http://worker-a:9100/health
+
+# Run spl commands inside any instance
+docker compose exec coordinator spl status
+docker compose exec worker-a spl task list
+```
+
+To wipe everything and start fresh:
+
+```bash
+docker compose down -v   # -v removes the named volumes too
+```
+
+## Smoke test
+
+The repo ships a smoke test that exercises both the single-instance flow and the multi-instance compose topology:
+
+```bash
+bash tests/docker/smoke.sh
+```
+
+Or rebuild the image first:
+
+```bash
+bash tests/docker/smoke.sh --build
+```
+
+The script verifies:
+
+1. The image starts and reaches `(healthy)` state via the HEALTHCHECK.
+2. The `/health` endpoint returns the expected version and confirms the store path is under `/syncropel`.
+3. CLI commands work via `docker exec`.
+4. Records persist across container restart on the same volume.
+5. The 3-instance compose topology reaches healthy state.
+6. Containers reach each other on the private `syncropel` network by service name.
+7. Volumes are isolated — a record posted to `coordinator` does not appear in `worker-a`.
+
+## Production hardening checklist
+
+When you're ready to put a docker deployment in front of real traffic:
+
+- **Reverse proxy with TLS**: terminate HTTPS at nginx/caddy/traefik in front of the container. The image only speaks HTTP on port 9100 by design — TLS is a deployment concern, not a kernel concern.
+- **Backup the volume**: schedule periodic `docker run --rm -v spl-home:/data alpine tar -czf - /data` snapshots. Restore by extracting back into a new volume before starting the container.
+- **Read-only root filesystem**: the binary doesn't write outside `/syncropel`, so you can run with `--read-only` and a writable tmpfs:
+  ```bash
+  docker run --read-only --tmpfs /tmp -v spl-home:/syncropel ...
+  ```
+- **Resource limits**: `--memory 1g --cpus 2` is plenty for a single-actor instance. Bump for multi-actor production loads.
+- **Permission enforcement**: enable CEL permission rules before exposing the daemon — see [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) and author an admin allow rule first to avoid the lockout trap.
+
+## Troubleshooting
+
+**Container exits immediately after startup.**
+Check `docker logs spl` for the panic message. Most common cause: the volume mount has wrong ownership. Fix:
+
+```bash
+docker run --rm -v spl-home:/syncropel alpine chown -R 10001:10001 /syncropel
+```
+
+**Healthcheck stays `(unhealthy)`.**
+The kernel may be slow to bind on first run while it creates the SQLite WAL. Wait 30 seconds and re-check. If it's still unhealthy, run the binary in the foreground to see the error:
+
+```bash
+docker run --rm -v spl-home:/syncropel syncropic/spl:dev serve --port 9100 --host 0.0.0.0
+```
+
+**Records lost across restart.**
+The volume isn't mounted. Confirm with `docker inspect spl | grep -A 5 Mounts`. The Source must be a docker volume or host path, not an anonymous volume.
+
+**Two containers conflicting on port 9100.**
+Use distinct host ports: `-p 9101:9100`, `-p 9102:9100`, etc. The container always listens on 9100 internally.

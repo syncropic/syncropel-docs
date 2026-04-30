@@ -1,0 +1,179 @@
+---
+title: Workspace Lifecycle
+description: Draft, published, and archived — the three lifecycle states a workspace manifest moves through, what each means, and how to transition between them.
+---
+
+A `core.workspace.v1` manifest carries a `lifecycle` field. Three
+values are recognized:
+
+| Lifecycle | Visibility | Federates? | Listable in catalog? | Subscribable? |
+|---|---|---|---|---|
+| `draft` | Publisher only | No | No | No |
+| `published` | Per workspace policy | Yes | Yes (if listed) | Yes |
+| `archived` | Per workspace policy | Yes | No (de-listed) | No (existing subs grandfather) |
+
+Lifecycle is **declared by the publisher** at emit time and is part of
+the canonical manifest record — changing lifecycle means emitting a
+new manifest record with a new content hash.
+
+## Draft
+
+```bash
+spl workspace publish --draft
+```
+
+A draft is the iteration state. The manifest is a real record stored
+in your namespace, but:
+
+- It does not federate to peers.
+- It does not appear in catalog queries.
+- It cannot be subscribed to via `core.subscription.v1`.
+- Only the workspace's `publisher_did` (and actors with explicit
+  `records.query` permission on the namespace) can resolve it.
+
+Drafts are the right state for:
+
+- First scaffold from `spl workspace init`
+- Dogfooding while you iterate fold rules and projections
+- Internal review on a private namespace
+- CI that asserts manifest validity on every commit
+
+You can draft-emit as often as you like. Each emit is a new record.
+Identical manifests deduplicate by content hash; the second emit is a
+no-op.
+
+View a draft live in Studio at:
+
+```
+https://syncropel.com/local/workspaces/<your-slug>
+```
+
+Studio renders the draft's components against records in your local
+kernel. Friends cannot see this URL — there is no draft URL on the
+public catalog by design.
+
+## Published
+
+```bash
+spl workspace publish --release --catalog https://catalog.syncropel.com/threads/main
+```
+
+Publishing a release does two things:
+
+1. Emits the manifest with `lifecycle: published`. The record
+   federates per the workspace's federation policy (typically all
+   peers paired to the namespace).
+2. If `--catalog <thread-ref>` is provided, also emits a
+   `core.artifact_listing.v1` record on the catalog thread, signed by
+   `publisher_did`, naming the workspace and pointing at the manifest's
+   content hash.
+
+A published workspace is **discoverable** (catalog listing) and
+**subscribable** (`core.subscription.v1` accepts it).
+
+`--catalog` is optional — you can publish without listing if you only
+want DID-resolution access (e.g. `did:sync:<your-did>/my-recipes`).
+Friends with the resolver can subscribe without ever seeing the
+catalog.
+
+The publish flow runs `spl workspace test` first by default. A
+release whose tests fail will not be emitted unless you pass
+`--skip-tests`, which prints a warning and emits anyway. Pre-flight
+test gates are a defense against shipping a broken fold to subscribers
+who already trust your `publisher_did`.
+
+### Versioning a release
+
+```bash
+spl workspace publish --release --version 1.2.0 --catalog ...
+```
+
+`--version <label>` writes the label into the manifest's
+`version_label` field before emit. Subscribers see the new label
+through the catalog and (depending on their Studio policy) get an
+update prompt or auto-pull.
+
+Versioning is purely a label — the manifest's content hash is the
+authoritative identifier. Two manifests with `version_label: "1.0.0"`
+and different content hashes are different manifests; subscribers
+distinguish by hash, not label.
+
+### Re-publishing identical content
+
+Publishing the same manifest twice is a no-op. The CLI computes the
+content hash before emit and exits with an informational message:
+
+```
+already published at <sha256>
+```
+
+This makes `spl workspace publish --release` safe to run from CI on
+every commit — only manifests that actually changed produce records.
+
+## Archived
+
+When a workspace should be retired:
+
+```bash
+spl workspace publish --release --version 1.5.0 --lifecycle archived
+```
+
+(`--lifecycle archived` emits a new manifest record with
+`lifecycle: archived`.)
+
+An archived workspace:
+
+- De-lists from the catalog (catalog rendering filters by lifecycle).
+- Cannot be newly subscribed to.
+- Existing subscriptions are grandfathered — subscribers still resolve
+  the most recent published manifest until they explicitly unsubscribe
+  or migrate to a successor workspace.
+- Federates so peers can mark it archived in their local indexes.
+
+Archive is the **soft delete**. The historical records remain
+addressable forever (records are immutable by F13). The lifecycle field
+just signals to renderers and subscribers that no further releases are
+expected.
+
+### Migrating subscribers off an archived workspace
+
+If you're archiving because a successor workspace replaces this one,
+emit a `core.migration.v1` record
+naming the archived workspace and the successor. Subscriber Studios
+can use the migration record to offer one-click upgrade.
+
+## Transition matrix
+
+```
+                  ┌──────────┐
+                  │   None   │  (manifest never emitted)
+                  └────┬─────┘
+                       │ spl workspace publish --draft
+                       ▼
+                  ┌──────────┐
+                  │  Draft   │◀─┐
+                  └────┬─────┘  │ further --draft emits (no-ops if identical)
+                       │        │
+                       │ spl workspace publish --release
+                       ▼        │
+                  ┌──────────┐  │
+                  │Published │──┘ (re-issue draft? emit a new draft manifest)
+                  └────┬─────┘
+                       │ spl workspace publish --release --lifecycle archived
+                       ▼
+                  ┌──────────┐
+                  │ Archived │
+                  └──────────┘
+```
+
+The transitions are not stateful in the kernel — each transition is
+just an emit of a new manifest record with a new lifecycle value. The
+**latest** record by clock for a given `(publisher_did, slug)` is the
+authoritative state.
+
+## See also
+
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) — the happy path through draft → published
+- [Testing workspaces](/docs/operate/workspace/testing) — `spl workspace test`, fixtures, expected
+- [Sharing for bug repro](/docs/operate/workspace/sharing) — `spl share`, consent, replay
+- [`core.workspace.v1` schema](https://syncropel.com/schemas/config/core-workspace.v1.schema.json)

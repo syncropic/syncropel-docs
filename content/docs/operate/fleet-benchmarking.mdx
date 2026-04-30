@@ -1,0 +1,280 @@
+---
+title: Fleet Benchmarking
+description: Measure your own fleet's parallel speedup honestly — how to run real fan-out drills against a local or production multi-instance deployment, what to record, what pass/fail criteria to commit to before you run, and how to report results without cherry-picking.
+---
+
+<Callout type="info">
+**Audience**: operators who want to verify parallel speedup on their own fleet. 
+</Callout>
+
+## What you're measuring
+
+A **parallel speedup ratio** — the wall-clock time of a fan-out run divided into the wall-clock time of the same work done sequentially on a single instance.
+
+```
+speedup = serial_wall_clock / parallel_wall_clock
+```
+
+A 2-worker fan-out on independent equal-sized subtasks has a theoretical ceiling of 2.0×. Realistic workloads lose fractional speedup to spawn overhead, completion reporting, and the irreducible cost of the slowest subtask. **Any real 2-worker drill over 1.5× is a clear win** — that's a useful threshold to commit to.
+
+Speedup is the ONLY quantity this guide measures. You are not measuring:
+
+- Raw throughput (records/second) — that's a platform benchmark, not a parallelism benchmark
+
+- Trust convergence across instances
+- Recovery time after a crash — that's a chaos-engineering question
+
+Keeping the measurement narrow is what makes the number credible.
+
+## Prerequisites
+
+- `spl` installed on the host with fleet support (`spl fleet --help` lists the start/stop/list/ping commands).
+- A **3-instance local fleet** booted — either via `spl fleet start --workers 2` (simplest) or the [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) walkthrough.
+- At least **three real multi-subtask tasks** on your backlog that have natural parallel decomposition — "I'll do part A first, then B in parallel, then synthesize." Synthetic benchmarks produce misleading numbers; this guide only measures real work.
+- A willingness to run each task **twice** (once serial, once parallel) during the benchmark window. That's the most honest baseline comparison.
+
+If you don't have three real parallelizable tasks, don't force the benchmark — run it when you do. A speedup number from a contrived workload is worse than no number.
+
+## The procedure
+
+### 1. Pick the first candidate task
+
+A task qualifies as a fan-out benchmark candidate if all four are true:
+
+1. **It decomposes into ≥2 parallelizable subtasks.** "Fix the bug, then test, then document" is sequential — the second subtask needs the first's output. "Write the Loki integration, the Prometheus integration, and the unified Grafana chapter" is parallelizable — the first two are independent.
+2. **Each subtask is meaningful** — at least ~10 minutes of real work. Tiny subtasks are dominated by coordinator overhead and produce speedups close to 1.0 regardless of fan-out quality.
+3. **The subtasks are independent enough** that a human would have chosen to split them. If the subtasks secretly share a fixture or touch the same file, the parallel run will serialize at the merge step and the speedup will be pessimistic. Note hidden coupling as a property of the workload, not a flaw in fan-out.
+4. **The task is actually on your backlog.** No running fake drills just to get numbers.
+
+Ineligible candidates:
+- Tutorial walkthroughs or the "Monday morning" transcript — synthetic subtasks
+- CI/test suite runs — too uniform, bounded by slowest fixture
+
+
+### 2. Run the serial baseline
+
+Pick ONE worker instance (or the coordinator itself) and run the three subtasks sequentially, as you would on a single instance:
+
+```bash
+# No fan-out, no workers. Just the task.
+spl task dispatch <task-alias> --budget <limit>
+```
+
+Or manually:
+1. Start the first subtask, wait for completion.
+2. Start the second subtask, wait for completion.
+3. Start the third subtask, wait for completion.
+
+**Record**:
+- `serial_start_unix` — timestamp when the first subtask began
+- `serial_end_unix` — timestamp when the last subtask finished
+- `serial_wall_clock_secs` — end minus start
+- `serial_cost_usd` — sum of per-dispatch costs
+- Any incidents, retries, external blockers, or confounders in a short **observations** note
+
+### 3. Run the parallel drill
+
+On a different session of the same task (same day, same local state — you're comparing equivalent work), create a fan-out parent task and spawn children via `spl task fan-out` with explicit `--subtask` flags:
+
+```bash
+# Create a placeholder parent task
+spl task add "<same goal> (parallel)" \
+  --priority medium \
+  --domain <same-as-serial> \
+  --alias <new-alias>
+
+# Fan out with explicit subtask descriptors
+spl task fan-out <new-alias> \
+  --subtask "goal=subtask 1 goal,target=worker-a,budget=<n>,timeout=1800" \
+  --subtask "goal=subtask 2 goal,target=worker-b,budget=<n>,timeout=1800" \
+  --subtask "goal=subtask 3 goal (synthesis),target=least-loaded-worker,budget=<n>,timeout=900,depends=0+1" \
+  --join all
+```
+
+Each `--subtask` flag is a comma-separated list of `key=value` pairs. Keys: `goal` (required), `target` (required; one of `worker-<alias>`, `specific:<did>`, `least-loaded-worker`, `round-robin`), `budget`, `timeout` (seconds), `depends` (plus-separated list of 0-based indices that must accept first). Join shorthand accepts `all`, `any`, `k_of_n:K`, or a full CEL expression in quotes.
+
+Watch the drill live:
+
+```bash
+spl fleet status --live
+spl task join-status <task-alias>
+```
+
+**Record**:
+- `parallel_start_unix` — timestamp when you ran `spl task fan-out`
+- `parallel_end_unix` — timestamp when the parent KNOW was emitted
+- `parallel_wall_clock_secs` — end minus start
+- `parallel_cost_usd` — sum of per-child costs from `spl task join-status`
+- `per_child` details — for each child: `{index, worker, wall_clock_secs, cost_usd, verdict}`
+- `spawn_overhead_secs` — eyeball from the coordinator log: time between the parent `fanout_spawned` record and the first child being dispatched
+- `join_overhead_secs` — eyeball: time between the last child's `fanout_child_done` record and the parent KNOW emission
+- `kill_drills_triggered` — if you triggered any `spl kill` during the drill, count them
+- Any observations / confounders
+
+### 4. Compute the speedup ratio
+
+```
+speedup_ratio = serial_wall_clock_secs / parallel_wall_clock_secs
+cost_ratio    = parallel_cost_usd / serial_cost_usd
+```
+
+A `speedup_ratio` ≥ 1.5 with `cost_ratio` close to 1.0 (within ±10%) is a clean win.
+
+### 5. Record the drill as a LEARN record
+
+Emit a LEARN record on a well-known benchmarking thread (e.g. `th_v0_11_bench_YYYYMMDD` where YYYYMMDD is the benchmark start date) with this shape:
+
+```json
+{
+  "act": "LEARN",
+  "thread": "th_v0_11_bench_20260420",
+  "body": {
+    "topic": "fleet_benchmark_drill",
+    "drill_index": 1,
+    "benchmark_version": "fleet",
+    "task_alias": "TASK-XXXX",
+    "workload_description": "integration recipes (3 subtasks)",
+    "fleet_topology": {
+      "coordinator": "did:sync:instance:coordinator",
+      "workers": ["did:sync:instance:worker-a", "did:sync:instance:worker-b"],
+      "heartbeat_interval_secs": 15
+    },
+    "serial_run": {
+      "start_unix": 1712345678,
+      "end_unix": 1712348278,
+      "wall_clock_secs": 2600,
+      "cost_usd": 1.82,
+      "observations": "clean run, no confounders"
+    },
+    "parallel_run": {
+      "start_unix": 1712349000,
+      "end_unix": 1712350460,
+      "wall_clock_secs": 1460,
+      "cost_usd": 1.91,
+      "per_child": [
+        {"index": 0, "worker": "worker-a", "wall_clock_secs": 1200, "cost_usd": 0.61, "verdict": "accept"},
+        {"index": 1, "worker": "worker-b", "wall_clock_secs": 1280, "cost_usd": 0.70, "verdict": "accept"},
+        {"index": 2, "worker": "worker-a", "wall_clock_secs": 420,  "cost_usd": 0.60, "verdict": "accept"}
+      ],
+      "spawn_overhead_secs": 3,
+      "join_overhead_secs": 2,
+      "kill_drills_triggered": 0,
+      "observations": "Subtask 2 was small (synthesis) and depended on 0+1 — critical path was max(0,1) + 2 + bookkeeping."
+    },
+    "speedup_ratio": 1.78,
+    "cost_ratio": 1.05
+  }
+}
+```
+
+You can emit this via:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d @drill-1.json
+```
+
+Each drill gets its own record. **Don't aggregate across drills in one record** — the fold can aggregate later; the LEARN records are the raw data.
+
+### 6. Repeat for at least 2 more drills
+
+Run the procedure for two more qualifying tasks. You want **three drills minimum** for a meaningful result. With fewer than three you are in noise territory.
+
+After three drills, pull the results:
+
+```bash
+spl audit export --since 7d --thread th_v0_11_bench_20260420 \
+  | jq -c 'select(.record.body.topic == "fleet_benchmark_drill") | .record.body | {drill_index, task_alias, speedup_ratio, cost_ratio}'
+```
+
+You should see three records with `speedup_ratio` values that you can list, analyze, and publish.
+
+## Pass/fail criteria (commit BEFORE you run)
+
+The most important thing this guide insists on is **pre-committing your pass threshold before you run the first drill**. If you decide what "good" means after the numbers come in, you will unconsciously reshape the definition to match.
+
+**Recommended threshold** (the standard threshold for 2-worker fan-out):
+
+> **Pass**: at least 2 of the 3 drills show `speedup_ratio ≥ 1.5` AND no drill shows `speedup_ratio < 1.0` *without a named confounder* that explains the regression.
+>
+> **Fail**: fewer than 2 drills at ≥1.5× OR any drill shows a naked regression (speedup < 1.0 with no explanation).
+
+### Why 1.5×?
+
+Two-worker fan-out has a theoretical ceiling at 2.0× for independent equal-sized subtasks. 1.5× represents "2-worker parallelism is clearly worth the operational cost"; below 1.5× the feature's value becomes debatable against the complexity it adds.
+
+### Why "2 of 3"?
+
+With N=3 drills you are nowhere near statistical significance. One noisy drill is expected. Allowing one pass buys robustness without letting 1-of-3 sneak through.
+
+### Why "no naked regression"?
+
+A drill at 0.9× *with* a named confounder ("we had to rebuild the Cargo.lock mid-drill, costing 45 seconds on worker-a") is a real result but not evidence against parallelism. A drill at 0.9× *without* any explanation is evidence of a structural problem that needs investigation before the benchmark is trusted.
+
+## What to do with the results
+
+### If you pass
+
+Publish the drill results as you got them — include the failing ones too if there were any. A release post with three drills showing `1.78× / 1.45× / 1.12×` is more credible than a post that silently drops the 1.12× and claims "1.6× average" on N=2.
+
+Publish **ratios, not absolutes**. Wall-clock seconds invite "but your workload is weird" arguments. Speedup ratios invite "but your ratio is lower than I'd expect" conversations, which are productive.
+
+**Don't claim a mean or median on N=3.** "The average was 1.45×" is not defensible. List them: "drill 1: 1.78×, drill 2: 1.45×, drill 3: 1.12×, all three within observed expectations for their respective workloads."
+
+### If you fail
+
+**Do not massage the numbers.** If 2 of 3 drills come in below 1.5×, the fleet benchmark is not passing on your workloads. That's a finding, not a failure of the guide.
+
+Possible causes to investigate:
+1. **Workloads are too small** — each subtask needs ~10+ minutes for fan-out overhead to amortize. Re-pick tasks.
+2. **Workloads are secretly coupled** — "independent" subtasks that actually hit the same file or fixture will serialize at the merge step. Look for hidden dependencies.
+3. **Coordinator is overloaded** — if the coordinator is itself doing work (processing triggers, running approval agents) while hosting the fleet, it can become a bottleneck. Move the coordinator to a dedicated instance.
+4. **Heartbeat interval is too aggressive** — if `fleet.heartbeat_interval_secs` is 5 instead of 15, the coordinator is ingesting 3× the heartbeat traffic for no benefit at small fleet sizes.
+5. **Network latency between instances** — if the workers are on different hosts, cross-instance POST latency adds up. Local-host fleets should be within 1-2 seconds of the theoretical ceiling.
+
+Re-run after each fix. Replace the failing drills with new drills. Keep the old drills as historical evidence; don't delete them.
+
+### If you can't find qualifying workloads
+
+If your day-to-day work genuinely doesn't decompose into parallelizable subtasks, that's valuable signal. Syncropel is designed for workloads that have natural parallelism. Workloads that are fundamentally sequential don't benefit and that's not a Syncropel bug.
+
+## Reporting template
+
+Copy this into a release post, a status update, or a LEARN record for future reference:
+
+```text
+fleet benchmark — <date>
+Host: <hostname>
+Fleet: <coordinator + N workers>
+Binary: spl <version> (commit <hash>)
+
+Drill 1: <task-alias>
+  Workload: <one sentence>
+  Serial:    <secs> ($<cost>)
+  Parallel:  <secs> ($<cost>)
+  Speedup:   <ratio>×
+  Cost:      <ratio>×
+  Notes:     <confounders or "clean">
+
+Drill 2: [same shape]
+Drill 3: [same shape]
+
+Threshold: 2 of 3 drills at ≥1.5× speedup, no naked regressions
+Result: <PASS | FAIL | PARTIAL>
+```
+
+## Caveats
+
+This guide measures **local-host fleets** in the 3-instance range. It is not yet validated for:
+
+- Fleets larger than 10 instances — scalability testing of that size is outside the scope of this guide
+- Cross-host fleets over real networks — network latency becomes a dominant factor the guide does not yet measure
+- Fleets running on containers / VMs / cloud — the overhead profiles differ; re-run the methodology in your specific environment rather than assuming local-host numbers transfer
+
+If you run the benchmark in one of these less-tested configurations, your drill records are extra valuable — please share them so the community can learn from real-world data.
+
+## References
+
+- [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) — hands-on walkthrough of the fan-out workflow
+- [Operator Runbook: Multi-instance fleet operations](/docs/operate/runbook#multi-instance-fleet-operations) — day-2 procedures

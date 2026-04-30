@@ -1,0 +1,228 @@
+---
+title: Troubleshooting
+description: A diagnostic tree for the real failure modes users hit on install and first daemon start. Start here before filing an issue.
+---
+
+Use this page when something that should work isn't working. Each section names a concrete symptom, explains what's happening, and gives the exact recovery command.
+
+For a healthy-machine audit, prefer [`spl doctor`](/docs/operate/doctor) — it runs seven checks and pinpoints which layer is failing.
+
+## "Failed to start spl serve" after install
+
+```
+$ spl serve --daemon
+Error: failed to start spl serve
+```
+
+Read the full error:
+
+```bash
+spl serve --logs
+# or directly
+tail -n 50 ~/.syncro/logs/spl.log
+```
+
+The most common causes and their fixes:
+
+### `unable to open database file`
+
+The daemon could not open `hub.db` — either the path is wrong, the directory isn't writable, or the current working directory is in a location SQLite doesn't handle well (notably UNC or WSL-mounted paths on Windows).
+
+Quick workaround: specify the store path explicitly.
+
+```bash
+spl serve --daemon --store ~/.syncro/hub.db
+```
+
+If that succeeds, the path resolution was the issue. On Linux and macOS the daemon always uses `~/.syncro/hub.db` implicitly; the `--store` flag just makes it explicit. On Windows, run from a native PowerShell (not a WSL shell) to avoid 9P filesystem weirdness.
+
+### `auth.required is enabled but no service accounts exist`
+
+Fail-closed guard is doing its job. You haven't bootstrapped the first service account yet. Follow the four-step flow on the [Service accounts page](/docs/get-started/service-accounts#the-bootstrap-flow) — start the daemon in `--insecure-localhost`, bootstrap the SA, save the token, restart in secure mode.
+
+### `address already in use`
+
+Another process is already on port 9100. Either a zombie daemon, another `spl serve`, or a different program.
+
+```bash
+# Linux / macOS
+ss -tlnp | grep 9100          # find the process
+lsof -iTCP:9100 -sTCP:LISTEN  # alternative
+
+# Windows (PowerShell)
+Get-NetTCPConnection -LocalPort 9100
+```
+
+If the owner is a stale `spl`, see "stale PID file" below. If it's a different program, either stop that program or start the daemon on a different port with `--port`.
+
+## "Database is locked"
+
+SQLite reports the store is locked. Two common causes.
+
+### A zombie `spl.exe` still holds the file (Windows)
+
+```powershell
+Get-Process spl
+```
+
+If a process is listed with an old PID, kill it:
+
+```powershell
+Stop-Process -Id <pid> -Force
+```
+
+Then start the daemon again.
+
+### 9P or WSL cwd interaction (Windows)
+
+Running `spl.exe` from a WSL shell inherits a working directory under `\\wsl$\<distro>\...`. The Windows SQLite build does not play well with 9P filesystem locking. Symptoms: intermittent `database is locked` that clears after a machine reboot and returns the next time you start from WSL.
+
+Fix: run `spl` from a native Windows terminal (PowerShell or Windows Terminal), not from a WSL shell.
+
+### Linux equivalent
+
+Rare but possible. Check for orphan processes:
+
+```bash
+pgrep -af "spl serve"
+```
+
+If a PID is listed but `spl serve --stop` can't find it, see stale PID file.
+
+## Dashboard shows "connected" but no records
+
+The browser paired successfully (it can reach `/health`), but every `/v1/records` request is returning 401 or 403.
+
+Cause: the browser has no token, or its token lacks `records:read`.
+
+Fix: re-pair with appropriate scopes.
+
+```bash
+spl pair \
+  --device "My browser" \
+  --url "http://127.0.0.1:9100" \
+  --scopes records:read,records:write
+```
+
+If the issue persists, verify the dashboard is on the CORS allowlist:
+
+```bash
+spl config show | grep -i cors
+spl config auth-set-cors-origins https://syncropel.com
+```
+
+## Windows: command hangs on first install
+
+The install script runs `spl.exe` briefly to verify the version. Windows Defender and Windows Firewall both prompt on first run of a new executable. If the prompt lands behind other windows, the install appears to hang.
+
+Check for a hidden prompt:
+
+```powershell
+wf.msc
+```
+
+Accept the firewall prompt (or add a rule manually — see [Windows notes](/docs/get-started/windows#windows-firewall)). The install proceeds once the binary is allowed to bind.
+
+## `where.exe spl` returns nothing after install
+
+```powershell
+where.exe spl
+# (empty)
+```
+
+Your current PowerShell session predates the `PATH` registry update. The install script appended to user `PATH`, but that change only affects **new** sessions.
+
+Fix: close the terminal and open a new one. `where.exe spl` should then report `%LOCALAPPDATA%\Programs\spl\spl.exe`.
+
+If the new session still can't find it, verify the registry update landed:
+
+```powershell
+[Environment]::GetEnvironmentVariable('Path','User')
+```
+
+The output should include `%LOCALAPPDATA%\Programs\spl` (or the expanded path).
+
+## Stale PID file
+
+`spl serve --stop` reports the daemon isn't running, but `spl status` or `curl http://127.0.0.1:9100/health` shows a daemon is clearly alive. The PID file has been orphaned.
+
+Recovery:
+
+```bash
+# Linux / macOS
+pgrep -af "spl serve"             # find the actual PID
+kill <pid>                        # graceful
+# if it doesn't exit within ~10 seconds:
+kill -9 <pid>                     # force
+rm ~/.syncro/run/spl.pid          # clear the stale file
+spl serve --daemon                # start fresh
+```
+
+```powershell
+# Windows
+Get-Process spl
+Stop-Process -Id <pid> -Force
+Remove-Item $env:USERPROFILE\.syncro\run\spl.pid -ErrorAction SilentlyContinue
+spl serve --daemon
+```
+
+`spl doctor` detects stale PID files and prints the exact recovery command.
+
+## Corrupted hub.db or stuck locks
+
+If `hub.db` is corrupted beyond a simple lock issue — perhaps after a disk-full event or a mid-write kernel panic — the nuclear option is to wipe `~/.syncro/` and re-initialize:
+
+```bash
+# First, make a backup if the file is at all recoverable:
+cp ~/.syncro/hub.db ~/hub.db.broken.$(date +%s)
+
+# Then wipe:
+rm -rf ~/.syncro
+
+# Re-initialize and re-bootstrap:
+spl init
+spl serve --daemon --insecure-localhost
+spl service-account create --bootstrap \
+  --name admin \
+  --actors did:sync:user:$(whoami) \
+  --scopes admin \
+  --with-token
+spl token save spl_prod_sa_...
+spl serve --stop
+spl serve --daemon
+```
+
+Any records you had are gone. Automatic backups at `~/.local/share/syncropel/backups/hub.db.bak` may contain a recent snapshot — see [Operator runbook → Recovery](/docs/operate/runbook) for the full restore procedure.
+
+## Data went to `System32` (Windows)
+
+If you ran `spl serve` from an elevated `cmd.exe` whose working directory was `C:\Windows\System32\`, and the daemon's path resolution was misbehaving, `hub.db` may have been created in `System32`. Symptoms: no data in `%USERPROFILE%\.syncro\`, but the daemon reports records exist.
+
+Fix: stop the daemon, move the file, point the daemon at the right location.
+
+```powershell
+spl serve --stop
+Get-ChildItem C:\Windows\System32\hub.db -ErrorAction SilentlyContinue
+# If found:
+Move-Item C:\Windows\System32\hub.db $env:USERPROFILE\.syncro\hub.db
+spl serve --daemon --store $env:USERPROFILE\.syncro\hub.db
+```
+
+Always start `spl serve` from a working directory you control (your home directory is safe). Never run as Administrator unless you have a specific reason — the user-scope install does not need it.
+
+## Still stuck
+
+Run the full diagnostic:
+
+```bash
+spl doctor --json
+```
+
+Every check reports `pass`, `warn`, or `fail` with a specific fix. If `doctor` is green but behavior is still wrong, capture the daemon log around the failure — `spl doctor --json` produces a machine-readable summary you can attach when reporting the issue.
+
+## See also
+
+- [`spl doctor`](/docs/operate/doctor) — one-command diagnostic with specific fixes
+- [Reset and uninstall](/docs/get-started/reset-uninstall) — how to cleanly start over
+- [Windows notes](/docs/get-started/windows) — WSL, Defender, Firewall, PATH, long paths
+- [Operator runbook → Recovery](/docs/operate/runbook) — restore from backup after data loss

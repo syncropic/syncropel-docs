@@ -1,0 +1,129 @@
+---
+title: Task Management
+description: Create, track, and complete tasks with success criteria — every outcome feeds trust and pattern formation.
+---
+
+## Overview
+
+Tasks in Syncropel are threads with structure. Each task carries a goal, optional success criteria, and a lifecycle that tracks progress from creation through completion to review. The outcomes feed trust scores and pattern formation.
+
+## Creating Tasks
+
+```bash
+spl task add "Implement rate limiting for the API" \
+  --priority high \
+  --label code
+```
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--priority` | `critical`, `high`, `medium`, or `low` |
+| `--label` | Categorization tags (repeatable) |
+| `--assign` | Actor to assign: `@dev`, `@reviewer` |
+| `--alias` | Human-readable alias: `TASK-0001` |
+
+## Task Lifecycle
+
+Tasks progress through statuses based on what happens:
+
+| Status | What It Means | How It Happens |
+|---|---|---|
+| `inbox` | Created, not yet started | `spl task add` |
+| `active` | Work in progress | `spl task start TASK-0001` |
+| `blocked` | Waiting on something | `spl task block TASK-0001 --reason "..."` |
+| `deferred` | Intentionally postponed | `spl task defer TASK-0001 --reason "..."` |
+| `review` | Work claimed complete, awaiting evaluation | `spl task done TASK-0001 --summary "..."` |
+| `approved` | Independently verified as complete | `spl task approve TASK-0001` |
+| `rejected` | Needs rework | `spl task reject TASK-0001 --reason "..."` |
+| `failed` | Approach didn't work | `spl task fail TASK-0001 --reason "..."` |
+| `cancelled` | Decided not to proceed | `spl task cancel TASK-0001` (`--reason` optional, default "removed by user") |
+
+Statuses are derived from records — there is no separate status field that can drift from reality.
+
+## The Evaluation Gate
+
+When someone completes a task, it doesn't immediately count as "done." The task enters `review` status, awaiting independent evaluation:
+
+```bash
+# Worker completes
+spl task done TASK-0001 --summary "Added rate limiter with sliding window" --domain code
+
+# Reviewer evaluates
+spl task approve TASK-0001 --domain code --notes "Logic correct, tests pass"
+```
+
+The reviewer must be a different person or agent than the one who did the work. This separation ensures trust evidence comes from independent judgment.
+
+## Viewing Tasks
+
+```bash
+# List all active tasks
+spl task list
+
+# Show task details
+spl task show TASK-0001
+
+# Show full hierarchy (sub-tasks)
+spl task tree TASK-0001
+```
+
+## Managing Task State
+
+```bash
+# Block with a reason
+spl task block TASK-0001 --reason "Waiting for API credentials"
+
+# Resume blocked task
+spl task start TASK-0001
+
+# Defer to later
+spl task defer TASK-0001 --reason "Not needed this quarter"
+
+# Cancel — the fast path
+spl task cancel TASK-0001
+# → ✗ Cancelled TASK-0001: removed by user
+
+# Cancel with an explicit reason
+spl task cancel TASK-0001 --reason "Superseded by new approach"
+
+# Reopen a cancelled or failed task
+spl task reopen TASK-0001 --reason "New approach available"
+```
+
+`--reason` is required for blocks, deferrals, and rejections. For
+cancel it's optional and defaults to `"removed by user"` —
+matching the quick-remove behavior on the web. The cancellation is
+still recorded with full provenance; only the prompt is relaxed.
+
+## Sub-Tasks
+
+Break complex work into smaller pieces:
+
+```bash
+spl task plan TASK-0001 "Design the rate limiting algorithm"
+spl task plan TASK-0001 "Implement the sliding window counter"
+spl task plan TASK-0001 "Add integration tests"
+```
+
+View the hierarchy:
+
+```bash
+spl task tree TASK-0001
+```
+
+## Comments
+
+Add notes to any task:
+
+```bash
+spl task comment TASK-0001 "Discussed with team, decided on token bucket approach"
+```
+
+## What's Next
+
+- [Your First Task tutorial](/docs/tutorials/first-task) — step through the full lifecycle hands-on
+- [Routing rules](/docs/guides/routing-rules) — control how work gets routed
+- [Actors and adapters](/docs/guides/actors-and-adapters) — set up your team
+- [Trust concepts](/docs/concepts/trust) — how task outcomes build trust

@@ -1,0 +1,137 @@
+---
+title: Records
+description: The 8-field immutable, content-addressed unit — the only primitive Syncropel writes. Every intent, action, observation, and decision is a record.
+---
+
+## Overview
+
+A record is a single immutable fact. Syncropel writes nothing else. Task status, trust scores, routing rules, configuration, the output of a CI job, a comment on a design doc — all of it is records. When you understand the record, you understand what the system can and cannot do.
+
+The record has exactly 8 fields. Seven of them are hashed into the record's ID; one (`judged_by`) is not. The system never mutates a record after it lands — corrections, cancellations, and status changes all arrive as new records that reference the old ones.
+
+If you've written code against Git's commit model or CouchDB's document model, the shape will feel familiar: content-addressed, append-only, history-preserving. The difference is that Syncropel's record is *universal* — the same shape is used for code changes, task tracking, trust evidence, federation sync, and policy records. There's no second primitive to learn.
+
+## The 8 fields
+
+| # | Field | Hashed | What it is |
+|---|---|---|---|
+| 1 | `parents` | yes | Record IDs this one builds on (sorted ascending). Empty list `[]` for a root record. |
+| 2 | `thread` | yes | The thread this record belongs to — a `th_` + 64 hex char content address. |
+| 3 | `actor` | yes | Who emitted it — a DID like `did:sync:user:alice` or `did:sync:agent:dev`. |
+| 4 | `act` | yes | The act type — one of 8: `INTEND`, `DO`, `KNOW`, `LEARN`, `GET`, `PUT`, `CALL`, `MAP`. |
+| 5 | `body` | yes | The JSON payload. Opaque to the kernel; conventions live inside it. |
+| 6 | `clock` | yes | A logical timestamp, monotonic per `(actor, thread)`. Starts at 0 on a new thread. |
+| 7 | `data_type` | yes | One of 6: `SCALAR`, `FORMULA`, `DISTRIBUTION`, `REFERENCE`, `MORPHISM`, `VOID`. |
+| 8 | `judged_by` | **no** | Pointer to the record whose judgment this reflects. Often null. |
+
+`judged_by` is excluded from the hash on purpose. The same observation reviewed by two different people is *the same observation* — it shouldn't create two records with different IDs. What changes between those reviews is trust attribution, not content.
+
+## Content addressing
+
+The ID of a record is the hash of its content:
+
+```
+id = SHA-256(canonical_json(act, actor, body, clock, data_type, parents, thread))
+```
+
+Three consequences follow:
+
+**1. Two identical records collide.** If Alice emits the same `(thread, actor, clock, body, act)` twice, the second call is a no-op — the ID already exists in the store. This makes retries idempotent at the storage layer. The CLI and SDK both rely on this when recovering from a network error mid-emit.
+
+**2. The ID verifies integrity.** Any downstream process that cares about authenticity can recompute the ID from the fields and check it matches. Federation uses this on every pulled record; without a matching hash, the record doesn't enter the store.
+
+**3. There's no "renaming" a record.** Every field matters. Change one character in the body, you get a different ID, you get a different record. This is the property that makes content-addressed federation viable — two instances with the same set of hashes have the same set of records, and that's decidable in one comparison.
+
+The hash is over *canonical* JSON: keys sorted alphabetically at every depth, no whitespace, numbers without trailing zeros. Any implementation that serializes the same 7 fields gets the same bytes and thus the same ID. See [Record Format reference](/docs/reference/record-format) for the full encoding rules.
+
+## Act types
+
+Eight act types, partitioned into two groups of four.
+
+**Coordination acts** — what hybrid human-AI teams spend most of their time on.
+
+| Act | Meaning | Typical body |
+|---|---|---|
+| `INTEND` | Declare a goal. Opens a thread or branches a sub-thread. | `{"goal": "..."}`, `{"task": true, ...}` |
+| `DO` | Record an action performed. | `{"tool": "bash", "args": [...]}` |
+| `KNOW` | Record an observation, fact, or verdict. | `{"topic": "...", "observation": "..."}`, `{"fulfills": "<record_id>"}` |
+| `LEARN` | Record an insight or decision that should persist. Often used for config changes. | `{"topic": "routing_rule", "rule": {...}}` |
+
+**Effect acts** — what adapters and tools emit when they touch the outside world.
+
+| Act | Meaning | Typical body |
+|---|---|---|
+| `GET` | Retrieve a value. | `{"key": "..."}` |
+| `PUT` | Store a value. | `{"key": "...", "value": "..."}` |
+| `CALL` | Invoke a tool or service. | `{"tool": "bash", "cmd": "..."}`, `{"provider": "anthropic", "request": {...}}` |
+| `MAP` | Transform data. | `{"from": "...", "to": "..."}` |
+
+Most CLI commands emit a single act — `spl intend` emits `INTEND`, `spl do` emits `DO`, and so on. Higher-level flows like dispatch produce chains: the pipeline writes an `INTEND` for the dispatched goal, then the adapter writes a `CALL` when it invokes the tool, then a `KNOW` when the tool returns.
+
+## The body is opaque
+
+The kernel does not validate the contents of `body`. It hashes the bytes, stores the record, and moves on. All semantic conventions — "a task INTEND has `body.task = true`", "a closing KNOW has `body.fulfills`", "a routing rule is a LEARN on `th_engine_config` with `body.topic = routing_rule`" — live one layer up, in the projector, the fold, the adapters, and the SDKs.
+
+This is intentional. The kernel's guarantee is *"every record has the shape"*. The guarantee *"every body of act X has the shape Y"* is a convention that different consumers can agree on and evolve without touching the ingest path.
+
+Two practical consequences:
+
+- **Adding a new kind of record is a documentation problem, not a kernel change.** New task statuses, new config topics, new adapter metadata — all of them land as new `body.topic` values with no kernel modification.
+- **Malformed bodies are caught at the consumer, not the kernel.** A LEARN with a broken routing rule ingests fine; the config loader rejects it at reload time and emits a warning. Loose at the boundary, strict at the use site.
+
+The one exception is `body.namespace`, which the kernel reads to enforce [namespace narrowing](/docs/concepts/namespaces) at ingest. That check has a dedicated code path precisely because namespace is a security boundary, not a semantic convention.
+
+## Immutability and supersession
+
+Records are never edited or deleted. Three kinds of "change" become three flavors of new record:
+
+- **Correct a mistake**: emit a `KNOW` with `body.topic: "correction"` referencing the bad record in `parents`. The fold walks both and picks the latter.
+- **Cancel a prior intent**: emit a `DO` with `body.cancels: "<intend_id>"`. The task fold reads this and transitions the task to cancelled.
+- **Change a config**: emit a new `LEARN` on `th_engine_config`. The engine reloads on broadcast; the latest record wins.
+
+No backdating. Clocks are monotonic per `(actor, thread)`, so you cannot insert a record into the past. An actor who disagrees with a past observation emits a *later* record contradicting it, and the fold decides which wins based on the rule that applies — often "latest by clock", sometimes "accept-first-wins" for AITL, sometimes domain-specific.
+
+This is what makes the record log auditable. Every state transition happened when it happened, signed by whoever did it, and nothing downstream can make the log look different later.
+
+## State is a fold
+
+There is no second database. Every piece of state the system exposes — task status, trust scores, active dispatches, routing rules, namespace registry, fleet membership — is computed by replaying records:
+
+```
+current_state = fold(records_on_thread)
+```
+
+Folds are pure functions over a thread's record chain. `spl task show` runs a fold over the task thread. `spl trust` runs a fold over every thread the actor has touched, projecting KNOW records with verdicts into a Wilson-LB score. `spl config list-rules` runs a fold over `th_engine_config` and returns the latest rule per name.
+
+Because folds are pure, three properties follow:
+
+1. **Any divergence is a bug in the fold, not data corruption.** The records are the ground truth.
+2. **Consistency across instances is the content-address property.** Two instances with the same records will produce the same folded state.
+3. **Rebuild-from-scratch is always available.** A corrupted derived cache (trust, instance registry, namespace registry) is fixed by replaying records. The daemon does this automatically on every startup.
+
+The kernel bootstraps trust by replaying all KNOW records with verdicts. It bootstraps engine config by replaying all LEARN records on `th_engine_config`. Crash recovery is not a special path — it's the only path.
+
+## What goes in and what doesn't
+
+Four rules of thumb for what *should* be a record vs what's legitimately stored elsewhere.
+
+**Record it if:**
+- It represents intent, action, observation, or learning that anyone else might need to audit, replay, or fold over.
+- It should survive a crash and rebuild the world.
+- It's the unit another actor (human, agent, service) would coordinate against.
+
+**Don't record it if:**
+- It's an implementation-internal cache that's cheaper to recompute (e.g., embedding vectors for semantic search — those live in `sqlite-vec`, keyed by record ID).
+- It's secrets material (private keys, API keys). These live in `~/.syncro/secrets/` and are not records.
+- It's a per-process runtime detail (PID, active subprocess handle, unflushed log buffer).
+- It changes faster than the ingest path can sustain (sub-millisecond telemetry streams). Aggregate at the edge, emit a record with the summary.
+
+When in doubt, record it. The ingest path is fast (under 100µs in the happy path), the SQLite backend scales to tens of millions of records on commodity hardware, and the auditability payoff compounds.
+
+## What's next
+
+- **[Threads](/docs/concepts/threads)** — how records are organized into workflows.
+- **[Actors](/docs/concepts/actors)** — who emits records and how identity persists.
+- **[The engine](/docs/concepts/engine)** — the 4-loop system that turns records into action.
+- **[Record format reference](/docs/reference/record-format)** — field-level encoding, canonical JSON, thread ID derivation.
+- **[Glossary](/docs/reference/glossary)** — the vocabulary used across the docs.

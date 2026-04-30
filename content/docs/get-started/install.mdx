@@ -1,0 +1,140 @@
+---
+title: Install
+description: Install the spl binary on Linux, Windows, or macOS. Pin to a specific version. Verify the install. Uninstall cleanly.
+---
+
+`spl` is a single self-contained binary — no runtime, no package manager, no dependencies. The install scripts below download the right build for your platform from `releases.syncropic.com`, place it in a user-scope location, add that location to your `PATH`, and verify the version.
+
+## Linux
+
+```bash
+curl -sSf https://get.syncropic.com/spl | sh
+```
+
+What the script does:
+
+1. Detects your architecture (`x86_64` or `aarch64`).
+2. Downloads the matching `spl-linux-<arch>` binary from `releases.syncropic.com`.
+3. Verifies the SHA-256 checksum.
+4. Atomically moves the binary to `$INSTALL_DIR` (default `~/.local/bin/spl`).
+5. Adds `~/.local/bin` to your `PATH` by appending an `export` line to your shell's rc file (`~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`).
+6. Prints the next-step hints (`spl init`, `spl serve --daemon`).
+
+If `~/.local/bin` was already on your `PATH`, step 5 is skipped. If the script can't detect your shell, it prints the line for you to add manually.
+
+The default install location can be overridden:
+
+```bash
+INSTALL_DIR=/usr/local/bin curl -sSf https://get.syncropic.com/spl | sh
+```
+
+`/usr/local/bin` requires `sudo` — the user-scope default does not.
+
+## Windows (PowerShell)
+
+```powershell
+irm https://get.syncropic.com/spl.ps1 | iex
+```
+
+What the script does:
+
+1. Detects `x86_64` (ARM Windows is not yet supported).
+2. Downloads `spl-windows-x86_64.exe` from `releases.syncropic.com`.
+3. Verifies the SHA-256 checksum.
+4. Moves the binary to `%LOCALAPPDATA%\Programs\spl\spl.exe` (user-scope; no admin needed).
+5. Appends that directory to the user `PATH` in the registry.
+6. Prints the next-step hints.
+
+The user `PATH` update takes effect for **new** PowerShell / CMD sessions. Close and reopen your terminal before running `spl version`.
+
+## macOS
+
+A prebuilt macOS binary is on the near-term roadmap but not yet
+shipped via the public install feed. Until then, the supported paths
+for macOS users are:
+
+- **Linux on a VM or Docker** — run `spl` inside a Linux container and
+  expose port 9100 to your Mac.
+- **Remote Linux host** — run `spl serve` on a Linux server and pair
+  your local browser to it (see [Pairing](/docs/get-started/pairing)).
+- **WSL on Windows** — if you're cross-platform, the Linux script
+  works under WSL.
+
+Watch the [releases page](https://releases.syncropic.com/spl-rust/) for
+when prebuilt macOS binaries land.
+
+## Pinning to a specific version
+
+The default install scripts fetch the version listed at `https://releases.syncropic.com/spl-rust/latest/version.json`. To pin to a specific release, set `SPL_VERSION`:
+
+```bash
+# Linux
+SPL_VERSION=0.X.Y curl -sSf https://get.syncropic.com/spl | sh
+```
+
+```powershell
+# Windows
+$env:SPL_VERSION="0.X.Y"; irm https://get.syncropic.com/spl.ps1 | iex
+```
+
+Pinning is useful when you're rolling out a specific version across a fleet, or when you want to test an upgrade before moving everyone off the current one. Versions remain on `releases.syncropic.com` indefinitely — an old pin keeps working.
+
+## Verify
+
+After install, open a **new** terminal and run:
+
+```bash
+spl version
+```
+
+Expected output (version number will differ):
+
+```
+spl 0.X.Y
+```
+
+A brief CLI reference:
+
+```bash
+spl --help
+```
+
+If `spl version` prints the expected line, you are done with this page. Proceed to [First run](/docs/get-started/first-run).
+
+If `spl version` reports `command not found` on Linux, your shell has not picked up the `PATH` update. Either open a new terminal, or `source ~/.bashrc` (or the rc file your shell actually uses). On Windows, open a fresh PowerShell; see [Windows notes](/docs/get-started/windows) if `where.exe spl` comes up empty.
+
+## Uninstall
+
+### Linux
+
+```bash
+rm ~/.local/bin/spl
+```
+
+Then remove the `~/.local/bin` PATH line from your shell rc if you added `spl` as the reason for it being there. Your `~/.syncro/` data directory is untouched — delete it separately if you want a full wipe (see [Reset and uninstall](/docs/get-started/reset-uninstall)).
+
+### Windows
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\Programs\spl" -Recurse
+```
+
+Then remove `%LOCALAPPDATA%\Programs\spl` from the user `PATH`:
+
+```powershell
+$current = [Environment]::GetEnvironmentVariable('Path','User')
+$updated = ($current -split ';' | Where-Object { $_ -notmatch 'spl' }) -join ';'
+[Environment]::SetEnvironmentVariable('Path', $updated, 'User')
+```
+
+### macOS
+
+```bash
+rm ~/.local/bin/spl
+```
+
+## See also
+
+- [First run](/docs/get-started/first-run) — initialize your identity and `~/.syncro/` tree
+- [Reset and uninstall](/docs/get-started/reset-uninstall) — full wipe including data
+- [Troubleshooting](/docs/get-started/troubleshooting) — when install fails or `spl version` can't find the binary

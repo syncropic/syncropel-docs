@@ -1,0 +1,214 @@
+---
+title: Syncropel Documentation
+description: Coordination protocol for hybrid human-AI teams. Build with immutable records, evidence-based trust, manifest-driven workspaces, and self-improving workflows.
+---
+
+## Install
+
+```bash
+# Linux + macOS
+curl -sSf https://get.syncropic.com/spl | sh
+
+# Windows (PowerShell)
+irm https://get.syncropic.com/spl.ps1 | iex
+
+# Then
+spl init && spl serve --daemon
+```
+
+Follow the [Quickstart](/docs/start) for a 10-minute walkthrough — install to first task with trust evidence. Or read [Get Started](/docs/get-started) for the deeper, multi-page onboarding journey.
+
+If you're integrating from code, jump to the [TypeScript SDK](/docs/guides/typescript-sdk) or [Python SDK](/docs/guides/python-sdk).
+
+---
+
+## What a Syncropel thread looks like
+
+Every coordination event — chat, task, code change, tool call, observation, intent — becomes a record. Records group into threads. Threads produce trust:
+
+```text
+fix-checkout-timeout              5 records · 3 actors · trust 0.92
+
+● you      INTEND  "Fix checkout timeout before launch"                14m ago
+○ agent    DO      Profiled API — connection pool saturated at 10     12m ago
+○ agent    DO      Patch applied: pool 10 → 50, deployed to staging    9m ago
+○ monitor  KNOW    p99 latency 4.2s → 180ms — 340 users unblocked      6m ago
+○ agent    LEARN   "Pool sizing must scale with replicas"              now
+                   pattern crystallized (trust 0.92)
+```
+
+`●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and signed by its actor. The `LEARN` at the end crystallizes into a reusable pattern — next time the same shape of issue appears, the solution replays automatically.
+
+That same thread can [federate to another instance](/docs/guides/federation-pair) with consent-gated sync, [ship as a workspace](/docs/concepts/workspaces) others can install, or be queried via the [TypeScript SDK](/docs/guides/typescript-sdk) / [Python SDK](/docs/guides/python-sdk) / [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others).
+
+---
+
+## Tutorials
+
+Step-by-step learning — follow along from start to finish.
+
+| Tutorial | Description |
+|---|---|
+| [Your First Task](/docs/tutorials/first-task) | Create, complete, and see trust grow |
+| [Working with Threads](/docs/tutorials/first-thread) | Open, fork, and close coordinated workflows |
+| [Build your First Workspace](/docs/tutorials/first-workspace) | Scaffold, edit, test, publish, and share — the canonical workspace path |
+| [Multi-Namespace Setup](/docs/tutorials/multi-namespace) | Two isolated environments under one ORG with the 5-level hierarchy |
+| [Your First Fan-Out](/docs/tutorials/first-fanout) | 5-minute version: boot a fleet, fan out a task, watch the barrier join |
+| [Parallel Dev Walkthrough](/docs/tutorials/parallel-dev) | 20 minutes: 3-instance fleet, real fan-out, kill switch, barrier join, cleanup |
+| [First SDK Integration](/docs/tutorials/first-sdk-integration) | 15 minutes: Node.js script that emits records and queries them back |
+| [First Iframe Extension](/docs/tutorials/first-iframe-extension) | 30 minutes: build an iframe extension with `@syncropel/extensions` |
+| [First React Component Consumer](/docs/tutorials/first-react-component-consumer) | 30 minutes: Next.js task inbox using `@syncropel/sdk` + `@syncropel/react` |
+
+## Templates
+
+Ready-to-scaffold workspace examples.
+
+| Section | What's there |
+|---|---|
+| [Templates Gallery](/docs/templates) | Seven worked workspace examples (`tracker`, `multi-page`, `newsletter`, `course`, `recipe-collection`, `solo-tracker`, `catalog`). Each scaffolds via `spl workspace init` and passes `spl workspace test` immediately. |
+
+## Concepts
+
+Understand how Syncropel works under the hood.
+
+| Concept | Description |
+|---|---|
+| [Records](/docs/concepts/records) | The 8-field immutable, content-addressed unit |
+| [Threads](/docs/concepts/threads) | Group records into coordinated workflows |
+| [Actors](/docs/concepts/actors) | Identity, trust profiles, and persistent memory |
+| [Workspaces](/docs/concepts/workspaces) | Manifest-driven applications you ship by publishing a record |
+| [Catalog](/docs/concepts/catalog) | Curated discovery surface above the registry |
+| [Trust](/docs/concepts/trust) | Evidence-based reputation with the dial |
+| [Patterns](/docs/concepts/patterns) | Proven workflows that replay automatically |
+| [Namespaces](/docs/concepts/namespaces) | 5-level hierarchy for tenancy and policy isolation |
+| [Governance](/docs/concepts/governance) | PARC, scope tokens, and how decisions get authorized |
+| [Federation](/docs/concepts/federation) | How two instances sync records with consent and signatures |
+| [Secrets](/docs/concepts/secrets) | Four-layer credential handling — values never enter the record graph |
+| [The Engine](/docs/concepts/engine) | Four loops from ingest to learning |
+
+## Guides
+
+Solve specific problems — task-oriented, practical.
+
+### Day-to-day operations
+
+| Guide | Description |
+|---|---|
+| [Task Management](/docs/guides/task-management) | Full lifecycle from creation to approval |
+| [Routing Rules](/docs/guides/routing-rules) | Control how work flows to actors |
+| [Scheduled Triggers](/docs/guides/scheduled-triggers) | Cron-style automation against the record stream |
+| [CEL Expressions](/docs/guides/cel-expressions) | Author rules for triggers, routing, fold, health, AITL, permissions |
+| [Query](/docs/guides/query) | MongoDB-style filter grammar for record retrieval |
+| [Search](/docs/guides/search) | Semantic + full-text search across threads |
+| [body.kind manifest](/docs/guides/body-kind-manifest) | Record kind grammar and reserved scopes |
+| [Namespaces](/docs/guides/namespaces) | Set up multi-tenant scoping |
+| [Consent Management](/docs/guides/consent) | Control what crosses namespace boundaries |
+
+### Federation
+
+| Guide | Description |
+|---|---|
+| [Pair two stewards](/docs/guides/federation-pair) | One-command handshake — discovery, reciprocal tokens, persistent pair records |
+| [Federation discovery](/docs/guides/federation-discovery) | Find peers by handle or directory |
+| [Async federation](/docs/guides/async-federation) | Record sync via relay when peers are offline |
+| [Federation (legacy sync)](/docs/guides/federation) | Manual sync setup for reference |
+
+### Inference
+
+| Guide | Description |
+|---|---|
+| [Inference Overview](/docs/guides/inference/overview) | Why infer.query.v1, what it solves, where it fits |
+| [Query Anatomy](/docs/guides/inference/query-anatomy) | Walking through a query body |
+| [Fold Functions](/docs/guides/inference/fold-functions) | The five aggregators in detail |
+| [Orchestration Patterns](/docs/guides/inference/orchestration-patterns) | Six multi-step flows |
+
+### Integration
+
+| Guide | Description |
+|---|---|
+| [Actors & Adapters](/docs/guides/actors-and-adapters) | Register participants and connect them |
+| [Agent Integration](/docs/guides/agent-integration) | Connect AI agents to dispatch and trust |
+| [Session Checkpoints](/docs/guides/session-checkpoints) | Save + resume agent sessions |
+| [Debugging Syncropel](/docs/guides/debugging) | doctor → status → debug replay → audit export |
+| [Dispatch observability](/docs/guides/dispatch-observability) | Records-as-observations for every dispatch |
+| [Cookbook: dispatch recovery](/docs/guides/cookbook-dispatch-recovery) | Resume from partial dispatch failure |
+| [Cookbook: Claude session correlation](/docs/guides/cookbook-claude-session-correlation) | Map dispatches to Claude session IDs |
+
+### SDKs + UI
+
+| Guide | Description |
+|---|---|
+| [TypeScript SDK](/docs/guides/typescript-sdk) | Universal JS/TS client — Node, Deno, Bun, Workers, browsers |
+| [Python SDK](/docs/guides/python-sdk) | Emit records and query threads from Python |
+| [Projections](/docs/guides/projections) | Schema + validators for declarative UI documents |
+| [React Components](/docs/guides/react-components) | Component palette that renders projection documents natively |
+| [Extensions SDK](/docs/guides/extensions) | Build iframe-embedded apps for a Syncropel workspace |
+
+### Operations + Backup
+
+| Guide | Description |
+|---|---|
+| [Backup & Recovery](/docs/guides/backup-restore) | Protect your data and recover safely |
+| [Docker Deployment](/docs/guides/docker-deployment) | Multi-stage image, compose topology, smoke test |
+| [SIEM Integration](/docs/guides/siem-integration) | Pipe `spl audit export` into Splunk, Elastic, Loki, Datadog |
+
+## Cookbook
+
+Short, tested recipes for common operational shapes — copy, adapt, ship. See [the full cookbook](/docs/cookbook) for all recipes.
+
+| Recipe | Problem it solves |
+|---|---|
+| [Route by domain](/docs/cookbook/route-by-domain) | Dispatch code to one agent and ops to another without rule explosion |
+| [Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) | High-trust actors ship without blocking on review |
+| [Federate one thread](/docs/cookbook/federate-one-thread) | Share a single task thread with a collaborator on a different instance |
+| [Scheduled daily digest](/docs/cookbook/scheduled-daily-digest) | Cron trigger at 09:00 that summarises the last 24 hours |
+| [Audit export to Elastic](/docs/cookbook/audit-export-to-elastic) | Pipe security-relevant records into your SIEM |
+| [3-LLM consensus summarization](/docs/cookbook/summarize-research-paper-consensus) | Fan out to three LLMs, consensus-fold, take the most-agreed answer |
+| [Translate with human verification](/docs/cookbook/translate-with-human-verification) | Two LLMs translate + verify; human only when LLMs disagree |
+| [Cost-bounded query waterfall](/docs/cookbook/cost-bounded-query-waterfall) | Cheap LLM first, escalate stage-by-stage, hard-stop at a cost ceiling |
+| [Audit-critical with ensemble](/docs/cookbook/audit-critical-with-ensemble-audit) | Ensemble-fold three LLMs, compliance officer audits |
+| [Escalate on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence) | LLM handles the common case; human pulled in when LLM isn't sure |
+
+## Integrate
+
+Connect Syncropel to other tools.
+
+| Page | Description |
+|---|---|
+| [AI clients](/docs/integrate/ai-clients) | Plug Syncropel into MCP-compatible clients (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others) |
+| [Programmatic agents](/docs/integrate/programmatic-agents) | Integrate code-execution-capable agents that emit records via the SDK in a sandbox |
+
+## Operate
+
+Day-2 operations for production instances.
+
+| Page | Description |
+|---|---|
+| [Operator Runbook](/docs/operate/runbook) | Daemon lifecycle, recovery from corruption, backup discipline, in-place upgrades |
+| [Persist Instance](/docs/operate/persist-instance) | Auto-start at login + auto-restart on crash (systemd, launchd, Windows Service) |
+| [Authentication & Service Accounts](/docs/operate/keyring) | Bearer-token auth, service accounts, device pairing, rotation, revocation |
+| [Doctor](/docs/operate/doctor) | Top-down diagnostic tree — when something doesn't work, start here |
+| [Troubleshooting connection](/docs/operate/troubleshooting-connection) | Browser-can't-reach-daemon, CORS, PNA, network failure modes |
+| [Audit export](/docs/operate/audit-export) | Stream the security-relevant record subset for compliance + SIEM |
+| [Actor portability](/docs/operate/actor-portability) | Move an actor identity between instances |
+| [Workspace lifecycle](/docs/operate/workspace/lifecycle) | Draft / published / archived, the transition matrix |
+| [Workspace testing](/docs/operate/workspace/testing) | Native test runner for workspace fold functions |
+| [Workspace sharing](/docs/operate/workspace/sharing) | `spl share` for bug repro + collaboration |
+| [Extension publishing](/docs/operate/extension-publishing) | Ship iframe extensions to a workspace registry |
+| [Fleet benchmarking](/docs/operate/fleet-benchmarking) | Measure your fleet's parallel speedup honestly |
+| [Windows service](/docs/operate/windows-service) | Run `spl serve` as a Windows Service |
+| [Relay operator guide](/docs/operate/relay) | Deploy your own async-federation relay |
+
+## Reference
+
+Look things up — commands, endpoints, formats.
+
+| Reference | Description |
+|---|---|
+| [CLI](/docs/reference/cli) | Every spl command with flags and examples |
+| [HTTP API](/docs/reference/api) | All endpoints with request examples |
+| [Record Format](/docs/reference/record-format) | The 8 fields, types, and canonical JSON |
+| [Configuration](/docs/reference/configuration) | Settings, rules, and data locations |
+| [infer.query.v1 schema](/docs/reference/infer-query-schema) | Full inference query schema with field tables |
+| [Iframe host snippet](/docs/reference/iframe-host-snippet) | Drop-in code for hosting an extension iframe |
+| [Glossary](/docs/reference/glossary) | Key terms A to Z |

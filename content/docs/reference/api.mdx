@@ -1,0 +1,728 @@
+---
+title: API Reference
+description: HTTP endpoints for the Syncropel server.
+---
+
+## Base URL
+
+```
+http://localhost:9100
+```
+
+The server listens on port 9100 by default. All endpoints return JSON.
+
+## Authentication
+
+When `auth.required = true` (the kernel default), every `/v1/*` endpoint requires a bearer token:
+
+```
+Authorization: Bearer spl_<env>_<sa_id>_<secret>
+```
+
+Tokens are minted against service accounts with a closed scope list. The middleware validates the token, checks the requested endpoint's required scope, and verifies the claimed actor DID (`X-Syncropel-Actor`) is in the SA's allowed-actors list.
+
+The `spl` CLI resolves bearer tokens in this precedence: `--token <value>` flag first, then the `SPL_TOKEN` environment variable, then `~/.syncro/token`. HTTP callers pass the token directly in the `Authorization` header.
+
+Exempt routes (unauthenticated even when auth is enforced):
+
+- `GET /health`
+- `POST /v1/bootstrap/service-account` (one-shot per namespace)
+- `GET /.well-known/syncropel`
+
+For the full model — scopes, token format, rotation, federation composition — see the [Authentication & Service Accounts guide](/docs/operate/keyring). Endpoints for managing service accounts and tokens are documented in the [Service accounts](#service-accounts) section below.
+
+## Health
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | Health check — returns `{"status": "ok"}` |
+
+## Records
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/records` | Ingest a new record |
+| GET | `/v1/records/:id` | Get a record by ID |
+| GET | `/v1/records?thread=X` | List records filtered by thread |
+| GET | `/v1/records?actor=X` | List records filtered by actor |
+| POST | `/v1/records/query` | Rich query — MongoDB-style filter document over the log |
+| POST | `/v1/records/search` | Semantic search — rank records by cosine similarity to an embedded query |
+| POST | `/v1/records/embed` | Backfill embeddings for records that don't yet have one under the active provider |
+
+### Ingest a Record
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:alice",
+    "thread": "th_abc123...",
+    "body": {"goal": "Deploy the service"},
+    "clock": 0,
+    "data_type": "SCALAR"
+  }'
+```
+
+#### Namespace-scoped ingest
+
+Records can target a specific [namespace](/docs/concepts/namespaces) by setting `body.namespace`. The daemon walks the namespace's ancestor chain and rejects the record with `403 NAMESPACE_REJECTED` if any ancestor is missing or not Active. Records that omit `body.namespace` fall through to the implicit `default` namespace and are always accepted.
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:alice",
+    "thread": "th_abc123...",
+    "body": {
+      "namespace": "acme-corp/payments/staging",
+      "goal": "Deploy v2.3 to staging"
+    },
+    "clock": 0,
+    "data_type": "SCALAR"
+  }'
+```
+
+If the namespace does not exist, the response is:
+
+```json
+{
+  "object": "error",
+  "type": "invalid_request_error",
+  "code": "NAMESPACE_REJECTED",
+  "message": "namespace 'acme-corp/payments/staging' rejected: ancestor 'acme-corp/payments' is not Active in the registry. Create it first with `spl namespace create acme-corp/payments`."
+}
+```
+
+The error always names the failing ancestor and includes the exact recovery command. To declare namespaces use the [`spl namespace`](/docs/reference/cli#namespaces-v0100) CLI commands, which write to the well-known thread `th_namespace_registry` that the engine hot-reloads on every change.
+
+### Rich query
+
+`POST /v1/records/query` runs a structured filter over the record log server-side. The body is the filter AST — top-level keys are AND-combined, values are either scalars (sugar for `$eq`) or operator documents (`$in`, `$gt`, `$like`, `$regex`, `$and`, `$or`, `$not`, …). Body fields are addressed with dot-paths (`body.kind`, `body.priority`, `body._refs.track.id`). See the [query guide](/docs/guides/query) for the full grammar, operator semantics, and index-awareness.
+
+```bash
+curl -s -X POST http://localhost:9100/v1/records/query \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filter": {
+      "act": "INTEND",
+      "actor": "did:sync:agent:dev",
+      "body.kind": { "$in": ["core.task.record", "core.task.record.v1"] }
+    },
+    "sort": { "clock": -1 },
+    "limit": 20
+  }'
+```
+
+Request body:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `thread` | string | — | Optional thread scope. Shorthand for adding `{"thread": "..."}` to the filter; lets the backend use the thread index |
+| `filter` | object | `{}` | MongoDB-style filter document |
+| `sort` | object | — | Single-key sort spec: `{"clock": -1}` or `{"created_at": 1}` |
+| `limit` | int | 100 | Result cap. Max 1000 |
+| `offset` | int | 0 | Pagination offset |
+| `explain` | bool | `false` | When `true`, response includes a `plan` block describing the translated SQL, bind count, and which fields used the indexed fast path vs. `json_extract` |
+
+Response:
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "record",
+      "id": "7a2936eccf6b...",
+      "parents": [],
+      "thread": "th_abc...",
+      "actor": "did:sync:agent:dev",
+      "act": "INTEND",
+      "body": { "kind": "core.task.record.v1", "...": "..." },
+      "clock": 42,
+      "data_type": "SCALAR"
+    }
+  ],
+  "plan": {
+    "sql": "SELECT ... WHERE act = ? AND actor = ? ...",
+    "bind_count": 3,
+    "indexed_fields": ["act", "actor", "thread"],
+    "unindexed_fields": ["body.kind"]
+  }
+}
+```
+
+The `plan` block is only present when `explain=true`. Results are always tenant-filtered — records outside the caller's namespace never appear.
+
+Error codes:
+
+| Code | Name | Meaning |
+|---|---|---|
+| `400` | `INVALID_QUERY` | Unknown operator, unknown field path, type mismatch, malformed filter |
+| `500` | `INTERNAL` | Storage backend failure |
+
+Index-backed fast paths depend on the [indexed field registry](/docs/guides/body-kind-manifest) — declare indexed `body.<field>` paths via `spl config add-body-kind-manifest` so predicates on them use `CREATE INDEX` expressions instead of scanning JSON.
+
+### Semantic search
+
+`POST /v1/records/search` embeds the query through the configured provider, ranks records by cosine similarity, and returns the top K. Envelope filters (`thread`, `actor`, `kind`, `after_clock`) narrow the result *after* ranking so near-misses outside the scope don't crowd out the best answer. See the [semantic search guide](/docs/guides/search) for provider setup, CLI usage, and SDK helpers.
+
+```bash
+curl -s -X POST http://localhost:9100/v1/records/search \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "authentication failure logs",
+    "k": 5,
+    "thread": "th_incident_42"
+  }'
+```
+
+Request body:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `query` | string | — | Free-text query. Must be non-empty |
+| `k` | int | 10 | Top-K to return. Clamped to `[1, 100]` |
+| `thread` | string | — | Restrict to records on this thread |
+| `actor` | string | — | Restrict to records emitted by this actor DID |
+| `kind` | string | — | Restrict to records whose `body.kind` matches |
+| `after_clock` | int | — | Restrict to records with `clock > N` |
+
+Response:
+
+```json
+{
+  "object": "list",
+  "embedder": "ollama:nomic-embed-text",
+  "k": 5,
+  "data": [
+    {
+      "object": "record",
+      "id": "3f4a...",
+      "score": 0.847,
+      "parents": [],
+      "thread": "th_incident_42",
+      "actor": "did:sync:agent:ops",
+      "act": "KNOW",
+      "body": { "...": "..." },
+      "clock": 118,
+      "data_type": "SCALAR"
+    }
+  ]
+}
+```
+
+Results are tenant-filtered *after* scoring — a record outside the caller's namespace never reaches the response, regardless of score.
+
+Error codes:
+
+| Code | Name | Meaning |
+|---|---|---|
+| `400` | `EMPTY_QUERY` | `query` was absent or blank |
+| `502` | `EMBEDDER_FAILED` | The configured provider rejected the embedding request |
+| `503` | `SEMANTIC_SEARCH_DISABLED` | No embedding provider is configured — see the [`embedding_provider` topic](/docs/reference/configuration#embedding-provider) |
+
+### Backfill embeddings
+
+`POST /v1/records/embed` walks records that don't yet have an embedding for the active provider and embeds them synchronously within the request. Use this once after enabling a provider to backfill existing archives; new records are embedded inline by the INGEST loop.
+
+```bash
+curl -s -X POST http://localhost:9100/v1/records/embed \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 100}'
+```
+
+`limit` defaults to 100, max 500. Response: `{embedder, embedded, skipped_empty, failed, remaining, has_more}`. Loop until `has_more` is `false` — or drive the CLI wrapper `spl embed --loop`.
+
+## Threads
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/threads` | List all threads |
+| GET | `/v1/threads/:id/records` | Get all records on a thread |
+| GET | `/v1/threads/:id/state` | Get folded thread state |
+| GET | `/v1/threads/:id/project` | Get thread projection (formatted view) |
+| GET | `/v1/threads/:id/participants` | Get thread participants |
+
+### Thread Projections
+
+```bash
+curl "http://localhost:9100/v1/threads/th_abc123.../project?format=tui"
+```
+
+Projection formats:
+
+| Format | Description |
+|---|---|
+| `tui` | Turn-based view for terminal display |
+| `messages` | Chat-style message format |
+
+## Trust
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/trust` | Get all trust scores |
+
+## Actors
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/actors` | List registered actors |
+| GET | `/v1/actors/lookup?did=X` | Get actor detail by DID |
+
+## Dispatch
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/dispatch` | Dispatch work to an actor |
+
+### Dispatch Work
+
+```bash
+curl -X POST http://localhost:9100/v1/dispatch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "actor_did": "did:sync:agent:dev",
+    "goal": "Fix the authentication bug",
+    "thread_id": "th_abc123...",
+    "budget": {"max_cost_usd": 1.0, "max_duration_secs": 600}
+  }'
+```
+
+## Decisions
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/aitl` | List pending decisions |
+| POST | `/v1/aitl/:id/decide` | Approve or reject a pending decision |
+
+### Approve a Decision
+
+```bash
+curl -X POST http://localhost:9100/v1/aitl/abc123.../decide \
+  -H "Content-Type: application/json" \
+  -d '{"decision": "approve", "reason": "Looks correct"}'
+```
+
+## Engine
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/engine/health` | Engine health counters |
+| GET | `/v1/engine/expression_cache/stats` | CEL expression cache statistics (hit rate, size, avg compile time) — used by `spl doctor` |
+| GET | `/v1/config/rules` | List routing rules |
+| GET | `/v1/adapters` | List registered adapters |
+
+### Expression cache stats
+
+```bash
+curl http://localhost:9100/v1/engine/expression_cache/stats
+```
+
+Returns a JSON object with `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `avg_compile_micros`, `size`, `capacity`. Healthy steady-state: hit rate > 99%, avg compile < 100μs, size much less than capacity (1024 default). `spl doctor` consumes this endpoint as one of its 7 checks.
+
+## Audit
+
+There is no dedicated `/v1/audit/*` endpoint family. The [`spl audit export`](/docs/reference/cli#developer-tools) CLI command produces JSONL by querying existing endpoints client-side:
+
+1. `GET /v1/threads` → enumerate threads
+2. `GET /v1/threads/:id/records` → fetch records per thread
+3. Filter client-side by category (system actor, AITL verdict, dispatch outcome, governance) and time window
+4. Emit one JSON object per matching record on stdout
+
+This means `spl audit export` works against any Syncropel daemon without server-side changes. The trade-off is that it's O(n) over thread count — for very large stores you should pass `--thread <id>` to scope the query.
+
+A future server-side `/v1/audit/export?since=...&categories=...` endpoint is on the roadmap. It would push the filtering into SQL and return a single JSONL stream, removing the per-thread round trips.
+
+For SIEM integration recipes (cron rotation, Splunk/Elastic/Loki pipelines, etc.) see the [SIEM Integration guide](/docs/guides/siem-integration).
+
+### Permission denials are NOT in audit export today
+
+HTTP middleware permission denials are emitted as `tracing::warn!` events to the daemon log (`~/.syncro/logs/spl.log`), not as records. They appear in the log filtered by `grep "PERMISSION DENIED"` but do NOT appear in `spl audit export` output. Promoting denials to first-class audit records is tracked as a follow-up — for now treat the daemon log and the audit export as complementary security-event streams.
+
+## Proxy
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/proxy/messages` | Anthropic Messages API proxy (translates to records) |
+
+The proxy endpoint accepts the Anthropic Messages API format and translates requests into Syncropel records. Use this to route existing AI tool calls through Syncropel for observability and trust tracking.
+
+## Capability discovery
+
+Two endpoints expose what the daemon supports. Clients should prefer them over hard-coding feature flags — the manifest is the single source of truth.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/v1/capabilities` | authenticated (optional when auth is off) | Client-facing capability manifest |
+| GET | `/.well-known/syncropel` | unauthenticated | Public envelope — `capabilities_manifest` + `federation_manifest` as sibling keys |
+
+### GET `/v1/capabilities`
+
+The authenticated surface. Returns the capability manifest scoped to the caller — auth state, advertised MCP tools, supported DID methods, store backend, available transports, API version. Clients use this to enable or disable features based on what the connected daemon actually supports; SDKs feature-detect without a trial-and-error HTTP round trip.
+
+```bash
+curl -s -H "Authorization: Bearer $SPL_TOKEN" \
+  http://localhost:9100/v1/capabilities | jq
+```
+
+Response (elided):
+
+```json
+{
+  "object": "capabilities_manifest",
+  "manifest_version": "1",
+  "daemon": {
+    "version": "0.X.Y",
+    "api_version": "v1",
+    "spec_version": "0.18"
+  },
+  "auth": { "required": true },
+  "did_methods": ["did:sync", "did:key", "did:web"],
+  "record": {
+    "algebra_version": "v1",
+    "hashed_fields": ["parents", "thread", "actor", "act", "body", "clock", "data_type"]
+  },
+  "mcp_tools": ["create_thread", "emit_record", "read_thread", "trust_query", "fold_thread", "dispatch", "fan_out"],
+  "transports": { "...": "..." },
+  "semantic_search": { "...": "..." },
+  "store_backends": ["sqlite", "memory"],
+  "capabilities": {
+    "records": true,
+    "threads": true,
+    "sync": true,
+    "federation_consent": true,
+    "directory": false,
+    "...": "..."
+  },
+  "conventions": {
+    "aitl_path": "/v1/aitl",
+    "identity_path": "/v1/identity",
+    "sync_path": "/v1/sync",
+    "trust_path": "/v1/trust"
+  }
+}
+```
+
+The `capabilities` map is a set of boolean feature flags covering the full surface — `sync`, `directory` (gated by `config.directory_enabled`), `federation_consent`, `identity`, `dispatch_observability`, `cusum_alerts`, `trust_detail`, `reconcile_queue`, and more. Flags are additive across releases; absence of a flag means unsupported.
+
+When auth is off, the endpoint is reachable without a token. When auth is on, an unauthenticated call returns `401 AUTH_REQUIRED` — use `/.well-known/syncropel` below for the public view.
+
+### GET `/.well-known/syncropel`
+
+The unauthenticated surface, served at the [Well-Known URI](https://datatracker.ietf.org/doc/html/rfc8615) location so any peer on the public internet can discover a daemon without prior coordination. The response envelope carries two top-level manifests as sibling keys:
+
+| Key | Audience | Purpose |
+|---|---|---|
+| `capabilities_manifest` | Prospective client | Same shape as `/v1/capabilities` — a peer can feature-detect before authenticating |
+| `federation_manifest` | Prospective federation peer | Ed25519-signed; describes what this daemon offers the federation mesh |
+
+```bash
+curl -s http://localhost:9100/.well-known/syncropel | jq 'keys'
+# [ "capabilities_manifest", "federation_manifest" ]
+```
+
+The `federation_manifest` key is present only when the daemon is federation-enabled and has a signing key available. Peers that only want the client view can read `capabilities_manifest` and ignore the federation sibling.
+
+#### Federation manifest shape
+
+The `federation_manifest` is Ed25519-signed over its canonical JSON (excluding the `signature` field). Verification proceeds against the DID document resolved from `daemon.did`. Consumers — `spl discover`, federation directories, peer-discovery CLIs — verify the signature before trusting any advertised field.
+
+```json
+{
+  "object": "federation_manifest",
+  "manifest_version": "1",
+  "daemon": {
+    "did": "did:web:alice.dev",
+    "version": "0.X.Y",
+    "federation_protocol_version": "0.13"
+  },
+  "federation": {
+    "enabled": true,
+    "pair_endpoint": "https://alice.dev/v1/sync",
+    "sync_change_endpoint": "https://alice.dev/v1/sync/changes",
+    "sync_record_endpoint": "https://alice.dev/v1/sync/records"
+  },
+  "advertises": {
+    "kinds": ["music.catalog.track", "music.catalog.artist"],
+    "refs": [],
+    "namespaces": ["alice-music"]
+  },
+  "consent_policy": {
+    "default_posture": "pair-then-ask",
+    "accepts_pair_requests": true,
+    "requires_did_method": [],
+    "rejects_did_method": []
+  },
+  "capabilities_ref": {
+    "url": "https://alice.dev/.well-known/syncropel",
+    "key": "capabilities_manifest",
+    "adr": "ADR-036"
+  },
+  "responders_ref": {
+    "url": "https://alice.dev/.well-known/syncropel",
+    "key": "responders_manifest",
+    "adr": "ADR-043"
+  },
+  "directory": {
+    "registered_at": [],
+    "directory_registration_id": null
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "key_id": "did:web:alice.dev#key-1",
+    "signature": "<base64>",
+    "signed_at": "2026-04-22T18:00:00Z",
+    "expires_at": "2026-04-29T18:00:00Z"
+  }
+}
+```
+
+Key fields:
+
+| Field | Purpose |
+|---|---|
+| `daemon.did` | The DID this manifest is authoritative for. Must match the DID served at the domain's DID document |
+| `federation.pair_endpoint` | Entry point for the pair handshake |
+| `advertises.kinds` | `body.kind` values the daemon answers federation queries about. A peer advertising `music.catalog.track` commits to serving sync requests for that kind per its consent policy |
+| `advertises.refs` | Content-addressed REFERENCE identifiers this daemon holds — used by future DHT discovery as the primary announce key |
+| `advertises.namespaces` | Namespace handles whose records are federation-eligible (willingness, not grant) |
+| `consent_policy.default_posture` | `"open"`, `"pair-then-ask"`, `"invite-only"`, or `"closed"`. Informative hint for pre-handshake self-filtering |
+| `capabilities_ref` / `responders_ref` | Pointers back into the same envelope; clients follow them to fetch the sibling manifests |
+| `signature.expires_at` | Forces periodic re-signing (default TTL 7 days). Expired signatures should be rejected |
+
+For the discovery workflow and how this composes with `did:web`, `did:sync`, and mDNS discovery, see the [federation discovery guide](/docs/guides/federation-discovery).
+
+## Identity
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/identity` | The daemon's own identity (DID + public-key info) |
+
+Returns `{actor, display_name, did, method, key_path, key_fingerprint}`. Populated from `~/.syncro/config.toml` at daemon startup. New installs generate a `did:key:...` on `spl init`; upgraded installs without a DID in config need `spl init --force` once.
+
+## Federation sync
+
+Federation is pull-first HTTP replication between two daemons. Both flat (`/v1/sync/*`) and domain-grouped (`/v1/federation/sync/*`) routes are served.
+
+### Changes feed
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/sync/changes?thread=X&since=CURSOR&limit=N&feed=MODE&target_namespace=NS` | Cursor-paginated changes feed |
+
+Feed modes:
+- `normal` (default) — single response, returns up to `limit` (default 1000, max 10000) records
+- `longpoll` — holds the connection up to 30s waiting for new records
+- `continuous` — Server-Sent Events stream (for live subscriptions)
+
+Response: `{records: [{id, record}], next_cursor: "opaque", has_more: bool}`. Records are consent-filtered per `target_namespace` (see [consent guide](../guides/consent)).
+
+### Record batch fetch
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/sync/records` | Fetch specific records by ID (federation-flagged path requires sig) |
+
+Request body: `{ids: [...]}` or `{records: [...]}`. When the `x-syncropel-federation: 1` header is set, each record must include a `sig` field — Ed25519 over canonical JSON. Unsigned federation requests return HTTP 422. Replay of previously-accepted records is deduped via content-addressed hash.
+
+### Pair management
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/sync/pairs` | List all sync pairs on this daemon |
+| POST | `/v1/sync/pairs` | Create a pair (target pulls from source) |
+| GET | `/v1/sync/pairs/{id}` | Pair detail (state, cursor, retries, last_error) |
+| DELETE | `/v1/sync/pairs/{id}` | Remove a pair |
+| POST | `/v1/sync/pairs/{id}/pause` | Pause pulling |
+| POST | `/v1/sync/pairs/{id}/resume` | Resume pulling |
+| POST | `/v1/sync/pairs/{id}/kick` | Force immediate poll regardless of backoff |
+
+Create body: `{peer_did, peer_url, thread_id}`. Response includes `pair_id` and, if the daemon detects a loopback misconfiguration, a `warning` field with the recovery command.
+
+The pair direction is semantically "target pulls source" — creating a pair on B with `peer_did=A` means records flow A→B. For bidirectional sync, create a pair on each side.
+
+Pair state is persistent across daemon restart — the registry is rebuilt from lifecycle records on a reserved control thread at startup.
+
+### Federation health + per-pair stats
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/sync/health` | Aggregate mesh health — pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency, top slowest + error-prone pairs, active drift alerts |
+| GET | `/v1/sync/pairs/{id}/stats` | Per-pair detail — rolling rate, latency histogram, error count last hour, poll interval state, cumulative counters |
+
+Aggregate response shape (elided):
+
+```json
+{
+  "object": "sync_health",
+  "pairs_total": 5,
+  "pairs_by_state": { "running": 3, "failing": 1, "paused": 1 },
+  "records_pulled_last_hour": 2147,
+  "mean_delivery_latency_ms": 847,
+  "p95_delivery_latency_ms": 2410,
+  "slowest_pairs": [...],
+  "most_errored_pairs": [...],
+  "drift_alerts": [...]
+}
+```
+
+Metrics are in-memory with a 1-hour rolling window — ephemeral, reset on daemon restart. The daemon-wide `/health` endpoint also includes a `federation` summary for one-glance status.
+
+### LAN peer discovery
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/discovery/mdns` | List peers the local daemon has discovered via LAN mDNS browsing |
+
+Returns a roster of peers with DID, endpoint, namespace, handle, capabilities (all from their TXT records), and `last_seen` timestamps. Used by `spl fleet sync peers discover --method mdns`.
+
+The daemon advertises itself on `_syncropel._tcp.local` when `[sync.discovery] mdns_broadcast = true`; it listens for other daemons' advertisements by default. Failures during mDNS init are logged but never fail the daemon (LAN discovery is a soft feature).
+
+## did:sync directory
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/directory/genesis` | Create a new did:sync identity (genesis operation) |
+| POST | `/directory/update/{hash}` | Rotate keys or update service endpoints |
+| POST | `/directory/revoke/{hash}` | Revoke a did:sync identity |
+| GET | `/directory/{hash}/did.json` | Resolve a did:sync to its DID document |
+| GET | `/directory/{hash}/operations` | Full operation log for a did:sync |
+| GET | `/directory/handle/{handle}` | Resolve a human-readable handle to its did:sync |
+
+Gated by `config.directory_enabled` — off by default. A daemon can act as a did:sync directory provider; most installs don't need to.
+
+## Service accounts
+
+| Method | Path | Scope | Description |
+|---|---|---|---|
+| POST | `/v1/bootstrap/service-account` | — (unauthenticated) | Create the first SA on a fresh install. One-shot per namespace |
+| GET | `/v1/service-accounts` | `admin` | List service accounts |
+| POST | `/v1/service-accounts` | `admin` | Create a new service account + token |
+| DELETE | `/v1/service-accounts/{id}` | `admin` | Revoke a service account (invalidates all its tokens) |
+| POST | `/v1/service-accounts/{id}/rotate-key` | `admin` | Mint a new token for an SA and revoke previous tokens |
+
+### Bootstrap the first service account
+
+`POST /v1/bootstrap/service-account` is a one-shot, unauthenticated endpoint used to create the first SA on a fresh daemon. Once any SA exists in the target namespace, the endpoint returns `409 BOOTSTRAP_CLOSED` and you must use the authenticated `POST /v1/service-accounts` path instead.
+
+```bash
+curl -X POST http://localhost:9100/v1/bootstrap/service-account \
+  -H "Content-Type: application/json" \
+  -d '{
+    "service_account_id": "sa_abc123def456ghi7",
+    "display_name": "First admin",
+    "scopes": ["admin"],
+    "namespace": "default",
+    "with_token": {
+      "token_id": "a3f9e7d1c8b2h6j4k5m7n9p1q3r5t7v9",
+      "env_tag": "prod",
+      "created_at": "2026-04-20T12:30:00Z"
+    }
+  }'
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "object": "bootstrap_result",
+  "service_account_id": "sa_abc123def456ghi7",
+  "sa_record_id": "7a2936eccf6b...",
+  "namespace": "default",
+  "token_id": "a3f9e7d1c8b2...",
+  "token_record_id": "151439fe2972..."
+}
+```
+
+The client is responsible for generating `service_account_id` + `token_id`. The CLI (`spl service-account create --bootstrap --with-token`) handles this automatically.
+
+### List service accounts
+
+```bash
+curl -H "Authorization: Bearer $SPL_TOKEN" \
+  http://localhost:9100/v1/service-accounts
+```
+
+Returns an array. `api_key` is always `null` in list responses — plaintext tokens are only disclosed at creation time.
+
+```json
+[
+  {
+    "id": "sa_abc123def456ghi7",
+    "name": "CI runner",
+    "did": "did:sync:system:sa_abc123def456ghi7",
+    "api_key": null,
+    "active": true,
+    "created_at": null
+  }
+]
+```
+
+### Create a service account + token
+
+```bash
+curl -X POST http://localhost:9100/v1/service-accounts \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Webhook integration"}'
+```
+
+Response (`201 Created`) includes the plaintext bearer token **once** — save it immediately:
+
+```json
+{
+  "id": "sa_new123...",
+  "name": "Webhook integration",
+  "did": "did:sync:system:sa_new123...",
+  "api_key": "spl_prod_sa_new123_a3f9e7d1c8b2h6j4k5m7n9p1q3r5t7v9",
+  "active": true,
+  "created_at": null
+}
+```
+
+### Revoke a service account
+
+`DELETE /v1/service-accounts/{id}` performs **per-SA revocation**: every token ever minted for the SA becomes invalid, and future token mints for the SA are blocked.
+
+```bash
+curl -X DELETE -H "Authorization: Bearer $SPL_TOKEN" \
+  http://localhost:9100/v1/service-accounts/sa_abc123def456ghi7
+```
+
+Response (`200`): `{"status": "revoked"}`.
+
+### Rotate an SA's key
+
+`POST /v1/service-accounts/{id}/rotate-key` mints a new token **first**, then revokes previous tokens. Guarantees callers don't get locked out on partial failure.
+
+```bash
+curl -X POST -H "Authorization: Bearer $SPL_TOKEN" \
+  http://localhost:9100/v1/service-accounts/sa_abc123def456ghi7/rotate-key
+```
+
+Response (`200`):
+
+```json
+{
+  "id": "sa_abc123def456ghi7",
+  "api_key": "spl_prod_sa_abc123_new_secret_here"
+}
+```
+
+### Error codes
+
+| Code | Name | Meaning |
+|---|---|---|
+| `401` | `AUTH_REQUIRED` | No bearer token sent, or token is invalid / revoked |
+| `403` | `SCOPE_FORBIDDEN` | Token is valid but lacks the required scope for this endpoint |
+| `403` | `DID_CLAIM_DENIED` | `X-Syncropel-Actor` is not in the SA's allowed-actors list |
+| `409` | `BOOTSTRAP_CLOSED` | Bootstrap endpoint called but namespace already has an SA |
+
+## CORS
+
+All `/v1/*` + `/.well-known/*` + `/directory/*` endpoints include CORS headers (`tower-http::CorsLayer` with permissive defaults). The daemon at `localhost:9100` is reachable from web UI origins without proxy configuration.

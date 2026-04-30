@@ -1,0 +1,143 @@
+---
+title: Cost-bounded query waterfall
+description: Try the cheap LLM first, escalate to mid-tier only if the answer is weak, and only pull in the expensive model if nothing else worked — all bounded by a 5-cent ceiling.
+---
+
+## Problem
+
+You have a classification task that's trivial 80% of the time and hard 20% of the time. Always calling the most capable LLM is wasteful. Always calling the cheapest one is wrong. You want a cascade that stops as soon as it finds a confident answer, and hard-stops if cumulative spend passes 5 cents.
+
+## Recipe
+
+The `waterfall` orchestration pattern — stages tried in order, early exit on acceptance, hard budget ceiling.
+
+```bash
+spl infer "Classify this review as positive / negative / neutral: 'great product fast shipping'" \
+  --kind core.classification.v1 \
+  --responder llm:haiku \
+  --responder llm:sonnet \
+  --responder llm:opus \
+  --orchestration waterfall \
+  --budget 0.05 \
+  --timeout 60 \
+  --reversible \
+  --wait
+```
+
+Under the hood the CLI builds this orchestration spec:
+
+```json
+{
+  "pattern": "waterfall",
+  "stages": [
+    { "responders": [{ "kind": "llm", "model": "~haiku" }] },
+    { "responders": [{ "kind": "llm", "model": "~sonnet" }] },
+    { "responders": [{ "kind": "llm", "model": "~opus" }] }
+  ],
+  "accept_expression": "fold.answer.confidence >= 0.85"
+}
+```
+
+For stages-with-accept-expression specifically (not directly CLI-exposed), emit via SDK or `--query-file`:
+
+```json
+{
+  "kind": "infer.query.v1",
+  "input": { "inline": "Classify this review: 'great product fast shipping'" },
+  "responders": [
+    { "kind": "llm", "model": "~haiku" },
+    { "kind": "llm", "model": "~sonnet" },
+    { "kind": "llm", "model": "~opus" }
+  ],
+  "fold": { "function": "best_of" },
+  "orchestration": {
+    "pattern": "waterfall",
+    "stages": [
+      { "responders": [{ "kind": "llm", "model": "~haiku" }] },
+      { "responders": [{ "kind": "llm", "model": "~sonnet" }] },
+      { "responders": [{ "kind": "llm", "model": "~opus" }] }
+    ],
+    "accept_expression": "fold.answer.confidence >= 0.85"
+  },
+  "answer_shape": {
+    "kind": "core.classification.v1",
+    "required_fields": ["body.label", "body.confidence"]
+  },
+  "side_effects": {
+    "reversible": true,
+    "max_cost_usd": 0.05,
+    "max_latency_secs": 60
+  }
+}
+```
+
+Pipe it to `spl infer`:
+
+```bash
+spl infer --query-file waterfall-query.json --wait
+```
+
+## The happy path (stage 1 wins)
+
+```text
+answer:
+  {
+    "label": "positive",
+    "confidence": 0.94
+  }
+provenance (1 contributor)
+trust_summary: mean 0.62 min 0.62 max 0.62 n=1
+cost: $0.0011
+fold: best_of
+thread: th_6b8a21...
+know_record: 4c3f87a2...
+```
+
+Haiku returned confidence 0.94, passed the 0.85 acceptance threshold, done. Total cost: a tenth of a cent.
+
+## The escalation path (stage 2 wins)
+
+When Haiku returns `confidence: 0.68`:
+
+1. Stage 1 response lands. Fold runs (`best_of` on 1 response = that response).
+2. `accept_expression` evaluates against the fold output. `0.68 >= 0.85` is false.
+3. Executor writes `infer.orchestration.waterfall.state.v1` with stage=0, failed.
+4. Dispatches stage 2 (Sonnet). Sonnet returns `confidence: 0.89`.
+5. Fold on stage 2 response. Acceptance fires. KNOW commits.
+
+Total cost for the cascade: Haiku + Sonnet ≈ $0.012.
+
+## The budget ceiling
+
+`max_cost_usd: 0.05` is checked **between stages**, not per response. Before dispatching each stage, the executor sums all CALL costs so far against the ceiling. If adding the estimated cost of the next stage would exceed it, the executor emits `infer.error.v1` with `code: "cost_budget_exceeded"` and halts.
+
+That means the cascade can spend up to the ceiling but never goes over. If stage 3 (Opus) would blow the budget, it never fires — you get an error KNOW with the accumulated cost visible in the body.
+
+## The trade-off
+
+`waterfall` serialises stages. Stage 2 waits for stage 1 to complete. That's its value (skip expensive stages if a cheap one wins) and its cost (worst-case latency is sum-of-all-stages).
+
+If your stages have wildly different latencies — say Haiku 3s, Opus 30s — a cascade's worst case is roughly stage 1 + stage 2 + stage 3 = ~40s. Fan-out with `consensus` fires them in parallel and finishes in max(stages) ~= 30s. The cascade is cheaper on the common case, slower on the worst case.
+
+Also note: `waterfall_first` (the **fold** function) is a different thing — it picks the first acceptable response from a batch that all arrived in parallel. The `waterfall` **orchestration** pattern above dispatches stages sequentially. See [Fold Functions — waterfall_first](/docs/guides/inference/fold-functions#function-waterfall_first).
+
+## Run this against a dev daemon
+
+With haiku, sonnet, and opus configured as providers, the query above runs end-to-end. Watch the records land on the query's thread:
+
+```bash
+spl thread records <thread-id>
+```
+
+You'll see:
+- INTEND with the query body.
+- One CALL per dispatched stage, with cost in `body.cost_estimate_usd`.
+- DO records from responders.
+- LEARN records on `body.kind: infer.orchestration.waterfall.state.v1` between stages.
+- Final KNOW.
+
+## See also
+
+- **[Orchestration Patterns — waterfall](/docs/guides/inference/orchestration-patterns#pattern-waterfall)** — full description + state persistence.
+- **[Query Anatomy — SideEffects](/docs/guides/inference/query-anatomy#side-effects)** — all cost / latency fields.
+- **[Summarize with consensus](/docs/cookbook/summarize-research-paper-consensus)** — fan-out alternative when you want variance reduction over cost minimisation.

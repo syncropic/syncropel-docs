@@ -1,0 +1,206 @@
+---
+title: Windows Service
+description: Run `spl serve` as a Windows Service so the daemon starts at boot, survives logoff, and integrates with services.msc + the Event Log. Install, start, stop, uninstall, and troubleshooting.
+---
+
+On Linux and macOS, `spl serve --daemon` already detaches from the
+terminal, writes a PID file, and survives shell close — a quick
+`systemd` or `launchd` unit on top is enough for boot-time autostart.
+
+Windows needs something different. {/* vocab-lint-disable-next-line: "Console applications" is a Windows OS term, not the retired UI primitive */}
+Console applications launched from
+PowerShell or CMD are bound to the session that started them and are
+torn down when the user logs off. The native supervisor on Windows is
+the Service Control Manager (SCM) — the same thing that owns `lsass`,
+`spooler`, and every other background daemon surfaced in
+`services.msc`.
+
+`spl serve` ships a Windows Service wrapper. Three
+flags drive the full lifecycle:
+
+| Flag | What it does | Admin required |
+|---|---|---|
+| `--install-service` | Register the daemon with the SCM (default name `SyncropelDaemon`) | yes |
+| `--uninstall-service` | Remove the registration (stops the service first if running) | yes |
+| `--service` | Internal — SCM invokes the binary with this flag | n/a |
+
+The non-service paths (`--daemon`, foreground) continue to work
+exactly as on Unix. Operators who are happy running `spl serve`
+manually inside a PowerShell window don't need any of this.
+
+## Quickstart
+
+From an **elevated PowerShell** (Run as Administrator):
+
+```powershell
+# 1. Install — registers the service, creates the Event Log source
+spl serve --install-service
+
+# 2. Start — SCM invokes the binary; the service appears in services.msc
+sc.exe start SyncropelDaemon
+
+# 3. Verify — /v1/capabilities responds, spl status shows the daemon
+curl http://127.0.0.1:9100/v1/capabilities
+spl status
+
+# 4. Stop — graceful shutdown (drains in-flight work)
+sc.exe stop SyncropelDaemon
+
+# 5. Uninstall — removes SCM registration and Event Log source
+spl serve --uninstall-service
+```
+
+After a successful install the service is configured with
+`StartType = AutoStart`, so it comes up at the next reboot without
+further intervention.
+
+## Customizing the service name
+
+Multi-instance hosts (for example a test rig running three daemons
+against three different `SYNCROPEL_HOME` directories) need three
+different SCM names. Pass `--service-name` on every flag:
+
+```powershell
+spl serve --install-service  --service-name SyncropelDaemon_dev
+sc.exe start SyncropelDaemon_dev
+sc.exe stop  SyncropelDaemon_dev
+spl serve --uninstall-service --service-name SyncropelDaemon_dev
+```
+
+Names must be 1..256 characters and cannot contain slashes, control
+characters, or leading / trailing whitespace. The CLI validates before
+calling the SCM so an invalid name fails fast with a clear message
+rather than an opaque Win32 error.
+
+## How the pieces fit
+
+```
+  services.msc                              Event Viewer
+       │                                        │
+       ▼                                        ▼
+  ┌──────────┐     start / stop           ┌───────────────┐
+  │   SCM    │ ◄───────────────────────── │  Application  │
+  └──────────┘                            │     log       │
+       │                                  └───────────────┘
+       │  spawn                                 ▲
+       ▼                                        │ log events
+  spl serve --service --service-name <name>    │
+       │                                        │
+       ├── registers control handler (Stop ─► graceful shutdown)
+       ├── sets state Running
+       ├── runs the same foreground server as `spl serve --daemon`
+       └── on Stop / system shutdown: drain, flush, exit
+```
+
+The service binary is the same `spl.exe` you invoke interactively.
+`--install-service` tells the SCM to launch that binary with
+`serve --service --service-name <name>` on every start. The
+`--service` flag is an internal marker that flips the process from
+the normal foreground path into the SCM dispatcher — direct
+invocation by an operator is not supported.
+
+A `Stop` control from SCM (or `sc.exe stop <name>`, or the red square
+in Services MMC) is translated into the same graceful-shutdown path
+that Ctrl+C triggers on Unix: in-flight dispatches drain, the store
+flushes, shutdown records land on the relevant threads, and the
+process exits with code 0.
+
+## Event Log
+
+Install registers an Event Log source whose name matches the service
+name. Lifecycle events — start, stop, unexpected exits — land in
+**Event Viewer → Windows Logs → Application** filtered by **Source =
+SyncropelDaemon** (or your `--service-name` override).
+
+From PowerShell:
+
+```powershell
+Get-EventLog -LogName Application -Source SyncropelDaemon -Newest 20
+```
+
+For deeper diagnostics the daemon's own tracing output still writes
+to `%USERPROFILE%\.syncro\logs\spl.log`. The Event Log is the place
+to look when the daemon failed to start at boot or was killed by
+the OS; the tracing log is the place to look when the daemon is
+running but something inside it is misbehaving.
+
+## Troubleshooting
+
+### "Access is denied" on install / uninstall
+
+You're not running as Administrator. Open PowerShell via "Run as
+administrator" and retry. The SCM rejects `CreateService` /
+`DeleteService` / `OpenService(SERVICE_ALL_ACCESS)` from a
+non-elevated token.
+
+### Service registered, but `sc.exe start` returns error 1053
+
+Error 1053 means "service did not respond to the start or control
+request in a timely fashion." Most common causes:
+
+1. **Port 9100 already in use** — another `spl serve` is already
+   listening. Run `spl status` from a regular shell to see the
+   existing daemon, then stop it first.
+2. **Missing auth bootstrap** — if `auth.required = true` in the
+   store and no service-account authorizes the daemon's default
+   user actor, the daemon's pre-flight fails. Stop the service,
+   run interactively with
+   `spl serve --insecure-localhost` once to mint a recovery token,
+   then restart the service.
+3. **Binary path changed** — the service remembers the `.exe` path
+   from install time. If you moved or reinstalled `spl.exe`, the
+   service still points at the old path. Fix:
+   `spl serve --uninstall-service` → move / reinstall → `spl serve
+   --install-service`.
+
+The tracing log at `%USERPROFILE%\.syncro\logs\spl.log` carries the
+first-error detail every time. Check it before escalating.
+
+### `--install-service` says "already installed but points at a different binary"
+
+You moved `spl.exe` (or installed a new build to a different path)
+without uninstalling first. Run
+`spl serve --uninstall-service --service-name <name>` to clear the
+stale registration, then `--install-service` again. The error is
+deliberate — silently overwriting the service registration would
+hide which binary is actually running.
+
+### `sc.exe stop` hangs
+
+The service reports `StopPending` to SCM and then runs the same
+graceful-shutdown path as `Ctrl+C` on Unix. Drain can take up to
+the engine's drain-timeout (default a few seconds of in-flight
+dispatches plus store flush). If it hasn't stopped after ~30
+seconds, the service may be hung — use `sc.exe queryex <name>`
+to read the PID and kill it forcibly:
+
+```powershell
+sc.exe queryex SyncropelDaemon
+taskkill /F /PID <pid>
+```
+
+Then investigate the tracing log — a stuck `sc.exe stop` is a
+real bug worth reporting.
+
+### Uninstall says "service is marked for deletion"
+
+The SCM flags the service for deletion when you call `DeleteService`
+while the process is still alive. Reboot or stop the service fully
+before running `--uninstall-service` again. The wrapper tries to stop the
+service synchronously before deleting, so this only surfaces if a
+stop hangs past the 10-second wait.
+
+## Comparison to Unix
+
+| Capability | Unix (`systemd` / `launchd`) | Windows Service |
+|---|---|---|
+| Detach from terminal | `spl serve --daemon` uses `setsid()` | `--install-service` + SCM owns process |
+| Start at boot | systemd unit / launchd plist | `--install-service` sets `AutoStart` |
+| Survive logoff | yes (via systemd) | yes (SCM session 0) |
+| Graceful shutdown | `SIGTERM` | SCM `Stop` control ➜ Notify ➜ same path |
+| View in UI | `systemctl status` | `services.msc` |
+| Lifecycle log | journald | Event Log (Application, source = service name) |
+
+The Windows Service wrapper is a wrapper, not a rewrite. Everything
+inside — the engine, the HTTP API, the dispatch pipeline — behaves
+identically no matter which entry point started it.

@@ -1,0 +1,393 @@
+---
+title: Namespaces
+description: Set up a multi-tenant Syncropel deployment using the 5-level namespace hierarchy — designing your layout, creating the registry, scoping CEL rules, lifecycle management, and recovery from a botched setup.
+---
+
+## Who this is for
+
+You've decided you need more than the implicit `default` namespace. Maybe you're onboarding a second customer, separating staging from production, or your team has split into independent units that shouldn't see each other's records. This guide walks you through the full setup, from designing the hierarchy to writing CEL rules that scope to a subtree.
+
+If you're not sure whether you need namespaces yet, read the [Namespaces concept](/docs/concepts/namespaces) first. The TL;DR: skip namespaces until you have a real isolation requirement.
+
+## Designing your hierarchy
+
+Before typing any commands, decide what your hierarchy actually looks like. The 5 levels are:
+
+```
+DEFAULT → ORG → PROJECT → ENV → JOB
+```
+
+Most setups stop at PROJECT or ENV. Going to JOB is for ephemeral per-execution scopes that get cleaned up after each run.
+
+### Common shapes
+
+**Shape 1: Solo developer with prod + dev**
+
+```
+default
+└── solo
+    ├── solo/prod
+    └── solo/dev
+```
+
+Two ENV-level namespaces under one ORG. Lets you write CEL rules like `current_namespace() == "solo/prod"` to enforce stricter approvals on production.
+
+**Shape 2: Small team with three projects**
+
+```
+default
+└── acme
+    ├── acme/web
+    │   ├── acme/web/staging
+    │   └── acme/web/prod
+    ├── acme/api
+    │   ├── acme/api/staging
+    │   └── acme/api/prod
+    └── acme/data
+        └── acme/data/prod
+```
+
+One ORG, three PROJECTs, ENV under each. The flat `default` continues to hold anything that doesn't fit cleanly under `acme` (e.g. exploratory work).
+
+**Shape 3: SaaS multi-tenant**
+
+```
+default
+├── acme-corp                  ← customer 1
+│   └── acme-corp/payments
+└── bigcorp                    ← customer 2
+    ├── bigcorp/billing
+    └── bigcorp/shipping
+```
+
+Each customer is an ORG. Customers' records cannot reach each other's namespaces — the narrowing rule prevents `bigcorp` records from claiming `acme-corp` as their namespace. Per-customer policies (when policy YAML lands in a future release) compose with each tenant's own ORG-level policy.
+
+### Naming rules to know
+
+- **Lowercase only**: `[a-z0-9_-]+` per segment. No uppercase, no spaces, no dots.
+- **Slash-separated**: `acme-corp/payments/staging`, never `acme.corp.payments.staging`.
+- **Max 4 segments**: `acme/payments/staging/job-42` is the deepest legal namespace. Five segments is rejected at parse time.
+- **Length**: each segment ≤ 64 chars, total ID ≤ 256 chars.
+
+The CLI enforces these rules at create time and the daemon re-validates at ingest. You'll get a clear error message either way.
+
+## Setting up your hierarchy
+
+### Step 1: create the ORG
+
+You must create parents before children. The CLI refuses orphans with a helpful next command.
+
+```bash
+spl namespace create acme-corp --description "ACME Corp tenant"
+```
+
+```
+✓ namespace 'acme-corp' → active
+```
+
+Try the orphan path to see the error:
+
+```bash
+spl namespace create acme-corp/payments/staging
+```
+
+```
+error: parent namespace 'acme-corp/payments' does not exist or is not Active.
+  Create the parent first:
+    spl namespace create acme-corp/payments
+```
+
+### Step 2: walk down the tree
+
+```bash
+spl namespace create acme-corp/payments --description "Payments project"
+spl namespace create acme-corp/payments/staging --description "Payments staging env"
+spl namespace create acme-corp/payments/prod --description "Payments production env"
+```
+
+### Step 3: verify the structure
+
+```bash
+spl namespace list
+```
+
+```
+  ID                                  STATUS     LEVEL      DESCRIPTION
+  default                             active     DEFAULT    System default namespace (implicit)
+  acme-corp                           active     ORG        ACME Corp tenant
+  acme-corp/payments                  active     PROJECT    Payments project
+  acme-corp/payments/prod             active     ENV        Payments production env
+  acme-corp/payments/staging          active     ENV        Payments staging env
+
+  4 explicit + 1 implicit (default)
+```
+
+Inspect a single namespace to see its full ancestor chain:
+
+```bash
+spl namespace show acme-corp/payments/staging
+```
+
+```
+Namespace: acme-corp/payments/staging
+  Status:      active
+  Level:       ENV
+  Depth:       3
+  Description: Payments staging env
+
+  Ancestor chain (root last):
+    ✓ acme-corp/payments/staging
+    ✓ acme-corp/payments
+    ✓ acme-corp
+    ✓ default
+```
+
+The `✓` marker on each line confirms every ancestor is Active. If any ancestor were Archived or Deleted, you'd see a `✗` and the descendant would not accept new records.
+
+## Writing records into a namespace
+
+Records target a namespace via `body.namespace`:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:alice",
+    "thread": "th_payments_deploy_1",
+    "body": {
+      "namespace": "acme-corp/payments/staging",
+      "goal": "Deploy payments v2.3 to staging"
+    },
+    "clock": 0,
+    "data_type": "VOID"
+  }'
+```
+
+Records that omit `body.namespace` continue working — they fall through to the implicit `default` and are always accepted. **No existing client breaks** when you turn on namespace enforcement.
+
+If the namespace is unknown, you get a clear rejection:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:alice",
+    "thread": "th_test",
+    "body": {
+      "namespace": "made-up-corp",
+      "goal": "test"
+    },
+    "clock": 0,
+    "data_type": "VOID"
+  }'
+```
+
+```json
+{
+  "object": "error",
+  "type": "invalid_request_error",
+  "code": "NAMESPACE_REJECTED",
+  "message": "namespace 'made-up-corp' rejected: ancestor 'made-up-corp' is not Active in the registry. Create it first with `spl namespace create made-up-corp`."
+}
+```
+
+The error includes the exact recovery command. This is the same shape `permissions-unlock` uses — every rejection tells you how to fix it.
+
+## CEL rules scoped to a namespace
+
+You can write CEL rules that match records based on their namespace. The current namespace is exposed as a function:
+
+```text
+current_namespace() == "acme-corp/payments/prod"
+```
+
+For an entire subtree:
+
+```text
+current_namespace().startsWith("acme-corp/")
+```
+
+For records (e.g. in a routing rule):
+
+```text
+record.body.namespace == "acme-corp/payments/staging"
+```
+
+### Worked example: stricter trust threshold for production
+
+Suppose you want to require a higher trust score before an agent can dispatch work in `acme-corp/payments/prod`. Author a permission rule:
+
+```bash
+spl config add-permission-rule \
+  --name prod-requires-high-trust \
+  --action allow \
+  --priority 1000 \
+  --expression 'record.body.namespace == "acme-corp/payments/prod" && trust(current_actor(), "code") > 0.7'
+```
+
+This rule fires for any record claiming the prod namespace. The actor's trust on the `code` domain must exceed 0.7 to be allowed. Any agent with lower trust is denied — including dispatching work into prod.
+
+Pair this with a permissive rule for staging:
+
+```bash
+spl config add-permission-rule \
+  --name staging-allow-all-actors \
+  --action allow \
+  --priority 100 \
+  --expression 'record.body.namespace == "acme-corp/payments/staging"'
+```
+
+Higher priority means it's evaluated first. The `prod-requires-high-trust` rule wins for prod records; the staging rule catches everything for staging.
+
+Now enable enforcement (with the pre-flight check that prevents the lockout trap):
+
+```bash
+# First, an admin escape rule so YOU don't get locked out
+spl config add-permission-rule \
+  --name admin-self \
+  --action allow \
+  --priority 10000 \
+  --expression 'current_actor() == "did:sync:user:alice" && (resource == "record_write" || resource == "thread_read" || resource == "config_read")'
+
+spl config permissions-enable
+```
+
+The pre-flight check verifies that `permissions-disable` will still work after enforcement is on. If it doesn't, you get a clear refusal with the exact `add-permission-rule` command needed.
+
+## Lifecycle: archive, delete, undo
+
+### Archive when work pauses
+
+```bash
+spl namespace archive acme-corp/payments/staging
+```
+
+```
+✓ namespace 'acme-corp/payments/staging' → archived
+```
+
+After this, any new record claiming `acme-corp/payments/staging` (or any descendant) is rejected. Existing records in the store remain readable — archive is read-only, not delete.
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -d '{"act": "INTEND", "actor": "did:sync:user:alice",
+       "thread": "th_test", "body": {"namespace": "acme-corp/payments/staging"},
+       "clock": 0, "data_type": "VOID"}'
+```
+
+```json
+{
+  "object": "error",
+  "code": "NAMESPACE_REJECTED",
+  "message": "namespace 'acme-corp/payments/staging' rejected: ancestor 'acme-corp/payments/staging' is not Active in the registry."
+}
+```
+
+### Delete when the work is gone for good
+
+```bash
+spl namespace delete acme-corp/payments/staging
+```
+
+This is a **soft delete**. The entry stays in the registry (so audit history is preserved) but is treated as nonexistent for new ingest. You can still see it in `spl namespace list` — it'll show as `deleted`.
+
+### Re-activate by re-creating
+
+The latest record per namespace ID wins. To bring an archived or deleted namespace back, just `spl namespace create` it again:
+
+```bash
+spl namespace create acme-corp/payments/staging --description "Revived after deploy freeze"
+```
+
+```
+namespace 'acme-corp/payments/staging' already exists and is Active — overriding
+✓ namespace 'acme-corp/payments/staging' → active
+```
+
+The CLI prints the override notice so you know you've replaced (not duplicated) the entry.
+
+### What about DEFAULT?
+
+The DEFAULT namespace is implicit and **cannot be modified or deleted**. `spl namespace archive default` returns an error:
+
+```
+error: cannot modify the DEFAULT namespace
+```
+
+This is by design. DEFAULT is the root of the hierarchy and the fallback for every record without an explicit namespace. Deleting it would break every existing client.
+
+## Recovering from a botched setup
+
+### Symptom: I created a deep namespace and want to start over
+
+Archive the ORG-level parent. Every descendant becomes inactive immediately via the cascade. The audit history stays in the registry.
+
+```bash
+spl namespace archive acme-corp
+spl namespace list
+```
+
+If you really want a clean slate, delete each entry:
+
+```bash
+spl namespace delete acme-corp/payments/staging
+spl namespace delete acme-corp/payments/prod
+spl namespace delete acme-corp/payments
+spl namespace delete acme-corp
+```
+
+You'll still see them in `spl namespace list` (with status `deleted`) for audit purposes. The records themselves remain in the store.
+
+### Symptom: I locked myself out of the registry by enabling permissions without an admin allow rule
+
+Use the emergency unlock command — see [Emergency Recovery](/docs/reference/cli#emergency-recovery):
+
+```bash
+spl serve --stop
+spl config permissions-unlock
+spl serve --daemon
+```
+
+This writes a `permissions_enabled=false` LEARN record directly to the SQLite store, bypassing the HTTP middleware that would otherwise deny it.
+
+### Symptom: I want to verify what the registry actually has after a restart
+
+```bash
+spl namespace list
+spl doctor
+```
+
+`spl doctor` confirms the daemon is up, the engine config thread has records, and the expression cache is healthy. If `spl namespace list` shows nothing but DEFAULT after a restart where you'd previously created namespaces, the registry replay didn't pick them up — check the daemon log at `~/.syncro/logs/spl.log` for `namespace_registry: skipping invalid entry` warnings.
+
+## Operational checklist before turning on namespace enforcement
+
+Run through this before you start gating real records on namespace existence:
+
+- [ ] Hierarchy designed on paper (or in a diagram). Don't improvise from the CLI.
+- [ ] All ORG-level namespaces created
+- [ ] All PROJECT-level namespaces created (parents must be Active)
+- [ ] All ENV-level namespaces if you're using them
+- [ ] `spl namespace list` shows the full tree
+- [ ] `spl namespace show <leaf>` walks each branch with all `✓` markers
+- [ ] At least one CEL permission rule covers your admin actor for `record_write`, `thread_read`, and `config_read` (so you can't lock yourself out of disabling enforcement later)
+- [ ] `spl config permissions-enable` succeeds without the pre-flight refusing
+- [ ] You've tested writing a record from each namespace that should be allowed
+- [ ] You've tested writing a record claiming a non-existent namespace (should return 403 NAMESPACE_REJECTED)
+- [ ] Operator runbook is bookmarked: see [`docs/operate/runbook`](/docs/operate/runbook) for recovery procedures
+
+## What's NOT yet enforced
+
+The narrowing guarantee enforces **existence** — every ancestor in the chain must be in the registry and Active. It does NOT yet enforce:
+
+- **Capability subsets**: a record can claim any `body.dial`, `body.primitives`, etc. The daemon does not yet check that those capabilities are a subset of what the parent namespace's policy allows.
+- **Store-level partitioning**: records are tagged with `body.namespace` but the SQLite store does not yet index by namespace, and read queries return records across all namespaces a caller can reach.
+
+For a single-tenant deployment or trusted-actor multi-tenant setup, the HTTP-boundary enforcement is sufficient. For untrusted multi-tenant where a customer might try to inject records claiming another customer's namespace, you also want the policy YAML + store-level isolation gaps closed before going live.
+
+## Reference
+
+- **Spec**: §08-governance/04 Namespaces — normative source
+- **CLI reference**: [`spl namespace`](/docs/reference/cli#namespaces-v0100)
+- **CEL bindings**: [`current_namespace()`](/docs/guides/cel-expressions#current_actor-current_namespace-and-now)

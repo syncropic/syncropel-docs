@@ -1,0 +1,228 @@
+---
+title: Configuration
+description: Engine configuration — routing rules, event triggers, and server settings.
+---
+
+## Configuration File
+
+Syncropel stores local settings in `~/.syncro/config.toml`:
+
+```toml
+[identity]
+actor = "did:sync:user:alice"
+display_name = "Alice"
+
+[store]
+url = "sqlite:///home/alice/.syncro/hub.db"
+
+[server]
+host = "127.0.0.1"
+port = 9100
+```
+
+View the configuration:
+
+```bash
+spl config show
+spl config path    # Shows the file location
+```
+
+## Engine Configuration
+
+Engine behavior is configured through records on a special thread. This means configuration is versioned, auditable, and can change at runtime.
+
+### Routing Rules
+
+```bash
+# Add a routing rule
+spl config add-rule \
+  --name "code-to-dev" \
+  --domain code \
+  --act INTEND \
+  --target did:sync:agent:dev
+
+# List rules
+spl config list-rules
+```
+
+Rules are evaluated in order. The first matching rule determines where a record is routed.
+
+### Event Triggers
+
+Event triggers wake up actors when specific records appear:
+
+```bash
+# Create a trigger
+spl config add-trigger \
+  --name "review-on-completion" \
+  --match "act=KNOW,body.topic=task_completion" \
+  --target did:sync:agent:reviewer \
+  --goal "Review the completed task" \
+  --budget 1.0 \
+  --timeout 300 \
+  --cooldown 60
+
+# Create a scheduled trigger
+spl config add-trigger \
+  --name "daily-summary" \
+  --schedule "0 9 * * *" \
+  --target did:sync:agent:reporter \
+  --goal "Generate daily project summary"
+
+# List triggers
+spl config list-triggers
+
+# Disable a trigger
+spl config add-trigger --name "review-on-completion" --disable
+```
+
+Trigger options:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--match` | — | Record pattern: `"act=KNOW,body.topic=task_verdict"` |
+| `--schedule` | — | Cron expression: `"*/15 * * * *"` (mutually exclusive with match) |
+| `--target` | — | Actor DID to dispatch to |
+| `--goal` | — | Goal text for the dispatched actor |
+| `--budget` | 1.0 | Maximum cost per dispatch (USD) |
+| `--timeout` | 300 | Maximum duration per dispatch (seconds) |
+| `--cooldown` | 60 | Minimum seconds between fires |
+| `--max-concurrent` | 1 | Maximum simultaneous dispatches from this trigger |
+
+### API Keys
+
+```bash
+# Set an AI provider key
+spl config set-key anthropic sk-ant-...
+
+# Set the default model
+spl config model claude-sonnet-4-20250514
+```
+
+### Authentication
+
+Bearer-token authentication for `spl serve` is governed by two config surfaces:
+
+**1. Server-side toggle** — a LEARN record on `th_engine_config`:
+
+```bash
+# Enable enforcement
+spl learn \
+  --thread th_engine_config \
+  --body '{"topic":"auth_required","enabled":true}' \
+  --actor did:sync:system:engine
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `topic` | string | — | Must be `"auth_required"` |
+| `enabled` | bool | `false` | When `true`, every non-exempt endpoint requires `Authorization: Bearer <token>` |
+
+Exempt routes (always unauthenticated): `GET /health`, `POST /v1/bootstrap/service-account`, `GET /.well-known/syncropel`.
+
+The daemon reloads `th_engine_config` on broadcast, so new records take effect on the next request — no restart needed.
+
+**2. CORS allow-list** — a separate LEARN record:
+
+```bash
+spl learn \
+  --thread th_engine_config \
+  --body '{"topic":"auth_cors_origins","origins":["https://your-app.example.com"]}' \
+  --actor did:sync:system:engine
+```
+
+CORS headers are sent only when `auth.required = true`. With auth off, CORS is permissive by default.
+
+**3. Escape hatch** — `spl serve --insecure-localhost` force-binds the daemon to `127.0.0.1` and disables auth enforcement, regardless of the `auth.required` setting. Used for emergency recovery when tokens are lost. A WARN log is emitted on every startup when this flag is active. **Never use in production.**
+
+See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full workflow — first-SA bootstrap, token lifecycle, federation pairing, and emergency recovery.
+
+### Embedding provider
+
+Configure the provider used for [semantic search](/docs/guides/search). Without a provider, `POST /v1/records/search` returns `503 SEMANTIC_SEARCH_DISABLED` and `spl search` surfaces a `disabled: true` flag instead of raising.
+
+Managed via `spl config embedding-provider set|show|clear` (see the [CLI reference](/docs/reference/cli#embedding-provider)). Both commands write a LEARN record on `th_engine_config`; the daemon rebuilds its embedder on broadcast — no restart.
+
+```bash
+spl learn \
+  --thread th_engine_config \
+  --body '{"topic":"embedding_provider","provider":{"kind":"ollama","endpoint":"http://localhost:11434","model":"nomic-embed-text"}}' \
+  --actor did:sync:system:engine
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `topic` | string | — | Must be `"embedding_provider"` |
+| `provider` | object \| null | `null` | Provider config. Set `null` to clear (disables semantic search while retaining stored vectors) |
+| `provider.kind` | string | — | Provider kind. Currently only `"ollama"` |
+| `provider.endpoint` | string | `"http://localhost:11434"` | HTTP endpoint of the embedding service (Ollama) |
+| `provider.model` | string | `"nomic-embed-text"` | Model name. Changing the model is a "different embedder" — old vectors become inactive (retained but unused until cleared) |
+
+After enabling a provider, backfill existing records with `spl embed --loop` (or `POST /v1/records/embed` in a shell loop). New records are embedded inline by the INGEST loop.
+
+### Async-federation relay
+
+Configure one or more store-and-forward relays for [async federation](/docs/guides/async-federation) — used when peers aren't reliably online at the same time. Each entry binds a relay URL to either a specific peer DID or the catch-all sentinel `"all"`. An entry with `enabled: false` is kept so an operator can toggle without losing the URL.
+
+Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation--pair-sync)). Each mutating subcommand writes a LEARN record:
+
+```bash
+spl learn \
+  --thread th_engine_config \
+  --body '{"topic":"federation.relay","url":"https://relay.syncropel.com","for_pair":"all","enabled":true}' \
+  --actor did:sync:system:engine
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `topic` | string | — | Must be `"federation.relay"` |
+| `url` | string | — | Relay base URL (no trailing slash required) |
+| `for_pair` | string | — | Peer DID this relay is for, or the sentinel `"all"` as the catch-all |
+| `enabled` | bool | `true` | When `false`, the entry is preserved but skipped at lookup time |
+
+At send time, lookup proceeds most-specific-first: an exact `for_pair == peer_did` match wins; otherwise the `"all"` catch-all is used. Inbound receive tasks spawn at daemon startup — restart `spl serve` after configuring a new relay URL so the receive loop binds.
+
+### Responder overrides
+
+Responder metadata is auto-populated from live adapters and the actor registry, then merged with operator overrides at serve time. Overrides let you curate the responders advertised on `/v1/capabilities` and `/.well-known/syncropel` — set a cost model, pin a trust floor, tombstone a responder from the manifest, or introduce an operator-authored responder that has no auto-populated entry.
+
+Managed via `spl config responders-add|responders-list|responders-remove` (see the [CLI reference](/docs/reference/cli#authentication)). Each mutating subcommand writes a LEARN record with `topic: "responder_override"`:
+
+```bash
+spl learn \
+  --thread th_engine_config \
+  --body '{
+    "topic":"responder_override",
+    "did":"did:sync:agent:dev",
+    "kind":"actor",
+    "capabilities":["code","shell"],
+    "trust_floor":{"code":0.75},
+    "cost_model":{"per_query_usd":0.04}
+  }' \
+  --actor did:sync:system:engine
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `topic` | string | Must be `"responder_override"` |
+| `did` | string | Target responder DID. Required |
+| `kind` | string \| null | `actor`, `llm`, `pattern`, or `system`. Absent ⇒ defer to auto-populated value |
+| `capabilities` | list\<string\> \| null | Replaces the capability list for this DID |
+| `trust_floor` | object \| null | Free-form trust-floor object (e.g. `{"code": 0.75}`) |
+| `cost_model` | object \| null | Free-form cost-model object (e.g. `{"per_query_usd": 0.04}`) |
+| `availability` | object \| null | Free-form availability object (e.g. `{"timezone": "PST"}`) |
+| `metadata` | object \| null | Free-form metadata. Non-normative |
+| `remove` | bool | When `true`, tombstone this responder — suppress it from the manifest even if an auto-populated entry exists |
+
+Overrides matched by DID replace the auto-populated entry's fields in place; unmatched DIDs are appended as operator-authored responders. The override schema ships today; consumers that route on responder metadata will arrive in a later release.
+
+## Data Locations
+
+| Path | Purpose |
+|---|---|
+| `~/.syncro/config.toml` | Local settings (identity, server, store) |
+| `~/.syncro/hub.db` | Record database (SQLite) |
+| `~/.syncro/secrets/` | API keys (plaintext files) |
+| `~/.syncro-data/tasks/` | Task content files (Markdown) |
+| `~/.syncro-data/aliases.toml` | Task alias mappings |
+| `~/.local/share/syncropel/backups/` | Automatic database backups |

@@ -1,0 +1,266 @@
+---
+title: Query
+description: Filter records server-side with structured query documents. Supports nested body fields, logical combinators, pagination, and an EXPLAIN plan so you know when a filter hits an index.
+---
+
+## Overview
+
+Query lets you ask the daemon: _"give me every record where X"_, with X expressed as a structured filter document. The filter runs server-side — nothing streams over the wire except the matches. This is the right tool for any query that touches more than one thread, any filter over body shape (`body.kind`, `body.priority`, `body._refs.*`), or any workload big enough that client-side filtering wastes bandwidth.
+
+Two entry points:
+
+- **HTTP**: `POST /v1/records/query` with a JSON body describing the filter.
+- **SDK**: `client.richQuery({ filter, ... })` (TypeScript) or `await client.query(filter, ...)` (Python).
+
+This guide covers both surfaces, the filter AST, and how to use the `explain` flag to verify an index is being used.
+
+## Quick Start
+
+```bash
+# All INTEND records on task threads from the dev agent, newest first.
+curl -s -X POST http://localhost:9100/v1/records/query \
+  -H 'content-type: application/json' \
+  -d '{
+    "filter": {
+      "act": "INTEND",
+      "actor": "did:sync:agent:dev",
+      "body.kind": { "$in": ["core.task.record", "core.task.record.v1"] }
+    },
+    "sort": { "clock": -1 },
+    "limit": 20
+  }'
+```
+
+The same query from TypeScript:
+
+```ts
+import { Client, Identity } from "@syncropel/sdk";
+
+const client = new Client({
+  endpoint: "http://localhost:9100",
+  identity: Identity.static("did:sync:user:alice"),
+});
+
+const result = await client.richQuery({
+  filter: {
+    act: "INTEND",
+    actor: "did:sync:agent:dev",
+    "body.kind": { $in: ["core.task.record", "core.task.record.v1"] },
+  },
+  sort: { clock: -1 },
+  limit: 20,
+});
+
+for (const rec of result.records) {
+  console.log(rec.id, rec.body);
+}
+```
+
+And Python:
+
+```python
+from syncropel import Client, Identity
+
+client = Client(
+    endpoint="http://localhost:9100",
+    identity=Identity.static("did:sync:user:alice"),
+)
+
+records = await client.query(
+    filter={
+        "act": "INTEND",
+        "actor": "did:sync:agent:dev",
+        "body.kind": {"$in": ["core.task.record", "core.task.record.v1"]},
+    },
+    sort={"clock": -1},
+    limit=20,
+)
+
+for rec in records:
+    print(rec["id"], rec["body"])
+```
+
+## Filter Grammar
+
+A filter is a JSON object. Top-level keys are AND-combined. Values are either scalars (sugar for `$eq`) or operator documents.
+
+### Comparison operators
+
+| Operator  | Semantics                          | Example                                      |
+| --------- | ---------------------------------- | -------------------------------------------- |
+| `$eq`     | field equals value                 | `{ "act": { "$eq": "KNOW" } }`               |
+| `$ne`     | field differs from value           | `{ "body.status": { "$ne": "cancelled" } }`  |
+| `$gt`     | greater than                       | `{ "clock": { "$gt": 100 } }`                |
+| `$gte`    | greater than or equal              | `{ "clock": { "$gte": 100 } }`               |
+| `$lt`     | less than                          | `{ "clock": { "$lt": 1000 } }`               |
+| `$lte`    | less than or equal                 | `{ "clock": { "$lte": 1000 } }`              |
+| `$in`     | field in list                      | `{ "actor": { "$in": ["did:...", "did:..."] } }` |
+| `$nin`    | field not in list                  | `{ "act": { "$nin": ["DO", "CALL"] } }`      |
+| `$like`   | SQL `LIKE` pattern                 | `{ "body.title": { "$like": "music/%" } }`   |
+| `$ilike`  | case-insensitive `LIKE`            | `{ "body.title": { "$ilike": "%LOVE%" } }`   |
+| `$exists` | field present (`true`) or absent (`false`) | `{ "body.awaits": { "$exists": true } }` |
+
+A scalar value — `{ "act": "KNOW" }` — is equivalent to `{ "act": { "$eq": "KNOW" } }`.
+
+### Logical combinators
+
+| Operator | Semantics               | Example                                        |
+| -------- | ----------------------- | ---------------------------------------------- |
+| `$and`   | all children must match | `{ "$and": [{ "act": "KNOW" }, { "clock": { "$gt": 0 } }] }` |
+| `$or`    | any child matches       | `{ "$or": [{ "act": "DO" }, { "act": "CALL" }] }`            |
+| `$not`   | child must not match    | `{ "$not": { "actor": "did:sync:system:engine" } }`          |
+
+Top-level fields are AND-combined implicitly, so `$and` is usually only needed inside `$or`/`$not`.
+
+### Allowed field paths
+
+The parser restricts paths to a whitelist — callers cannot reach into private columns (`sig`, `canonical_json`) or invent paths that bypass the JSON1 layer.
+
+- **Top-level columns**: `id`, `thread`, `actor`, `act`, `clock`, `data_type`, `namespace`, `created_at`
+- **Body paths**: `body.<segment>[.<segment>...]` where each segment matches `[A-Za-z0-9_-]+`
+
+So `body.kind`, `body.priority`, and `body._refs.music_artist` all work; `body` alone (without a sub-path) is rejected.
+
+## Request Shape
+
+```json
+{
+  "filter":   { /* AST described above */ },
+  "thread":   "th_optional_scope",
+  "sort":     { "clock": -1 },
+  "limit":    100,
+  "offset":   0,
+  "explain":  false
+}
+```
+
+- **`thread`** — optional thread-scope. Shorthand for adding `{ "thread": "th_..." }` to the filter. Uses the thread index directly.
+- **`sort`** — single-key document; value is `1` for ascending, `-1` for descending. Example: `{ "clock": -1 }` (newest first), `{ "created_at": 1 }` (oldest first), `{ "body.priority": -1 }` (highest priority first — but see [Indexed Field Registry](./body-kind-manifest) for why you'll want to declare body fields first).
+- **`limit`** — default 100, capped at 1000.
+- **`offset`** — for pagination. Prefer `{ "clock": { "$gt": last_clock } }` as a cursor once you have one — cursor-style pagination is cheaper than deep offsets.
+- **`explain`** — when `true`, the response includes a `plan` describing the generated SQL, which fields used a top-level column (indexed), and which fields fell to the json-scan path.
+
+## Using `explain`
+
+The `explain` flag is how you verify a query is using an index before running it against a large corpus:
+
+```bash
+curl -s -X POST http://localhost:9100/v1/records/query \
+  -H 'content-type: application/json' \
+  -d '{
+    "filter": { "thread": "th_abc...", "body.kind": "music.catalog.track" },
+    "limit": 1,
+    "explain": true
+  }' | jq '.plan'
+```
+
+Example response:
+
+```json
+{
+  "sql": "SELECT * FROM records WHERE (thread = ? AND (json_extract(body, '$.kind') = ?)) LIMIT ?2 OFFSET ?3",
+  "bind_count": 2,
+  "indexed_fields": ["thread"],
+  "unindexed_fields": ["body.kind"]
+}
+```
+
+The plan says `body.kind` went through `json_extract` — a full scan without the right index. To upgrade that to an expression index scan, declare a [body-kind manifest](./body-kind-manifest):
+
+```bash
+spl config add-body-kind-manifest \
+  --kind music.catalog.track \
+  --indexed-field body.kind \
+  --indexed-field body.title
+```
+
+After the daemon reloads config the `body.kind` column in the same query plan stays in `unindexed_fields` (SQLite's optimizer uses the new expression index transparently — the plan's `unindexed_fields` list is a conservative "this was a body.* path" marker, not a statement about actual plan choice). For the ground-truth check, use `EXPLAIN QUERY PLAN`:
+
+```bash
+sqlite3 ~/.syncro/hub.db "EXPLAIN QUERY PLAN \
+  SELECT * FROM records \
+  WHERE thread = 'th_abc' \
+    AND json_extract(body, '\$.kind') = 'music.catalog.track' \
+  LIMIT 1"
+```
+
+You'll see SQLite pick `idx_body_kind_music_catalog_track_kind` when the expression index exists.
+
+## Patterns
+
+### "Most recent by thread"
+
+```json
+{
+  "thread": "th_abc...",
+  "sort": { "clock": -1 },
+  "limit": 50
+}
+```
+
+The `thread` shortcut hits the primary index directly. Cheap regardless of corpus size.
+
+### "All tasks assigned to a specific agent"
+
+```json
+{
+  "filter": {
+    "body.kind": { "$in": ["core.task.record", "core.task.record.v1"] },
+    "body.assigned_to": "did:sync:agent:dev"
+  },
+  "sort": { "clock": -1 }
+}
+```
+
+Declare `body.kind` + `body.assigned_to` in a manifest to avoid the body scan once your task log exceeds a few thousand records.
+
+### "Records produced in the last hour"
+
+```json
+{
+  "filter": {
+    "created_at": { "$gte": 1719830400 }
+  },
+  "sort": { "created_at": -1 },
+  "limit": 100
+}
+```
+
+`created_at` is a top-level column; no manifest needed.
+
+### "Reference lookup"
+
+```json
+{
+  "filter": {
+    "body._refs.music_artist": "spotify:artist:4Z8W4fKeB5YxbusRsdQVPb"
+  }
+}
+```
+
+References stored via `Ref.*` constructors in the SDK live at `body._refs.<entity>`. Declare each reference path you query in a manifest for speed.
+
+### "Pending AITL proposals"
+
+```json
+{
+  "filter": {
+    "act": "KNOW",
+    "body.awaits": "actor_decision"
+  },
+  "sort": { "clock": -1 }
+}
+```
+
+## Limits & Failure Modes
+
+- **Filter depth**: parser handles arbitrarily nested `$and`/`$or`, but the generated SQL complexity grows with nesting. Keep filters under ~10 levels for predictability.
+- **Type mismatches**: comparing a body field that is sometimes a string and sometimes an object returns no match — SQLite's `json_extract` returns the stored JSON type, and `json_extract(body, '$.x') = 'foo'` will not match when the stored `$.x` is an object. Use `$exists: true` if you only need to check presence.
+- **No joins**: the filter operates on one record at a time. For "records where another record referencing them exists", compose two queries client-side.
+- **Fail-open SDK transport**: both SDKs return an empty record list (not an exception) on network/5xx failures. Check `result.records.length` — zero is ambiguous between "no matches" and "transport failed". Use the `onEmit` hook or the raw HTTP call if you need to distinguish.
+
+## Next Steps
+
+- [**Body-Kind Manifests**](./body-kind-manifest) — declare which body fields to index so rich-query filter predicates scan instead of sort.
+- [**CEL Expressions**](./cel-expressions) — when the filter needs to compose with engine-side logic (triggers, routing, preconditions), CEL is the right layer.
+- [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk) — full client reference.

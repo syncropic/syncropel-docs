@@ -1,0 +1,143 @@
+---
+title: Session checkpoints
+description: Persist per-session state between agent runs so long-running agents resume with context intact. Checkpoint records live on the session thread and are picked up on the next run.
+---
+
+## Why checkpoints exist
+
+Agents that run for hours or days burn context quickly. Session
+checkpoints give an agent a durable hand-off point: a single record
+summarizing progress, learnings, and next steps. The next session
+reads the latest checkpoint and resumes — without re-walking every
+prior turn.
+
+## Anatomy of a checkpoint
+
+A checkpoint is a LEARN record on the session thread with
+`body.kind = "agent.session.checkpoint"`. The body carries:
+
+```json
+{
+  "summary": "Completed auth refactor; next: migration tests",
+  "learnings": [
+    "mutex pattern worked for concurrent refresh",
+    "refactor touched 14 files"
+  ],
+  "next_steps": "Write migration tests for the new mutex path",
+  "thread": "th_auth_refactor_...",
+  "session_id": "sess_...",
+  "actor": "did:sync:agent:dev"
+}
+```
+
+The `session_id` is free-form — use the short alias your task tracker
+assigns, or a UUID, or the thread id itself.
+
+## Creating a checkpoint — CLI
+
+```bash
+spl session save \
+  --thread th_auth_refactor_abc123 \
+  --summary "Completed auth refactor; next: migration tests" \
+  --learnings "mutex pattern worked" \
+  --learnings "refactor touched 14 files" \
+  --next-steps "Write migration tests" \
+  --actor did:sync:agent:dev
+```
+
+Flags:
+
+- `--thread` — session thread id. Required.
+- `--summary` — one-paragraph progress summary.
+- `--learnings` — repeat for each learning (at least 1).
+- `--next-steps` — what the next session should pick up first.
+- `--actor` — agent DID. Defaults to `SPL_ACTOR` env var.
+
+## Creating a checkpoint — SDK
+
+### Python
+
+```python
+await client.emit(
+    act="LEARN",
+    kind="agent.session.checkpoint",
+    body={
+        "summary": "Completed auth refactor",
+        "learnings": ["mutex pattern worked"],
+        "next_steps": "Write migration tests",
+    },
+    thread=thread,
+)
+```
+
+### TypeScript
+
+```ts
+await client.emit({
+  act: "LEARN",
+  kind: "agent.session.checkpoint",
+  body: {
+    summary: "Completed auth refactor",
+    learnings: ["mutex pattern worked"],
+    next_steps: "Write migration tests",
+  },
+  thread: threadId,
+});
+```
+
+## Resuming from a checkpoint
+
+The agent's first action each session is to read the latest checkpoint:
+
+```bash
+# List checkpoints on a thread
+spl session list --thread th_auth_refactor_abc123
+
+# Show one in detail
+spl session show th_auth_refactor_abc123
+```
+
+Programmatically, query records on the thread, filter for
+`body.kind == "agent.session.checkpoint"`, sort by clock, take the
+tail:
+
+```ts
+const records = await client.query_thread({ thread: threadId });
+const checkpoints = records
+  .filter(r => r.body?.kind === "agent.session.checkpoint")
+  .sort((a, b) => a.clock - b.clock);
+const latest = checkpoints[checkpoints.length - 1];
+
+// agent now has: summary, learnings[], next_steps
+```
+
+## Dev Agent protocol
+
+The dev agent (`did:sync:agent:dev`) prompt template expects a
+checkpoint at the end of every session. See
+[`~/.syncro/dev-prompt.md`](/docs/guides/agent-integration) for the
+contract. Humans reviewing an agent's work read the checkpoints as the
+first signal of progress.
+
+## When NOT to use checkpoints
+
+- **Single-turn tasks** — no resumption needed, checkpoint is waste
+- **Throwaway exploration** — dev loop, not committed state
+- **Fine-grained progress tracking** — use KNOW records per step, not
+  checkpoints per step. Checkpoints are summaries, not step logs.
+
+## Retention + cleanup
+
+Checkpoints are records like any other — content-addressed, immutable,
+permanent. They are NOT garbage-collected. For long-running threads
+with many sessions, the tail grows unbounded.
+
+If you want to retain only the last N checkpoints per thread, emit a
+`core.erasure` record referencing older ones. An automatic retention
+policy for checkpoint records is planned.
+
+## Pairs with
+
+- **[Agent integration](/docs/guides/agent-integration)** — full
+  protocol for the dev agent + other roles
+- **[Python SDK](/docs/guides/python-sdk)** / **[TypeScript SDK](/docs/guides/typescript-sdk)** — full `emit()` + `query_thread()` reference

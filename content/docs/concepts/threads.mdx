@@ -1,0 +1,117 @@
+---
+title: Threads
+description: A thread is a coordination context — the shared scope inside which records are ordered, folded, and closed. Every task, dispatch, federation pair, and config domain is a thread.
+---
+
+## Overview
+
+A thread is a named context that records attach to. Its ID is content-addressed, its contents are immutable, and its meaning is whatever the fold that consumes it decides. A task is a thread. A dispatch is a thread. The engine config is a thread. A federation sync subscription targets a thread.
+
+Threads give Syncropel its coordination semantics: *records written to the same thread participate in the same story*. Two records on different threads are independent by construction — no fold mixes them unless you explicitly ask.
+
+If you're mentally importing from elsewhere: a thread is closer to a Git branch than to a Slack channel. It's the unit of history, not the unit of conversation. A single agent dispatch is a thread. A conversation with a user may span dozens.
+
+## Thread identity
+
+Thread IDs are deterministic content hashes with a `th_` prefix:
+
+```
+th_ + SHA-256(<seed inputs>)
+```
+
+The 64 hex characters after the prefix are the hash. The prefix makes thread IDs visually distinct from record IDs (raw SHA-256) and from actor DIDs (`did:sync:*`). This distinction matters — the same function can take all three as arguments, and misreading one for another is a class of bug.
+
+The seed inputs vary by creator:
+- **Task threads** are seeded from the alias and a nonce, so `TASK-0001` maps to one stable thread ID.
+- **Dispatch threads** are seeded from the parent thread, target actor, and dispatch timestamp, so each run gets a fresh ID.
+- **Reserved threads** (`th_engine_config`, `th_instance_registry`, `th_fleet_control`, `th_consent`, `th_namespace_registry`, `th_actor_registry`) have hand-assigned, well-known IDs baked into the kernel and documented in the spec.
+
+Client code never invents a thread ID freely. It either uses a well-known constant, derives from a seed, or asks the server to mint one. This is what lets a federation pair target a thread by ID alone — the ID is portable across instances.
+
+## Lifecycle
+
+Every thread follows a natural arc, though the shape is flexible:
+
+```
+INTEND  →  DO/CALL  →  KNOW  →  KNOW(fulfills)
+(open)      (active)    (observed)     (closed)
+```
+
+- **Opened** by an `INTEND` stating the goal or purpose. Every thread starts with an INTEND; if you see a thread whose first clock is `DO` or `KNOW`, that's a bug or a partially-migrated import.
+- **Active** while `DO` and `CALL` records land. An adapter executing work emits these as it goes.
+- **Observed** when `KNOW` records capture intermediate facts, verdicts, or summaries.
+- **Closed** by a `KNOW` carrying `body.fulfills: "<intend_id>"` referencing the opening INTEND. The fold transitions the thread to "done" on that signal. A thread can also close via cancellation — a `DO` with `body.cancels` or a `KNOW` with `body.verdict: "reject"`.
+
+Lifecycle state is *derived* from records, not stored as a column. Two threads with different visible "statuses" have different record sets. There is no `UPDATE threads SET status = ...` anywhere in the system.
+
+## Fork and merge
+
+Threads can fork into sub-threads and merge results back. This is how fan-out works, how task sub-tasks nest, and how federation subscribes per-thread without having to own the parent:
+
+```
+Parent: th_deploy_v2
+  ├─ INTEND "deploy v2"
+  ├─ INTEND sub-thread th_run_tests     ─ child
+  │    └─ KNOW "458/458 pass"
+  ├─ INTEND sub-thread th_migrate_db    ─ child
+  │    └─ KNOW "migration complete"
+  └─ KNOW fulfills "deployed"
+```
+
+A child thread is its own content-addressed ID. The parent records an INTEND that references the child (`body.sub_thread`), and the reconciler dispatches the work on the child thread. When the child closes, a synthesising record on the parent thread says "child X completed with result Y". The join predicate in the parent INTEND decides when the parent itself should close — `all` (every child), `any` (first accept), `k_of_n`, or an arbitrary CEL expression.
+
+This gives clean audit: the child thread has the full execution trace; the parent thread carries a summary and the fold result. You can drill in or stay at the summary level depending on what question you're answering.
+
+## Tasks are threads (with conventions)
+
+A task in Syncropel is a thread whose opening INTEND has `body.task = true` and whose body carries alias, assignee, domain, priority, labels, and success criteria. Nothing in the kernel enforces this — it's the task fold (in `syncropel-engine/src/fold/task.rs`) that recognizes the pattern and projects it into the `spl task show` view.
+
+This has three practical consequences:
+
+1. **Every task has a thread with real records.** If you want the ground truth on what a task did and when, read its thread. `spl debug replay TASK-XXXX` walks the records with the fold's status transitions annotated.
+2. **Task state can never drift from record state.** There's no status column to get stuck; the status is a pure function of the records on the thread.
+3. **Two sibling threads are two independent tasks.** Forking a thread creates a child task; the parent task status depends on the child's close signals per the join predicate.
+
+## Reserved threads
+
+A handful of thread IDs are baked into the kernel because the system uses them to bootstrap itself:
+
+| Thread | Purpose | Read by |
+|---|---|---|
+| `th_engine_config` | Engine config: routing rules, triggers, CEL policies, auth config. | The engine on every broadcast. |
+| `th_actor_registry` | Registered actors: DID, display name, category, status. | Actor resolution in the router, CEL `record.actor` binding. |
+| `th_namespace_registry` | Namespace hierarchy: ORG / PROJECT / ENV / JOB entries. | The namespace narrowing check at ingest. |
+| `th_instance_registry` | Live fleet: heartbeats, endpoint URLs, capabilities per instance. | Fan-out dispatch target selection. |
+| `th_fleet_control` | Kill switch state: soft / hard / emergency freeze records. | CEL permission rules on every write. |
+| `th_consent` | Cross-namespace consent grants. | The federation consent filter on every sync pull. |
+
+Every one of these is just a thread. Records on them follow the same rules. The kernel treats them specially only in the sense that derived state is eagerly rebuilt when new records land — same reload pattern for all.
+
+## Participants and roles
+
+Every actor who writes a record on a thread is a participant. Participation is derived automatically from the record log — no separate participant table. `spl thread show <id>` lists participants with record counts and inferred roles (opener, reviewer, adapter, observer).
+
+Role inference is convention-based, not enforced. The opener is whoever emitted the first INTEND. A reviewer is an actor emitting KNOW with a verdict. An adapter is an actor whose records are paired INTEND/DO/CALL/KNOW with `dispatch_handled = true`. The fold computes these on-demand; you don't have to maintain a participants list by hand.
+
+## Why threads instead of labels or rooms
+
+The thread is deliberately a single-dimensional construct: a record belongs to *exactly one* thread. No multi-tag, no multi-room. This isn't an oversight — it's the property that makes folds composable. If a record could belong to multiple threads, the fold would need a join semantics, and *which* join would depend on the consumer. Single-thread keeps folds pure and cacheable.
+
+Categorisation across threads happens through labels (in `body.labels`), through `body.topic`, through namespace (`body.namespace`), and through DID filters (actor). These are query-time dimensions; the thread is the coordination-time dimension.
+
+## When a new thread vs a continuation
+
+Two rules of thumb:
+
+- **New thread when the goal is new.** A new task, a new dispatch, a new deployment, a new federation subscription — each gets its own thread. Thread IDs are cheap; there is no penalty to having many.
+- **Continuation on the same thread when the goal is the same.** Follow-up observations, correction records, the final verdict on a long-running task — these all land on the original thread. Forking into a sub-thread is appropriate when a branch of work is independent enough to need its own close signal.
+
+A typical engineer's weekly footprint is dozens of task threads, a handful of dispatch threads per active task, plus participation in the six reserved threads. All immutable, all auditable, all foldable on demand.
+
+## What's next
+
+- **[Records](/docs/concepts/records)** — the unit records attach to.
+- **[Actors](/docs/concepts/actors)** — who writes to threads.
+- **[The engine](/docs/concepts/engine)** — how records on threads trigger routing.
+- **[Task management guide](/docs/guides/task-management)** — threads with task conventions, end to end.
+- **[CEL expressions](/docs/guides/cel-expressions)** — the `thread()` function for rules that need thread state.

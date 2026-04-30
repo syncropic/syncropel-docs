@@ -1,0 +1,261 @@
+---
+title: Authentication & Service Accounts
+description: Enable bearer-token authentication, create service accounts, pair devices, and manage token lifecycle. Bearer-token auth is enforced by default on every spl serve daemon.
+---
+
+<Callout type="info">
+**`spl serve` is default-secure.** `auth.required = true` is the kernel default — every daemon rejects unauthenticated requests out of the box. To bootstrap: create the first service account, save the token, and every `spl` command works from there.
+</Callout>
+
+## TL;DR
+
+- On a **fresh install**: bootstrap your first service account, save the token, and every `spl` command Just Works. Five-step [Quick-start](#3-quick-start-enabling-auth-on-a-remote-host) below.
+- On a **shared or remote host** (cloud VM, private network, reverse proxy, tunnel): default-secure protects you. Nothing additional to do beyond the bootstrap above.
+- **Escape hatch for local dev**: `spl serve --insecure-localhost` forces 127.0.0.1 bind and disables auth. Never use this in production.
+
+## 1. What the authentication layer does
+
+Bearer-token authentication protects every HTTP request. Without it, `spl serve` would be catastrophic the moment the daemon was reachable from any other machine — over LAN, a private network, a tunnel, a reverse proxy, or an accidentally-bound `0.0.0.0` interface. The authentication layer closes that hole:
+
+- **Service accounts** are first-class records with stable identifiers, DID-claim allowlists, and closed scope lists.
+- **Bearer tokens** authenticate HTTP callers. Format: `spl_<env>_<sa_id>_<secret>`. Hashed on the server; plaintext shown once on mint.
+- **A three-layer middleware pipeline** validates bearer tokens, verifies DID claims, and enforces CEL permission policies — in that order.
+- **Federation sync + discovery endpoints** require the `federation:manage` scope.
+- **A privileged bootstrap endpoint** lets operators create the first SA on a fresh install without needing an existing token.
+- **`spl pair` + QR rendering** makes phone pairing a one-command flow.
+- **The CLI auto-injects tokens** — reads from `--token` flag, `SPL_TOKEN` env, or `~/.syncro/token` file, so `spl task list` / `spl intend` / everything else Just Works once you've saved a token.
+
+## 2. The scope model
+
+Capabilities are a closed enum (seven scopes). Tokens carry a snapshot of the SA's scopes at issuance time; live SA scope updates take effect on the next token mint, not on existing tokens.
+
+| Scope | What it allows |
+|---|---|
+| `records:read` | `GET /v1/records`, `GET /v1/threads/*` |
+| `records:write` | `POST /v1/records` |
+| `threads:write` | `POST /v1/threads`, `DELETE /v1/threads/{id}` |
+| `federation:manage` | All `/v1/sync/*`, `/v1/federation/*`, `/v1/discovery/*` |
+| `config:read` | `GET /v1/config/*` |
+| `config:write` | `POST /v1/config/*` |
+| `admin` | Everything incl. service-account + token mutations |
+
+Use the narrowest scope that covers the use case. A phone client emitting records needs `records:write`. A Grafana dashboard that only reads metrics needs `records:read`. A federation peer needs `federation:manage`.
+
+## 3. Quick-start: enabling auth on a remote host
+
+Assume you have `spl serve --daemon` running on `localhost:9100`, and you've exposed it to another device at `https://your-host.example.com:9100` (via reverse proxy, private network, or tunnel of your choice).
+
+### 3.1 Bootstrap the first service account
+
+```bash
+spl service-account create --bootstrap \
+  --name "local" \
+  --scopes admin \
+  --actors did:sync:user:$(spl config show | grep default_user_actor | awk '{print $2}')
+```
+
+The `--bootstrap` flag routes to the privileged endpoint that works without existing auth, but only when the namespace has zero SAs. The response includes a plaintext `api_key` — copy it now, it will not be displayed again.
+
+Save the token to a location your shell will source:
+
+```bash
+echo 'export SPL_TOKEN="spl_prod_sa_XXXXXXXXXXXXXXXX_YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"' >> ~/.config/fish/config.fish
+# or ~/.bashrc / ~/.zshrc depending on your shell
+```
+
+### 3.2 Enable enforcement
+
+Emit a `core.engine_config` LEARN record that flips `auth.required` to true:
+
+```bash
+spl learn \
+  --thread th_engine_config \
+  --body '{"topic":"auth_required","enabled":true}' \
+  --actor did:sync:system:engine
+```
+
+### 3.3 Restart the daemon
+
+```bash
+spl serve --stop
+spl serve --daemon
+```
+
+The daemon reloads `th_engine_config`, picks up the new setting, and starts enforcing.
+
+### 3.4 Verify auth is live
+
+```bash
+curl -v http://localhost:9100/v1/records -XPOST -d '{}'
+# → 401 AUTH_REQUIRED
+
+curl -v http://localhost:9100/v1/records \
+  -XPOST \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -d '{"thread":"th_test","actor":"did:sync:user:...","act":"INTEND","body":{},"clock":0,"data_type":"SCALAR"}'
+# → 201 Created (or validation error on the body, but auth passed)
+```
+
+### 3.5 Save the token for the CLI
+
+Save the token so `spl` injects it on every outbound request automatically:
+
+```bash
+spl token save spl_prod_sa_<id>_<secret>
+```
+
+This writes `~/.syncro/token` with 0600 permissions. From here on, every `spl task list`, `spl intend`, `spl thread records`, etc. sends the correct `Authorization: Bearer` header.
+
+Token discovery precedence (first non-empty wins):
+
+1. `--token <value>` — global CLI flag for single-invocation override
+2. `SPL_TOKEN` env — useful in CI and one-off shells
+3. `~/.syncro/token` — the persistent default after `spl token save`
+
+`spl token show-source` reports which source is currently in use (masked; never prints the full secret).
+
+## 4. Pairing a phone (or any device) to the daemon
+
+Once auth is on, you want a simpler flow than dictating a 50-char token over the phone. Use `spl pair`:
+
+```bash
+spl pair \
+  --device "iPhone 17" \
+  --url "https://your-host.example.com:9100" \
+  --scopes records:write,records:read
+```
+
+The command creates a dedicated service account, mints a token, and renders both as a QR code in the terminal plus a text fallback. The phone's Syncropel PWA scans the QR, stores the URL + token, and starts using them for API calls.
+
+**Choose `--url` carefully.** It's the URL the phone will call — not your daemon's `localhost:9100`. In order of typical preference:
+
+- Private network / VPN: `https://your-host.example.com:9100` (works from anywhere the phone is on that network)
+- LAN: `http://192.168.1.50:9100` (works on home Wi-Fi; breaks when away)
+- Hosted: `https://syncropel.com/api/<your-did>` (future)
+
+One pairing per device. Revoke via `spl service-account revoke <sa_id>` if the phone is lost.
+
+## 5. Token lifecycle
+
+### Rotation (device still trusted, key is stale)
+
+```bash
+spl token rotate <sa_id>
+```
+
+Mints a new token first (device continues to work), then revokes the old one. Partial-failure-safe: if the new mint succeeds but a revocation fails, you have both old + new tokens live — manually mop up with `spl token revoke`.
+
+### Per-token revocation (one device compromised; others still trusted)
+
+```bash
+spl token revoke --sa <sa_id> --token-id <token_id>
+```
+
+Kills a single token. The SA and its other tokens keep working. Use when a single phone is lost but the operator's other devices should still work.
+
+### Per-SA revocation (whole identity compromised)
+
+```bash
+spl service-account revoke <sa_id>
+```
+
+Kills every token ever issued under the SA plus blocks any future tokens minted for that SA. **This is irreversible** — the SA stays closed forever. If you genuinely want to start over with the same display name, create a new SA with a new ID.
+
+### Which revocation to use
+
+| Scenario | Command |
+|---|---|
+| Rotating a token because of time-based policy | `spl token rotate <sa_id>` |
+| Phone lost, other devices trusted | `spl token revoke --sa <sa_id> --token-id <token_id>` |
+| Laptop stolen, SA keys potentially leaked | `spl service-account revoke <sa_id>` |
+| Personnel change, retire the identity entirely | `spl service-account revoke <sa_id>` |
+
+## 6. Emergency escape hatch
+
+If your token is lost, your laptop is offline from the server, or you locked yourself out of your own daemon:
+
+```bash
+spl serve --stop
+spl serve --daemon --insecure-localhost
+```
+
+This starts the daemon force-bound to `127.0.0.1` only (no external reachability regardless of `--host`) with auth enforcement disabled. You regain `spl` CLI access for cleanup:
+
+```bash
+spl service-account list
+spl token rotate <sa_id>
+spl serve --stop && spl serve --daemon
+```
+
+The daemon logs a WARN on every startup when `--insecure-localhost` is active. This is intentional — it should never be the default state.
+
+## 7. Troubleshooting
+
+### `401 AUTH_REQUIRED` on every request
+
+Token is missing or invalid. Verify:
+
+```bash
+echo $SPL_TOKEN | spl token info /dev/stdin
+```
+
+If that says "invalid format," re-export `SPL_TOKEN` from your shell config. If it says "token_id not found," the token has been revoked or the daemon's index hasn't picked it up yet (rare; restart daemon).
+
+### `403 SCOPE_FORBIDDEN`
+
+Your token has the correct format but lacks the scope for the endpoint. Check:
+
+```bash
+spl service-account describe <sa_id>
+```
+
+Look at the `scopes` field. Either mint a new token with broader scopes, or change the SA's scopes and rotate.
+
+### `409 BOOTSTRAP_CLOSED`
+
+Someone (possibly you, possibly a previous admin) already created an SA in this namespace. Bootstrap is permanently closed once any SA exists. Use the escape hatch (`--insecure-localhost`) to authenticate and create more SAs via the regular `spl service-account create` command.
+
+### `spl task list` returns 401
+
+Your CLI doesn't have a saved token yet. Run:
+
+```bash
+spl service-account create --bootstrap --name local --with-token  # if no SA exists
+# or:
+spl token create --sa <sa_id>                                     # if SA already exists
+
+# Then save what the previous command printed:
+spl token save spl_prod_sa_<id>_<secret>
+```
+
+Verify with `spl token show-source` — it should report `~/.syncro/token file` as the active source. If you see `SPL_TOKEN env` instead and that token is bad, `unset SPL_TOKEN` (env beats file).
+
+## 8. Federation + auth
+
+Federation between two `spl serve` instances uses bearer tokens at the HTTP boundary and Ed25519 signatures at the record boundary. Two defense layers compose: even a correctly-authenticated HTTP request is still bound to a cryptographically-verified DID author at the record level.
+
+When establishing a federation pair, create a dedicated SA on each side:
+
+```bash
+# On Instance A (Alice's laptop):
+spl service-account create \
+  --name "Federation — peer did:sync:user:bob" \
+  --scopes federation:manage \
+  --actors did:sync:user:alice
+
+# On Instance B (Bob's laptop):
+spl service-account create \
+  --name "Federation — peer did:sync:user:alice" \
+  --scopes federation:manage \
+  --actors did:sync:user:bob
+```
+
+Exchange the tokens securely — these federate authority. Each side stores the other's token in its local federation pair ledger. When A pulls sync updates from B, it presents B's token; when B pulls from A, it presents A's. Record-level signatures ensure that even a correctly-authenticated HTTP request is still bound to a cryptographically-verified DID author.
+
+## 9. Further reading
+
+- [CLI reference — `spl service-account`, `spl token`, `spl pair`](/docs/reference/cli#authentication-v0150)
+- [HTTP API reference — authentication endpoints](/docs/reference/api#authentication)
+- [Configuration reference — auth settings](/docs/reference/configuration#authentication)
+- [Federation guide](/docs/guides/federation) — how bearer tokens compose with Ed25519 signatures for peer-to-peer sync
+- `spl service-account --help`, `spl token --help`, `spl pair --help` — inline CLI reference

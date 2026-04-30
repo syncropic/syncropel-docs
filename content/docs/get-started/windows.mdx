@@ -1,0 +1,158 @@
+---
+title: Windows Notes
+description: Platform-specific guidance for Windows — WSL gotchas, Windows Defender, Windows Firewall, user-scope PATH, and long path names.
+---
+
+Most of Syncropel works identically on Windows and Linux. A handful of Windows-specific considerations trip up new users; this page collects them.
+
+For boot-time autostart via the Service Control Manager, see [Windows Service](/docs/operate/windows-service).
+
+## Don't run `spl.exe` from a WSL shell
+
+`spl.exe` is a native Windows binary. Launching it from a WSL shell inherits a working directory under `\\wsl$\<distro>\...`, which is served by the 9P filesystem protocol. Windows SQLite does not handle 9P locking correctly, and you will see intermittent `database is locked` errors that clear after a reboot and return the next time.
+
+Always run `spl.exe` from a native Windows terminal:
+
+- **Windows Terminal** (recommended; install from the Microsoft Store).
+- **PowerShell** (PowerShell 7 or the built-in Windows PowerShell).
+- **Command Prompt** (`cmd.exe`).
+
+If you must launch `spl` from a WSL session for some reason, first `cd` into a Windows-native path:
+
+```bash
+# Inside WSL
+cd /mnt/c/Users/$USER
+/mnt/c/Users/$USER/AppData/Local/Programs/spl/spl.exe version
+```
+
+But this is not a supported path — the native shell is always better.
+
+## Windows Defender
+
+Windows Defender can scan `hub.db` on every read or write, which slows down a busy daemon. It also occasionally flags fresh release binaries as "unknown" while reputation data catches up — this triggers an interactive prompt on first run.
+
+### Optional: Defender exclusions
+
+You can mark the Syncropel directories as trusted so Defender skips them:
+
+```powershell
+# Run from elevated PowerShell
+Add-MpPreference -ExclusionPath "$env:USERPROFILE\.syncro"
+Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\Programs\spl"
+```
+
+This is a personal-machine convenience, not a recommendation for shared or corporate devices where your admin policy makes that call.
+
+### "Unknown publisher" prompt
+
+If Defender prompts with an "unknown publisher" warning the first time you run `spl.exe`, click **Run anyway**. The `spl-windows-x86_64.exe` build is signed and the warning clears as reputation builds. Alternatively, verify the checksum against `releases.syncropic.com/spl-rust/<version>/SHA256SUMS.txt` before running.
+
+## Windows Firewall
+
+The first time `spl serve` binds a TCP port, Windows Firewall prompts for inbound network permission. The prompt can land behind other windows — if your install appears to hang during the post-install verify step, that's almost certainly the culprit.
+
+### Find a hidden prompt
+
+```powershell
+wf.msc
+```
+
+The Windows Defender Firewall with Advanced Security console opens. If there's a pending rule request, it's listed under **Inbound Rules**.
+
+### Pre-authorize the binary
+
+You can add the firewall rule ahead of time from elevated PowerShell:
+
+```powershell
+New-NetFirewallRule `
+  -DisplayName "spl serve" `
+  -Direction Inbound `
+  -Program "$env:LOCALAPPDATA\Programs\spl\spl.exe" `
+  -Action Allow `
+  -Profile Private,Domain
+```
+
+This allows inbound connections on Private and Domain networks (which includes most LAN and private VPN scenarios) but not Public. If you need Public network access, replace `-Profile Private,Domain` with `-Profile Any` — though think hard about whether that's actually what you want.
+
+### Removing the rule
+
+```powershell
+Remove-NetFirewallRule -DisplayName "spl serve"
+```
+
+## PATH — user scope, no admin
+
+The Windows install script writes to the **user** `PATH`, not the machine `PATH`:
+
+```
+%LOCALAPPDATA%\Programs\spl\spl.exe
+```
+
+No administrator privileges are needed for install. You can verify the registry entry:
+
+```powershell
+[Environment]::GetEnvironmentVariable('Path','User')
+```
+
+The output should contain `%LOCALAPPDATA%\Programs\spl` (or the expanded form).
+
+Changes to the user `PATH` only take effect in **new** terminal sessions. If `where.exe spl` is empty immediately after install, close and reopen PowerShell.
+
+## Long path names
+
+Windows truncates many paths at 260 characters by default. If `%USERPROFILE%` is unusually long (common on Azure AD joined machines, for example `C:\Users\long.user.name@directory.tenantname.onmicrosoft.com\`), `hub.db` path resolution or log rotation can fail silently.
+
+Enable long path support:
+
+```powershell
+# From elevated PowerShell. Requires a reboot to take effect.
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+  -Name LongPathsEnabled -Value 1 -Type DWord
+```
+
+After reboot, long paths in `%USERPROFILE%` are handled correctly by both the `spl` binary and the SQLite store.
+
+If you can't enable long paths (for example, on a managed device you don't control), install `spl` and its data to a shorter path instead:
+
+```powershell
+$env:INSTALL_DIR = "C:\spl"
+$env:SYNCROPEL_HOME = "C:\spl\home"
+irm https://get.syncropic.com/spl.ps1 | iex
+```
+
+`SYNCROPEL_HOME` overrides the default `~/.syncro/` location on every subsequent `spl` invocation.
+
+## PowerShell quoting quirks
+
+A few CLI flags take comma-separated values. PowerShell parses commas eagerly; quote the whole argument to keep it as one token:
+
+```powershell
+# Wrong — PowerShell splits on the comma
+spl pair --scopes records:read,records:write
+
+# Right
+spl pair --scopes "records:read,records:write"
+```
+
+The same applies to `--actors` in `spl service-account create`.
+
+## Where the logs live
+
+```
+%USERPROFILE%\.syncro\logs\spl.log
+```
+
+Open in Notepad, Windows Terminal with `Get-Content`, or any editor:
+
+```powershell
+Get-Content -Path $env:USERPROFILE\.syncro\logs\spl.log -Tail 200 -Wait
+```
+
+`-Wait` follows the file like `tail -f` on Linux.
+
+## See also
+
+- [Install](/docs/get-started/install) — Windows install flow
+- [Windows Service](/docs/operate/windows-service) — run `spl serve` as a boot-time service
+- [Troubleshooting](/docs/get-started/troubleshooting) — Windows-specific symptoms covered alongside Linux cases
+- [Linux and macOS notes](/docs/get-started/linux-macos) — parallel page for non-Windows hosts

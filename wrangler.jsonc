@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "syncropel-docs",
+  "compatibility_date": "2025-01-01",
+
+  // Static-only deployment: Cloudflare Workers Static Assets.
+  // No main worker script — pure static HTML/CSS/JS served from CDN edge.
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page"
+  }
+}

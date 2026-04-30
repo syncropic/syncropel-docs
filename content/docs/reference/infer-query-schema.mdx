@@ -1,0 +1,286 @@
+---
+title: infer.query.v1 Schema
+description: Canonical field reference for the infer.query.v1 body shape — mirrors the JSON Schema shipped in @syncropel/config@0.3.x.
+---
+
+## Overview
+
+This page is the canonical field-level reference for the `infer.query.v1` body shape. It mirrors the JSON Schema published in `@syncropel/config@0.3.0` at `src/schemas/infer-query.schema.json`.
+
+- **Schema id:** `https://syncropel.com/schemas/config/infer-query.v1.schema.json`
+- **JSON Schema draft:** 2020-12
+- **TypeScript types:** `import { InferQueryV1 } from "@syncropel/config"`
+- **Validator:** `import { validateInferQuery } from "@syncropel/config"`
+
+For the conceptual walkthrough with worked examples, see the [Query Anatomy](/docs/guides/inference/query-anatomy) guide.
+
+## Top level
+
+```json
+{
+  "kind": "infer.query.v1",
+  "input": { "inline": "..." },
+  "answer_shape": { "kind": "core.text.v1" },
+  "responders": [{ "kind": "llm", "model": "~sonnet" }],
+  "fold": { "function": "consensus" },
+  "dial": 0.5,
+  "orchestration": { "pattern": "single_shot" },
+  "side_effects": { "reversible": true, "max_cost_usd": 0.40 },
+  "relevance": { "model": "current", "threshold": 0.5, "top_k": 3 },
+  "metadata": { "trace_id": "trace_abc123" }
+}
+```
+
+| Field | Type | Required | Default |
+|---|---|---|---|
+| `kind` | const `"infer.query.v1"` | yes | — |
+| `input` | Input — oneOf three shapes | yes | — |
+| `answer_shape` | AnswerShape | yes | — |
+| `responders` | ResponderPredicate[] (minItems 1) | yes | — |
+| `fold` | Fold | yes | — |
+| `dial` | number OR AdaptiveDial | no | `0.5` |
+| `orchestration` | Orchestration | no | `{ pattern: "single_shot" }` |
+| `side_effects` | SideEffects | no | namespace defaults |
+| `relevance` | Relevance | no | `{ model: "current", threshold: 0.5, top_k: 3 }` |
+| `metadata` | map of string to string | no | `{}` |
+
+## Input
+
+Exactly one of:
+
+```json
+{ "inline": <any JSON>, "inline_kind": "core.text.v1" }
+```
+
+```json
+{ "record_id": "3fa8...e2c1" }
+```
+
+```json
+{ "ref": { "kind": "@music.track", "id": "spotify:track:4iV5W9uYEdYUVa79Axb7Rh" } }
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `inline` | any | Payload hashed into the query record id |
+| `inline_kind` | string | Optional body.kind |
+| `record_id` | string | 64-char hex SHA-256 record id |
+| `ref` | object | Canonical ref per the 11 Ref.* constructors |
+
+## AnswerShape
+
+Validates the folded output (not per-response bodies).
+
+```json
+{
+  "kind": "core.translation.v1",
+  "required_fields": ["body.text", "body.target_language"],
+  "schema_ref": "https://example.com/translation.schema.json"
+}
+```
+
+| Field | Type | Required |
+|---|---|---|
+| `kind` | string (body.kind) | yes |
+| `required_fields` | string[] (dot-paths) | no |
+| `schema_ref` | string (URI) | no |
+
+## ResponderPredicate
+
+An OR-of-classes predicate. Each entry adds AND constraints within its class.
+
+```json
+{
+  "kind": "llm",
+  "model": "~sonnet",
+  "did": "did:sync:agent:translate-bot",
+  "domain": "translation",
+  "capability": "en-es",
+  "trust_gte": 0.6,
+  "trust_lt": 0.99,
+  "budget_usd": 0.05,
+  "latency_secs": 30,
+  "match_level_gte": "L2",
+  "age_days_lt": 7,
+  "available": true,
+  "expression": "candidate.last_seen_at > now() - 86400"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `kind` | enum | `actor` \| `llm` \| `pattern` \| `system` \| `any` |
+| `model` | string | LLM model selector (e.g., `~sonnet`, `sonnet-4-6`) |
+| `did` | string (DID) | Specific responder DID |
+| `domain` | string | Capability domain |
+| `capability` | string | Capability tag |
+| `trust_gte` | number | Minimum trust score |
+| `trust_lt` | number | Maximum trust score |
+| `budget_usd` | number | Per-call cost ceiling |
+| `latency_secs` | integer | Per-call latency ceiling |
+| `match_level_gte` | enum | `L0` \| `L1` \| `L2` \| `L3` |
+| `age_days_lt` | integer | Record age bound |
+| `available` | boolean | Availability requirement |
+| `expression` | string (CEL) | Arbitrary predicate over candidate metadata |
+
+## Fold
+
+```json
+{
+  "function": "consensus",
+  "weight_expression": "response.trust * response.recency",
+  "tie_break": "highest_trust",
+  "min_quorum": 2,
+  "expression": "..."
+}
+```
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `function` | enum | — (required) | `consensus` \| `best_of` \| `waterfall_first` \| `ensemble_weighted` \| `expression` |
+| `weight_expression` | CEL string | `"trust * recency * pattern_confidence"` | Applies to `consensus` and `ensemble_weighted` |
+| `tie_break` | enum | `"highest_trust"` | `highest_trust` \| `highest_confidence` \| `most_recent` \| `lexicographic` |
+| `min_quorum` | integer ≥ 1 | `1` | Minimum non-error responses before fold runs |
+| `expression` | CEL string | — | Required when `function == "expression"` |
+
+## Orchestration
+
+```json
+{
+  "pattern": "verify",
+  "primary": [{ "kind": "llm", "model": "~sonnet" }],
+  "verifier": { "kind": "llm", "model": "~gpt-4" },
+  "tiebreaker": { "kind": "actor", "did": "did:example:alice" },
+  "agreement_threshold": 0.85
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `pattern` | enum | `single_shot` \| `verify` \| `waterfall` \| `retry_on_low_confidence` \| `escalate` \| `ensemble_with_audit` |
+
+Per-pattern fields:
+
+**`verify`**
+
+| Field | Type |
+|---|---|
+| `primary` | ResponderPredicate[] |
+| `verifier` | ResponderPredicate |
+| `tiebreaker` | ResponderPredicate |
+| `agreement_threshold` | number or CEL |
+
+**`waterfall`**
+
+| Field | Type |
+|---|---|
+| `stages[]` | `{ responders: ResponderPredicate[] }` |
+| `accept_expression` | CEL string |
+
+**`retry_on_low_confidence`**
+
+| Field | Type |
+|---|---|
+| `threshold_expression` | CEL string |
+| `max_attempts` | integer |
+| `retry_dial` | number 0..1 |
+
+**`escalate`**
+
+| Field | Type |
+|---|---|
+| `tiers[]` | `{ responders: ResponderPredicate[] }` |
+| `escalation_expression` | CEL string |
+
+**`ensemble_with_audit`**
+
+| Field | Type |
+|---|---|
+| `primary_responders` | ResponderPredicate[] |
+| `auditor` | ResponderPredicate |
+| `audit_expression` | CEL string |
+
+## SideEffects
+
+```json
+{
+  "reversible": true,
+  "idempotent": true,
+  "max_cost_usd": 0.40,
+  "max_latency_secs": 1800,
+  "obligation_resolution": "last_writer_wins"
+}
+```
+
+| Field | Type | Default |
+|---|---|---|
+| `reversible` | boolean | `true` |
+| `idempotent` | boolean | `true` |
+| `max_cost_usd` | number | namespace cap |
+| `max_latency_secs` | integer | `300` |
+| `obligation_resolution` | enum | `last_writer_wins` — also `fulfills_wins`, `validation_error` |
+
+## Relevance
+
+```json
+{
+  "model": "current",
+  "threshold": 0.5,
+  "top_k": 3
+}
+```
+
+| Field | Type | Default |
+|---|---|---|
+| `model` | string | `"current"` — also `"heuristic"` to force the additive-with-floor scorer |
+| `threshold` | number 0..1 | `0.5` |
+| `top_k` | integer | `3` |
+
+## Dial
+
+Scalar form:
+
+```json
+{ "dial": 0.3 }
+```
+
+AdaptiveDial form:
+
+```json
+{
+  "dial": {
+    "replay_if": "pattern_match >= 'L1' && trust >= 0.92",
+    "create_if": "pattern_match == null",
+    "else": 0.4
+  }
+}
+```
+
+| Field | Type |
+|---|---|
+| `replay_if` | CEL string — if matches, dial = 0.1 |
+| `create_if` | CEL string — if matches, dial = 0.9 |
+| `else` | number 0..1 |
+
+## Metadata
+
+```json
+{ "metadata": { "trace_id": "trace_abc123", "customer_id": "cust_42" } }
+```
+
+Opaque string-to-string map. Carried through into the KNOW record unchanged.
+
+## Related body kinds
+
+Shipped in `@syncropel/config@0.3.0` alongside `infer-query.schema.json`:
+
+- `infer.call.v1` — CALL record emitted per dispatched responder (executor step 4).
+- `infer.error.v1` — KNOW with an error code instead of an answer. 10 canonical codes: `invalid_query`, `no_candidates`, `no_relevant_candidates`, `cost_budget_exceeded`, `latency_timeout`, `responder_unavailable`, `quorum_not_met`, `fold_failed`, `answer_shape_mismatch`, `obligation_conflict`.
+
+## See also
+
+- **[Query Anatomy guide](/docs/guides/inference/query-anatomy)** — conceptual walkthrough.
+- **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 aggregators in detail.
+- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step flows.
+- **[body.kind manifest](/docs/guides/body-kind-manifest)** — grammar and reserved scopes.
+- **[`spl infer` CLI](/docs/reference/cli#infer)** — shell invocation reference.

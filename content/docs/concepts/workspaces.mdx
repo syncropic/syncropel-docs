@@ -1,0 +1,158 @@
+---
+title: Workspaces
+description: A workspace is a content-addressed bundle of fold, projection, and policy components — the unit you author, test, publish, and share.
+---
+
+A **workspace** is a description of a programmable surface — what records to
+gather, how to project them into something a person can read or interact with,
+and who is allowed to do what. You author it as a single JSON file, test it
+against fixture records, and publish it. Anyone you share it with can fold
+the same description over their own records and get a working surface.
+
+Workspaces are the unit Syncropel uses to package application-shaped things
+without becoming an application platform in the gatekept-app-store sense.
+A workspace is data — a record like any other.
+
+## The shape
+
+A workspace lives in `workspace.json`. The body of that file is a record of
+kind `core.workspace.v1` with the following shape:
+
+```json
+{
+  "kind": "core.workspace.v1",
+  "name": "Compare Job Offers",
+  "summary": "Score and rank job offers across compensation, growth, and culture.",
+  "display_kind": "tracker",
+  "publisher_did": "did:sync:user:alice",
+
+  "components": [
+    {
+      "id": "offers",
+      "kind": "view",
+      "fold_spec": { "thread_filter": { "body.kind": "compare.offer.v1" } },
+      "projection_options": {
+        "default": "table",
+        "options": {
+          "table": { "ref": "<sha>" },
+          "radar": { "ref": "<sha>" }
+        }
+      },
+      "policy_ref": "<sha>"
+    }
+  ],
+
+  "permissions_required": [
+    "records.emit:compare.offer.v1",
+    "records.query:compare.offer.v1"
+  ]
+}
+```
+
+A workspace declares **components** — each one a small fold + projection +
+policy triple — and the renderer composes them into a single surface. The
+five component kinds are:
+
+| Kind | Use it for |
+|---|---|
+| `page` | A self-contained authored document with embedded blocks. Good for prose, mixed text/data, free-form notes |
+| `view` | A saved (query, projection, layout) tuple. Good for tables, charts, boards over a record set |
+| `thread_view` | A live thread of records with per-record projection. Good for chat-shaped, comment-shaped, log-shaped surfaces |
+| `workspace` | Another workspace. Lets you compose: a "course" workspace can include a "past semesters" sub-workspace |
+| `external` | A pointer to an iframe extension. Lets you embed custom code that speaks the standard extension protocol |
+
+## How workspaces relate to records
+
+Records are the substrate. Threads are coordination contexts. **Workspaces
+sit on top** — they say "give me records of these kinds, fold them this way,
+render them with this projection."
+
+A workspace doesn't store data. It describes how to view data. The same
+workspace, run by two different people, shows them their own records folded
+identically. When you share a workspace with a friend, you're sharing the
+description; the records still live with whoever produced them.
+
+This is why a workspace is content-addressed: its identity is the SHA-256 of
+the canonical JSON. Two people running the "same" workspace are running
+literally the same description, byte-for-byte verified.
+
+## The lifecycle
+
+A workspace moves through three lifecycle states:
+
+| State | Visible to | Federates? | Catalog? |
+|---|---|---|---|
+| `draft` | Just you (the publisher) | No | No |
+| `published` | Per workspace policy | Yes | Yes (if listed) |
+| `archived` | Per workspace policy | Yes | No (de-listed) |
+
+Lifecycle transitions are emits — each one is a new record with a new content
+hash. Records are immutable, so the historical state is always recoverable.
+[Workspace lifecycle](/docs/operate/workspace/lifecycle) walks the full
+state machine.
+
+## What you don't see in a workspace
+
+Things that are deliberately **not** in the workspace body:
+
+- **Process model** — there is none. A workspace doesn't run; the substrate
+  folds it.
+- **Storage configuration** — your records are wherever you store them. A
+  workspace just says which kinds to fold.
+- **Authentication wiring** — handled by the substrate's identity layer.
+- **Network configuration** — federation is the substrate's job.
+- **Encryption keys** — separate primitive. A workspace doesn't carry
+  secrets.
+
+This narrowness is the point. Everything a workspace does is "compose
+substrate primitives." Adding a new feature to a workspace doesn't require
+changing the runtime — it requires composing different existing primitives.
+
+## Display kinds
+
+The technical kind name is always `core.workspace.v1` — that's how the
+schema validators and tooling find your manifest. But the **user-facing
+label** is data-driven. Set `display_kind` to one of the registered values
+and the UI renders accordingly:
+
+| `display_kind` | UI calls it | Typical shape |
+|---|---|---|
+| `workspace` (default) | "Workspace" | Generic |
+| `newsletter` | "Newsletter" | One-author broadcast; mostly Page components |
+| `course` | "Course" | Syllabus + assignments + discussion + gradebook |
+| `library` | "Library" | Mostly catalog views, read-only |
+| `department` | "Department" | Org-scoped, role-gated |
+| `playbook` | "Playbook" | Pattern + view + extensions for a recurring workflow |
+| `recipe-collection` | "Recipes" | Many small Page components, casual sharing |
+| `tracker` | "Tracker" | Single-fold, recurring use |
+
+You can also set a custom value (e.g., `"podcast"`, `"protocol"`); the
+renderer falls back to default treatment but the value is preserved for
+consumers who want to filter or group.
+
+## Slug namespacing under your DID
+
+Workspace names are scoped under your `publisher_did`. If two people both
+publish a workspace named `timetracker-pro`, they coexist:
+
+```
+did:sync:user:alice/timetracker-pro
+did:sync:user:bob/timetracker-pro
+```
+
+No squatting, forking is first-class. When you share a workspace, the
+canonical reference is the full `did:user/slug` form; the catalog UI may
+collapse to just the slug when context disambiguates.
+
+## What's next
+
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) —
+  scaffold, edit, test, publish, share in 10 minutes.
+- [Templates gallery](/docs/templates) — seven starter templates, each a
+  worked example.
+- [Workspace lifecycle](/docs/operate/workspace/lifecycle) — draft,
+  published, archived, and the transitions between them.
+- [Testing workspaces](/docs/operate/workspace/testing) — `spl workspace
+  test`, fixtures, expected outputs, deterministic folds.
+- [Sharing for bug repro](/docs/operate/workspace/sharing) — `spl share`,
+  consent records, replay.

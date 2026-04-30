@@ -1,0 +1,167 @@
+---
+title: Sharing a thread for bug repro
+description: spl share bundles a thread (with consent) into a single command a recipient can replay against their own kernel. Substrate-native, signature-verified, time-bounded.
+---
+
+`spl share <thread>` is the canonical "send me your repro" workflow.
+It bundles every record in a thread (and optionally its causal
+ancestors) into a portable file, emits a `core.consent.v1` record
+authorizing a specific recipient to read those records, and prints a
+single command the recipient runs to replay everything against their
+own kernel.
+
+It's the right tool for:
+
+- A user reports a workspace bug; you want the exact records that
+  reproduced it.
+- A developer asks a teammate to look at a thread they can't easily
+  reach (different namespace, different instance, federated peer).
+- An auditor needs a snapshot of a thread for offline review.
+
+It's **not** the right tool for catalog publishing — that's
+[`spl workspace publish --release`](/docs/operate/workspace/lifecycle#published).
+`spl share` is one-shot, recipient-scoped, signature-verified, and
+optionally time-bounded.
+
+## Bundle a thread
+
+```bash
+spl share th_a48c... --to did:sync:dev:alice
+```
+
+What happens:
+
+1. The CLI fetches every record in `th_a48c...` from your local
+   kernel.
+2. It emits a `core.consent.v1` record signed by your DID, granting
+   `did:sync:dev:alice` `records.read` on the bundle.
+3. It writes the records as a portable archive (one canonical-JSON
+   record per line, JSONL format):
+
+   ```
+   th_a48c....2026-04-27T143022Z.bundle.jsonl
+   ```
+
+4. It prints a single command for Alice:
+
+   ```
+   ✓ Bundle ready
+
+     Send Alice:
+
+       spl share receive ./th_a48c....2026-04-27T143022Z.bundle.jsonl \
+         --from did:sync:user:you
+
+     Or upload the bundle and send the URL.
+   ```
+
+The bundle is a flat file. Mail it, drop it in S3, attach it to a
+GitHub issue — whatever channel works. The consent record proves the
+recipient is authorized to replay it.
+
+### Include causal dependencies
+
+Records often reference parents and refs in other threads. Bundle them
+all:
+
+```bash
+spl share th_a48c... --to did:sync:dev:alice --include-deps
+```
+
+`--include-deps` walks the parent and ref graph recursively and
+includes every reachable record. Use this when the bug repro spans
+multiple threads (e.g. a workspace's manifest in one thread, the
+records that exposed the fold bug in another).
+
+There's a configurable depth limit; reach for `--max-deps-depth N` if
+you have unusually deep chains.
+
+### Time-bound the consent
+
+```bash
+spl share th_a48c... --to did:sync:dev:alice --expires 7d
+```
+
+The consent record carries an expiry clock. After 7 days, Alice's
+attempt to replay the bundle will be rejected by signature verification
+(the consent has aged out). Use this for sensitive bundles where
+"forever access" is the wrong default.
+
+You can also revoke a share early by emitting a
+`core.consent_revoked.v1` record naming the original consent's
+content hash. Already-replayed bundles cannot be un-replayed (records
+are immutable), but new attempts to import the bundle will fail.
+
+## Receive a bundle
+
+Alice runs:
+
+```bash
+spl share receive ./th_a48c....2026-04-27T143022Z.bundle.jsonl \
+  --from did:sync:user:you
+```
+
+What happens:
+
+1. The CLI verifies the consent record is signed by `--from`'s DID.
+2. It checks Alice's DID matches the consent's `recipient_did`.
+3. It checks the consent hasn't expired.
+4. It validates each record's signature against the actor DIDs in the
+   bundle.
+5. It replays the records into Alice's kernel — by default into an
+   ephemeral in-memory store so prod data isn't touched.
+6. It prints a summary:
+
+   ```
+   ✓ Replayed 47 records across 3 threads, 2 actors
+     ephemeral kernel @ http://127.0.0.1:9201
+   ```
+
+Alice can now poke at the thread with the same Studio + CLI tooling
+she'd use for her own data. When she's done, she stops the ephemeral
+kernel and the bundle is gone.
+
+For long-lived investigations, use `--persist` to import into Alice's
+default store instead of an ephemeral one. The records carry their
+original actor DIDs, so they don't pollute Alice's audit trail with
+phantom authorship — they're clearly marked as replayed.
+
+## Why a substrate-native flow
+
+`spl share` doesn't introduce any new wire format. It's built from
+existing record kinds:
+
+- `core.consent.v1` 
+  authorizes specific access from a specific sender to a specific
+  recipient with optional expiry.
+- The bundle file is just JSONL canonical records — the same shape
+  `spl thread snapshot` produces.
+- Replay goes through the normal ingest path, including signature
+  verification.
+
+If you can `spl thread snapshot` a thread and `spl thread restore` it
+on another instance, you can `spl share` it. The consent record is
+the only thing `spl share` adds, and it's expressible directly via
+`spl emit core.consent.v1` if you want to assemble the bundle by
+hand.
+
+## What stays out of the bundle
+
+- Your private keys. The bundle contains records (which include their
+  actor DIDs and signatures) but not the secrets that produced those
+  signatures.
+- Records from threads that were not requested and aren't reachable
+  through `--include-deps`.
+- Records from before a `core.erasure.v1` event applied to the
+  thread, if the erasure record is in the bundle.
+
+If you need to redact specific records before sharing, do that on a
+forked thread first (emit corrections, archive the originals), then
+`spl share` the forked thread.
+
+## See also
+
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) — the happy path that uses `--draft` and `--release`, not `spl share`
+- [Workspace lifecycle](/docs/operate/workspace/lifecycle) — when to publish vs. when to share
+- [Testing workspaces](/docs/operate/workspace/testing) — exercising your workspace with fixtures
+- [Backup & recovery](/docs/guides/backup-restore) — the durable-snapshot primitive

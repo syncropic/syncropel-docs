@@ -1,0 +1,108 @@
+---
+title: Actors and Adapters
+description: Register actors and connect them to the system through adapters.
+---
+
+## Overview
+
+An actor is anyone who participates — a person, an AI agent, or an automated service. An adapter is how the system reaches the actor — a CLI process, an API endpoint, or a webhook.
+
+## Register an Actor
+
+```bash
+spl actor register did:sync:agent:reviewer --display-name Reviewer
+```
+
+View all registered actors:
+
+```bash
+spl actor list
+```
+
+```
+DID                          DISPLAY    CATEGORY   STATUS   TRUST
+did:sync:user:alice          alice      user       active   code: 0.47
+did:sync:agent:dev           Dev        agent      active   code: 0.30
+did:sync:agent:reviewer      Reviewer   agent      active   —
+```
+
+## Actor Categories
+
+| Category | Purpose | Examples |
+|---|---|---|
+| `user` | Human participant | Team members |
+| `agent` | AI-powered actor | Development agents, review bots |
+| `sa` | Service account | CI pipelines, monitoring |
+| `system` | Engine component | Internal system actors |
+
+## Bind an Adapter
+
+Adapters connect actors to the system. Register one:
+
+```bash
+spl adapter add did:sync:agent:dev \
+  --family cli \
+  --binary claude \
+  --timeout 600
+```
+
+Adapter families:
+
+| Family | How It Works | Use Case |
+|---|---|---|
+| `cli` | Spawns a CLI process | AI agents (Claude Code, Codex CLI, OpenCode, Pi, etc.) |
+| `proxy` | HTTP API call | Remote services, webhooks |
+
+## View Adapters
+
+```bash
+spl adapter list
+```
+
+## Set Your Identity
+
+Switch the active actor for your session:
+
+```bash
+spl actor use alice
+```
+
+This updates your local configuration. All subsequent commands are attributed to the selected actor.
+
+## Trust Profiles
+
+Each actor accumulates trust per domain:
+
+```bash
+spl actor show dev
+```
+
+```
+Actor: Dev
+DID: did:sync:agent:dev
+Category: agent
+Status: active
+
+Trust Profile:
+  code     0.299 (5/5)  ADAPT
+```
+
+Trust grows from approved work. The domain, success count, total observations, and current zone are visible.
+
+## Export and Import
+
+Move an actor's profile between instances:
+
+```bash
+# Export (includes identity, trust, memories)
+spl actor export dev > dev-bundle.json
+
+# Import on another instance (trust is discounted for safety)
+spl actor import dev-bundle.json --trust-discount 0.5
+```
+
+## What's Next
+
+- [Routing rules](/docs/guides/routing-rules) — control how work flows to actors
+- [Task management](/docs/guides/task-management) — assign and track work
+- [Actors concept](/docs/concepts/actors) — identity model in depth

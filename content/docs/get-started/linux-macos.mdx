@@ -1,0 +1,212 @@
+---
+title: Linux and macOS Notes
+description: Platform-specific guidance for Linux and macOS — systemd user units, launchd, PATH setup, and where logs live.
+---
+
+On Linux and macOS, `spl serve --daemon` already forks, detaches from the terminal, writes a PID file, and survives shell close. That's enough for interactive use. For boot-time autostart, install a systemd user unit (Linux) or use launchd (macOS). Both paths are covered here.
+
+## systemd user unit (Linux)
+
+`spl` ships a one-command installer that drops a correctly-configured user unit and enables it:
+
+```bash
+spl setup --systemd-user
+```
+
+This writes `~/.config/systemd/user/spl-serve.service` with contents equivalent to:
+
+```ini
+[Unit]
+Description=Syncropel kernel (user service)
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=%h/.local/bin/spl serve --daemon
+ExecStop=%h/.local/bin/spl serve --stop
+PIDFile=%h/.syncro/run/spl.pid
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
+```
+
+Enable and start:
+
+```bash
+systemctl --user enable spl-serve.service
+systemctl --user start spl-serve.service
+```
+
+Verify:
+
+```bash
+systemctl --user status spl-serve.service
+spl status
+```
+
+### Boot-time start with `loginctl enable-linger`
+
+User services only run when the user is logged in by default. For a daemon that comes up at boot without login, enable lingering:
+
+```bash
+# As root
+loginctl enable-linger $USER
+```
+
+The user service now starts at boot and persists across logout.
+
+### Manual start (non-systemd distros)
+
+On distros without systemd (Alpine, many embedded or minimal images), start the daemon from your shell's rc file or a startup script:
+
+```bash
+# ~/.bashrc, ~/.zshrc, or equivalent
+if ! pgrep -f "spl serve" > /dev/null; then
+  spl serve --daemon
+fi
+```
+
+Or add a cron `@reboot` entry:
+
+```bash
+crontab -e
+# then add:
+@reboot ~/.local/bin/spl serve --daemon
+```
+
+## launchd (macOS)
+
+macOS uses launchd instead of systemd. A user-level LaunchAgent restarts `spl serve` on login and keeps it alive:
+
+```bash
+mkdir -p ~/Library/LaunchAgents
+cat > ~/Library/LaunchAgents/com.syncropel.spl-serve.plist <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.syncropel.spl-serve</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/YOUR_USERNAME/.local/bin/spl</string>
+    <string>serve</string>
+    <string>--daemon</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/YOUR_USERNAME/.syncro/logs/spl.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/YOUR_USERNAME/.syncro/logs/spl.log</string>
+</dict>
+</plist>
+PLIST
+```
+
+Replace `YOUR_USERNAME` with your actual username (launchd doesn't expand `$USER` in plist files).
+
+Load and start:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.syncropel.spl-serve.plist
+launchctl start com.syncropel.spl-serve
+```
+
+Verify:
+
+```bash
+launchctl list | grep spl-serve
+spl status
+```
+
+Unload (stop + disable):
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.syncropel.spl-serve.plist
+```
+
+## PATH setup
+
+The Linux install script adds `~/.local/bin` to your `PATH` by appending a line to the shell rc file it detects:
+
+- **bash** — `~/.bashrc`
+- **zsh** — `~/.zshrc`
+- **fish** — `~/.config/fish/config.fish`
+
+The appended line:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+(Or the fish equivalent `fish_add_path "$HOME/.local/bin"`.)
+
+If `~/.local/bin` was already on `PATH`, the script skips this step. After install, **open a new terminal** or `source` your rc file for the change to take effect.
+
+### macOS
+
+Same mechanism. `/opt/homebrew/bin` often comes first in Homebrew-using shells, but the install script still prepends `~/.local/bin` so the `spl` binary you just placed there wins.
+
+### Custom install location
+
+Override where the binary lands:
+
+```bash
+INSTALL_DIR=/usr/local/bin curl -sSf https://get.syncropic.com/spl | sh
+```
+
+`/usr/local/bin` is commonly already on `PATH` but requires `sudo`. The user-scope default (`~/.local/bin`) does not.
+
+## Where the logs live
+
+```
+~/.syncro/logs/spl.log
+```
+
+Format is JSON-lines — one JSON object per line. Tail:
+
+```bash
+tail -f ~/.syncro/logs/spl.log
+```
+
+Filter for errors:
+
+```bash
+grep '"level":"ERROR"' ~/.syncro/logs/spl.log
+```
+
+Structured filter using `jq`:
+
+```bash
+tail -f ~/.syncro/logs/spl.log | jq 'select(.level=="ERROR" or .level=="WARN")'
+```
+
+Log rotation is automatic at 10 MB per file, keeping the last 7 rotations at `~/.syncro/logs/spl.log.1` through `spl.log.7`. The on-disk total tops out near 80 MB even on a very busy daemon.
+
+## Data directory
+
+```
+~/.syncro/
+├── config.toml
+├── hub.db              SQLite store
+├── keys/               identity keypairs
+├── logs/               daemon logs
+├── run/                PID file + Unix socket
+├── secrets/            API keys for upstream providers
+└── token               bearer token for the CLI
+```
+
+Automatic backups are written outside this directory at `~/.local/share/syncropel/backups/hub.db.bak` — see [Operator runbook](/docs/operate/runbook) for backup discipline.
+
+## See also
+
+- [Install](/docs/get-started/install) — Linux and macOS install flow
+- [Operator runbook](/docs/operate/runbook) — backup discipline, upgrades, recovery
+- [Windows notes](/docs/get-started/windows) — parallel page for Windows hosts
+- [Troubleshooting](/docs/get-started/troubleshooting) — common symptoms and fixes

@@ -1,0 +1,264 @@
+---
+title: Your First SDK Integration
+description: 15-minute walk from npm install to a working Node.js script that emits records, attaches canonical references, and queries them back. Zero magic — just the kernel speaking JSON over HTTP.
+---
+
+<Callout type="info">
+This tutorial assumes you already have **`spl` installed and a daemon running** with a token in `~/.syncro/token`. If you don't, do the [Quickstart](/docs/start) and [Authentication setup](/docs/operate/keyring) first — both take under five minutes.
+</Callout>
+
+## What you'll build
+
+A 30-line Node.js script that:
+
+1. Opens a thread with an `INTEND` record describing a goal
+2. Records two `DO` actions on that thread
+3. Closes the thread with a `KNOW` record that fulfills the original intent
+4. Queries the thread back and prints what the kernel saw
+
+You'll then add canonical references, see how the same `body._refs` correlate across records, and verify everything from the CLI.
+
+Total time: **about 15 minutes**.
+
+## Section A — Hello, Syncropel (5 minutes)
+
+### Scaffold the project
+
+```bash
+mkdir my-syncropel-app && cd my-syncropel-app
+npm init -y
+npm install @syncropel/sdk
+npm install --save-dev typescript tsx @types/node
+npx tsc --init --target ES2022 --module ESNext --moduleResolution bundler
+```
+
+Open `package.json` and add `"type": "module"` so Node treats `.ts` ESM imports correctly:
+
+```json
+{
+  "name": "my-syncropel-app",
+  "version": "1.0.0",
+  "type": "module",
+  ...
+}
+```
+
+### Read your token
+
+The SDK accepts a bearer token directly. Read it from the same file the CLI uses:
+
+```bash
+cat ~/.syncro/token
+```
+
+Copy the value — you'll paste it as `SPL_TOKEN` in the script.
+
+### Write `hello.ts`
+
+```typescript
+import { Client, Identity } from "@syncropel/sdk";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+const token = readFileSync(join(homedir(), ".syncro", "token"), "utf8").trim();
+
+const client = new Client({
+  endpoint: "http://localhost:9100",
+  identity: Identity.static("did:example:my-app"),
+  apiKey: token,
+});
+
+// Open a thread with an INTEND.
+const opened = await client.intend({
+  goal: "Add input validation to the signup form",
+});
+console.log("opened:", opened.success, "thread:", opened.thread, "id:", opened.recordId);
+
+// Record two actions on the same thread.
+await client.emit({
+  act: "DO",
+  kind: "core.action",
+  thread: opened.thread!,
+  body: { description: "Wrote email-format check" },
+});
+
+await client.emit({
+  act: "DO",
+  kind: "core.action",
+  thread: opened.thread!,
+  body: { description: "Wrote password-length check" },
+});
+
+// Close the thread with a KNOW that fulfills the original INTEND.
+const closed = await client.fulfill({
+  thread: opened.thread!,
+  fulfills: opened.recordId!,
+  summary: "Validation logic shipped; covered by 4 unit tests",
+});
+console.log("closed:", closed.success);
+```
+
+### Run it
+
+```bash
+npx tsx hello.ts
+```
+
+Expected output:
+
+```text
+opened: true thread: th_a1b2c3... id: 9f8e7d6c...
+closed: true
+```
+
+If `opened.success` is `false`, check that:
+
+- `spl serve --status` reports the daemon as running
+- `~/.syncro/token` is readable and non-empty
+- The token hasn't been revoked — `spl token list`
+
+### Verify from the CLI
+
+Copy the thread id from the output and inspect it:
+
+```bash
+spl thread records <th> -o json | jq '.data[] | {clock, act, body}'
+```
+
+You'll see four records — `INTEND`, two `DO`s, then a `KNOW` with `fulfills` pointing at the INTEND's record id.
+
+```text
+{ "clock": 1729000000000, "act": "INTEND", "body": { "goal": "Add input validation...", ... } }
+{ "clock": 1729000000001, "act": "DO",     "body": { "description": "Wrote email-format check", ... } }
+{ "clock": 1729000000002, "act": "DO",     "body": { "description": "Wrote password-length check", ... } }
+{ "clock": 1729000000003, "act": "KNOW",   "body": { "summary": "...", "fulfills": "9f8e7d6c...", ... } }
+```
+
+That's the kernel: an immutable, content-addressed log of what your app intended, did, and concluded.
+
+## Section B — Canonical refs (5 minutes)
+
+The records you just emitted are siloed — nothing outside `did:example:my-app` knows what entities they're about. **Canonical references** fix that. They're a tiny, agreed-on vocabulary for naming real-world things (a track, a code file, a calendar event, a person) so records from different publishers correlate without central coordination.
+
+The SDK ships 11 ref constructors. Two common ones:
+
+```typescript
+import { Ref } from "@syncropel/sdk";
+
+Ref.codeFile({ repo: "myorg/my-repo", path: "src/auth/signup.ts" });
+// → { kind: "@code.file", id: "github:myorg/my-repo:src/auth/signup.ts" }
+
+Ref.opsIncident({ pagerduty: "INC-12345" });
+// → { kind: "@ops.incident", id: "pagerduty:INC-12345" }
+```
+
+### Add refs to the script
+
+Replace the two `DO` emits in `hello.ts` with these:
+
+```typescript
+await client.emit({
+  act: "DO",
+  kind: "core.action",
+  thread: opened.thread!,
+  body: { description: "Wrote email-format check" },
+  refs: [Ref.codeFile({ repo: "myorg/my-repo", path: "src/auth/signup.ts" })],
+});
+
+await client.emit({
+  act: "DO",
+  kind: "core.action",
+  thread: opened.thread!,
+  body: { description: "Wrote password-length check" },
+  refs: [
+    Ref.codeFile({ repo: "myorg/my-repo", path: "src/auth/signup.ts" }),
+    Ref.codeFile({ repo: "myorg/my-repo", path: "src/auth/validators.ts" }),
+  ],
+});
+```
+
+The SDK merges the refs into `body._refs` automatically. After re-running, the CLI shows them inline:
+
+```bash
+spl thread records <th> -o json | jq '.data[] | select(.act == "DO") | .body._refs'
+```
+
+```text
+[{"kind":"@code.file","id":"github:myorg/my-repo:src/auth/signup.ts"}]
+[{"kind":"@code.file","id":"github:myorg/my-repo:src/auth/signup.ts"},
+ {"kind":"@code.file","id":"github:myorg/my-repo:src/auth/validators.ts"}]
+```
+
+Now any other publisher — a CI bot, a code-review tool, an incident tracker — can emit records using the same `@code.file` ref, and queries that filter on it will join across all of them. No shared schema, no API integration, no foreign-key gymnastics.
+
+See the [TypeScript SDK guide](/docs/guides/typescript-sdk#canonical-references-ref) for the complete `Ref.*` surface and how merging into `body._refs` works.
+
+## Section C — Query back (5 minutes)
+
+Reading from the kernel uses the same client. Two methods:
+
+| Method | Use when |
+|---|---|
+| `client.queryThread({ thread })` | You know the thread id |
+| `client.query({ thread, actor, kind, where, limit })` | You want a filtered slice |
+
+### Append to `hello.ts`
+
+```typescript
+// Read everything on the thread we just wrote.
+const records = await client.queryThread({ thread: opened.thread! });
+console.log(`thread has ${records.length} records:`);
+for (const r of records) {
+  const refs = (r.body as Record<string, unknown>)._refs ?? [];
+  console.log(`  ${r.clock}  ${r.act.padEnd(7)}  refs:${(refs as unknown[]).length}`);
+}
+
+// Filter to just the DO records via the body kind.
+const actions = await client.query({
+  thread: opened.thread!,
+  kind: "core.action",
+});
+console.log(`${actions.length} actions on this thread`);
+```
+
+Re-run:
+
+```bash
+npx tsx hello.ts
+```
+
+Output:
+
+```text
+opened: true thread: th_... id: ...
+closed: true
+thread has 4 records:
+  1729...000  INTEND   refs:0
+  1729...001  DO       refs:1
+  1729...002  DO       refs:2
+  1729...003  KNOW     refs:0
+2 actions on this thread
+```
+
+The query is **fail-open**: if the daemon is unreachable or returns 5xx, you get an empty array, not a thrown exception. That's deliberate — your app keeps responding even when the kernel is degraded. The same property holds for `emit`: transport errors return `{ success: false, error }` instead of raising. Grammar errors (a malformed `body.kind`) still throw, because they are programmer mistakes the kernel can't fix.
+
+## What you have now
+
+A Node script that:
+
+- ✅ Authenticates against a local Syncropel daemon
+- ✅ Emits records on a thread with grammar-validated `body.kind`
+- ✅ Attaches canonical references for cross-publisher correlation
+- ✅ Closes the thread with a fulfilling `KNOW`
+- ✅ Reads back via two query patterns
+
+You've used the integration surface every Syncropel adapter speaks — same client, same envelope, same grammar.
+
+## What's next
+
+- **Build a UI on top** — [Your First React Component Consumer](/docs/tutorials/first-react-component-consumer) walks the same flow with a Next.js + `@syncropel/react` frontend.
+- **Embed inside a host workspace** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) builds a contained app that runs inside a Syncropel host.
+- **Deeper SDK reference** — [TypeScript SDK guide](/docs/guides/typescript-sdk) has the full API, identity model, retry semantics, and reserved-kind helpers.
+- **Records as a primitive** — [How records work](/docs/concepts/records) explains the 8-field envelope and why every record is content-addressed.
+- **Threads as coordination** — [How threads work](/docs/concepts/threads) covers fork/merge, fulfilment, and the relationship between `INTEND` and `KNOW`.

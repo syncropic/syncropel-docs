@@ -1,0 +1,241 @@
+---
+title: Keeping Your Instance Running
+description: Make `spl serve` start automatically at login, restart after crashes, and survive reboots — systemd user unit on Linux, launchd plist on macOS, Windows Service on Windows.
+---
+
+`spl serve --daemon` detaches from your terminal and runs in the
+background, but it doesn't survive a reboot or laptop sleep on its
+own. To keep your instance running across sessions you need a
+supervisor — the per-OS pattern is below.
+
+The wedge use case (a single user on their own laptop) wants two
+properties:
+
+1. **Auto-start at login** — open laptop, instance is already there.
+2. **Auto-restart on crash** — survive an unexpected exit without
+   you noticing.
+
+Each section below sets up both.
+
+## Linux — systemd user unit
+
+Modern Linux distros (Ubuntu 22+, Fedora 38+, Arch, Debian 12+) ship
+systemd in user mode. A user unit lives in `~/.config/systemd/user/`
+and supervises processes scoped to your user — no root, no `sudo`.
+
+### 1. Write the unit file
+
+```bash
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/spl-serve.service <<'EOF'
+[Unit]
+Description=Syncropel local instance
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/spl serve --foreground
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+```
+
+`%h` expands to your home directory at runtime — works for any user
+without hard-coding `/home/maya`.
+
+`--foreground` (instead of `--daemon`) is intentional: systemd is the
+supervisor now, so the binary should NOT detach. Letting systemd
+manage the lifecycle gives you `journalctl` integration, restart
+policy, and clean shutdown.
+
+### 2. Enable + start
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now spl-serve
+```
+
+`--now` starts it immediately. `enable` sets it to start on every
+login.
+
+### 3. Verify
+
+```bash
+systemctl --user status spl-serve
+spl status
+```
+
+Expected: green active (running), and `spl status` reports the
+instance is up.
+
+### 4. Survive reboots without staying logged in (optional)
+
+By default user units stop when you log out. To keep the instance
+running across reboots even before you log in, enable lingering:
+
+```bash
+loginctl enable-linger $USER
+```
+
+This costs ~10 MB of background RAM for the user manager process. If
+you only ever use the instance while logged in, skip it.
+
+### 5. Logs
+
+```bash
+journalctl --user -u spl-serve -f       # follow live
+journalctl --user -u spl-serve -n 200   # last 200 lines
+```
+
+The instance also writes its own log to `~/.syncro/logs/spl.log` —
+both are kept in sync.
+
+### Stop / uninstall
+
+```bash
+systemctl --user stop spl-serve
+systemctl --user disable spl-serve
+rm ~/.config/systemd/user/spl-serve.service
+```
+
+## macOS — launchd LaunchAgent
+
+macOS uses `launchd` instead of systemd. A LaunchAgent runs in your
+user session; a LaunchDaemon runs system-wide. For a personal
+instance, LaunchAgent is the right choice.
+
+### 1. Write the plist file
+
+```bash
+mkdir -p ~/Library/LaunchAgents
+SPL_BIN="$HOME/.local/bin/spl"
+
+cat > ~/Library/LaunchAgents/com.syncropic.spl-serve.plist <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTD/PropertyLists-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.syncropic.spl-serve</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$SPL_BIN</string>
+        <string>serve</string>
+        <string>--foreground</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>$HOME/.syncro/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>$HOME/.syncro/logs/launchd.err.log</string>
+</dict>
+</plist>
+EOF
+```
+
+Note: launchd does NOT expand `~` or `$HOME` inside the plist at
+runtime, so the heredoc above expands them when you write the file.
+Verify the final paths look right:
+
+```bash
+cat ~/Library/LaunchAgents/com.syncropic.spl-serve.plist
+```
+
+Same as Linux: pass `--foreground` so launchd is the supervisor and
+the binary does NOT detach. `KeepAlive { SuccessfulExit = false }`
+restarts on crash but not on a clean exit (e.g. `spl serve --stop`),
+so manual stops stay manual.
+
+### 2. Load and start
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.syncropic.spl-serve.plist
+launchctl start com.syncropic.spl-serve
+```
+
+### 3. Verify
+
+```bash
+launchctl list | grep com.syncropic.spl-serve
+spl status
+```
+
+Expected: a non-zero PID column, exit status 0, and `spl status`
+reports up.
+
+### 4. Logs
+
+```bash
+tail -f ~/.syncro/logs/spl.log               # instance log
+tail -f ~/.syncro/logs/launchd.out.log       # launchd stdout capture
+tail -f ~/.syncro/logs/launchd.err.log       # launchd stderr capture
+```
+
+### Stop / unload
+
+```bash
+launchctl stop com.syncropic.spl-serve
+launchctl unload ~/Library/LaunchAgents/com.syncropic.spl-serve.plist
+rm ~/Library/LaunchAgents/com.syncropic.spl-serve.plist
+```
+
+## Windows — Service Control Manager
+
+Windows needs a different approach because console applications are
+bound to the session that started them. `spl serve` ships a Windows
+Service wrapper that handles this — see the dedicated
+[Windows Service](/docs/operate/windows-service) page for the full
+guide. Quickstart from an elevated PowerShell:
+
+```powershell
+spl serve --install-service
+sc.exe start SyncropelDaemon
+```
+
+## Common pitfalls
+
+**"My instance keeps stopping after exactly N seconds."**
+This usually means the supervisor is running `spl serve --daemon`
+(double-detach) instead of `spl serve --foreground`. The wrapper
+process exits cleanly after the detach, the supervisor sees a
+"successful exit", and depending on your `KeepAlive` / `Restart`
+policy may or may not restart. Use `--foreground` and let the
+supervisor own the lifecycle.
+
+**"Auth required" errors after enabling persistence.**
+The supervised instance runs as your user, sees the same
+`~/.syncro/`, and inherits the same auth posture (default-secure
+unless `--insecure-localhost` is passed). If you previously paired
+browsers against an `--insecure-localhost` instance, you'll need to
+re-pair against the now default-secure one. See
+[Pairing a Browser or Phone](/docs/get-started/pairing).
+
+**Logs are empty.**
+Systemd's `journalctl --user` and launchd's `StandardOutPath` only
+capture what the instance writes to stdout/stderr at boot. Most of
+the action lives in `~/.syncro/logs/spl.log` — that's the canonical
+log regardless of which supervisor wraps the binary.
+
+**"Operation not permitted" on macOS load.**
+Recent macOS versions (Sonoma+) require Full Disk Access for
+launchctl operations on some plists. System Settings →
+Privacy & Security → Full Disk Access → add Terminal (or your
+preferred shell host).
+
+## See also
+
+- [Starting Your Instance](/docs/get-started/daemon) — the three modes
+  `spl serve` runs in (dev / secure local / exposed)
+- [Windows Service](/docs/operate/windows-service) — full Windows
+  Service install + lifecycle reference
+- [Operator runbook](/docs/operate/runbook) — backup discipline,
+  recovery, upgrades

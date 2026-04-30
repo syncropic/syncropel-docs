@@ -1,0 +1,323 @@
+---
+title: Your First React Component Consumer
+description: 30-minute walk from create-next-app to a Syncropel-driven task inbox UI. Wires @syncropel/sdk, @syncropel/react, and SSE-style polling into a small Next.js app you can extend.
+---
+
+<Callout type="info">
+This tutorial assumes you've completed [Your First SDK Integration](/docs/tutorials/first-sdk-integration) and have a `spl` daemon running locally with a token. The React palette has no provider and no required CSS framework — it works with any React 18+ app.
+</Callout>
+
+## What you'll build
+
+A Next.js page that renders a live task inbox: every record on a thread shows up as a `Card` from `@syncropel/react`, a button at the top emits a new task, and the list refreshes every few seconds via polling. The UI uses only the published palette — no custom styling beyond the design tokens.
+
+When you're done you'll have the skeleton every Syncropel-aware web product starts from.
+
+Total time: **about 30 minutes**.
+
+## Section A — Scaffold the app (5 minutes)
+
+```bash
+npx create-next-app@latest my-inbox --typescript --app --eslint --tailwind=false --src-dir=false --import-alias="@/*"
+cd my-inbox
+npm install @syncropel/sdk @syncropel/react
+```
+
+Open `app/layout.tsx` and add the React palette stylesheet at the top:
+
+```typescript
+import "@syncropel/react/styles.css";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "My Syncropel Inbox",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+The stylesheet ships design tokens at `:root` and component styles. There is **no** `<ThemeProvider>` wrapper — palette atoms read CSS variables directly.
+
+## Section B — Wire the SDK as a server route (5 minutes)
+
+Browser code can't read `~/.syncro/token` directly. Put the daemon-facing logic in a Next.js API route so the token stays server-side.
+
+Create `app/api/inbox/route.ts`:
+
+```typescript
+import { Client, Identity } from "@syncropel/sdk";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { NextResponse } from "next/server";
+
+// Read the bearer token once at module load.
+const TOKEN = readFileSync(join(homedir(), ".syncro", "token"), "utf8").trim();
+
+// A stable demo thread for this tutorial. In a real app, derive this per-user.
+const DEMO_THREAD = "th_my_inbox_tutorial";
+
+const client = new Client({
+  endpoint: "http://localhost:9100",
+  identity: Identity.static("did:example:my-inbox"),
+  apiKey: TOKEN,
+});
+
+export async function GET() {
+  const records = await client.queryThread({ thread: DEMO_THREAD, limit: 50 });
+  return NextResponse.json({ records, thread: DEMO_THREAD });
+}
+
+export async function POST(req: Request) {
+  const { title } = (await req.json()) as { title: string };
+  if (!title || typeof title !== "string") {
+    return NextResponse.json({ error: "missing title" }, { status: 400 });
+  }
+  const result = await client.intend({
+    goal: title,
+    thread: DEMO_THREAD,
+    kind: "core.intent",
+  });
+  return NextResponse.json(result, { status: result.success ? 200 : 502 });
+}
+```
+
+This route exposes two methods:
+
+- `GET /api/inbox` returns every record on the demo thread.
+- `POST /api/inbox` adds a new `INTEND` record with the title the client sent.
+
+Verify the route from `curl`:
+
+```bash
+npm run dev   # in one terminal
+# in another:
+curl -X POST http://localhost:3000/api/inbox \
+  -H 'content-type: application/json' \
+  -d '{"title":"Try the React palette"}'
+
+curl http://localhost:3000/api/inbox | jq '.records[].body.goal'
+```
+
+You should see the title come back, plus any other records on the thread.
+
+## Section C — Render the inbox (10 minutes)
+
+Replace `app/page.tsx` with:
+
+```tsx
+"use client";
+
+import {
+  Button,
+  Card,
+  Chip,
+  Column,
+  EmptyState,
+  Heading,
+  Row,
+  Text,
+} from "@syncropel/react";
+import { useEffect, useState } from "react";
+
+type Record = {
+  id: string;
+  act: string;
+  clock: number;
+  body: { goal?: string; kind?: string; [k: string]: unknown };
+};
+
+export default function InboxPage() {
+  const [records, setRecords] = useState<Record[]>([]);
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function refresh() {
+    const resp = await fetch("/api/inbox");
+    if (!resp.ok) return;
+    const { records } = (await resp.json()) as { records: Record[] };
+    setRecords(records);
+  }
+
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, 3000);
+    return () => clearInterval(id);
+  }, []);
+
+  async function add() {
+    if (!draft.trim()) return;
+    setLoading(true);
+    await fetch("/api/inbox", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: draft.trim() }),
+    });
+    setDraft("");
+    setLoading(false);
+    await refresh();
+  }
+
+  return (
+    <main style={{ maxWidth: 720, margin: "2rem auto", padding: "0 1rem" }}>
+      <Column gap="lg">
+        <Heading level={1}>Inbox</Heading>
+
+        <Card padding="md">
+          <Row gap="sm" align="center">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="What needs doing?"
+              onKeyDown={(e) => e.key === "Enter" && add()}
+              style={{
+                flex: 1,
+                padding: "0.5rem",
+                border: "1px solid #ddd",
+                borderRadius: 4,
+                fontSize: "0.95rem",
+              }}
+            />
+            <Button onClick={add} disabled={loading || !draft.trim()}>
+              Add
+            </Button>
+          </Row>
+        </Card>
+
+        {records.length === 0 ? (
+          <EmptyState
+            title="No records yet"
+            description="Add an intent above to get started."
+          />
+        ) : (
+          <Column gap="sm">
+            {records.map((r) => (
+              <Card key={r.id} padding="md">
+                <Column gap="xs">
+                  <Row gap="sm" align="center">
+                    <Chip tone={chipFor(r.act)}>{r.act}</Chip>
+                    <Text size="sm" tone="muted">
+                      clock {r.clock}
+                    </Text>
+                  </Row>
+                  <Text>
+                    {r.body.goal ?? r.body.summary ?? "(no description)"}
+                  </Text>
+                </Column>
+              </Card>
+            ))}
+          </Column>
+        )}
+      </Column>
+    </main>
+  );
+}
+
+function chipFor(act: string): "info" | "warn" | "error" | "success" | "neutral" {
+  switch (act) {
+    case "INTEND":
+      return "info";
+    case "DO":
+      return "neutral";
+    case "KNOW":
+      return "success";
+    case "LEARN":
+      return "warn";
+    default:
+      return "neutral";
+  }
+}
+```
+
+Reload `http://localhost:3000`. You should see:
+
+- A heading **Inbox**
+- A card with an input + **Add** button
+- An empty state if the thread has no records yet
+- A card per record once you add one, with a coloured chip per `act` type
+
+Add a few entries; they appear immediately because the polling interval refreshes every three seconds.
+
+## Section D — Theme tokens (5 minutes)
+
+The palette is **structure-frozen, tokens-customizable** — the components don't change shape, but every colour, spacing, and type-scale value is a CSS variable you can override.
+
+In `app/layout.tsx`, add a small style block to the `<body>` to remap a few tokens:
+
+```typescript
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <style>{`
+          :root {
+            --syncropel-color-fg: #0f172a;
+            --syncropel-color-bg: #f8fafc;
+            --syncropel-color-accent: #6366f1;
+            --syncropel-radius-md: 10px;
+          }
+        `}</style>
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+Reload — buttons, chips, and card outlines pick up the indigo accent. The component DOM is unchanged; only the variables are different. This is the single overrideable surface for visual customization.
+
+For the full token reference, see [Theming via CSS variables](/docs/guides/react-components#theming-via-css-variables) in the React Components guide.
+
+## Section E — What you can extend from here (5 minutes)
+
+The skeleton you just built has every load-bearing piece:
+
+- Server-side daemon access via an API route (token never reaches the browser)
+- A polled query that drives a `useState`-backed list
+- A POST handler that emits new records via the SDK
+- Palette-only UI rendering — no custom CSS framework, no provider
+- Theme overrides via four CSS variables
+
+Common next steps:
+
+| Goal | Where to start |
+|---|---|
+| Show a filtered slice (only `INTEND` records, only mine) | Pass `client.query({ kind, actor })` instead of `queryThread` |
+| Render server-derived layouts instead of streaming records | [Projections (SRP) guide](/docs/guides/projections) |
+| Replace polling with a live SSE feed | The SDK doesn't ship SSE in v0.1; until then, polling at 1-3s is the recommended pattern |
+| Multi-thread inbox | Use `client.query({ actor: "did:example:..." })` to pull across threads |
+| Optimistic UI on Add | After `POST /api/inbox`, don't wait for `refresh()` — push the new record into local state first |
+
+## What you have now
+
+A Next.js page that:
+
+- ✅ Loads `@syncropel/react` design tokens at the app root
+- ✅ Reads the bearer token server-side and proxies to the daemon
+- ✅ Renders records as `Card` + `Chip` from the palette
+- ✅ Polls for live updates every three seconds
+- ✅ Emits new INTEND records on user action
+- ✅ Themes via CSS variable overrides
+
+This is the same skeleton every Syncropel-driven web product starts from.
+
+## What's next
+
+- **Embed your UI in another app** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) shows how to package the same flow as a host-embeddable extension.
+- **Deeper component reference** — [React Components guide](/docs/guides/react-components) has the full 21-atom palette with prop tables.
+- **Render server-defined UI** — [Projections guide](/docs/guides/projections) explains the SRP schema and how `@syncropel/react` renders it natively.
+- **Authenticate from the browser directly** — [Authentication & Service Accounts](/docs/operate/keyring) covers per-user tokens and scope-limited service accounts for multi-tenant apps.

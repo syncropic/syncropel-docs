@@ -1,0 +1,65 @@
+---
+title: Backup and Recovery
+description: Protect your Syncropel data — the database, task content, and configuration.
+---
+
+## What to Protect
+
+| Data | Location | Contains |
+|---|---|---|
+| Database | `~/.syncro/hub.db` | All records, trust scores, routing rules |
+| Task content | `~/.syncro-data/tasks/` | Task descriptions and artifacts |
+| Aliases | `~/.syncro-data/aliases.toml` | Human-readable task alias mappings |
+| Config | `~/.syncro/config.toml` | Identity, store URL, server settings |
+
+## Automatic Backup
+
+The `spl serve` daemon backs up the database on every startup:
+
+```
+~/.local/share/syncropel/backups/hub.db.bak
+```
+
+This backup is stored OUTSIDE `~/.syncro/` — removing that directory does not affect the backup.
+
+## Manual Backup
+
+```bash
+# Create a timestamped backup
+cp ~/.syncro/hub.db ~/.local/share/syncropel/backups/hub.db.$(date +%Y%m%d-%H%M%S)
+
+# List available backups
+ls -la ~/.local/share/syncropel/backups/
+```
+
+## Recovery
+
+```bash
+# Stop the daemon
+spl serve --stop
+
+# Restore from backup
+cp ~/.local/share/syncropel/backups/hub.db.bak ~/.syncro/hub.db
+
+# Restart — trust and config rebuild automatically from records
+spl serve --daemon
+
+# Verify
+spl status
+spl task list
+spl trust
+```
+
+## What Rebuilds on Startup
+
+The engine reconstructs all derived state from the immutable record log:
+
+- **Trust scores** — replayed from outcome records
+- **Engine config** — replayed from configuration records
+- **Thread state** — derived from records (`state = fold(records)`)
+
+## Prevention
+
+- Use separate ports for development (`--port 9200`) and production (port 9100)
+- Development daemons use `--memory` for ephemeral storage
+- Task content files in `~/.syncro-data/` are independent of the database

@@ -1,0 +1,141 @@
+---
+title: Reset and Uninstall
+description: Cleanly start over with a fresh `~/.syncro/` directory, or fully remove `spl` from the machine. What survives either operation.
+---
+
+Two distinct operations.
+
+- **Reset** wipes `~/.syncro/` (identity, keys, records, token, config) but leaves the `spl` binary installed. Use this when you want a clean first-run experience without reinstalling.
+- **Uninstall** removes the `spl` binary itself. Use this when you're done with Syncropel on this machine.
+
+Automatic backups at `~/.local/share/syncropel/backups/hub.db.bak` are written outside `~/.syncro/`, so they survive **reset but not full disk cleanup**. The backup is destructive — every daemon start overwrites it. If you care about your records, copy them off-host before running either of the operations on this page.
+
+## Clean reset — wipe `~/.syncro/`
+
+### Linux and macOS
+
+```bash
+spl serve --stop            # stop the daemon first
+rm -rf ~/.syncro            # wipe state
+spl init                    # regenerate identity and config
+```
+
+After `spl init` you're back at the start of the onboarding flow — start the daemon in dev mode, bootstrap a service account, save the token, flip to secure mode. See [Service accounts](/docs/get-started/service-accounts).
+
+### Windows
+
+```powershell
+spl serve --stop
+Remove-Item -Recurse -Force $env:USERPROFILE\.syncro
+spl init
+```
+
+## Full uninstall
+
+### Linux
+
+```bash
+spl serve --stop                                   # graceful daemon shutdown
+rm ~/.local/bin/spl                                # remove the binary
+rm -rf ~/.syncro                                   # remove state
+rm -rf ~/.local/share/syncropel                    # remove backups
+```
+
+If you added `~/.local/bin` to `PATH` specifically for `spl`, clean that line out of your shell rc:
+
+```bash
+grep -n "/.local/bin" ~/.bashrc ~/.zshrc ~/.config/fish/config.fish 2>/dev/null
+```
+
+Edit by hand to remove.
+
+### Windows
+
+```powershell
+spl serve --stop
+Remove-Item "$env:LOCALAPPDATA\Programs\spl" -Recurse -Force
+Remove-Item $env:USERPROFILE\.syncro -Recurse -Force
+Remove-Item "$env:LOCALAPPDATA\syncropel" -Recurse -Force -ErrorAction SilentlyContinue
+```
+
+Clean the user `PATH`:
+
+```powershell
+$current = [Environment]::GetEnvironmentVariable('Path','User')
+$updated = ($current -split ';' | Where-Object { $_ -notmatch 'spl' }) -join ';'
+[Environment]::SetEnvironmentVariable('Path', $updated, 'User')
+```
+
+Close and reopen PowerShell for the `PATH` change to apply.
+
+### macOS
+
+```bash
+spl serve --stop
+rm ~/.local/bin/spl
+rm -rf ~/.syncro
+rm -rf ~/.local/share/syncropel
+```
+
+### If you installed the Windows Service wrapper
+
+Uninstall the service **before** removing the binary — the SCM needs `spl.exe` to exist for the uninstall call.
+
+```powershell
+# From elevated PowerShell
+spl serve --uninstall-service
+# then proceed with the uninstall steps above
+```
+
+See [Windows Service](/docs/operate/windows-service) for details.
+
+### If you installed a systemd user unit (Linux)
+
+```bash
+systemctl --user stop spl-serve.service
+systemctl --user disable spl-serve.service
+rm ~/.config/systemd/user/spl-serve.service
+systemctl --user daemon-reload
+```
+
+## What survives
+
+### What a reset leaves alone
+
+- The `spl` binary itself.
+- Any entries you added to your shell's `PATH`.
+- Backups at `~/.local/share/syncropel/backups/hub.db.bak`. (A reset does not touch this directory; only full uninstall does.)
+
+### What an uninstall leaves alone
+
+- System-level `PATH` entries set by another tool.
+- Any data you've copied out of `~/.syncro/` to elsewhere on disk.
+
+### What neither removes
+
+- Records that were federated to another daemon before the reset or uninstall. Those live on the remote peer independently.
+- Git repos, source checkouts, or other project state that happens to be adjacent on disk.
+
+## Restoring from backup after a reset
+
+If you reset by mistake, the most recent daemon startup backup is at:
+
+```
+~/.local/share/syncropel/backups/hub.db.bak
+```
+
+Restore:
+
+```bash
+spl serve --stop
+cp ~/.local/share/syncropel/backups/hub.db.bak ~/.syncro/hub.db
+spl serve --daemon
+```
+
+The identity in `config.toml` is independent of the records file, so a restored `hub.db` works with your current DID — as long as you haven't re-initialized to a new keypair in between. If you have, records will still restore but they'll be signed under the old key. See [Operator runbook → Recovery](/docs/operate/runbook) for the full procedure.
+
+## See also
+
+- [Operator runbook → Backup discipline](/docs/operate/runbook) — how the automatic backup works and why off-host copies matter
+- [First run](/docs/get-started/first-run) — what a fresh `spl init` creates
+- [Troubleshooting](/docs/get-started/troubleshooting) — when a reset is the right answer (usually it isn't)

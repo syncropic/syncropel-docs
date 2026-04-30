@@ -1,0 +1,211 @@
+---
+title: Templates Gallery
+description: Seven worked examples of workspace manifests — tracker, multi-page, newsletter, course, recipe-collection, solo-tracker, catalog. Each scaffolds via `spl workspace init` and passes `spl workspace test` immediately.
+---
+
+The templates gallery is a set of ready-to-scaffold workspace
+examples. Each template is a complete, tested workspace you can fork
+into your own project.
+
+```bash
+spl workspace init my-workspace --template <template-id>
+```
+
+The same templates are mirrored as the
+[`@syncropel/workspace-templates`](https://www.npmjs.com/package/@syncropel/workspace-templates)
+npm package — useful if you want to browse the files without
+installing `spl`, or if you're authoring a template hub of your own.
+
+## The seven templates
+
+### `tracker` — single-fold tracker
+
+The default template. One `view` component that folds
+`tracker.entry.v1` records into a chronological log. Smallest possible
+workspace: one component, one body kind, one fold.
+
+```bash
+spl workspace init my-tracker --template tracker
+```
+
+**Use when**: you want the simplest possible starting point — adapt
+the body kind, rename the view, and you're shipping in minutes.
+
+**Components**: 1 (`log` view).
+
+---
+
+### `multi-page` — linked pages workspace
+
+Three `page` components linked together: `home`, `about`, `contact`.
+Demonstrates how multi-page workspaces are composed.
+
+```bash
+spl workspace init my-site --template multi-page
+```
+
+**Use when**: you're publishing structured content (a microsite, a
+documentation set, a personal homepage) and want pages that link to
+each other.
+
+**Components**: 3 (`home`, `about`, `contact` — all pages).
+
+---
+
+### `newsletter` — broadcast workspace
+
+A single `page` component surfacing the latest `newsletter.issue.v1`
+record, plus `records.subscribe:newsletter.issue.v1` in
+`permissions_required` so readers can follow the publisher's
+broadcasts.
+
+```bash
+spl workspace init my-newsletter --template newsletter
+```
+
+**Use when**: you're publishing periodic content (essays, releases,
+weekly digests) and want subscribers' Studios to surface the latest
+issue automatically.
+
+**Components**: 1 (`issue` page).
+
+---
+
+### `course` — multi-component course workspace
+
+Four components covering a course's full surface area: `syllabus`
+(page), `assignments` (view), `discussion` (thread_view), `gradebook`
+(view). Reads and writes records under the `course.*` body-kind
+family.
+
+```bash
+spl workspace init my-course --template course
+```
+
+**Use when**: you're building structured pedagogical content with
+multiple distinct interaction modes (read-only syllabus, listing of
+assignments, threaded discussion, instructor-only gradebook).
+
+**Components**: 4 (`syllabus`, `assignments`, `discussion`,
+`gradebook`).
+
+---
+
+### `recipe-collection` — recipe collection (the tutorial example)
+
+Three components surfacing `recipe.entry.v1` records as an `index`
+view, a `featured` recipe page, and a `recent` view. This is the
+template walked end-to-end in the
+[Build your first workspace tutorial](/docs/tutorials/first-workspace).
+
+```bash
+spl workspace init my-recipes --template recipe-collection
+```
+
+**Use when**: you want a relatable Page-rung example, or you're
+building any "collection of N items where one is featured" workspace
+(book reviews, travel logs, project portfolios).
+
+**Components**: 3 (`index`, `featured`, `recent`).
+
+---
+
+### `solo-tracker` — personal tracker
+
+A `solo-tracker` is a per-user tracker — one `view` component scoped
+to a single actor's records. The publisher policy locks reads and
+writes to the workspace owner's DID.
+
+```bash
+spl workspace init my-journal --template solo-tracker
+```
+
+**Use when**: you want a private workspace nobody else can read or
+write to (a journal, a personal habit tracker, a private notes
+workspace). Same shape as `tracker` but with per-user policy.
+
+**Components**: 1 (`log` view).
+
+---
+
+### `catalog` — workspace catalog browser
+
+A `catalog` workspace folds artifact-listing records into four views
+for browsing federated workspaces — by recency, by tag, by category,
+and by publisher.
+
+```bash
+spl workspace init my-catalog --template catalog
+```
+
+**Use when**: you want to run your own workspace catalog (a curated
+hub for a community, an internal company registry, or just your
+personal pinned set). Same primitive that `catalog.syncropel.com`
+uses.
+
+**Components**: 4 (`browse`, `search`, `categories`, `by-publisher` views).
+
+## What each template includes
+
+Every template directory contains the same shape:
+
+```
+<template-id>/
+├── workspace.json              # core.workspace.v1 manifest
+├── README.md                   # what this template demonstrates
+└── tests/
+    ├── fixtures/basic.json     # input records for spl workspace test
+    └── expected/basic.fold.json # the expected fold output
+```
+
+The `workspace.json` includes placeholder strings that
+`spl workspace init` substitutes at scaffold time:
+
+| Placeholder | Substituted with |
+|---|---|
+| `__NAME__` | The workspace name argument |
+| `__SLUG__` | A URL-safe slug derived from name |
+| `__DID__` | The current actor's DID |
+| `__DISPLAY_KIND__` | The chosen display kind (default: `workspace`) |
+
+Templates are validated against
+[`@syncropel/config@^0.7`](https://www.npmjs.com/package/@syncropel/config)'s
+`core.workspace.v1` schema before scaffold. The bundled fixture +
+expected pair passes `spl workspace test` immediately after
+scaffolding — so you start from a green test suite, not a
+guess-and-check loop.
+
+## Browse the source
+
+- **npm**: [`@syncropel/workspace-templates`](https://www.npmjs.com/package/@syncropel/workspace-templates) — installable for tooling consumers.
+- **Embedded**: every template is bundled with the `spl` binary so
+  `spl workspace init` works offline.
+
+The npm package and the binary stay byte-identical.
+
+## Contribute a template
+
+Templates are just files. To propose a new template:
+
+1. Add a directory under
+   `crates/spl/src/commands/workspace_templates/<your-id>/` containing
+   `workspace.json`, `README.md`, and a `tests/` pair that passes
+   `spl workspace test`.
+2. Wire the new id into the `spl workspace init --template` registry
+   in `crates/spl/src/commands/workspace_init.rs`.
+3. Run the npm-package sync script:
+   `bash sdks/typescript-workspace-templates/scripts/sync-from-binary.sh`.
+4. Open a pull request explaining what use case the template fills
+   that the existing six don't.
+
+The bar is "this template demonstrates a meaningfully different shape"
+— not "every nice idea ships as a template." The gallery stays
+curated.
+
+## See also
+
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) — the recipe-collection template walked end-to-end
+- [Workspace lifecycle](/docs/operate/workspace/lifecycle) — draft, published, archived
+- [Testing workspaces](/docs/operate/workspace/testing) — `spl workspace test` and the fixtures format
+- [Sharing for bug repro](/docs/operate/workspace/sharing) — `spl share` for one-off thread bundles
+- [`core.workspace.v1` schema](https://syncropel.com/schemas/config/core-workspace.v1.schema.json)

@@ -1,0 +1,293 @@
+---
+title: Debugging Syncropel
+description: When something isn't doing what you expect — daemon won't respond, a task is stuck in the wrong status, a record didn't route — this is the order to reach for tools.
+---
+
+## When to use this guide
+
+You're staring at output you don't understand. A `spl status` returned something wrong, a task is in a status you didn't expect, a record didn't trigger the routing rule you thought it would, or the daemon isn't responding at all. Before you start grepping logs, work through these tools in order.
+
+The four debugging commands (`spl doctor`, `spl debug replay`, `spl debug thread-diff`, `spl audit export`) cover ~95% of the failure modes you'll hit operating Syncropel. Each one is read-only — none of them mutate state, so you can use them freely without worrying about making things worse.
+
+## Order of operations
+
+```
+1. spl doctor            ─── is the daemon even healthy?
+        ↓
+2. spl status / spl task list  ─── what's the current state?
+        ↓
+3. spl debug replay      ─── why is THIS task in THAT state?
+        ↓
+4. spl debug thread-diff ─── how does this thread differ from a known-good one?
+        ↓
+5. spl audit export      ─── what security-relevant events fired recently?
+        ↓
+6. tail ~/.syncro/logs/spl.log  ─── last resort: read raw daemon output
+```
+
+Don't jump to step 6 until you've exhausted 1-5. The reason: structured tools tell you "what is broken" much faster than logs tell you "what happened in order".
+
+## Step 1: `spl doctor` — is the daemon healthy?
+
+If you don't know whether the problem is in the daemon or your understanding of the daemon, run `spl doctor` first. It executes 7 read-only checks and prints PASS/WARN/FAIL with a short reason for each:
+
+```bash
+spl doctor
+```
+
+```
+spl doctor
+
+  ✓ daemon reachable          <version> on sqlite:///home/you/.syncro/hub.db
+  ✓ pid file                  /home/you/.syncro/run/spl.pid → live spl serve (pid 264247)
+  ✓ store has records         4690 records across 232 threads
+  ✓ store path agreement      daemon reports sqlite:///home/you/.syncro/hub.db
+  ✓ intelligence              enabled, model=claude-haiku-4-5-20251001
+  ✓ engine config thread      th_engine_config has 254 records
+  ✓ expression cache          hit_rate=0.0% size=0/1024 avg_compile=0μs (cache cold — no CEL evaluated yet)
+```
+
+Exit code:
+
+| Code | Meaning |
+|---|---|
+| 0 | All 7 checks PASS |
+| 1 | At least one WARN, no FAIL |
+| 2 | At least one FAIL |
+
+This is suitable for cron — wire `spl doctor --json` into your monitoring pipeline and alert on exit code != 0. The JSON output is one object per check with `name`, `status`, `detail`.
+
+### What each check actually means
+
+**daemon reachable** — `GET /health` returns 200. If this fails, the daemon is not running OR not bound to localhost:9100 OR you're pointing `SPL_SERVE_URL` somewhere wrong.
+
+**pid file** — `~/.syncro/run/spl.pid` exists, points at a live process, and that process's `/proc/<pid>/cmdline` contains "spl serve". A WARN here means the daemon is responding but the PID file is missing — `spl serve --stop` will not be able to find it. See [Daemon orphan recovery](/docs/operate/runbook#daemon-orphan-recovery-skl-0202).
+
+**store has records** — the store is non-empty. A WARN means it's empty (fresh install or just-deleted hub.db). A FAIL means the store query itself errored.
+
+**store path agreement** — the daemon's reported store URL matches what the config file says it should be. A WARN here means either the daemon was started with an explicit `--store` override, or two daemons are running against different stores and you're talking to the wrong one.
+
+**intelligence** — the kernel intelligence agent's enabled state and model. Disabled is fine if you didn't set up an API key; if you did and this says disabled, your key isn't being read.
+
+**engine config thread** — `th_engine_config` has at least one record. A WARN means config_loader had nothing to load — your routing rules / fold rules / permission rules / health checks are all empty.
+
+**expression cache** — the CEL expression cache stats. A cold cache (0 entries) is normal on a freshly-restarted daemon. A WARN means the hit rate is suspiciously low (under 50%) which could indicate the daemon is recompiling expressions every evaluation.
+
+### When doctor catches something
+
+If any check is non-PASS, the line tells you what to do. The PID file orphan case prints the exact recovery command. The store path mismatch tells you to check `--store` overrides. None of doctor's output is a dead end — every WARN/FAIL has a next step.
+
+## Step 2: `spl status` and `spl task list` — what's the current state?
+
+If doctor was clean and you're still confused, look at the high-level state:
+
+```bash
+spl status                     # engine counters, store, intelligence, uptime
+spl task list                  # full task table with status, priority, cost
+spl trust                      # trust scores per (actor, domain)
+spl namespace list             # registered namespaces
+```
+
+These are read-only summary commands. Together they tell you "the daemon thinks the world looks like X". If X doesn't match what you expected, you've narrowed the problem to a single task, thread, or actor.
+
+## Step 3: `spl debug replay` — why is THIS task in THAT state?
+
+You found the problematic task. `spl task show TASK-0042` says it's in status `review`, but you expected `approved`. Why?
+
+Run replay against the task's thread:
+
+```bash
+spl debug replay TASK-0042
+```
+
+```
+spl debug replay th_be084400f080b84313c90321ffda6eae8ffca3b51c05abc13ebbf7403a609f86
+
+  CLOCK  ACT    ACTOR                               STATUS       BODY
+      0  INTEND did:sync:user:alice             inbox        goal=Fix the auth bug
+→     1  DO     did:sync:agent:dev                  active       topic=task_started
+→     2  KNOW   did:sync:agent:dev                  review       fulfills=7a2936eccf...
+      3  KNOW   did:sync:agent:dev                  review       fulfills=2bce18d4f3...
+
+  Final status: review (4 records)
+```
+
+The arrow (`→`) marks records that caused a status transition. The yellow status text confirms which one moved the task between states. Reading this:
+
+- **clock 0**: task created → inbox (no transition arrow because there was nothing before)
+- **clock 1**: dev marked it active via `spl task start` → transition to `active`
+- **clock 2**: dev claimed completion → transition to `review`
+- **clock 3**: dev claimed completion AGAIN → no transition (still review)
+
+Now you can see why the task isn't approved: there's no KNOW record from a *different actor* with a `verdict` field. The `spl task done` from dev moved the task to review, but no evaluator has approved it yet. The fix: have a distinct reviewer actor run `spl task approve TASK-0042`.
+
+This kind of investigation used to require reading raw record JSON and tracing the fold logic by hand. Now it's one command.
+
+### Replay against any thread, not just tasks
+
+The first argument can be a task alias OR a literal thread ID. For non-task threads (e.g. `th_engine_config`, an AITL thread, a dispatch thread) you'll see the same record-by-record fold trace. Useful for understanding why a routing rule fired or didn't fire, or what AITL decisions have been made on a particular intelligence proposal.
+
+```bash
+spl debug replay th_engine_config | head -10
+spl debug replay $(spl thread list | grep aitl | head -1 | awk '{print $1}')
+```
+
+## Step 4: `spl debug thread-diff` — how does this differ from a known-good one?
+
+You have a task that's behaving differently from one you know works. Compare them structurally:
+
+```bash
+spl debug thread-diff TASK-0042 TASK-0035
+```
+
+```
+spl debug thread diff
+
+  PROPERTY                  th_be084400f080b8431…    th_03f822528448c2a04…
+  record count              4                         8
+  participants              2                         3
+  fold status               review                    approved
+
+  Act distribution:
+    DO             1                         1
+    INTEND         1                         1
+    KNOW           2                         5
+```
+
+Right away you can see:
+
+- The good one has 3 participants vs 2. Likely the missing participant is the evaluator.
+- It has 5 KNOW records vs 2 — additional KNOWs are usually verdicts and fold-rule outputs.
+- Its fold status is `approved`, the bad one is `review`.
+
+The structural delta points at the missing piece without you having to read both record streams in full. Once you have the hypothesis, drop back to `spl debug replay` on each side to confirm.
+
+## Step 5: `spl audit export` — what security-relevant events fired recently?
+
+If the problem looks like access denial, permission, or governance — "I tried to do X and got 403" or "this rule isn't matching" — pull the audit export:
+
+```bash
+spl audit export --since 1h
+```
+
+This emits one JSON object per line for every security-relevant record in the last hour: system actor writes, AITL decisions, dispatch outcomes, governance events. Each line carries a `category` tag so you can filter:
+
+```bash
+spl audit export --since 1h --categories aitl
+spl audit export --since 24h --categories dispatch | jq -r '.record.body.summary'
+spl audit export --since 24h --actor did:sync:user:alice
+spl audit export --since 24h --thread th_be084400...
+```
+
+The output is JSONL — each line is independent, suitable for piping to `jq`, ingest into Splunk/Elastic/Loki, or grep. See [SIEM Integration](/docs/guides/siem-integration) for production pipeline recipes.
+
+### What's NOT in audit export today
+
+HTTP middleware permission denials are currently `tracing::warn!` events in the daemon log, not records. They show up in `~/.syncro/logs/spl.log` filtered with `grep "PERMISSION DENIED"` but won't appear in `spl audit export`. Promoting them to first-class audit records is tracked as a follow-up — for now, log + audit are two complementary streams.
+
+## Step 6: read the daemon log
+
+If steps 1-5 didn't surface the issue, drop to the structured log:
+
+```bash
+tail -f ~/.syncro/logs/spl.log
+```
+
+The log is JSON-line format. The fields you'll care about most:
+
+| Field | Meaning |
+|---|---|
+| `level` | `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE` |
+| `target` | The Rust module emitting the log |
+| `actor` | The DID involved in the operation |
+| `thread` | The thread ID being touched |
+| `record` | Record ID for ingest events |
+
+Useful filters:
+
+```bash
+# All permission denials
+grep "PERMISSION DENIED" ~/.syncro/logs/spl.log
+
+# Reconciler decisions
+grep "syncropel_engine::reconciler" ~/.syncro/logs/spl.log | tail -20
+
+# Errors only
+grep '"level":"ERROR"' ~/.syncro/logs/spl.log | tail -20
+
+# Activity for a specific thread
+grep "th_be084400" ~/.syncro/logs/spl.log
+```
+
+## Common scenarios
+
+### "My task is stuck in `review`, why isn't it `approved`?"
+
+```bash
+spl debug replay <task-alias>
+```
+
+Look for a KNOW record with `body.verdict = "accept"` from an actor different from the one who claimed completion. If none exists, the task hasn't been evaluated yet. The fold rule requires distinct evaluator and executor — that's the separation-of-duties gate.
+
+### "I created a CEL routing rule but it's not firing"
+
+```bash
+spl config list-rules                        # is your rule loaded?
+spl expr check '<your-cel-expression>' --context routing   # does it compile?
+spl expr eval '<your-cel-expression>' --context routing --record '<sample-record>'   # does it evaluate to true?
+spl debug replay <thread-where-record-landed>  # which records ARE on that thread?
+```
+
+If the rule loads, compiles, evaluates true on a sample, but isn't firing on real records, check the daemon log for `reload_config: processing LEARN record` to confirm the rule was actually reloaded after you added it.
+
+### "The daemon won't start"
+
+```bash
+spl doctor                       # what's the current state?
+tail -50 ~/.syncro/logs/spl.log  # what was the last thing the daemon said?
+ls -la ~/.syncro/run/            # is there a stale PID file?
+```
+
+Most start failures are: port already in use, stale PID file, or a corrupt SQLite store. The runbook covers each: see [Daemon lifecycle](/docs/operate/runbook#daemon-lifecycle).
+
+### "I think permissions are denying my requests"
+
+```bash
+spl config list-permission-rules            # what rules are loaded?
+spl config show                              # is enforcement enabled?
+grep "PERMISSION DENIED" ~/.syncro/logs/spl.log | tail -20   # what got denied?
+spl audit export --since 1h --categories aitl                # AITL decisions in the same window
+```
+
+If you've locked yourself out, see [`spl config permissions-unlock`](/docs/reference/cli#emergency-recovery-v0100).
+
+### "I deleted hub.db by accident"
+
+Don't restart the daemon. The destructive backup gotcha will overwrite your good backup the moment a fresh daemon starts. See [Backup discipline](/docs/operate/runbook#backup-discipline) — restore from off-host first.
+
+### "A namespace claim is being rejected and I don't know why"
+
+```bash
+spl namespace list                    # what's actually in the registry?
+spl namespace show <claimed-ns>       # walk the ancestor chain
+```
+
+The `show` output marks each ancestor with `✓` (Active) or `✗` (Archived/Deleted). If any ancestor is non-Active, the descendant is rejected — that's the [monotonic narrowing rule](/docs/concepts/namespaces#the-narrowing-rule).
+
+## What's NOT yet covered by these tools
+
+A few things still require log reading or direct database inspection:
+
+- **Trust score derivation traces** — `spl trust` shows current scores, but not the per-record evidence chain that produced them. Filing `spl debug trust <actor> <domain>` is on the roadmap.
+- **Dispatch internals** — when a dispatch fails, you see the failure in the task thread, but not the adapter-side timings, retries, or sub-thread tool calls. Pull these from the daemon log filtered by `target=syncropel_engine::dispatch`.
+- **Performance regressions** — the expression cache stats are exposed by doctor, but per-rule evaluation timings live only in the log.
+
+These are bounded follow-ups. None are urgent — the four shipped tools cover the everyday investigation surface.
+
+## Reference
+
+- [`spl doctor`](/docs/reference/cli#developer-tools-v0100) — CLI reference
+- [`spl debug replay/thread-diff`](/docs/reference/cli#developer-tools-v0100) — CLI reference
+- [`spl audit export`](/docs/reference/cli#developer-tools-v0100) — CLI reference
+- [SIEM Integration Guide](/docs/guides/siem-integration) — pipeline recipes for Splunk/Elastic/Loki
+- [Operator Runbook](/docs/operate/runbook) — recovery procedures

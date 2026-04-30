@@ -1,0 +1,184 @@
+---
+title: Pairing a Browser or Phone
+description: Use `spl pair` to attach a browser, phone, or other device to your instance with its own scoped service account and token. One-click URL, QR-code flow, manual pairing for headless hosts, and revocation.
+---
+
+Your CLI talks to your instance via `~/.syncro/token`. Browsers and phones can't read that file, so they need their own service account and token. `spl pair` wraps the whole "mint a scoped account, render a token, show it in a form the other device can consume" flow in one command.
+
+## Why pairing exists
+
+A fresh browser pointed at `syncropel.com/local` has no way to authenticate to your local instance. It doesn't know what instance URL to hit, and even if it did, it has no token. Three ways to solve this:
+
+1. **Paste the token manually.** Works, but painful — tokens are 40-plus characters and typing them on a phone keyboard is error-prone.
+2. **Share the CLI's token with the browser.** Bad — the CLI's token is usually `admin`-scoped and the browser doesn't need that.
+3. **Pair.** Mint a fresh, narrowly-scoped service account just for this device, hand its token to the device, and let the device store it.
+
+Pairing is path 3. It produces a device-specific service account you can revoke independently if the device is lost.
+
+## `spl pair`
+
+```bash
+spl pair \
+  --device "browser-chrome" \
+  --url "http://127.0.0.1:9100" \
+  --scopes admin
+```
+
+The command:
+
+1. Creates a new service account named after your device, bound to your user DID, with the scopes you named.
+2. Mints a token on the new account.
+3. Renders the pairing payload three ways — pick the one that fits the situation.
+
+### Output: three ways to pair
+
+The CLI prints all three in order of friction. Pick whichever is easiest for the device you're trying to pair.
+
+**1. One-click URL — the fastest path.** First line of the output is a clickable URL of the form:
+
+```text
+https://syncropel.com/local/pair#<encoded-payload>
+```
+
+Click it (or copy it into the browser you want to pair). The page reads the encoded payload, verifies the token against your instance, stores the credential in the browser, and drops you on `/local/tasks` — no typing, no scanning, no copy/paste.
+
+The token rides in the URL fragment (the part after `#`), which never reaches any server. After the credential is stored, the browser replaces the URL bar with `/local/tasks` so the token doesn't sit in browser history either.
+
+**2. QR code — for phones with a camera.** Underneath the URL, the CLI renders a QR code that encodes the same payload. Open `syncropel.com/local` on the phone, choose the QR tab, and point the camera at your terminal. Same end state: credential stored, dashboard loads.
+
+**3. Plain-text payload — for paste flows.** Below the QR is the raw `url` / `token` / `device` triple, ready to paste into any device that can't click a URL or scan a QR (a headless server, a script, a config file).
+
+All three end at the same place: the device stores the URL and token in encrypted local storage and uses them on every subsequent API call.
+
+### What the dashboard shows at each stage
+
+`syncropel.com/local` distinguishes a small set of connection states so you can tell at a glance what your instance wants from you:
+
+| State | Dot | What it means |
+|---|---|---|
+| No instance reachable | gray | `localhost:9100` isn't responding. Start `spl serve --daemon`. |
+| Connected, insecure mode | amber `DEV MODE` | `--insecure-localhost` — auth bypassed, fine for solo dev. |
+| Pair required | amber | Your instance wants a token; this browser has none. Run `spl pair` and click the printed URL. |
+| Connected, secure | green | Paired, token valid, records stream normally. |
+| Token expired or revoked | red | Your token was nuked. Click **Re-pair** to run through pairing again. |
+| Browser blocked the connection | gray | Chrome's local-network protection refused the fetch. The dashboard explains recovery. |
+
+For the full set of failure modes (10 in total) and a fix per state, see [Troubleshooting connection issues](/docs/operate/troubleshooting-connection).
+
+### On a phone or iPad
+
+`syncropel.com/local` on mobile no longer probes `localhost:9100` — phones can't reach an instance there, and the resulting browser-blocked error confused more than it helped. Mobile users now land on a welcome screen with three explicit paths:
+
+| Action | When to use |
+|---|---|
+| **Scan pairing QR** | You're standing next to your laptop and just ran `spl pair --device browser-mobile`. Point the phone camera at the printed QR. |
+| **Enter instance URL** | Your instance is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
+| **Browse public records** | Placeholder for a future release — read federation-published feeds without pairing. |
+
+The mobile entry deliberately omits the localhost probe. If you previously paired this phone and the instance URL is stored, the dashboard probes it directly and skips the welcome screen.
+
+If you're seeing this welcome screen on a desktop and you do have an instance at localhost, your viewport may be narrower than 640px or Chrome DevTools touch-emulation is on — widen the window or disable emulation.
+
+### Choose `--url` carefully
+
+`--url` is the address the **target device** will call — not your instance's view of itself.
+
+| Situation | URL to pass |
+|---|---|
+| Browser on the same machine as your instance | `http://127.0.0.1:9100` |
+| Phone or iPad on the same home Wi-Fi | `http://192.168.1.50:9100` (the LAN IP of the host) |
+| Phone or iPad on the same private network (Tailscale, VPN) | `http://100.x.y.z:9100` (the private network address of the host) |
+| Over the public internet via reverse proxy | `https://your-host.example.com` (the proxy's public URL) |
+
+If the device can't reach the URL, the pairing saves but every request fails. Pick a URL that makes sense for where the device actually lives.
+
+### Scopes to give a device
+
+The `--device` label sets a sensible default scope for you, so you usually don't need `--scopes` at all:
+
+| Device label prefix | Default scope | Use when |
+|---|---|---|
+| `browser-*` (e.g. `browser-chrome`) | `admin` | Pairing a browser to drive the full dashboard. Most common case. |
+| `viewer-*` (e.g. `viewer-bigscreen`) | `records:read` | Read-only display surface (a screen, a status board). |
+| `emitter-*` (e.g. `emitter-linear`) | `records:read,records:write` | An integration that writes records but doesn't need to administer your instance. |
+| Anything else | `records:read,records:write` | Conservative default with a hint suggesting one of the prefixes above. |
+
+If the default isn't what you want, override with `--scopes` (comma-separated list). For example, `--scopes records:read` mints a viewer-only token regardless of device prefix.
+
+The general rule: start narrow. `admin` is appropriate for a browser driving the dashboard but rarely the right choice for a phone or an integration. Add scopes when a feature actually fails on a token, not preemptively.
+
+## Manual pairing (headless servers)
+
+If the device can't scan a QR — a headless server, a CI runner, a script — use `--no-qr`:
+
+```bash
+spl pair \
+  --device "ci-worker-1" \
+  --url "http://127.0.0.1:9100" \
+  --scopes records:read \
+  --no-qr
+```
+
+The output is the JSON payload the QR would have encoded:
+
+```json
+{
+  "url": "http://127.0.0.1:9100",
+  "token": "spl_prod_sa_XXXX_YYYYYY",
+  "device": "ci-worker-1"
+}
+```
+
+Copy-paste that into the target device's config file, environment, or secret manager.
+
+## What the payload contains
+
+Exactly three fields:
+
+- **`url`** — the instance URL the device will call.
+- **`token`** — the bearer token. Used as `Authorization: Bearer <token>` on every request.
+- **`device`** — the display name you chose. Surfaced by the device so the user can tell one paired instance from another.
+
+Nothing else is transmitted. The token itself is the authentication proof; the URL tells the device where to send requests; the device name is presentation only.
+
+## Listing paired devices
+
+```bash
+spl service-account list
+```
+
+Devices paired via `spl pair` show up as regular service accounts — the only difference from a bootstrap account is their scopes and the fact that they were minted after auth was already on.
+
+## Revoking a lost device
+
+If a phone is lost or a laptop is stolen, revoke the service account that was paired to it:
+
+```bash
+spl service-account list                       # find the SA by device name
+spl service-account revoke <sa_id>             # irreversible; every token for this SA dies
+```
+
+The device continues to hit your instance with its old token and every request now returns `401 AUTH_INVALID`. Your other paired devices are unaffected.
+
+If you want to give the device a fresh token without retiring the whole service account — for example, when rolling tokens quarterly:
+
+```bash
+spl token rotate <sa_id>
+```
+
+Then re-pair that device with the new token. The old token dies; the service account identity stays.
+
+## Common pitfalls
+
+**"Pairing succeeded but the browser shows connected-no-records."** The device stored the URL and token but the token doesn't have `records:read`. Check `spl service-account list` and re-pair with wider scopes.
+
+**"The QR code doesn't scan."** Most terminals render blocky Unicode. If your terminal doesn't support it, use `--no-qr` and copy the payload. Alternatively, widen the terminal and re-run — some QR libraries need a minimum cell size.
+
+**"I paired my phone but it can't reach my instance over Wi-Fi."** `--url 127.0.0.1:9100` only reaches the host itself. Your phone needs the host's LAN IP. Check `ip addr` or `ifconfig` on the host and re-pair.
+
+## See also
+
+- [Exposing your instance securely](/docs/get-started/exposing) — make your instance reachable from other machines safely
+- [Authentication and service accounts](/docs/operate/keyring) — the full reference on tokens, scopes, and lifecycle
+- [Troubleshooting connection issues](/docs/operate/troubleshooting-connection) — the 10 connection-state failure modes the `/local` workspace can hit, with remediation per state and a common-error-code reference
+- [Troubleshooting](/docs/get-started/troubleshooting) — for "dashboard shows connected but no records" and similar cases

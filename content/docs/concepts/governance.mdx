@@ -1,0 +1,132 @@
+---
+title: Governance
+description: Permissions live in the protocol, not bolted on. Every act produces a record. Without a matching allow, the answer is no.
+---
+
+## Overview
+
+Governance in Syncropel is substrate-level, not application-level. There is no separate access-control system, no separate audit log, no separate policy engine. Permission rules are records on a reserved thread, evaluated by the same expression engine that handles routing, triggers, status folds, AITL, and health checks. The thing that decides "can this happen?" is the same kind of thing that decides "what should happen next?".
+
+This shape is the point. A team that wants to change a permission edits a rule and emits a record; the daemon reloads and the next request sees the new behaviour. No deploy, no migration, no second tool to learn. The cost of getting governance right is the cost of writing one good predicate.
+
+Three properties follow from this design and are worth naming up front, because they're what the rest of this page elaborates: **permissions live alongside the data they govern**, **the act log and the audit log are the same log**, and **without a rule that says "yes" the system says "no"**.
+
+## Permissions are records the kernel reads
+
+A permission rule is a `LEARN` record on `th_engine_config` with `body.topic: "permission_rule"`. Its body carries a name, a namespace, a CEL predicate, an action (`allow` or `deny`), a priority, and an `enabled` flag.
+
+```json
+{
+  "act": "LEARN",
+  "actor": "did:sync:user:alice",
+  "thread": "th_engine_config",
+  "body": {
+    "topic": "permission_rule",
+    "name": "users_approve_own_tasks",
+    "namespace": "default",
+    "expression": "current_actor().startsWith(\"did:sync:user:\") && resource == \"task_approve\" && record.body.assigned_to == current_actor()",
+    "action": "allow",
+    "priority": 100,
+    "enabled": true
+  }
+}
+```
+
+You don't usually emit this JSON by hand — `spl config add-permission-rule` builds the record and posts it. But the storage shape is worth seeing once, because it makes the rest of the model concrete: the rule itself is a record, like every other piece of state in the system.
+
+The kernel reloads the engine config the moment a new permission rule lands in the broadcast. The next request that comes in is evaluated against the new rule set. There is no daemon restart, no config-file dance, no warm-up window. The substrate keeps no state that isn't in the record log; reload is just a fresh fold.
+
+Permission rules sit in a family of seven other CEL-driven decision contexts — triggers, preconditions, routing, fold, health, AITL, and join. Each context has its own bindings. The Permission context exposes `record`, `resource` (the thing being requested — a string like `"record_write"` or `"task_approve"`), `current_actor()`, `trust()`, `task()`, `system`, `now()`, and three fleet-state functions discussed below. See the [CEL Expressions guide](/docs/guides/cel-expressions) for the full surface.
+
+## Allow, deny, and what wins
+
+Each rule has one action and one priority. The evaluator works through the rules in descending priority order. The first rule whose predicate returns `true` decides — `allow` or `deny`, depending on the rule's action. If no rule matches, the answer is `deny`. This is the **fail-closed default**.
+
+```
+priority 200  deny    actor.startsWith("did:sync:agent:") && resource == "record_delete"
+priority 100  allow   current_actor().startsWith("did:sync:user:") && resource == "task_approve"
+priority  50  allow   resource == "record_read"
+                                                            ↓
+A user trying to read a record    →  rule 3 matches  →  ALLOW
+An agent trying to delete         →  rule 1 matches  →  DENY
+A service touching a custom op    →  no match        →  DENY (fail-closed)
+```
+
+The practical consequence of this ordering is the property the tile names: **a high-priority deny preempts every lower-priority allow**. You can confidently add new allow rules at lower priorities without worrying that they'll widen access through some path you haven't thought of, because any deny at a higher priority still wins. The flip side is true too — a deliberate high-priority deny over a sub-domain ("agents can't delete records, ever") cannot be accidentally undone by an allow rule below it.
+
+When permissions are enabled but you've added no rules, every gated request returns `403`. This is intentional — until you've expressed what's allowed, nothing is. Most operators bootstrap with two or three broad allow rules covering normal traffic, then layer denies for the things that need to never happen. See the [keyring guide](/docs/operate/keyring) for the typical bootstrap.
+
+A note on broken rules: if a permission rule's CEL expression fails to compile or errors at runtime, the evaluator skips it (logged as a warning) rather than treating it as allow or deny. A bad rule does not silently flip enforcement in either direction.
+
+## Every act is an audit row
+
+The eight act types — `INTEND`, `DO`, `KNOW`, `LEARN`, `GET`, `PUT`, `CALL`, `MAP` — all produce records. Records are immutable, content-addressed, and (when authentication is enabled) signed. The record log isn't where audit events get *copied to*; it's where they *originate*.
+
+This collapses what is usually two systems into one. There is no `audit_events` table to fall out of sync with the application data. There is no question about what's covered — anything the kernel observes is, by definition, in the record log. Three properties follow:
+
+**Tamper-evidence comes for free.** Every record's ID is the SHA-256 of its content. Modifying a record changes its ID; modifying it without changing its ID is computationally infeasible. Anyone holding the record log can verify it.
+
+**Completeness is structural.** Anything that didn't produce a record didn't happen. The system has no "side channel" through which state changes without records. Permission denials, AITL approvals, federation pulls, dispatch results — all of them are records.
+
+**Audit queries are folds.** "What did this actor ever do?" is `records.filter(r, r.actor == X)`. "Show me every denial in the last 24 hours" is a CEL trigger on KNOW records with `body.topic: "permission_denied"` plus a time filter. There is no audit-specific query language because there is no audit-specific store.
+
+Concretely:
+
+- **`spl audit export`** dumps the audit-relevant slice of the record log to JSON or NDJSON, with category and time filters.
+- **`spl thread records <id>`** walks the records on any thread — useful when investigating a specific incident.
+- **`spl debug replay <thread>`** walks the records *with the fold's state-transition annotations* — useful when you need to know not just what happened, but what the system thought was happening at each step.
+
+## How governance composes with the rest of the substrate
+
+**Namespaces define where rules attach.** A permission rule carries a `namespace` field, and the 5-level namespace hierarchy gives the inheritance shape — child rules can override parent rules of the same name, but cannot break the parent's deny rules. See [Namespaces](/docs/concepts/namespaces) for the narrowing model.
+
+**Records are what governance is about.** Every gated operation is, in the end, "should this record be allowed to land or this action be allowed to execute?". See [Records](/docs/concepts/records) for the unit, [Threads](/docs/concepts/threads) for how records are scoped.
+
+**Actors are who governance keys on.** A permission rule can ask `trust(current_actor(), "ops") > 0.7` or `current_actor().startsWith("did:sync:user:")`. The DID is the stable handle; trust is the evidence layer. See [Actors](/docs/concepts/actors) and [Trust](/docs/concepts/trust).
+
+**Federation extends governance via consent.** When records cross instance boundaries, the consent filter on `th_consent` decides what flows through. Pairing two daemons does not by itself grant access — you also need a matching consent grant. See [Federation](/docs/concepts/federation) and the [Consent guide](/docs/guides/consent).
+
+## Fleet-level kill switches
+
+Some governance decisions are about halting activity at the substrate, not approving individual operations. Syncropel models these as fleet state on the reserved thread `th_fleet_control`. The Permission CEL context exposes three predicates that read this state:
+
+- **`fleet_emergency_active()`** — engine-wide kill switch is on. Returns `bool`.
+- **`fleet_frozen_namespaces()`** — namespaces currently under soft or hard freeze. Returns `list<string>`.
+- **`fleet_hard_frozen_past_grace()`** — namespaces whose hard freeze has passed its grace window. Returns `list<string>`.
+
+A common pattern is the standing rule that denies new effectful records in any frozen namespace:
+
+```
+!fleet_frozen_namespaces().exists(ns,
+  record.body.namespace == ns &&
+  (record.act == "INTEND" || record.act == "DO" || record.act == "CALL"))
+```
+
+Kill switches are just permission rules. Toggling fleet state is a record. The semantics for "we need to stop everything right now" are the same as the semantics for "alice can approve her own tasks" — write the predicate, emit the record, the next request sees it.
+
+## What's enforced today vs the spec
+
+The shipped governance layer covers the substrate-level parts of the protocol end-to-end. The richer pieces are designed but not yet wired:
+
+- **CEL permission rules** with `allow`/`deny`, priority-ordered evaluation, and fail-closed default — shipped.
+- **Eight CEL evaluation contexts** including Permission — shipped.
+- **Namespace existence + status check at ingest** (the structural narrowing guarantee) — shipped, see [Namespaces](/docs/concepts/namespaces).
+- **Audit by construction** through immutable, content-addressed, signable records — shipped.
+- **Fleet-level kill switches** via `th_fleet_control` and the three `fleet_*()` CEL functions — shipped.
+
+Two pieces from the spec are not yet implemented:
+
+- **Session Capability Tokens (SCTs).** The spec describes a model where each session is issued a signed capability envelope at the start, then the executor validates each operation locally against the envelope without consulting the kernel. Today, every gated request runs through the CEL evaluator on the daemon. This is fast enough for current workloads — the evaluator handles thousands of requests per second with the LRU cache warmed — but SCTs become important when an executor needs to govern itself offline.
+- **Namespace policy YAML composition** (intersect-on-allow, union-on-deny) — the YAML language for `dial`, `primitives`, `max_effects`, etc. is in the spec but the namespace `policy` field is opaque text today. The narrowing check validates existence and status, not capability subsets. Tracked alongside the namespaces gap.
+
+Both are bounded follow-ups. The substrate-level guarantees most operators actually need — fail-closed by default, every operation is a record, no off-record state — hold today.
+
+## What's next
+
+- **[Namespaces](/docs/concepts/namespaces)** — the unit permission rules attach to.
+- **[Records](/docs/concepts/records)** — the audit unit, and what every gated operation produces or accesses.
+- **[Actors](/docs/concepts/actors)** — the identities permissions key on.
+- **[Federation](/docs/concepts/federation)** — extending governance across instances through consent.
+- **[CEL Expressions guide](/docs/guides/cel-expressions)** — the predicate language and all eight evaluation contexts.
+- **[Consent guide](/docs/guides/consent)** — federation governance for cross-namespace sharing.
+- **[Keyring guide](/docs/operate/keyring)** — the bootstrap flow for enabling permissions on a new daemon.

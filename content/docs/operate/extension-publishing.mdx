@@ -1,0 +1,233 @@
+---
+title: Publishing an Extension
+description: How to ship a Syncropel iframe extension today — naming, hosting, capability declarations, security expectations, versioning. What's available now versus the registry coming in future releases.
+---
+
+<Callout type="info">
+Today, Syncropel extensions are **published as static URLs** that hosts opt into. There is no central registry. This page documents the discipline you should follow so your extension behaves predictably across hosts, and the migration path when a registry ships.
+</Callout>
+
+## What's covered
+
+| Topic | What you'll get |
+|---|---|
+| [Naming](#naming-conventions) | Domain-matched names that map cleanly to `body.kind` scopes |
+| [Hosting](#where-to-host-extension-bundles) | Static-CDN options ranked by setup cost |
+| [Capability manifest](#capability-manifest) | What your extension declares it needs and why |
+| [Security expectations](#security-expectations) | The contract you keep with hosts that embed you |
+| [Versioning](#versioning) | Semver, record-shape compatibility, and how aliases handle breaking renames |
+| [Discovery](#discovery-today-and-tomorrow) | Today: opt-in URLs. Future: registry. |
+
+## Naming conventions
+
+Your extension's identity has two parts:
+
+1. A **publisher domain** that you control (e.g., `acme.com`, `tools.example.org`)
+2. An **extension name** scoped underneath it (e.g., `inbox`, `dj-deck`, `inspector`)
+
+Combined as `domain.tld.extension-name` (reverse DNS), this gives you a globally unique extension identifier and a natural pre-claim on the matching `body.kind` scope. So:
+
+- Publisher: `acme.com`
+- Extension: `inbox`
+- Identifier: `com.acme.inbox`
+- `body.kind` scope you can author records under: `acme.inbox.*` (e.g., `acme.inbox.task`, `acme.inbox.label`)
+
+This is the same pattern Java packages, Android apps, and macOS bundle ids use, for the same reason: domain ownership is already a global namespace.
+
+**Rules of thumb:**
+
+- Lowercase, hyphenated for multi-word names: `weekly-review`, not `WeeklyReview`.
+- One identifier per extension. If you ship multiple extensions, use distinct names: `com.acme.inbox`, `com.acme.calendar`.
+- Don't squat. If you don't own the domain, don't use it as a publisher. Hosts may reject extensions whose publisher doesn't resolve to a real DNS name in future registry versions.
+
+## Where to host extension bundles
+
+An extension is just a static web app — HTML + JS + CSS that runs in an iframe. Any static host works.
+
+| Host | Setup cost | Best for |
+|---|---|---|
+| **Cloudflare Pages** | 5 minutes (GitHub auto-deploy) | Most extensions; generous free tier; global CDN |
+| **Vercel** | 5 minutes | If you're already on Vercel for the rest of your stack |
+| **Netlify** | 5 minutes | Same as above; preview-deploys per branch are nice for extension dev |
+| **GitHub Pages** | 10 minutes | Open-source extensions; CORS works fine |
+| **Self-hosted** (S3 + CloudFront, your own nginx, etc.) | Variable | Enterprise hosts that need network controls |
+
+**Whatever you pick, make sure:**
+
+- HTTPS-only (the host page is HTTPS; mixed content blocks the iframe)
+- A stable URL per version: `https://ext.acme.com/inbox/0.3.2/` rather than `https://ext.acme.com/inbox/latest/` if you want hosts to pin
+- Set `Cache-Control: max-age=31536000, immutable` on versioned bundles; hosts can safely cache them forever
+- Set `X-Frame-Options: ALLOWALL` (or no `X-Frame-Options` header) — your extension MUST be embeddable. The default of `SAMEORIGIN` from many hosts blocks all iframe usage.
+- A `manifest.json` at a predictable path (see next section) so hosts can discover capabilities before loading the iframe
+
+## Capability manifest
+
+Hosts that embed you should be able to inspect your declared capabilities **before** loading the iframe. Ship a `manifest.json` at the root of your bundle:
+
+```json
+{
+  "syncropel_extension": "0.1",
+  "id": "com.acme.inbox",
+  "name": "Acme Inbox",
+  "version": "0.3.2",
+  "publisher": {
+    "name": "Acme Corp",
+    "url": "https://acme.com",
+    "did": "did:web:acme.com"
+  },
+  "iframe": {
+    "url": "https://ext.acme.com/inbox/0.3.2/index.html",
+    "width": "responsive",
+    "height": "auto"
+  },
+  "capabilities": [
+    "records.emit",
+    "records.query",
+    "records.subscribe"
+  ],
+  "scopes": ["acme.inbox"],
+  "description": "A focused inbox for triaging tasks, intents, and incoming records.",
+  "documentation": "https://acme.com/inbox/docs",
+  "support": "support@acme.com"
+}
+```
+
+Field meanings:
+
+| Field | Required | Notes |
+|---|---|---|
+| `syncropel_extension` | yes | Manifest schema version. Today: `"0.1"`. |
+| `id` | yes | Reverse-DNS identifier. Must match your publisher domain. |
+| `name` | yes | Human-readable name shown in host chrome. |
+| `version` | yes | Semver. Bump per the rules in [Versioning](#versioning). |
+| `publisher.name` | yes | Display name. |
+| `publisher.url` | yes | Where users can learn more about you. |
+| `publisher.did` | no | A `did:web:<domain>` if you're advertising one. Future registry will verify this matches your hosting domain. |
+| `iframe.url` | yes | The actual iframe entry point. |
+| `iframe.width` | no | `responsive` or a fixed pixel width. Hosts default to `responsive`. |
+| `iframe.height` | no | `auto` (the extension calls `setHeight` to size itself) or a fixed pixel height. |
+| `capabilities` | yes | The set you intend to request. Hosts can still grant a subset. |
+| `scopes` | yes | The `body.kind` scopes your extension authors records under. Hosts can use this to gate by scope. |
+| `description` | yes | One-paragraph plain text. Hosts may render in their UI. |
+| `documentation` | recommended | Link users to your guide. |
+| `support` | recommended | Contact for issues. |
+
+**Don't lie in your manifest.** If you declare `records.emit` but never call it, hosts will be confused. If you don't declare `permissions.camera` but try to use it, hosts will deny the request. Manifest accuracy is what makes capability gating predictable for users.
+
+## Security expectations
+
+Hosts trust you to behave like a well-meaning guest in their workspace. The contract is roughly:
+
+### What hosts expect from you
+
+- **Don't try to escape the iframe.** No `window.parent.location =`, no busting out of `sandbox` attrs. Hosts will block these and may stop embedding you.
+- **Don't request capabilities you don't use.** If your manifest lists `records.subscribe`, every supporting host has to wire that up. Asking for the maximum set is rude and increases the surface a user has to consent to.
+- **Validate every host message.** Use [`@syncropel/extensions`'s built-in `validateMessage`](/docs/guides/extensions) — don't trust envelopes that fail validation.
+- **Treat the `actor` from `hello` as confidential.** It's the user's DID. Don't log it externally, don't ship it to analytics services, don't put it in URLs.
+- **Respect `goodbye`.** When the host signals shutdown, tear down subscriptions and stop posting messages.
+- **Stay below `setHeight(10000)`.** Extensions taller than 10000px get clamped. Use scrolling inside the iframe for content longer than the viewport.
+- **Document your data flows.** If your extension talks to your own backend (e.g., a SaaS feature), say so in your `documentation`. Users embedding you in their host want to know where their data goes.
+
+### What you can expect from hosts
+
+- A correctly-validated `hello` payload with a valid `actor` and `namespace`.
+- Capability grants that match the policy, never broader than what you requested.
+- `action.result` replies for every request you send, even on failure.
+- An origin pinned to one of yours when the host posts back to you.
+- A `goodbye` before the iframe is unloaded (best-effort — closing a tab may skip it).
+
+### Content Security Policy
+
+Recommended CSP for your iframe's HTML:
+
+```
+default-src 'self';
+script-src 'self';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https:;
+font-src 'self' data:;
+connect-src 'self' https://your-backend.example.com;
+frame-ancestors *;
+```
+
+`frame-ancestors *` is required so hosts can embed you. If you want to restrict embedding to certain hosts, list them here instead of `*`.
+
+## Versioning
+
+Use **semver** (`MAJOR.MINOR.PATCH`) and treat the **record shapes you emit** as part of your public API.
+
+| You're changing… | Bump |
+|---|---|
+| A patch fix, internal refactor, copy edit | PATCH |
+| New optional `body` fields, new capabilities you started using, new `body.kind` values within your scope | MINOR |
+| Removing or renaming a `body.kind` value, removing required `body` fields, dropping a capability you previously emitted under | MAJOR |
+| Migrating to a different publisher scope (e.g., `acme.inbox` → `corp.acme.inbox`) | MAJOR |
+
+### Renames are coherence events
+
+If you rename a `body.kind`, ship a `core.alias` record alongside the bump. That tells the protocol layer that the old kind and the new kind refer to the same logical entity, so historical records stay queryable. The SDK helper:
+
+```typescript
+await client.emitAlias({
+  oldKind: "acme.inbox.task",
+  newKind: "acme.inbox.work_item",
+  reason: "Renaming for clarity in v2.0",
+  thread: "th_acme_inbox_aliases",
+});
+```
+
+Hosts and downstream consumers can look up aliases when joining records. See the [TypeScript SDK guide](/docs/guides/typescript-sdk#reserved-kind-helpers) for the full reserved-kind set.
+
+## Discovery: today and tomorrow
+
+### Today — opt-in URLs
+
+There is no central registry. Hosts add your extension by URL:
+
+1. You publish a manifest at, e.g., `https://ext.acme.com/inbox/manifest.json`.
+2. The host's user pastes that URL into their workspace's "add extension" UI.
+3. The host fetches the manifest, shows the user the requested capabilities + publisher, and either embeds the extension or doesn't.
+
+This works. It scales to dozens of extensions per workspace. It does not scale to "browse 10,000 extensions." That's what the registry is for.
+
+### Future — registry (target: a future minor release)
+
+A central registry will let:
+
+- Users browse and install extensions by name without knowing the URL
+- Publishers prove ownership of their domain via `did:web:<domain>`
+- Hosts enforce minimum-version policies on declared capabilities
+- Auditors track extension provenance across hosts
+
+The registry is **not** a gatekeeper — extensions outside the registry will keep working via the URL flow. The registry is a discovery layer, not a deployment requirement.
+
+When the registry ships, the path to listing your extension will be:
+
+1. Set `publisher.did` in your manifest to a `did:web:<your-domain>`
+2. Serve a `did.json` at `https://<your-domain>/.well-known/did.json` proving control
+3. Submit your manifest URL to the registry
+4. Tag releases via the registry's CLI
+
+If you ship a manifest today with a valid `publisher.did`, you'll be eligible for one-click migration when the registry ships.
+
+## A worked publishing checklist
+
+Before announcing your extension to anyone:
+
+- [ ] Manifest is at a stable URL on your hosting domain
+- [ ] All declared capabilities are actually used
+- [ ] All record kinds you emit live under your declared scopes
+- [ ] CSP allows `frame-ancestors *` (or your specific allowlist)
+- [ ] Versioned bundle URL: `https://ext.acme.com/inbox/0.3.2/`, not `latest/`
+- [ ] `X-Frame-Options` is unset or set to `ALLOWALL`
+- [ ] Cache headers are immutable on versioned paths
+- [ ] You've tested the [reference iframe host snippet](/docs/reference/iframe-host-snippet) embedding your extension end-to-end
+- [ ] Documentation page explains what data your extension reads and writes
+- [ ] You have a public support contact
+
+## What's next
+
+- **Build the extension** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) walks the build + deploy flow.
+- **Embed it in your own product** — [Iframe host snippet](/docs/reference/iframe-host-snippet) is a vanilla-JS reference host you can adapt.
+- **Deeper SDK reference** — [Extensions SDK guide](/docs/guides/extensions) covers every message kind, validator rule, and capability.
+- **Permission policy** — [CEL expressions guide](/docs/guides/cel-expressions) covers what record writes the kernel will accept regardless of what an extension asks for.

@@ -1,0 +1,389 @@
+---
+title: Your First Multi-Namespace Setup
+description: Walk through setting up two isolated environments under one ORG, writing records into each, and verifying the narrowing rule in action — about 15 minutes.
+---
+
+## What you'll learn
+
+By the end of this tutorial you'll have:
+
+- Created an ORG-level namespace and two ENV-level children
+- Written records into each environment via the HTTP API
+- Confirmed that records from one environment can't accidentally claim the other's namespace
+- Triggered the `403 NAMESPACE_REJECTED` error and recovered from it
+- Archived an environment and watched the cascade prevent new writes
+- Used `spl debug replay` to inspect records in a specific namespace
+
+You'll need: a running `spl serve --daemon` (the [Quickstart](/docs/start) covers this), and `curl`. About 15 minutes.
+
+If you skipped the [Namespaces concept](/docs/concepts/namespaces) page, read the first three sections first — they explain the WHY this tutorial demonstrates.
+
+## Step 1: confirm the daemon is healthy
+
+```bash
+spl doctor
+```
+
+You should see 7 PASS checks. If `daemon reachable` fails, run `spl serve --daemon` first.
+
+```bash
+spl namespace list
+```
+
+On a fresh install this shows just `default` (the implicit root). That's our starting point.
+
+## Step 2: create the ORG
+
+We'll set up a fictional company called "tutorial" with `staging` and `prod` environments under a `web` project.
+
+```bash
+spl namespace create tutorial --description "Tutorial walkthrough tenant"
+```
+
+```
+✓ namespace 'tutorial' → active
+```
+
+Try creating a child without the project parent — you should get a clear refusal:
+
+```bash
+spl namespace create tutorial/web/staging
+```
+
+```
+error: parent namespace 'tutorial/web' does not exist or is not Active.
+  Create the parent first:
+    spl namespace create tutorial/web
+```
+
+This is the parent-validation pre-flight. The CLI catches the orphan attempt before any record is written.
+
+## Step 3: walk down the tree
+
+```bash
+spl namespace create tutorial/web --description "Web project"
+spl namespace create tutorial/web/staging --description "Staging environment"
+spl namespace create tutorial/web/prod --description "Production environment"
+```
+
+Verify the structure:
+
+```bash
+spl namespace list
+```
+
+```
+  ID                                  STATUS     LEVEL      DESCRIPTION
+  default                             active     DEFAULT    System default namespace (implicit)
+  tutorial                            active     ORG        Tutorial walkthrough tenant
+  tutorial/web                        active     PROJECT    Web project
+  tutorial/web/prod                   active     ENV        Production environment
+  tutorial/web/staging                active     ENV        Staging environment
+
+  4 explicit + 1 implicit (default)
+```
+
+Inspect the staging env to see its full ancestor chain:
+
+```bash
+spl namespace show tutorial/web/staging
+```
+
+```
+Namespace: tutorial/web/staging
+  Status:      active
+  Level:       ENV
+  Depth:       3
+  Description: Staging environment
+
+  Ancestor chain (root last):
+    ✓ tutorial/web/staging
+    ✓ tutorial/web
+    ✓ tutorial
+    ✓ default
+```
+
+Every ancestor is Active (`✓`). Records claiming `tutorial/web/staging` will be accepted.
+
+## Step 4: write your first namespace-scoped record
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:tutorial",
+    "thread": "th_tutorial_staging",
+    "body": {
+      "namespace": "tutorial/web/staging",
+      "goal": "Deploy v1.0 to staging"
+    },
+    "clock": 0,
+    "data_type": "VOID"
+  }'
+```
+
+You should see a successful response with the new record ID:
+
+```json
+{
+  "object": "record",
+  "id": "abc123...",
+  "thread": "th_tutorial_staging",
+  "actor": "did:sync:user:tutorial",
+  "act": "INTEND",
+  ...
+}
+```
+
+Now write a follow-up DO record:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "DO",
+    "actor": "did:sync:user:tutorial",
+    "thread": "th_tutorial_staging",
+    "body": {
+      "namespace": "tutorial/web/staging",
+      "topic": "task_started",
+      "action": "deploy"
+    },
+    "clock": 1,
+    "data_type": "VOID"
+  }'
+```
+
+## Step 5: trigger the namespace rejection
+
+Now try to write a record claiming a namespace that doesn't exist:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:tutorial",
+    "thread": "th_tutorial_test",
+    "body": {
+      "namespace": "fake-corp",
+      "goal": "should fail"
+    },
+    "clock": 0,
+    "data_type": "VOID"
+  }'
+```
+
+You should get a 403 with a helpful error message:
+
+```json
+{
+  "object": "error",
+  "type": "invalid_request_error",
+  "code": "NAMESPACE_REJECTED",
+  "message": "namespace 'fake-corp' rejected: ancestor 'fake-corp' is not Active in the registry. Create it first with `spl namespace create fake-corp`."
+}
+```
+
+The error tells you exactly what's wrong AND how to fix it. This is the [monotonic narrowing rule](/docs/concepts/namespaces#the-narrowing-rule) in action — the daemon walked the ancestor chain, hit `fake-corp`, found it missing from the registry, and refused the write.
+
+## Step 6: try cross-environment escalation
+
+Now try something more interesting. Write a record claiming `tutorial/web/staging/job-99` — a JOB-level namespace under your existing staging environment, but one you didn't explicitly create:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:tutorial",
+    "thread": "th_tutorial_jobtest",
+    "body": {
+      "namespace": "tutorial/web/staging/job-99",
+      "goal": "should also fail"
+    },
+    "clock": 0,
+    "data_type": "VOID"
+  }'
+```
+
+```json
+{
+  "object": "error",
+  "code": "NAMESPACE_REJECTED",
+  "message": "namespace 'tutorial/web/staging/job-99' rejected: ancestor 'tutorial/web/staging/job-99' is not Active in the registry. Create it first with `spl namespace create tutorial/web/staging/job-99`."
+}
+```
+
+This is important: **a parent namespace doesn't auto-grant access to its descendants**. Just because `tutorial/web/staging` is Active doesn't mean any child namespace under it is automatically allowed. Each namespace must be explicitly created. This is what makes the registry a real isolation boundary instead of a glob pattern.
+
+To allow `job-99`, create it:
+
+```bash
+spl namespace create tutorial/web/staging/job-99
+```
+
+Now retry the curl — it should succeed.
+
+## Step 7: archive an environment
+
+Imagine staging is being decommissioned. Archive it:
+
+```bash
+spl namespace archive tutorial/web/staging
+```
+
+```
+✓ namespace 'tutorial/web/staging' → archived
+```
+
+Now any new write claiming `tutorial/web/staging` (or any descendant, including the `job-99` you just created) is rejected:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:tutorial",
+    "thread": "th_tutorial_postarchive",
+    "body": {"namespace": "tutorial/web/staging", "goal": "should fail"},
+    "clock": 0, "data_type": "VOID"
+  }'
+```
+
+```json
+{
+  "code": "NAMESPACE_REJECTED",
+  "message": "namespace 'tutorial/web/staging' rejected: ancestor 'tutorial/web/staging' is not Active in the registry."
+}
+```
+
+And the cascade catches the descendant too:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:tutorial",
+    "thread": "th_tutorial_postarchive2",
+    "body": {"namespace": "tutorial/web/staging/job-99", "goal": "cascade test"},
+    "clock": 0, "data_type": "VOID"
+  }'
+```
+
+```json
+{
+  "code": "NAMESPACE_REJECTED",
+  "message": "namespace 'tutorial/web/staging/job-99' rejected: ancestor 'tutorial/web/staging' is not Active in the registry."
+}
+```
+
+The error names `tutorial/web/staging` (the archived ancestor) as the failing link, not `job-99` itself. The descendant inherits its parent's archived state instantly.
+
+`tutorial/web/prod` is still fine because its ancestor chain (`tutorial/web/prod → tutorial/web → tutorial → default`) is still all Active. Try writing to it:
+
+```bash
+curl -X POST http://localhost:9100/v1/records \
+  -H "Content-Type: application/json" \
+  -d '{
+    "act": "INTEND",
+    "actor": "did:sync:user:tutorial",
+    "thread": "th_tutorial_prod",
+    "body": {"namespace": "tutorial/web/prod", "goal": "still works"},
+    "clock": 0, "data_type": "VOID"
+  }'
+```
+
+Success. Sibling environments are isolated — archiving staging doesn't touch prod.
+
+## Step 8: re-activate by re-creating
+
+Decided you need staging back? Just re-create it:
+
+```bash
+spl namespace create tutorial/web/staging --description "Revived"
+```
+
+```
+namespace 'tutorial/web/staging' already exists and is Active — overriding
+✓ namespace 'tutorial/web/staging' → active
+```
+
+The CLI tells you it's overriding the prior state (which was Archived). The latest record per namespace ID wins, so the new Active LEARN supersedes the Archived one.
+
+Note: re-activating the parent does NOT re-activate descendants. If you also archive `tutorial/web/staging/job-99` and want it back, you have to re-create it separately:
+
+```bash
+spl namespace show tutorial/web/staging/job-99
+# Status: archived
+spl namespace create tutorial/web/staging/job-99
+# Now active
+```
+
+## Step 9: inspect the records you just created
+
+Use `spl debug replay` to see the records on the staging thread:
+
+```bash
+spl debug replay th_tutorial_staging
+```
+
+```
+spl debug replay th_tutorial_staging
+
+  CLOCK  ACT    ACTOR                               STATUS       BODY
+      0  INTEND did:sync:user:tutorial              inbox        goal=Deploy v1.0 to staging
+→     1  DO     did:sync:user:tutorial              active       topic=task_started
+
+  Final status: active (2 records)
+```
+
+The replay walks the records in clock order and shows the derived status after each one. The `→` arrow marks status transitions.
+
+## Step 10: clean up
+
+When you're done with the tutorial, archive (or delete) the namespaces you created:
+
+```bash
+spl namespace archive tutorial/web/staging/job-99
+spl namespace archive tutorial/web/staging
+spl namespace archive tutorial/web/prod
+spl namespace archive tutorial/web
+spl namespace archive tutorial
+```
+
+Or for a hard cleanup (still preserves audit trail):
+
+```bash
+spl namespace delete tutorial/web/staging/job-99
+spl namespace delete tutorial/web/staging
+spl namespace delete tutorial/web/prod
+spl namespace delete tutorial/web
+spl namespace delete tutorial
+```
+
+The records you wrote during the tutorial (in `th_tutorial_staging`, `th_tutorial_prod`, etc.) remain in the store as part of the immutable record log. Threads aren't deleted by archiving namespaces — namespaces gate write access, not data retention.
+
+## What you learned
+
+Going through this tutorial you've exercised:
+
+1. **Parent validation** — children require an Active parent (catches typos, prevents typing-mistake escalation)
+2. **Explicit namespace registration** — descendants don't inherit access automatically (real isolation, not glob patterns)
+3. **Clear error messages** — every rejection names the failing ancestor and includes the recovery command
+4. **Lifecycle cascade** — archiving a parent stops writes to every descendant immediately
+5. **Sibling isolation** — archiving one ENV doesn't touch siblings
+6. **Re-activation by re-create** — last-write-wins semantics, with the CLI flagging overrides
+7. **Read-only inspection** — `spl namespace show` walks ancestor chains, `spl debug replay` walks records
+
+These are the building blocks of a production multi-tenant deployment. For real setups, see the [Namespaces guide](/docs/guides/namespaces) which covers CEL rules scoped to namespaces, the operational checklist before turning on enforcement, and recovery procedures.
+
+## Next steps
+
+- **[Namespaces guide](/docs/guides/namespaces)** — production-grade setup, CEL rules, recovery procedures
+- **[Namespaces concept](/docs/concepts/namespaces)** — the WHY behind the design
+- **[CEL Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now)** — `current_namespace()` for scoped permission rules
+- **[Debugging guide](/docs/guides/debugging)** — when something doesn't work, this is the order to reach for tools
+- **Spec §08-governance/04** — normative source

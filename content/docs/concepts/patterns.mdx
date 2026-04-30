@@ -1,0 +1,129 @@
+---
+title: Patterns
+description: Proven workflows that replay automatically. Every successful thread contributes a hash chain at four levels of abstraction; when new work matches one, the system reuses the outcome instead of recomputing.
+---
+
+## Overview
+
+When the same shape of work succeeds repeatedly, Syncropel records the shape as a pattern. The next similar work to arrive is matched against the pattern library, and if a match is strong enough, the outcome is replayed — no LLM call, no new reasoning, same result. Over a saturated pipeline, this is what pushes the marginal cost of a coordination event toward zero.
+
+The mental model is closer to a cache than to a model. A cache doesn't know what it stores; it knows what it's been asked for and what it returned. Patterns in Syncropel work the same way: they don't contain semantics, they contain *record chains with signatures*. The match is purely structural. The semantics come from the fold that projects the replayed chain into the current context.
+
+## The four levels of hash
+
+Every record carries implicit hash signatures at four levels of abstraction. L0 is the exact content; L3 is the essence of intent. Each level throws away more detail than the last, and each is matchable independently.
+
+| Level | Hashes over | What changes still match | What differences break the match |
+|---|---|---|---|
+| **L0 Exact** | All 7 hashed fields. | Nothing — L0 match means identical content. | Any byte difference. |
+| **L1 Structural** | `dial + in + op + out + p`  — the shape of the effect. | Different actors doing the same operation with the same parameters. | Different operations or parameters. |
+| **L2 Flow** | `in + out + p` — the value-shape (types and structure). | Different operations that take the same input shape and produce the same output shape. | Different input or output types. |
+| **L3 Intent** | `in + out` — the input-output boundary. | Radically different implementations that cross the same boundary. | Different boundary contracts. |
+
+L0 never leaves its namespace of origin without explicit consent — this is [F8](/docs/reference/glossary), the namespace isolation invariant. L1 through L3 are structural and safe to share across namespaces, which is what makes cross-namespace pattern replay viable without leaking content.
+
+The hash containment property holds: `L0 ⟹ L1 ⟹ L2 ⟹ L3`. If two records match at L0, they match at every higher level. The reverse is not true; two records matching at L3 may differ at L2.
+
+## Matching cascade
+
+When new work enters the engine, the matching cascade runs from most specific to least:
+
+```
+Incoming thread arrives
+   │
+   ▼
+   L1 Structural match?       → REPLAY at ~$0.00 (same shape, same params)
+   │
+   ▼
+   L2 Flow match?             → ADAPT (same type-shape, minor parameter tweaks)
+   │
+   ▼
+   L3 Intent match?           → EXPLORE (same boundary, new approach)
+   │
+   ▼
+   Semantic similarity match? → EXPLORE (embedding-based fallback)
+   │
+   ▼
+   No match                   → CREATE (full reasoning required)
+```
+
+Each step is faster and cheaper than the next. The system tries the cheapest path first and only falls back to more expensive strategies when the cheaper ones miss. This is why most of the cost reduction comes from the L1/L2 layers — they're where most traffic converges once the system has been running for a while.
+
+L0 is not in the cascade. L0 is for idempotency (*is this exact record already here?*), not pattern matching (*is this the same shape as something we've done?*). The cascade starts one level up.
+
+## Crystallization: when a pattern graduates
+
+A pattern exists the moment a thread closes successfully — its hash chain is recorded in the pattern index and is available for matching. But not every pattern is reliable enough to replay. Crystallization is the promotion from "observed" to "reliable enough to trust without re-checking".
+
+Four criteria (C1-C4) must all hold:
+
+1. **C1 Trust** — the producing actor's trust in the relevant domain is ≥ 0.90.
+2. **C2 Observations** — the pattern has been observed ≥ 100 times.
+3. **C3 Compression** — the pattern compresses meaningfully under MDL (Minimum Description Length). This filters out patterns that are just coincidence — a genuine pattern should describe the population more cheaply than listing the members.
+4. **C4 Multi-source** — the pattern has been contributed by more than one `(actor, evaluator)` pair. This defends against one actor with a quirk being promoted as a general rule.
+
+A pattern meeting all four becomes *crystallized*. Crystallized patterns are REPLAY-eligible — their outcomes are reused without running the pipeline's reasoning step. They also participate in federated pattern sharing: L1/L2/L3 hashes of crystallized patterns can propagate across namespaces with appropriate consent.
+
+## De-crystallization
+
+The inverse direction exists. A crystallized pattern can lose its status if:
+
+- The producing actor's trust in the domain drops below 0.80 (the actor's reliability has declined).
+- The pattern starts failing in replay (new verdicts reject replays of the pattern).
+- A better pattern for the same work emerges (compression score improves on another pattern covering the same shape).
+
+The 0.80 threshold is lower than the 0.90 entry criterion on purpose — there's hysteresis, so patterns don't flicker in and out of crystallization on every small trust wobble.
+
+De-crystallization is how the system self-corrects. A pattern that used to work and stopped working doesn't keep replaying into a wall; it falls back to CREATE until fresh evidence either re-crystallizes it (if conditions resume) or a new pattern supplants it.
+
+## The economic model
+
+Pattern crystallization is what makes the cost curve bend over time. The rough distribution across the four dial zones as a deployment matures:
+
+| Stage | REPLAY | ADAPT | EXPLORE | CREATE |
+|---|---|---|---|---|
+| Early (0-50 tasks) | 0% | 10% | 30% | 60% |
+| Growing (50-200 tasks) | 20% | 30% | 30% | 20% |
+| Mature (200-500 tasks) | 50% | 25% | 15% | 10% |
+| Steady state (500+ tasks) | 85% | 10% | 4% | 1% |
+
+These are empirical rules of thumb, not guarantees; the exact distribution depends on how concentrated your workload is. A narrow workflow (e.g., a CI pipeline with three task types) saturates REPLAY faster than a broad one (e.g., a general-purpose research assistant).
+
+The economic claim is: the cost of the 85% REPLAY slice is near-zero — no model call, just a fold and an emit. The remaining 15% (the ADAPT/EXPLORE/CREATE tail) is where the operational cost sits, and that fraction shrinks as more patterns crystallize.
+
+## Patterns and federation
+
+Crystallized patterns can propagate across federation peers, subject to the same consent model as any other records. The hash-level filter applies:
+
+- **L0** stays local to its namespace of origin.
+- **L1** shares with consent — the structural chain, without the raw body content.
+- **L2** shares more permissively — just the shape, no parameters.
+- **L3** is effectively public metadata — just the boundary contract.
+
+This lets a team's trusted patterns benefit other teams on paired instances without leaking the *contents* of what the pattern was about. You share the *existence* of the pattern and its shape, not the sensitive body bytes.
+
+## What's enforced today vs the spec
+
+Current implementation covers the matching cascade (L0-L3 hashing is in the algebra crate, the cascade runs in the routing path) and the crystallization criteria (C1-C4 live in `syncropel-trust/src/crystallization.rs`).
+
+Gaps tracked as follow-ups:
+
+- **Replay shortcut fully wired across all decision points.** Routing short-circuits on L1 match today; AITL and fold-rule contexts don't yet. Wiring is straightforward but per-context.
+- **Cross-instance pattern federation.** The hash-level gating is designed, the consent filter exists, but the pattern sync protocol is on the roadmap.
+- **Pattern inspection CLI.** `spl pattern list/show` is not yet implemented — patterns are observable today only by reading the pattern index via the HTTP API. Tooling is on the polish backlog.
+
+## When patterns won't help
+
+Two shapes of work where the pattern layer adds little.
+
+**Genuine one-offs.** If a task shape appears once and never recurs, there's no pattern to match and no benefit from the pattern layer. The system correctly routes it to CREATE; the cost stays at the base LLM call.
+
+**High-variance inputs with identical boundaries.** A code-review task where every PR has a different diff but the same "review this diff" boundary will match at L3 (intent) but miss at L1/L2. The result is EXPLORE zone — the pattern layer contributes context but doesn't replay an outcome. Still cheaper than CREATE, but not zero.
+
+## What's next
+
+- **[The engine](/docs/concepts/engine)** — the 4-loop system that runs the matching cascade.
+- **[Trust](/docs/concepts/trust)** — the evidence model that gates crystallization.
+- **[Records](/docs/concepts/records)** — the unit patterns are built from.
+- **[Federation](/docs/concepts/federation)** — how patterns (and their hash chains) share across instances.
+- **[Glossary](/docs/reference/glossary)** — L0-L3, crystallization, dial, the vocabulary this page assumes.

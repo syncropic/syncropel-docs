@@ -1,0 +1,413 @@
+---
+title: Iframe Host Snippet
+description: A copy-paste-able vanilla HTML + JS snippet that embeds a Syncropel iframe extension into any web app. Implements the SAP handshake, origin allowlisting, capability gating, and emits relayed to the daemon.
+---
+
+<Callout type="warn">
+**This snippet is security-sensitive.** It accepts messages from a sandboxed iframe and forwards record emits to a Syncropel daemon. Read the [Security expectations](#security-expectations) section before deploying. A bad origin check or weak capability gate gives an extension full kernel access.
+</Callout>
+
+## Use this when
+
+You're building a host product (web app, dashboard, IDE panel, internal tool) that wants to embed a Syncropel-aware extension built with [`@syncropel/extensions`](/docs/guides/extensions) and you don't yet have a workspace UI to host it in.
+
+The snippet is intentionally framework-free — vanilla HTML + JS, no build step, no React, no bundler — so you can drop it into any page and tweak it. For production, port the same logic into your framework of choice.
+
+## What it implements
+
+- A sandboxed `<iframe>` pointed at the extension's URL
+- A `message` listener that validates each inbound envelope (version, kind, payload shape)
+- Origin allowlisting — messages from any origin not in `EXT_ORIGINS` are dropped
+- The full host-side handshake: `hello` → wait for `ready` → reply with `action.result` confirming granted capabilities
+- A capability policy that gates `records.emit`, `records.query`, `records.subscribe`, `navigate`
+- Relayed `records.emit` calls to a Syncropel daemon via authenticated `fetch`
+- A minimal consent prompt when the extension requests a sensitive capability for the first time
+- iframe height adjustment via the extension's `height` messages
+- Goodbye signal on tab unload
+
+License: **MIT**. Copy, modify, or redistribute freely.
+
+## The snippet
+
+Save this as `host.html`:
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Syncropel Iframe Host (Reference)</title>
+    <style>
+      body { margin: 0; font-family: system-ui; }
+      header { padding: .5rem 1rem; border-bottom: 1px solid #eee; font-size: .9rem; color: #555; }
+      iframe { width: 100%; border: 0; display: block; }
+    </style>
+  </head>
+  <body>
+    <header id="host-status">host: starting…</header>
+    <iframe
+      id="ext-frame"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      referrerpolicy="no-referrer"
+      loading="lazy"
+    ></iframe>
+
+    <script>
+      // ----- CONFIGURE THESE THREE CONSTANTS ------------------------------
+      const EXT_URL = "http://localhost:5173/";          // your extension's URL
+      const DAEMON_URL = "http://localhost:9100";         // your spl serve daemon
+      const DAEMON_TOKEN = "spl_dev_xxx_yyyyyyyyyyyy";    // bearer token (from ~/.syncro/token)
+      // -------------------------------------------------------------------
+
+      // Origins from which we'll accept messages. Derived from EXT_URL.
+      const EXT_ORIGINS = new Set([new URL(EXT_URL).origin]);
+
+      // The actor + namespace we'll claim on behalf of the extension. In a
+      // real product, derive these per-user.
+      const ACTOR = "did:example:my-app";
+      const NAMESPACE = "default";
+
+      // Demo thread the extension can emit to + subscribe on. In a real
+      // product, set this from the user's current context.
+      const SELECTED_THREAD = "th_iframe_host_demo";
+
+      // The host's policy — the maximum capabilities any extension may use.
+      // The granted set will be the intersection with what the ext requests.
+      const HOST_POLICY = new Set([
+        "records.emit",
+        "records.query",
+        "records.subscribe",
+        "navigate",
+      ]);
+
+      // Sensitive capabilities — prompt the user the first time the
+      // extension requests them. Add to this set to gate more capabilities.
+      const SENSITIVE = new Set([
+        "permissions.camera",
+        "permissions.microphone",
+        "permissions.notifications",
+        "persistent-storage",
+      ]);
+      const consentDecisions = new Map(); // capability → boolean
+
+      const SAP_VERSION = "0.1";
+      const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+      const HOST_KINDS = new Set([
+        "ready", "records.emit", "records.query", "records.subscribe",
+        "records.unsubscribe", "navigate", "height", "status",
+      ]);
+
+      const status = document.getElementById("host-status");
+      const frame = document.getElementById("ext-frame");
+      let extWindow = null;
+      let extOrigin = null;
+      let extReady = false;
+      let grantedCapabilities = [];
+
+      // ---- helpers ------------------------------------------------------
+
+      function logStatus(msg) {
+        status.textContent = "host: " + msg;
+      }
+
+      function envelope(kind, payload) {
+        return {
+          sap: SAP_VERSION,
+          kind,
+          id: (crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)),
+          ts: new Date().toISOString(),
+          payload,
+        };
+      }
+
+      function postToExt(env) {
+        if (!extWindow) return;
+        // Always pin the target origin — never use "*" from the host side.
+        extWindow.postMessage(env, extOrigin);
+      }
+
+      function validate(raw, fromOrigin) {
+        if (!EXT_ORIGINS.has(fromOrigin)) return "wrong_origin";
+        if (!raw || typeof raw !== "object") return "not_object";
+        if (raw.sap !== SAP_VERSION) return "wrong_version";
+        if (typeof raw.kind !== "string" || !HOST_KINDS.has(raw.kind)) return "unknown_kind";
+        if (typeof raw.id !== "string" || raw.id.length === 0) return "missing_id";
+        if (typeof raw.ts !== "string") return "missing_ts";
+        const t = Date.parse(raw.ts);
+        if (Number.isNaN(t)) return "bad_ts";
+        if (Math.abs(Date.now() - t) > MAX_CLOCK_SKEW_MS) return "clock_skew";
+        if (!raw.payload || typeof raw.payload !== "object") return "missing_payload";
+        return null;
+      }
+
+      async function consentFor(capability) {
+        if (!SENSITIVE.has(capability)) return true;
+        if (consentDecisions.has(capability)) return consentDecisions.get(capability);
+        const ok = window.confirm(
+          `The extension is requesting "${capability}".\n\n` +
+            `Allow this for the duration of this session?`,
+        );
+        consentDecisions.set(capability, ok);
+        return ok;
+      }
+
+      function sendActionResult(requestId, result, error) {
+        postToExt(
+          envelope("action.result", {
+            request_id: requestId,
+            status: error ? "error" : "ok",
+            ...(result ? { result } : {}),
+            ...(error ? { error } : {}),
+          }),
+        );
+      }
+
+      // ---- daemon relay -------------------------------------------------
+
+      async function daemonEmit(payload) {
+        const body = {
+          act: payload.act,
+          actor: ACTOR,
+          body: payload.body,
+          clock: Date.now(),
+          data_type: "SCALAR",
+          parents: payload.parents ?? [],
+          thread: payload.thread ?? SELECTED_THREAD,
+        };
+        const resp = await fetch(DAEMON_URL + "/v1/records", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "authorization": "Bearer " + DAEMON_TOKEN,
+          },
+          body: JSON.stringify(body),
+        });
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => "");
+          throw new Error(`HTTP ${resp.status}: ${text.slice(0, 200)}`);
+        }
+        const data = await resp.json().catch(() => ({}));
+        return { record_id: data.id ?? data.record_id };
+      }
+
+      async function daemonQuery(vql) {
+        const params = new URLSearchParams({ limit: "100" });
+        if (typeof vql.thread === "string") params.set("thread", vql.thread);
+        else params.set("thread", SELECTED_THREAD);
+        const resp = await fetch(
+          DAEMON_URL + "/v1/records?" + params.toString(),
+          { headers: { "authorization": "Bearer " + DAEMON_TOKEN } },
+        );
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json().catch(() => ({}));
+        return { records: Array.isArray(data) ? data : (data.data ?? []) };
+      }
+
+      // Naive subscribe: poll every 2s and ship deltas to the extension.
+      const subscriptions = new Map(); // sub_id → { thread, lastClock, intervalId }
+      function daemonSubscribe(vql) {
+        const subId = crypto.randomUUID();
+        const thread = typeof vql.thread === "string" ? vql.thread : SELECTED_THREAD;
+        let lastClock = 0;
+        const tick = async () => {
+          try {
+            const { records } = await daemonQuery({ thread });
+            const fresh = records.filter((r) => r.clock > lastClock);
+            if (fresh.length) {
+              lastClock = Math.max(lastClock, ...fresh.map((r) => r.clock));
+              postToExt(
+                envelope("records.update", {
+                  subscription_id: subId,
+                  records: fresh,
+                }),
+              );
+            }
+          } catch { /* fail-open */ }
+        };
+        const intervalId = setInterval(tick, 2000);
+        subscriptions.set(subId, { thread, lastClock, intervalId });
+        tick();
+        return { subscription_id: subId };
+      }
+
+      function daemonUnsubscribe(subId) {
+        const s = subscriptions.get(subId);
+        if (s) { clearInterval(s.intervalId); subscriptions.delete(subId); }
+        return { ok: true };
+      }
+
+      // ---- handshake + dispatch ----------------------------------------
+
+      async function handle(env) {
+        switch (env.kind) {
+          case "ready": {
+            const requested = Array.isArray(env.payload.capabilities_requested)
+              ? env.payload.capabilities_requested
+              : [];
+            const intersected = requested.filter((c) => HOST_POLICY.has(c));
+            const granted = [];
+            for (const cap of intersected) {
+              if (await consentFor(cap)) granted.push(cap);
+            }
+            grantedCapabilities = granted;
+            extReady = true;
+            logStatus(`extension ready (granted: ${granted.join(", ") || "none"})`);
+            sendActionResult(env.id, { capabilities_granted: granted });
+            return;
+          }
+          case "records.emit": {
+            if (!grantedCapabilities.includes("records.emit")) {
+              return sendActionResult(env.id, null, { code: "denied", message: "records.emit not granted" });
+            }
+            try {
+              const result = await daemonEmit(env.payload);
+              sendActionResult(env.id, result);
+            } catch (e) {
+              sendActionResult(env.id, null, { code: "transport", message: String(e?.message ?? e) });
+            }
+            return;
+          }
+          case "records.query": {
+            if (!grantedCapabilities.includes("records.query")) {
+              return sendActionResult(env.id, null, { code: "denied", message: "records.query not granted" });
+            }
+            try {
+              const result = await daemonQuery(env.payload.vql ?? {});
+              sendActionResult(env.id, result);
+            } catch (e) {
+              sendActionResult(env.id, null, { code: "transport", message: String(e?.message ?? e) });
+            }
+            return;
+          }
+          case "records.subscribe": {
+            if (!grantedCapabilities.includes("records.subscribe")) {
+              return sendActionResult(env.id, null, { code: "denied", message: "records.subscribe not granted" });
+            }
+            sendActionResult(env.id, daemonSubscribe(env.payload.vql ?? {}));
+            return;
+          }
+          case "records.unsubscribe":
+            sendActionResult(env.id, daemonUnsubscribe(env.payload.subscription_id));
+            return;
+          case "navigate":
+            // Host implementations decide what to do. Here we just log.
+            console.log("ext requested navigate to:", env.payload.to);
+            sendActionResult(env.id, { ok: true });
+            return;
+          case "height":
+            frame.style.height = `${Math.max(120, Math.min(10000, env.payload.px))}px`;
+            return;
+          case "status":
+            // Could be surfaced in the host chrome; here we just log.
+            console.log("ext status:", env.payload);
+            return;
+        }
+      }
+
+      window.addEventListener("message", (ev) => {
+        const reason = validate(ev.data, ev.origin);
+        if (reason) {
+          console.warn("[host] dropped message:", reason, "from:", ev.origin);
+          return;
+        }
+        // Capture source/origin from the first valid message.
+        if (!extWindow) {
+          extWindow = ev.source;
+          extOrigin = ev.origin;
+        }
+        handle(ev.data);
+      });
+
+      window.addEventListener("beforeunload", () => {
+        for (const { intervalId } of subscriptions.values()) clearInterval(intervalId);
+        if (extWindow) {
+          postToExt(envelope("goodbye", { reason: "host_shutdown" }));
+        }
+      });
+
+      // ---- bootstrap ----------------------------------------------------
+
+      frame.addEventListener("load", () => {
+        // First-touch: send hello with our actor + selection. The
+        // extension's adapter will reply with `ready`.
+        if (!frame.contentWindow) return;
+        extWindow = frame.contentWindow;
+        extOrigin = EXT_URL ? new URL(EXT_URL).origin : "*";
+        logStatus("sent hello, waiting for ready…");
+        postToExt(
+          envelope("hello", {
+            protocol_versions: [SAP_VERSION],
+            host: { product: "ReferenceIframeHost", version: "0.1.0" },
+            actor: ACTOR,
+            namespace: NAMESPACE,
+            selection: { kind: "thread", thread: { id: SELECTED_THREAD } },
+            capabilities_granted: [], // filled in after ready handshake
+          }),
+        );
+      });
+
+      frame.src = EXT_URL;
+      console.log("[host] selected thread:", SELECTED_THREAD);
+    </script>
+  </body>
+</html>
+```
+
+## Configuring the snippet
+
+Three constants control everything:
+
+| Constant | What |
+|---|---|
+| `EXT_URL` | Where the extension lives. Schemes + ports must match exactly — `http://localhost:5173/` is not the same origin as `http://127.0.0.1:5173/`. |
+| `DAEMON_URL` | Your `spl serve` daemon. Default `http://localhost:9100`. |
+| `DAEMON_TOKEN` | A bearer token. Read it from `~/.syncro/token` and paste in. **Never commit a token to git.** |
+
+For multi-extension hosts, expand `EXT_ORIGINS` from a `Set` to a per-iframe lookup, and gate the dispatch handler on the source origin matching the iframe whose adapter is talking.
+
+## Security expectations
+
+The snippet ships safe-by-default — you should not weaken any of these without a clear threat-model story.
+
+### Origin allowlisting is the only trust boundary
+
+The browser cannot tell you which iframe sent a message; it tells you which **origin**. The snippet drops every message whose `event.origin` is not in `EXT_ORIGINS`. If you remove that check, a malicious page in another tab can `window.postMessage` to your iframe and impersonate the extension.
+
+### Sandbox the iframe
+
+The default `sandbox="allow-scripts allow-same-origin allow-forms allow-popups"` lets the extension run JS, hold its own session storage, and submit forms. Drop `allow-same-origin` if the extension doesn't need persistent storage — that further isolates it.
+
+**Do not** add `allow-top-navigation` or `allow-modals` unless you've audited the extension. Both can be abused.
+
+### Pin the target origin
+
+Every host-side `postMessage` uses the captured `extOrigin`, never `"*"`. This guarantees the extension is the only thing that can read the host's payload. The extension's own SDK posts back with `"*"` because sandboxed iframes have an opaque origin — that's fine, the host validates by source-window identity instead.
+
+### Rotate the bearer token
+
+The snippet hard-codes `DAEMON_TOKEN`. For anything beyond local dev, fetch the token from a server endpoint that holds it, rather than baking it into the host page. The `fetch` in `daemonEmit` can be a relative path to your own server which proxies to the daemon.
+
+### Capability gating is your kill switch
+
+`HOST_POLICY` is the maximum surface any extension can ever use. To deny a capability across the board, remove it from `HOST_POLICY`. To allow it for some extensions but not others, branch on the iframe id or the extension's declared `publisher` from its `ready` payload.
+
+### Sensitive capabilities prompt the user
+
+`SENSITIVE` lists capabilities that trigger a `window.confirm` on first request. Replace `consentFor` with your real consent UI — a one-time prompt is the floor, not the ceiling.
+
+### Clock-skew check
+
+The validator drops envelopes more than five minutes off `Date.now()`. This blunts replay attacks where an attacker captures an old envelope and re-sends it. Don't disable it; if your environment has clock-drift problems, fix them at the OS level.
+
+### Treat the extension as untrusted
+
+Even with all the above, treat every extension as untrusted code running with the user's authority. Your daemon's [permission CEL rules](/docs/guides/cel-expressions) should encode what records each user is allowed to write, and the daemon will reject requests that violate them. The iframe host is **not** the policy enforcement point — the kernel is.
+
+For more on iframe sandboxing, see the [OWASP Cheat Sheet on HTML5 Security](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing-cors-and-iframes).
+
+## What's next
+
+- **See the snippet in action** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) uses this as the host page.
+- **Deeper protocol reference** — [Extensions SDK guide](/docs/guides/extensions) documents every message kind, payload, and the validator's rules.
+- **Permission policy** — [CEL expressions guide](/docs/guides/cel-expressions) covers the permission context, where you encode what records each actor may emit.
+- **Publishing your extension** — [Extension publishing playbook](/docs/operate/extension-publishing).

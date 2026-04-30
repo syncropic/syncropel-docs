@@ -1,0 +1,160 @@
+---
+title: Audit-critical decisions with ensemble + audit
+description: Fan out a compliance question to three LLMs, consensus-fold their answers, then require a trusted compliance officer to audit the folded result before it's committed.
+---
+
+## Problem
+
+You run a regulated service. Some decisions (grant a customer a waiver, approve a refund above a ceiling, sign off on a disclosure) need a compliance stamp even though the actual reasoning is well within LLM capability. You want an ensemble of LLMs to reason about the decision AND a named compliance officer to approve the folded result before anything commits.
+
+## Recipe
+
+`ensemble_with_audit` orchestration. Three LLMs reason in parallel, `consensus` fold combines them, then the compliance officer audits. Obligation resolution is `validation_error` — any inconsistency halts the query rather than silently last-writer-wins.
+
+```json
+{
+  "kind": "infer.query.v1",
+  "input": {
+    "inline": {
+      "decision": "waiver",
+      "customer_id": "cust_4821",
+      "amount_usd": 1200,
+      "context": "Customer reports storm damage; policy allows waivers up to $1500 with compliance sign-off."
+    }
+  },
+  "responders": [
+    { "kind": "llm", "model": "~sonnet" },
+    { "kind": "llm", "model": "~gpt-4" },
+    { "kind": "llm", "model": "~gemini-1.5" },
+    { "kind": "actor", "did": "did:example:compliance-officer", "trust_gte": 0.95 }
+  ],
+  "fold": { "function": "consensus", "min_quorum": 2 },
+  "orchestration": {
+    "pattern": "ensemble_with_audit",
+    "primary_responders": [
+      { "kind": "llm", "model": "~sonnet" },
+      { "kind": "llm", "model": "~gpt-4" },
+      { "kind": "llm", "model": "~gemini-1.5" }
+    ],
+    "auditor": {
+      "kind": "actor",
+      "did": "did:example:compliance-officer",
+      "trust_gte": 0.95
+    },
+    "audit_expression": "audit.approved == true"
+  },
+  "answer_shape": {
+    "kind": "core.compliance_decision.v1",
+    "required_fields": ["body.decision", "body.rationale", "body.approved"]
+  },
+  "side_effects": {
+    "reversible": false,
+    "max_cost_usd": 2.00,
+    "max_latency_secs": 86400,
+    "obligation_resolution": "validation_error"
+  }
+}
+```
+
+Run it:
+
+```bash
+spl infer --query-file compliance-query.json --wait --poll-timeout-secs 86400
+```
+
+## What happens
+
+1. Executor validates query.
+2. Hard-filter + relevance yields the three LLMs and the compliance officer.
+3. Dispatches three CALLs to the LLMs in parallel (the auditor is held back).
+4. Awaits LLM responses — `min_quorum: 2` means at least 2 must respond.
+5. Runs `consensus` fold on the primary responses.
+6. Dispatches ONE CALL to the compliance officer with the folded answer as `input`.
+7. Awaits the officer's DO.
+8. Evaluates `audit.approved == true` against the officer's response.
+9. On approve: commits the ensemble's folded answer as the KNOW, with an `audit` field attached.
+10. On reject: commits a KNOW with `body.audit.rejected: true` + the officer's `body.rationale`. The decision is NOT executed.
+
+## Expected KNOW on approval
+
+```json
+{
+  "act": "KNOW",
+  "body": {
+    "kind": "core.compliance_decision.v1",
+    "decision": "approved",
+    "rationale": "Storm damage within policy bounds; documentation satisfactory.",
+    "approved": true,
+    "audit": {
+      "auditor": "did:example:compliance-officer",
+      "approved": true,
+      "audit_record_id": "b3f7...",
+      "rationale": "Agreed with LLM consensus. Documentation meets §4.2.",
+      "timestamp": "2026-04-24T14:22:11Z"
+    },
+    "_provenance": [
+      { "responder_did": "did:sync:llm:sonnet", "response_record_id": "...", "weight": 0.82 },
+      { "responder_did": "did:sync:llm:gpt-4", "response_record_id": "...", "weight": 0.79 },
+      { "responder_did": "did:sync:llm:gemini-1.5", "response_record_id": "...", "weight": 0.75 }
+    ],
+    "_chosen_response": "...",
+    "cost_actual_usd": 0.3140,
+    "fold_function": "consensus",
+    "trust_summary": { "mean": 0.786, "min": 0.75, "max": 0.82, "n_contributors": 3 }
+  }
+}
+```
+
+## Expected KNOW on rejection
+
+```json
+{
+  "act": "KNOW",
+  "body": {
+    "kind": "core.compliance_decision.v1",
+    "approved": false,
+    "audit": {
+      "auditor": "did:example:compliance-officer",
+      "approved": false,
+      "rationale": "Customer's prior claim in 2025 suggests pattern; waiver not consistent with policy discretion.",
+      "timestamp": "2026-04-24T14:22:11Z"
+    }
+  }
+}
+```
+
+Downstream systems that route on `body.approved` will skip executing the waiver. The record is durable; nothing is lost.
+
+## Why validation_error?
+
+`obligation_resolution: "validation_error"` means: if any responses carry conflicting modifiers (one with `body.fulfills: "..."`, another with `body.cancels: "..."`), the executor halts with `obligation_conflict` instead of silently picking one. For compliance work you want a halt, not a silent resolution.
+
+Set it to `last_writer_wins` (the default) when conflicts are rare and you're okay with the substrate picking; set it to `fulfills_wins` when you've modelled your flow such that any fulfillment should preempt cancellation.
+
+## The trade-off
+
+`ensemble_with_audit` is the most expensive pattern. You pay for the primary fan-out AND for the auditor's CALL. If the auditor is human, you pay with latency too — an overnight escalation window is normal.
+
+Use this pattern when the cost of a wrong decision exceeds the cost of the audit. Skip it when the decision is reversible, low-stakes, or already covered by a higher-level approval gate.
+
+Also: `consensus` on compliance reasoning is only meaningful if the LLMs can produce structurally comparable bodies. Prompt them to emit the same JSON shape — decision + rationale + approved-boolean — or `consensus` will tie every response into its own bucket and degrade to `best_of`.
+
+## Run this against a dev daemon
+
+Register the compliance officer actor:
+
+```bash
+spl actor register \
+  --did did:example:compliance-officer \
+  --kind actor \
+  --capability "compliance:audit" \
+  --trust-hint 0.95
+```
+
+Then configure a webhook or have them open an SSE session to `GET /v1/responders/did:example:compliance-officer/inbound`. For test runs, a webhook to `webhook.site` that you manually reply against is the easiest loop.
+
+## See also
+
+- **[Orchestration Patterns — ensemble_with_audit](/docs/guides/inference/orchestration-patterns#pattern-ensemble_with_audit)** — full pattern description.
+- **[Query Anatomy — obligation_resolution](/docs/guides/inference/query-anatomy#side-effects)** — the three resolution modes.
+- **[Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence)** — variant where a human is the fallback rather than the mandatory audit.

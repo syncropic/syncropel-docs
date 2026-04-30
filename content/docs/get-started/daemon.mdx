@@ -1,0 +1,130 @@
+---
+title: Starting Your Instance
+description: The three modes `spl serve` runs in — dev, secure local, and exposed — and how to manage your instance's lifecycle. Start, stop, restart, inspect, tail logs.
+---
+
+`spl serve` is your Syncropel instance. It runs in the background, owns `~/.syncro/hub.db`, binds an HTTP port for the API, binds a Unix socket (Linux and macOS) for the local CLI, and runs the four kernel loops (ingest, reconcile, tick, cron).
+
+There are three ways to start it. Pick by situation.
+
+## Dev mode — `--insecure-localhost`
+
+```bash
+spl serve --daemon --insecure-localhost
+```
+
+Use this the very first time, and any time you're doing local development without paired external devices.
+
+What it does:
+
+- Forces the bind address to `127.0.0.1` (loopback only — never reachable from another machine, regardless of `--host`).
+- Sets `auth.required = false` for the lifetime of this instance.
+- Logs a `WARN` line on startup so you notice if it's accidentally left on.
+
+This mode is the escape hatch for the chicken-and-egg problem: if `auth.required = true` but no service account exists yet, the instance will refuse to start (fail-closed). `--insecure-localhost` lets the instance come up so you can create the first service account, save the token, then flip back to secure mode. Full flow on the next page.
+
+**Never run this on a host you didn't boot yourself.** The guard against external reachability is strong, but the principle still holds: `--insecure-localhost` is for your laptop, not for anything shared.
+
+## Secure local mode — `spl serve --daemon`
+
+```bash
+spl serve --daemon
+```
+
+This is the default and what every long-running instance should use.
+
+What it does:
+
+- Binds `127.0.0.1:9100` (and the Unix socket at `~/.syncro/run/spl.sock` on Linux and macOS).
+- Enforces `auth.required = true`. Every request needs a valid bearer token.
+- Refuses to start if no service account authorizes the operator's actor DID (the fail-closed guard referenced above).
+- Takes a startup backup of `hub.db` to `~/.local/share/syncropel/backups/hub.db.bak` (see [Operator runbook](/docs/operate/runbook) for backup discipline).
+
+The instance stays bound to loopback, which means nothing outside the machine can reach it. To expose it beyond loopback, see [Exposing your instance securely](/docs/get-started/exposing).
+
+## Exposed mode — `--host 0.0.0.0`
+
+```bash
+spl serve --daemon --host 0.0.0.0
+```
+
+Binds to every interface on the machine. This is what you pass when the daemon is meant to be reached from outside — typically from a phone on the same private network, a federation peer, or a reverse proxy.
+
+**Exposure is a separate decision from authentication.** `--host 0.0.0.0` without `auth.required = true` is a catastrophic misconfiguration. The default is to keep auth on. `spl doctor` flags daemons bound to non-loopback with auth off.
+
+Read [Exposing the daemon securely](/docs/get-started/exposing) before using this flag. There are safer paths (Tailscale, reverse proxy) for almost every case where you might reach for `0.0.0.0`.
+
+## Lifecycle
+
+### Check status
+
+```bash
+spl status
+```
+
+Reports version, PID, uptime, record count, store backend, and whether the daemon responds on `/health`. No daemon running prints `Status: not running`. If `status` says not running but a process is bound to the port anyway, see [Troubleshooting → stale PID file](/docs/get-started/troubleshooting#stale-pid-file).
+
+### Stop
+
+```bash
+spl serve --stop
+```
+
+Sends `SIGTERM` to the daemon, waits for graceful shutdown, flushes the WAL, closes the socket, removes the PID file. If the daemon is unresponsive, the stop command falls back to `SIGKILL` after a grace period.
+
+### Restart
+
+```bash
+spl serve --restart
+```
+
+Stop, then start, preserving the same arguments the daemon was running with. Useful after a config file edit.
+
+### Tail logs
+
+```bash
+spl serve --logs
+```
+
+Streams the daemon log. Equivalent to `tail -f ~/.syncro/logs/spl.log` but correctly locates the log file across platforms.
+
+For targeted filtering, the JSON-line log format is easy to grep:
+
+```bash
+tail -f ~/.syncro/logs/spl.log | grep ERROR
+```
+
+## Log locations
+
+| Platform | Path |
+|---|---|
+| Linux | `~/.syncro/logs/spl.log` |
+| macOS | `~/.syncro/logs/spl.log` |
+| Windows | `%USERPROFILE%\.syncro\logs\spl.log` |
+
+Logs rotate automatically at 10 MB per file, keeping the last 7 rotations.
+
+## What a successful start looks like
+
+```
+$ spl serve --daemon
+Starting Syncropel kernel...
+Store:    sqlite:///home/you/.syncro/hub.db
+Backup:   ~/.local/share/syncropel/backups/hub.db.bak (written)
+Bind:     127.0.0.1:9100
+Socket:   ~/.syncro/run/spl.sock
+Auth:     required (service accounts: 1)
+PID:      12847
+
+Daemon started. Run 'spl status' to verify health.
+```
+
+If the line `Auth: required (service accounts: 0)` appears and the daemon then exits with an `AUTH_NO_ACCOUNTS` error, you need to bootstrap your first service account. That is exactly the flow covered on the next page.
+
+## See also
+
+- [Service accounts and tokens](/docs/get-started/service-accounts) — next page: bootstrap auth
+- [Keeping your instance running](/docs/operate/persist-instance) — make `spl serve` auto-start at login (systemd / launchd / Windows Service)
+- [Exposing your instance securely](/docs/get-started/exposing) — go beyond loopback
+- [Operator runbook](/docs/operate/runbook) — day-2 lifecycle, upgrades, recovery
+- [`spl doctor`](/docs/operate/doctor) — fast triage when the instance is misbehaving

@@ -1,0 +1,196 @@
+---
+title: Troubleshooting connection issues
+description: The 10 connection-state failure modes the syncropel.com /local workspace can hit, with remediation per state and a common-error-code reference.
+---
+
+When the `/local` workspace can't reach an instance, the connection is in
+exactly one of ten states. Every state has a clear UI signal and a
+one-line fix. This page maps each state to its symptom and remedy so
+you can resolve issues without opening DevTools.
+
+## Quick diagnose
+
+For a live snapshot of what the browser knows about its connection,
+visit [`/local/diagnose`](https://syncropel.com/local/diagnose). The
+page shows:
+
+- Current connection state + active credential
+- Recent API errors ring buffer (last 20 in this session)
+- Browser feature checklist (IndexedDB, Web Crypto, Service Worker)
+- Reset-pairing button (forgets the credential, redirects to re-pair)
+- A copy-paste JSON snapshot for support tickets
+
+The banner at the top of `/local` always links here ("diagnose").
+
+## Failure modes
+
+### 1. Instance offline
+
+**Symptom**: Banner says "Instance offline". The dashboard shows the
+offline panel with a `spl serve --daemon` hint.
+
+**Why**: `/health` is timing out or refused on every candidate URL.
+
+**Fix**: `spl serve --daemon` in your terminal. Verify with
+`curl http://localhost:9100/health`. If the instance was running but
+stopped, `spl serve --status` will tell you whether the PID file is
+orphaned.
+
+### 2. Pair required
+
+**Symptom**: Banner says "Pair required". The dashboard shows the
+pairing screen.
+
+**Why**: Instance has `auth.required = true` (the v0.16+ default) and the
+browser has no stored credential for this instance's DID.
+
+**Fix (fastest)**: Run `spl pair --device browser-<name>`. The
+CLI's first line of output is now a single clickable URL of the form
+`https://syncropel.com/local/pair#<encoded-payload>`. Click it (or copy
+into your browser). The page decodes the link, verifies the token,
+stores the credential, and redirects you to `/local/tasks` — all
+without typing or scanning anything. The token rides in the URL fragment
+(after the `#`), which never reaches any server: it stays inside your
+browser.
+
+**Fix (older clients or no clickable URL)**: paste the QR or payload
+into the pairing card. Add `--scopes admin` if you want access to
+admin-only routes.
+
+### 3. Pairing invalid (token_invalid)
+
+**Symptom**: Banner says "Pairing invalid". The dashboard shows the
+expired-pairing screen.
+
+**Why**: Stored credential is rejected by the instance — usually because
+the instance's data was nuked since pairing (instance DID changed) or
+the token was revoked.
+
+**Fix**: Open `/local/diagnose` and click "Reset pairing". Then re-pair
+with `spl pair --device browser-<name>` and click the printed URL.
+
+### 4. Limited (scope insufficient) — partial_access
+
+**Symptom**: Banner is amber and says "Limited (scope insufficient)".
+Some panels render; others show an inline `ApiErrorPanel` saying the
+token is missing a specific scope.
+
+**Why**: `/v1/health` succeeds + the credential is valid, but two or
+more `/v1/*` endpoints have returned `403 SCOPE_FORBIDDEN` in the
+last 60 seconds. The token is real but doesn't have the scopes this
+view needs.
+
+**Fix**: Re-pair with broader scopes. The `ApiErrorPanel` shows the
+exact command to copy:
+
+```bash
+spl pair --device browser --url <instance-url> --scopes admin
+```
+
+Or scope it more narrowly to the resources you actually need.
+
+### 5. Browser blocked (PNA / CORS)
+
+**Symptom**: Banner says "Browser blocked". Dashboard renders the
+`BrowserBlocksLocal` panel with a link to the pre-flight diagnostic.
+
+**Why**: Chrome's Private Network Access policy blocks `https://syncropel.com`
+from fetching `http://127.0.0.1` without an explicit ACK from the
+instance. Older daemon builds didn't ACK the PNA preflight.
+
+**Fix**: Upgrade the daemon: `curl -sSf https://get.syncropic.com/spl | sh && spl serve --stop && spl serve --daemon`. Or grant PNA permission
+manually in `chrome://settings/content/insecureprivatenetwork`.
+
+### 6. Multiple daemons reachable
+
+**Symptom**: Banner says "Connecting…" and the `DaemonChooser` card
+appears with a list of detected daemons.
+
+**Why**: 2+ candidate URLs returned 200 from `/health` (loopback +
+LAN + manually entered URL). The user has to pick one before the
+state machine can classify it.
+
+**Fix**: Click the daemon you want. The state machine remembers it
+as the preferred URL via IndexedDB, so subsequent loads skip the
+chooser.
+
+### 7. Mobile cold start
+
+**Symptom**: On a phone (no daemon-capable host on this device),
+banner shows the `MobileLocalWelcome` cards (QR pair + URL paste +
+browse).
+
+**Why**: Phones cannot run a Syncropel daemon. The localhost probe
+baseline is replaced with explicit pairing affordances.
+
+**Fix**: Pair via QR from a desktop / laptop daemon. Or paste a URL
+to a daemon you've reached on your LAN.
+
+### 8. Connected (insecure)
+
+**Symptom**: Amber banner says "DEV MODE · auth bypassed".
+
+**Why**: Daemon was started with `auth.required = false`, typically
+during dev with `--insecure-localhost` or before v0.16's default
+flip. Functional but not safe to expose.
+
+**Fix**: Restart with `auth.required = true` (the default in current
+releases) once you've finished dev work. Or leave as-is for ephemeral
+test daemons on `--port 9200 --memory`.
+
+### 9. Connected (secure)
+
+**Symptom**: Green dot. Banner says `Connected to <daemon-label>`.
+
+**Why**: Healthy. `/health` 200 + credential injected + recent `/v1/*`
+queries succeeded.
+
+**Fix**: None — this is the happy path.
+
+### 10. Connecting / generic unreachable
+
+**Symptom**: Banner says "Connecting…" and the dashboard renders a
+generic unreachable panel.
+
+**Why**: One of the fall-through states — `remote_unreachable`,
+`cors_blocked`, `daemon_too_old`, `daemon_error`, `token_insufficient`.
+These don't have dedicated Phase 1 surfaces yet.
+
+**Fix**: Open `/local/diagnose` → "Recent API errors" to see the
+underlying `code` + `message` from the daemon. Most often it's
+either a stale daemon (`upgrade spl serve`), a missing CORS allow
+entry (`spl config auth-set-cors-origins ...`), or a network glitch.
+
+## Common error codes (HTTP 4xx)
+
+The daemon returns a structured error envelope on every 4xx response:
+
+```json
+{
+  "object": "error",
+  "code": "SCOPE_FORBIDDEN",
+  "message": "token missing required scope 'admin' for this route",
+  "required_scope": "admin"
+}
+```
+
+The `/local` workspace surfaces these in `<ApiErrorPanel>` with a
+copy-paste suggested fix per code.
+
+| Code | Meaning | Remediation |
+|---|---|---|
+| `AUTH_REQUIRED` | No bearer token sent | `spl pair --device browser-<name>` and retry |
+| `AUTH_INVALID` | Token rejected (expired, revoked, or instance changed) | Reset pairing on `/local/diagnose`, then re-pair |
+| `SCOPE_FORBIDDEN` | Token valid but missing required scope | Re-pair with `--scopes admin` (or narrower scope per use) |
+| `NOT_FOUND` | Endpoint not available on this daemon version | Upgrade the daemon or stop using this view |
+| `CORS` | Origin not on daemon's CORS allowlist | `spl config auth-set-cors-origins https://syncropel.com http://localhost:3000 && spl serve --stop && spl serve --daemon` |
+| `PNA` | Browser blocked the cross-origin → loopback fetch | Upgrade the daemon or grant PNA permission in browser |
+| `NETWORK` | Couldn't reach the daemon | `spl serve --status` and verify with `curl http://localhost:9100/health` |
+| `TIMEOUT` | Request timed out | Daemon under load or unreachable; retry; check `spl doctor` |
+| `INTERNAL` | Daemon returned 5xx | Inspect `~/.syncro/logs/spl.log`; file an issue if reproducible |
+
+## See also
+
+- [`spl doctor`](/docs/operate/doctor) — top-down daemon diagnostic
+- [`spl pair`](/docs/get-started/pairing) — pairing flow + scope selection
+- Runbook section [Backup discipline](/docs/operate/runbook#backup-discipline)

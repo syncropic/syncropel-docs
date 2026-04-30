@@ -1,0 +1,57 @@
+---
+title: Federate one thread
+description: Share a single task thread with a collaborator on a different `spl` instance — and nothing else. The minimal federation recipe.
+---
+
+## Problem
+
+A teammate runs their own `spl` instance. You're working on a task (say `TASK-0042`), and you want them to see its records as they land — their daemon should pull changes for the task's thread, signature-verify them, and ingest. You do *not* want to share everything. Just this one thread. They should not see your trust data, your other tasks, your engine config, or anything on other threads.
+
+## Recipe
+
+You both already have `spl init`-initialised daemons with DIDs. Exchange DIDs and endpoint URLs, then create one pair on each side pointing at the same thread ID.
+
+On **your** side — you publish the thread, they subscribe:
+
+```bash
+# 1. Get the thread ID for the task.
+TASK_THREAD=$(spl task show TASK-0042 -o json | jq -r '.thread')
+echo "$TASK_THREAD"
+# th_a1b2c3d4…
+
+# 2. Tell them your DID and endpoint URL. They'll need both.
+spl identity show -o json | jq '{did, endpoint_url}'
+# { "did": "did:sync:user:alice", "endpoint_url": "https://alice.example.com:9100" }
+```
+
+On **their** side — they add a pair pulling from you:
+
+```bash
+# They need your DID, your endpoint URL, and the thread ID.
+spl fleet sync add \
+  --peer-did "did:sync:user:alice" \
+  --peer-url "https://alice.example.com:9100" \
+  --thread "$TASK_THREAD"
+
+# Verify the pair landed and is pulling.
+spl fleet sync pairs
+
+# Check for changes right now (instead of waiting for the background pull).
+spl fleet sync pull --thread "$TASK_THREAD"
+```
+
+Within a few seconds of every record you emit on `TASK-0042`, their daemon ingests it. Records arrive, signatures are verified against your DID, and the consent filter runs — if you and your teammate are in different namespaces, the filter stops propagation unless a consent grant exists.
+
+## The trade-off
+
+**Pairs are per-thread.** If you start a sub-thread (e.g., the dispatch thread when you invoke an agent on `TASK-0042`), your teammate won't see records there — their pair subscribes to the parent only. If you want to share sub-threads too, they have to add another pair for each one, or you both move to a shared workspace thread and mirror task threads into it.
+
+**Cross-namespace sharing needs a consent grant.** If your task is in `default` and theirs is in `their-namespace`, records don't cross without an explicit grant on `th_consent` specifying source, target, and allowed hash levels. See [Consent management](/docs/guides/consent) for the grant flow.
+
+**There's no push from your side.** Your daemon doesn't know their pair exists. They pull on their own schedule (default every few seconds) with exponential backoff if you're unreachable. If their instance is offline when you emit records, the records propagate the next time their pull loop runs — pull is idempotent.
+
+## See also
+
+- **[Federation](/docs/concepts/federation)** — the full model: pairs, identity, consent, discovery.
+- **[Federation guide](/docs/guides/federation)** — end-to-end walkthrough with two local daemons.
+- **[Consent management](/docs/guides/consent)** — cross-namespace grants.

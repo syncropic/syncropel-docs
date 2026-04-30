@@ -1,0 +1,327 @@
+---
+title: Query Anatomy
+description: The full infer.query.v1 body shape — every field, every type, every default — with worked examples for single-LLM, consensus ensemble, and verify patterns.
+---
+
+## Overview
+
+An `infer.query.v1` body is validated against a JSON Schema shipped in `@syncropel/config@0.3.x`. This page walks every field. If you want the canonical schema source, see the [schema reference](/docs/reference/infer-query-schema).
+
+Every query has three required parts: `input` (what to answer), `responders` (who may answer), `fold` (how answers combine). The `answer_shape` is also required and validates the folded result. Everything else is optional with sensible defaults.
+
+## Minimal query
+
+The smallest complete query:
+
+```json
+{
+  "kind": "infer.query.v1",
+  "input": { "inline": "What is 2 + 2?" },
+  "responders": [{ "kind": "llm", "model": "~sonnet" }],
+  "fold": { "function": "best_of" },
+  "answer_shape": { "kind": "core.text.v1" }
+}
+```
+
+That dispatches one CALL to any Claude Sonnet responder, takes its answer as `best_of` (since there's only one), and commits the KNOW with body kind `core.text.v1`.
+
+## Top-level fields
+
+| Field | Type | Required | Default |
+|---|---|---|---|
+| `kind` | literal `"infer.query.v1"` | yes | — |
+| `input` | Input (oneOf three shapes) | yes | — |
+| `answer_shape` | AnswerShape | yes | — |
+| `responders` | ResponderPredicate[] (min 1) | yes | — |
+| `fold` | Fold | yes | — |
+| `dial` | number 0–1 OR AdaptiveDial | no | `0.5` |
+| `orchestration` | Orchestration | no | `{ pattern: "single_shot" }` |
+| `side_effects` | SideEffects | no | namespace defaults |
+| `relevance` | Relevance | no | `{ model: "current", threshold: 0.5, top_k: 3 }` |
+| `metadata` | map of string to string | no | `{}` |
+
+## Input
+
+Exactly one of three shapes:
+
+```json
+{ "inline": <any JSON>, "inline_kind": "core.text.v1" }
+```
+
+or a reference to an existing record by id:
+
+```json
+{ "record_id": "3fa8...e2c1" }
+```
+
+or a reference to an entity by canonical ref (any of the 11 `Ref.*` shapes — see [body.kind grammar](/docs/guides/body-kind-manifest)):
+
+```json
+{ "ref": { "kind": "@music.track", "id": "spotify:track:4iV5W9uYEdYUVa79Axb7Rh" } }
+```
+
+When you use `inline`, the value goes through the canonical-JSON encoder and is hashed into the query's record id. That means identical inline inputs produce identical query ids — useful for memoisation across sessions. The optional `inline_kind` lets the executor apply body-kind-specific transforms (e.g., pre-embedding for semantic search).
+
+## Answer Shape
+
+Validates the **folded** output, not individual responses. Responders are free to return whatever they return; the executor only checks that the fold's output satisfies `answer_shape`.
+
+```json
+{
+  "kind": "core.translation.v1",
+  "required_fields": ["body.text", "body.target_language"],
+  "schema_ref": "https://example.com/translation.schema.json"
+}
+```
+
+- `kind` (required) — a body.kind. See [body.kind manifest](/docs/guides/body-kind-manifest) for the grammar.
+- `required_fields` (optional) — dot-paths that must be non-null in the folded body.
+- `schema_ref` (optional) — URI of a full JSON Schema. If present, the executor loads it and validates.
+
+If validation fails the executor emits `infer.error.v1` with `code: "answer_shape_mismatch"` instead of the KNOW. The query thread shows both the attempted fold output and the violation.
+
+## Responder Predicates
+
+The `responders` array is an **OR-of-classes** predicate. Any responder matching any entry is a candidate. Each entry has this shape:
+
+```json
+{
+  "kind": "llm",
+  "model": "~sonnet",
+  "trust_gte": 0.6,
+  "budget_usd": 0.05,
+  "latency_secs": 30,
+  "match_level_gte": "L2",
+  "age_days_lt": 7,
+  "available": true,
+  "domain": "translation",
+  "capability": "en-es",
+  "did": "did:sync:agent:translate-bot",
+  "expression": "candidate.last_seen_at > now() - 86400"
+}
+```
+
+All fields are optional; each adds an AND-conjoined constraint within a class. Across classes (array entries), it's OR.
+
+**The 6 responder selector kinds:**
+
+| `kind` value | What it selects |
+|---|---|
+| `actor` | Human actors or named agents |
+| `llm` | LLM providers via the proxy (combine with `model`) |
+| `pattern` | Compiled pattern libraries |
+| `system` | System adapters (registered binaries, HTTP adapters) |
+| `any` | Escape — any candidate matching remaining predicates |
+| (implicit via `expression`) | CEL escape — arbitrary predicate over the candidate |
+
+**Worked example — two-class predicate:**
+
+```json
+"responders": [
+  { "kind": "llm", "model": "~sonnet", "trust_gte": 0.7, "budget_usd": 0.05 },
+  { "kind": "actor", "did": "did:example:alice", "capability": "code-review" }
+]
+```
+
+That matches any Sonnet-family LLM with trust at least 0.7 and per-call cost under 5 cents, OR Alice specifically when her capability tag is `code-review`.
+
+## Fold
+
+The pure aggregator. See [Fold Functions](/docs/guides/inference/fold-functions) for each function in detail.
+
+```json
+{
+  "function": "consensus",
+  "weight_expression": "response.trust * response.recency",
+  "tie_break": "highest_trust",
+  "min_quorum": 2,
+  "expression": "..."
+}
+```
+
+| Field | Type | Default | Applies when |
+|---|---|---|---|
+| `function` | enum | — (required) | always |
+| `weight_expression` | CEL string | `"trust * recency * pattern_confidence"` | `consensus`, `ensemble_weighted` |
+| `tie_break` | enum | `"highest_trust"` | any function |
+| `min_quorum` | int ≥ 1 | `1` | all functions |
+| `expression` | CEL string | — (required when `function == "expression"`) | `expression` |
+
+**Enum values:**
+- `function`: `consensus`, `best_of`, `waterfall_first`, `ensemble_weighted`, `expression`.
+- `tie_break`: `highest_trust`, `highest_confidence`, `most_recent`, `lexicographic`.
+
+## Orchestration
+
+The multi-step policy. See [Orchestration Patterns](/docs/guides/inference/orchestration-patterns) for each pattern.
+
+Default:
+
+```json
+{ "pattern": "single_shot" }
+```
+
+Full shape for `verify`:
+
+```json
+{
+  "pattern": "verify",
+  "primary": [{ "kind": "llm", "model": "~sonnet" }],
+  "verifier": { "kind": "llm", "model": "~gpt-4" },
+  "tiebreaker": { "kind": "actor", "did": "did:example:alice" },
+  "agreement_threshold": 0.85
+}
+```
+
+Patterns: `single_shot`, `verify`, `waterfall`, `retry_on_low_confidence`, `escalate`, `ensemble_with_audit`.
+
+## Side Effects
+
+Cost and safety envelope. Namespace-level defaults apply if unset (see [namespaces](/docs/guides/namespaces)).
+
+```json
+{
+  "reversible": true,
+  "idempotent": true,
+  "max_cost_usd": 0.40,
+  "max_latency_secs": 1800,
+  "obligation_resolution": "last_writer_wins"
+}
+```
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `reversible` | bool | `true` | Whether responses modify state that can be rolled back |
+| `idempotent` | bool | `true` | Whether re-running produces the same side effects |
+| `max_cost_usd` | number | namespace cap | Cumulative CALL cost ceiling; exceeded → `cost_budget_exceeded` error |
+| `max_latency_secs` | integer | 300 | Await ceiling; exceeded → `latency_timeout` error |
+| `obligation_resolution` | enum | `last_writer_wins` | How to resolve modifier conflicts (fulfills/cancels/awaits) |
+
+Obligation resolution values:
+- `last_writer_wins` — most recent response's modifiers win.
+- `fulfills_wins` — any response with `body.fulfills` preempts one with `body.cancels`.
+- `validation_error` — any conflict aborts the fold with `obligation_conflict`.
+
+## Relevance
+
+Controls the soft-ranking filter after hard predicates have run.
+
+```json
+{
+  "model": "current",
+  "threshold": 0.5,
+  "top_k": 3
+}
+```
+
+| Field | Default | Notes |
+|---|---|---|
+| `model` | `"current"` | `"current"` uses whatever scorer is registered; `"heuristic"` forces the additive-with-floor scorer |
+| `threshold` | `0.5` | Candidates below this score are discarded |
+| `top_k` | `3` | After threshold, keep the top k by score |
+
+If the filter yields fewer than `min_quorum` candidates, the executor emits `no_relevant_candidates`.
+
+## Dial
+
+The dial is Syncropel's novelty knob from [Frozen Foundation F3](/docs/concepts/trust#the-dial) — d in [0, 1], with thresholds at 1/3 (REPLAY), 1/2 (ADAPT), 2/3 (EXPLORE). In an inference query it influences relevance weighting (higher d = more willingness to try novel responders).
+
+Scalar form:
+
+```json
+{ "dial": 0.3 }
+```
+
+Adaptive form — expressions evaluated against the candidate pool at query time:
+
+```json
+{
+  "dial": {
+    "replay_if": "pattern_match >= 'L1' && trust >= 0.92",
+    "create_if": "pattern_match == null",
+    "else": 0.4
+  }
+}
+```
+
+If `replay_if` matches, the dial snaps to 0.1 (deep REPLAY). If `create_if` matches, it snaps to 0.9 (deep CREATE). Otherwise `else` applies.
+
+## Metadata
+
+Opaque string-to-string map you own. Use it for trace IDs, customer IDs, feature flags — whatever you need to correlate queries across your own systems. The executor doesn't interpret it; it just carries it into the KNOW.
+
+```json
+{ "metadata": { "trace_id": "trace_abc123", "customer_id": "cust_42" } }
+```
+
+## Worked example — single LLM
+
+```json
+{
+  "kind": "infer.query.v1",
+  "input": { "inline": "Translate 'Hello' to Spanish." },
+  "responders": [{ "kind": "llm", "model": "~sonnet" }],
+  "fold": { "function": "best_of" },
+  "answer_shape": { "kind": "core.translation.v1", "required_fields": ["body.text"] },
+  "side_effects": { "max_cost_usd": 0.05, "max_latency_secs": 30 }
+}
+```
+
+One responder, `best_of` (trivially picks the only candidate), 5 cent / 30s ceiling.
+
+## Worked example — consensus ensemble
+
+```json
+{
+  "kind": "infer.query.v1",
+  "input": { "inline": "Summarise: <paper abstract here>" },
+  "responders": [
+    { "kind": "llm", "model": "~sonnet" },
+    { "kind": "llm", "model": "~gpt-4o" },
+    { "kind": "llm", "model": "~gemini-1.5" }
+  ],
+  "fold": { "function": "consensus", "min_quorum": 2 },
+  "answer_shape": {
+    "kind": "core.summary.v1",
+    "required_fields": ["body.rating", "body.summary"]
+  },
+  "relevance": { "top_k": 3 },
+  "side_effects": { "max_cost_usd": 0.30, "max_latency_secs": 60 }
+}
+```
+
+Dispatches to three LLMs in parallel, requires at least 2 to respond, picks the most-agreed-upon answer (keyed on canonical-JSON of the answer body).
+
+## Worked example — verify pattern
+
+```json
+{
+  "kind": "infer.query.v1",
+  "input": { "record_id": "a1b2c3..." },
+  "responders": [
+    { "kind": "llm", "model": "~sonnet" },
+    { "kind": "llm", "model": "~gpt-4" },
+    { "kind": "actor", "did": "did:example:alice" }
+  ],
+  "fold": { "function": "best_of", "tie_break": "highest_trust" },
+  "orchestration": {
+    "pattern": "verify",
+    "primary": [{ "kind": "llm", "model": "~sonnet" }],
+    "verifier": { "kind": "llm", "model": "~gpt-4" },
+    "tiebreaker": { "kind": "actor", "did": "did:example:alice" },
+    "agreement_threshold": 0.85
+  },
+  "answer_shape": { "kind": "core.code_review.v1" },
+  "side_effects": { "max_cost_usd": 0.40, "max_latency_secs": 1800 }
+}
+```
+
+Claude Sonnet does the primary review. GPT-4 verifies. If they disagree beyond the agreement threshold, Alice gets pulled in as tiebreaker. The KNOW commits whichever answer fold selects.
+
+## See also
+
+- **[Fold Functions](/docs/guides/inference/fold-functions)** — contracts for the 5 aggregators.
+- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step flows.
+- **[Schema reference](/docs/reference/infer-query-schema)** — the authoritative JSON Schema.
+- **[CEL Expressions](/docs/guides/cel-expressions)** — bindings for predicate and fold expressions.
+- **[`spl infer` CLI](/docs/reference/cli#infer)** — build queries from the shell.
