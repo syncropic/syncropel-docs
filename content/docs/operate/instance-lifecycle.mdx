@@ -1,0 +1,352 @@
+---
+title: Instance Lifecycle
+description: Provision an instance, get past the first-run auth chicken-and-egg, run a backup discipline that actually saves you, watch the right health probes, and tear down cleanly. The end-to-end recipe for self-hosted operators.
+---
+
+## Audience
+
+This page is for the operator standing up an `spl serve` instance for real work — laptop, server, container, or a hosted Fly Machine. It covers the lifecycle from `spl init` to teardown without re-deriving the architecture from first principles.
+
+If something is broken right now, jump to [Recovery](/docs/operate/runbook#recovery-from-corruption-or-data-loss) on the runbook page. The lifecycle below assumes you're starting clean.
+
+## How the kernel actually runs
+
+The daemon implements four cooperating loops over an immutable record log. Every operational decision below — when to back up, how to read a probe, what to drain before stopping — makes more sense once the loops are visible.
+
+<Mermaid
+  caption="The four kernel loops. State is fold(records); none of the loops mutate anything outside the record log."
+  chart={`flowchart LR
+    Client["HTTP / CLI client"] --> Ingest
+
+    subgraph INGEST["INGEST (per-record, &lt;100μs)"]
+        Ingest["validate"] --> Canon["canonical_json"]
+        Canon --> Hash["SHA-256 id"]
+        Hash --> Store[("RecordStore")]
+        Store --> Bcast["broadcast"]
+    end
+
+    Bcast --> Queue["reconcile_queue"]
+    Bcast --> Tick
+    Bcast --> Cfg["config_loader"]
+
+    subgraph RECONCILE["RECONCILE (per-thread, fixed-point)"]
+        Queue --> Match["match routing rules"]
+        Match -- "rule hit" --> Exec["dispatch / adapter"]
+        Match -- "no rule + user actor" --> Intel["intelligence agent"]
+        Intel --> Exec
+        Exec --> Produced["produced records"]
+        Produced --> Ingest
+    end
+
+    subgraph TICK["TICK (timer)"]
+        Tick["trust outcomes"] --> Wilson["Wilson LB + CUSUM"]
+    end
+
+    subgraph CRON["CRON (scheduled)"]
+        Decay["trust decay"] --> Crys["crystallization"]
+        Crys --> Aitl["AITL timeout sweep"]
+    end`}
+/>
+
+The crate boundaries follow the same layering. Nothing above depends on anything below it; the kernel is portable along any of the dashed boundaries (algebra and trust are WASM-safe).
+
+<Mermaid
+  caption="syncropel-core crate dependency graph. Strict layering, no upward dependencies."
+  chart={`flowchart TD
+    algebra["syncropel-algebra"]
+    trust["syncropel-trust"]
+    store["syncropel-store"]
+    ai["syncropel-ai"]
+    expr["syncropel-expr"]
+    engine["syncropel-engine"]
+    protocol["syncropel-protocol"]
+    spl["spl"]
+
+    algebra --> trust
+    algebra --> store
+    store --> engine
+    trust --> engine
+    ai --> engine
+    expr --> engine
+    engine --> protocol
+    protocol --> spl
+
+    classDef wasmsafe stroke-dasharray: 4 2;
+    class algebra,trust wasmsafe;`}
+/>
+
+The canonical sources for both diagrams live in the research repo at `docs/architecture/diagrams/`. When the topology changes, edit there first.
+
+## 1. Provisioning
+
+### Self-hosted (laptop, server, VPS)
+
+Install the binary, then run the setup wizard:
+
+```bash
+curl -sSf https://get.syncropic.com/spl | sh
+spl init
+```
+
+`spl init` creates `~/.syncro/`, generates a daemon identity (or surfaces the existing one), and prints the next-step commands. It does not start the daemon.
+
+Start the daemon as a foreground process the first time so you can see what it's doing:
+
+```bash
+spl serve --foreground
+```
+
+You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it as a daemon:
+
+```bash
+spl serve --daemon
+spl status
+```
+
+For a daemon that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance) — `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
+
+### Hosted (Worker-provisioned Fly Machine)
+
+The hosted-instance flow is the same kernel running in a Firecracker microVM. The provisioning tier is a Cloudflare Worker that calls the Fly Machines API; the auth tier is a sibling Worker that validates a Clerk JWT and forwards to the instance with a bearer token.
+
+<Mermaid
+  caption="Self-service hosted instance provisioning. Same kernel, different boot ritual."
+  chart={`sequenceDiagram
+    autonumber
+    participant U as Customer browser
+    participant Site as syncropel.com
+    participant Prov as provision Worker
+    participant Auth as auth-proxy Worker
+    participant Fly as Fly Machines API
+    participant K as spl kernel<br/>(Firecracker microVM)
+
+    U->>Site: sign in via Clerk
+    Site->>Prov: POST /provision<br/>(Clerk JWT, label)
+    Prov->>Prov: generate bootstrap secret<br/>+ KV{label → state}
+    Prov->>Fly: create app + volume + secrets<br/>(SPL_BOOTSTRAP_TOKEN)
+    Prov->>Fly: deploy machine (image, services 80/443)
+    Prov-->>U: 202 Accepted (poll status)
+    Fly->>K: VM boot
+    K->>K: spl serve --daemon<br/>read SPL_BOOTSTRAP_TOKEN
+    K->>K: mint SA + token record<br/>(default namespace)
+    K-->>Fly: /health 200
+    U->>Site: poll provision status
+    Site-->>U: ready (label.syncropel.com)
+    U->>Auth: GET label.syncropel.com/v1/...
+    Auth->>Auth: verify Clerk JWT<br/>resolve KV{label → bearer}
+    Auth->>K: forward + Authorization: Bearer ...
+    K-->>Auth: 200 + records
+    Auth-->>U: 200`}
+/>
+
+You don't operate this stack as a self-hoster — but the same kernel boot path runs underneath, so every recovery recipe in this page works on a hosted instance once you have shell access.
+
+## 2. First-run bootstrap
+
+A fresh database has zero service accounts. The auth middleware rejects every unauthenticated request, including the request you'd use to mint your first SA. Three paths through the chicken-and-egg, in order of preference:
+
+### Path A — environment-variable bootstrap (preferred)
+
+The kernel reads `SPL_BOOTSTRAP_TOKEN` at startup, before the auth preflight. If the variable is set and the default namespace has zero service accounts, the kernel programmatically mints an SA and a paired API token whose secret portion is the env-var value. The matching bearer is `spl_<env>_<sa>_<secret>`.
+
+```bash
+SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 32)
+export SPL_BOOTSTRAP_TOKEN="$SECRET"
+spl serve --daemon
+
+# Reconstruct the canonical bearer (defaults: env=prod, sa=sa-bootstrap-env)
+BEARER="spl_prod_sa-bootstrap-env_${SECRET}"
+
+# Save it for the CLI auto-injector
+spl token save "$BEARER"
+spl status
+```
+
+This is the path the hosted Worker uses (the secret is delivered as a Fly secret), and it is the cleanest path for self-hosters because there is no insecure-bind window. The SA is minted once; subsequent restarts with `SPL_BOOTSTRAP_TOKEN` set are no-ops because the SA already exists.
+
+Validation rules: secret length 16–256 ASCII printable characters, no whitespace or control bytes. Out-of-range values fall through to the existing preflight (warn-and-continue), so a malformed env var will not lock the daemon out.
+
+### Path B — `--insecure-localhost` (laptop dev)
+
+Restart the daemon with `--insecure-localhost`. It binds 127.0.0.1 only and disables auth. Mint an SA via the bootstrap endpoint:
+
+```bash
+spl serve --stop
+spl serve --foreground --insecure-localhost &
+
+curl -fsS -X POST http://127.0.0.1:9100/v1/bootstrap/service-account \
+  -H 'content-type: application/json' \
+  -d '{"sa_id":"sa-admin","scopes":["admin"]}'
+# → 201 + bearer token; copy the token (it is shown once).
+
+spl token save "$BEARER"
+spl serve --stop
+spl serve --daemon
+```
+
+This is the path documented in [Authentication & Service Accounts](/docs/operate/keyring) and is fine for a single-user laptop. Avoid it on multi-tenant hosts: any local user can curl 127.0.0.1.
+
+### Path C — hosted Worker (no shell access)
+
+Sign in at syncropel.com, click Provision. The Worker mints the bootstrap secret as a Fly secret, the kernel reads it on boot, and the Worker resolves a per-label bearer from KV when forwarding requests. You receive a working `https://<label>.syncropel.com` URL; you do not see or store the bootstrap secret yourself.
+
+## 3. Auth posture for production
+
+Once bootstrapped, treat `auth.required = true` as load-bearing. It is the kernel default and every shipping route enforces it (including the federation surface). Specifics live in [Authentication & Service Accounts](/docs/operate/keyring); the operational rules are:
+
+- One service account per tool/agent/integration. Closed scope per SA — `records:read,records:write` for an emitter, `admin` only when minting tokens or setting policy.
+- Tokens carry a snapshot of the SA's scopes at issuance time. Live-edit the SA's scopes for new tokens; revoke + re-mint the existing token only when scopes shrink.
+- Save the token once via `spl token save <bearer>`; the CLI auto-injects it for every subsequent invocation.
+- Permission CEL is enforced fail-closed. Before turning on a permission rule, run `spl config permissions-enable` — its preflight refuses unless allow-rules cover `record_write`, `thread_read`, and `config_read` for the daemon's own actor. Skipping the preflight is how operators lock themselves out.
+
+If the daemon is ever exposed beyond loopback, stand up a CORS allowlist before the first cross-origin browser hit:
+
+```bash
+spl config auth-set-cors-origins https://syncropel.com https://app.example.com
+```
+
+## 4. Backup discipline
+
+> **CRITICAL — read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. The recovery drill (`tests/drills/recovery.sh` in `syncropel-core`) was written specifically because operators conflated the two.
+
+### What the daemon does for you
+
+On every startup, `spl serve` snapshots `~/.syncro/hub.db` to `~/.local/share/syncropel/backups/<instance-key>/hub.db.bak`. The destination lives outside `~/.syncro/`, so a `rm -rf ~/.syncro/` does not nuke the backup.
+
+### What the daemon does NOT do
+
+The startup backup is **destructive on every restart**. If `hub.db` is empty, corrupt, or wrong when the daemon starts, that empty/corrupt/wrong file overwrites the backup. By the time you notice, the good copy is gone.
+
+### What you should do instead
+
+Schedule an off-host snapshot of the rolling backup. Daily is enough for most workloads:
+
+```bash
+DEST=$HOME/backups/syncropel
+mkdir -p "$DEST"
+cp ~/.local/share/syncropel/backups/*/hub.db.bak \
+   "$DEST/hub.db.$(date +%Y%m%d-%H%M%S).bak"
+find "$DEST" -name 'hub.db.*.bak' -mtime +14 -delete
+```
+
+For containerised deployments, mount a host directory into the backup path so the rolling backup survives the container's ephemeral filesystem.
+
+### Manual snapshot (before risky operations)
+
+Right before an upgrade, a permission rule rollout, or a destructive migration:
+
+```bash
+cp ~/.syncro/hub.db ~/.local/share/syncropel/backups/hub.db.before-$(date +%Y%m%d-%H%M%S)
+```
+
+The daemon does not need to be stopped — SQLite's WAL makes this safe — but it does need to not be in the middle of a heavy write burst. Watch `spl status` first.
+
+### Restore
+
+```bash
+spl serve --stop
+cp ~/.local/share/syncropel/backups/<instance-key>/hub.db.bak ~/.syncro/hub.db
+spl serve --daemon
+```
+
+On startup, trust scores and engine config rebuild from `KNOW`/`DO` and `LEARN` records respectively. Task content files and alias mappings live in `~/.syncro-data/` and are unaffected by `hub.db` operations — they survive on their own.
+
+> **WSL2 / UNC paths.** If `~/.syncro/` resolves to a UNC path (`\\wsl.localhost\...`) when accessed from Windows tooling, SQLite's file locks behave erratically. Keep `hub.db` on a native Linux filesystem (the WSL home directory itself) and copy backups out via `cp` rather than letting Windows Explorer touch them.
+
+## 5. Health probes
+
+Three probe surfaces, three intended consumers.
+
+| Path | Returns | Use for |
+|---|---|---|
+| `GET /health` | `200 ok` if process is alive and bound | Load-balancer liveness / Fly health |
+| `GET /v1/engine/health` | JSON with reconcile counters, queue depth, AITL pending count | Operator readiness, alerting |
+| `GET /v1/engine/health` (with `details=true`) | Full per-loop breakdown including expression-cache stats | Capacity planning, debugging |
+
+Liveness:
+
+```bash
+curl -fsS http://localhost:9100/health
+# ok
+```
+
+Readiness (sample):
+
+```bash
+curl -fsS http://localhost:9100/v1/engine/health | jq
+# {
+#   "ingested_total": 18432,
+#   "reconciled_total": 18391,
+#   "reconcile_queue_depth": 2,
+#   "aitl_pending": 0,
+#   "intelligence_enabled": true,
+#   "uptime_secs": 86400
+# }
+```
+
+`reconcile_queue_depth` should be near zero in steady state. A growing queue with stable ingest is the signal that an adapter has stalled; check `/v1/engine/health?details=true` for which thread is backed up, then `spl debug replay <thread>` to walk the records.
+
+CEL hot-path observability:
+
+```bash
+curl -fsS http://localhost:9100/v1/engine/expression_cache/stats | jq
+# Healthy: hit rate > 99%, avg compile < 100μs, size << capacity (1024).
+```
+
+A compile-error spike in this endpoint usually means a bad CEL config record landed; check `spl config list-rules` and the most recent LEARN on `th_engine_config`.
+
+## 6. Teardown
+
+Tearing down for real (decommissioning the host, moving to another machine, retiring an instance):
+
+### Drain
+
+Refuse new dispatches but let in-flight ones finish:
+
+```bash
+spl drain start
+spl drain status   # waits until in-flight = 0
+```
+
+### Stop the daemon gracefully
+
+```bash
+spl serve --stop
+```
+
+This sends `SIGTERM`. The daemon flushes the SQLite WAL, closes the socket, and removes its PID file. If `--stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).
+
+### VACUUM (optional, but reclaims space)
+
+```bash
+sqlite3 ~/.syncro/hub.db 'VACUUM;'
+```
+
+`VACUUM` rewrites the database file to its compact form. It is safe with the daemon stopped; do not run it against a running daemon.
+
+### Archive
+
+```bash
+TS=$(date +%Y%m%d-%H%M%S)
+tar czf ~/syncropel-archive-$TS.tar.gz \
+    -C "$HOME" .syncro .syncro-data .local/share/syncropel
+```
+
+The three directories together capture everything: `~/.syncro/` is the daemon state and identity, `~/.syncro-data/` is task content + alias mappings, `~/.local/share/syncropel/` is the rolling backup history. Move the tarball off-host before deleting the originals.
+
+### Delete
+
+Only after the archive is verified somewhere durable:
+
+```bash
+rm -rf ~/.syncro ~/.syncro-data ~/.local/share/syncropel
+```
+
+If the instance had a federation pair, run `spl federation revoke <pair-id>` against the peer first — see [Federation Pairing](/docs/operate/federation-pairing) for the full pair-revocation procedure.
+
+## What's next
+
+- Day-2 ops, log fields, recovery drills: [Operator Runbook](/docs/operate/runbook).
+- First-run auth in detail: [Authentication & Service Accounts](/docs/operate/keyring).
+- Connection problems from a browser: [Troubleshooting Connection](/docs/operate/troubleshooting-connection).
+- Cross-instance sync: [Federation Pairing](/docs/operate/federation-pairing).

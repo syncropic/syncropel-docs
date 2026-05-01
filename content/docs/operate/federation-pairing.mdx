@@ -1,0 +1,311 @@
+---
+title: Federation Pairing
+description: Pair two Syncropel daemons so they can sync threads, exchange records, and converge on shared state. Covers when to pair, the pair lifecycle, debug recipes for the common failure modes, soak-test results, and capacity planning.
+---
+
+## Audience
+
+This page is for the operator running two (or more) Syncropel daemons that need to talk to each other. Single-instance operators don't need pairs — pairs exist specifically to bridge separate kernels under separate identities, with consent and credentials negotiated explicitly.
+
+If you only run `spl serve` on one machine, skip this page. If you run two and they need to share threads, read on.
+
+## When to pair
+
+A pair is the right primitive when:
+
+- **You have two laptops** and want one set of threads visible from both, with edits flowing in either direction.
+- **You're bridging a hosted instance and a local one** — say, `<label>.syncropel.com` for the agent stack and a laptop daemon for capture-and-emit.
+- **You're sharing a workspace across collaborators** — each collaborator has their own kernel, their own identity, their own trust ledger; pairs let consented threads cross the boundary.
+- **You're running a fleet** of mostly-identical instances behind the same operator and want intra-fleet sync without re-running the discovery dance every time.
+
+A pair is **not** the right primitive for:
+
+- Multi-tenancy in one daemon (use namespaces — see `spl namespace --help`).
+- Backup or migration (use `spl thread snapshot` / `restore`).
+- Read-only embedding into an external app (use the SDK).
+
+## The handshake, conceptually
+
+Pair establishment is a one-shot CLI handshake that exchanges DIDs, signs a manifest, and mints federation-scoped bearer tokens reciprocally. The substrate is a record on `th_federation_pairs`; the wire is the existing federation transport (HTTP + signed manifest at `/.well-known/syncropel`).
+
+<Mermaid
+  caption="Pair handshake. Federation transport + federated identity + the pair primitive composed end-to-end."
+  chart={`sequenceDiagram
+    autonumber
+    participant A as Alice (initiator)
+    participant ANet as Alice daemon
+    participant BNet as Bob daemon
+    participant B as Bob (responder)
+
+    A->>ANet: spl federation pair https://bob.example/
+    ANet->>BNet: GET /.well-known/syncropel
+    BNet-->>ANet: federation manifest<br/>(DID, sig, pair_endpoint)
+    ANet->>ANet: verify Ed25519 signature<br/>over manifest body
+    ANet->>BNet: POST /v1/federation/pair<br/>{initiator_did, sig, namespaces, mode}
+    BNet->>BNet: AITL evaluation<br/>(auto_apply or hold for operator)
+    alt auto-apply policy matches
+        BNet->>BNet: mint federation:* SA + token
+        BNet->>BNet: emit pair.handshake.v1 (signed)
+        BNet-->>ANet: 200 OK + peer token + manifest snapshot
+    else manual approval
+        BNet-->>ANet: 202 Accepted (pending)
+        B->>BNet: spl aitl approve <pair_id>
+        BNet->>BNet: mint federation:* SA + token
+        BNet-->>ANet: webhook / poll completes
+    end
+    ANet->>ANet: persist record on th_federation_pairs<br/>state = active
+    ANet->>BNet: GET /v1/sync/changes (using peer token)
+    BNet-->>ANet: 200 + cursor advance`}
+/>
+
+The canonical Mermaid source lives at `syncropel-research/docs/architecture/diagrams/federation-handshake.mermaid`.
+
+## Prerequisites
+
+Before either daemon runs `spl federation pair`:
+
+1. **Both daemons have a cryptographic identity.** Run `spl identity generate` on each side if `spl identity show` returns nothing. Without an identity, the federation manifest is not auto-published and the handshake has nothing to sign.
+2. **Both daemons publish a federation manifest.** `curl https://<peer>/.well-known/syncropel` should return JSON with `did`, `pair_endpoint`, and a signature. The manifest auto-publishes once the daemon has an identity.
+3. **Each side has a token with the `admin` scope** (you'll be writing pair records and minting federation-scoped SAs).
+4. **The pair_endpoint is reachable.** Port-forward, tunnel, or DNS — whatever it takes for `curl` from one daemon's host to the other's `pair_endpoint`.
+
+## 2. Pair lifecycle
+
+### Create a pair
+
+```bash
+spl federation pair https://bob.example/
+```
+
+This is the headline command — discover, verify, handshake, persist, all in one. Output:
+
+```
+Pairing with did:sync:instance:bob (https://bob.example/) ...
+  ✓ manifest fetched + signature verified
+  ✓ POST /v1/federation/pair → 200 OK
+  ✓ peer token persisted (federation:sync, federation:subscribe)
+  ✓ recorded on th_federation_pairs (pair_id: pair_a1b2c3d4)
+  ✓ initial sync cursor advanced (12 records)
+
+Pair active.
+```
+
+If the responder runs in manual-approval mode, the initiator sees `202 Accepted` and the pair sits in `establishing` state until Bob's operator approves it via `spl aitl approve <pair_id>`. Approval triggers token mint on Bob's side and the initiator's next refresh advances the state to `active`.
+
+Useful flags on the initiator:
+
+| Flag | Meaning |
+|---|---|
+| `--map local_ns:peer_ns` | Propose a cross-namespace mapping. Default is intra-namespace only. Repeatable. |
+| `--no-strict` | Skip strict manifest expiry validation. Default is strict; use only when peer's clock is off. |
+| `--auto-generate-identity` | Create a local identity if none exists. Default refuses with a hint to run `spl identity generate` first. |
+
+### List pairs
+
+```bash
+spl federation list
+```
+
+Returns a table of pair_id, peer DID, state, mode, last sync timestamp. States:
+
+| State | Meaning |
+|---|---|
+| `establishing` | Handshake in flight; waiting on peer approval or response. |
+| `active` | Pair is live; sync is happening per the configured mode. |
+| `paused` | Operator paused sync but credentials remain valid. |
+| `degraded` | Sync errors are recurring (manifest changed, peer offline, auth refused). |
+| `revoked` | Terminal; tokens invalidated; pair record retained for audit. |
+
+### Show pair detail
+
+```bash
+spl federation show <pair_id>
+```
+
+Reveals the peer manifest snapshot, last refresh timestamp, last sync cursor position, consent grants attached to this pair, and **token IDs only** (plaintext bearers are never displayed once issued). If you need a token's plaintext to embed in a different tool, mint a new token with `spl token mint --scopes federation:sync,federation:subscribe` and revoke the original.
+
+### Pause and resume
+
+```bash
+spl federation pause <pair_id>
+spl federation resume <pair_id>
+```
+
+Pause is the right move when you're upgrading the peer or making sensitive config changes — sync stops, credentials remain valid, no records are lost. Resume picks up from the saved cursor.
+
+### Refresh (re-fetch peer manifest)
+
+```bash
+spl federation refresh <pair_id>
+```
+
+The daemon refreshes manifests on a schedule, but `refresh` forces it now. Use this after the peer rotated identity or changed `pair_endpoint`. The pair transitions through `peer_manifest_changed` and lands back in `active` if the new manifest verifies.
+
+### Revoke (terminal)
+
+```bash
+spl federation revoke <pair_id>
+```
+
+Best-effort calls the peer's `notify-revoke` endpoint, then emits `pair.revoke.v1` locally. Tokens are invalidated immediately on the local side; the peer should see the notification and invalidate symmetrically. If the peer is offline, the local revocation still takes effect; the peer's tokens for you remain valid until their TTL expires (90 days default).
+
+### Consent grants (cross-namespace sharing)
+
+By default a pair only carries records within matching namespace pairs. To allow cross-namespace sharing, attach a consent grant:
+
+```bash
+spl federation grant did:sync:instance:bob \
+  --namespace music \
+  --maps music,projects/music \
+  --hash-level L1
+```
+
+This composes with the L0-sharing consent rules — L0 sharing across namespaces still requires explicit two-sided consent records on `th_consent`. The default hash level for grants is L1 (structural); only raise to L0 (exact) when you genuinely intend to share content-identical records.
+
+### Sync mode
+
+Pairs default to `polling` at 5-minute intervals. For active threads (a shared task list, a shared dispatch queue) bump up:
+
+```bash
+spl federation set-mode <pair_id> continuous
+spl federation set-poll-interval <pair_id> 30s   # only for polling mode
+```
+
+`continuous` opens an SSE subscription to the peer; latency drops from minutes to seconds, at the cost of an open TCP connection. `on-demand` is the third option — sync only when explicitly requested via `spl sync <pair_id>`. Use it for archival peers that don't need real-time updates.
+
+## 3. Debugging pair issues
+
+The four failure modes that account for most pair problems, in roughly the order they happen:
+
+### Manifest fetch fails
+
+```bash
+curl -v https://bob.example/.well-known/syncropel
+```
+
+The manifest must return 200 with a JSON body that includes `did` and a signature. Common causes for failure:
+
+- **Bob's daemon hasn't generated an identity.** The manifest auto-publishes only when an identity exists. Fix on Bob's side: `spl identity generate`.
+- **`pair_endpoint` is reachable from the public internet but the `/.well-known/syncropel` route isn't.** Reverse proxies sometimes strip dot-prefixed paths. Test from Bob's host: `curl http://localhost:9100/.well-known/syncropel` should return identical JSON.
+- **TLS chain doesn't validate.** `curl --insecure` succeeds but `spl federation pair` refuses. Fix the TLS chain — `spl federation pair` does not accept self-signed certs.
+
+### Manifest signature verification fails
+
+`spl federation pair` returns: `manifest signature does not verify against advertised DID`.
+
+Causes:
+
+- The peer rotated identity but the manifest was cached. Force-refresh: `curl -H 'cache-control: no-cache' https://bob.example/.well-known/syncropel` and compare DIDs.
+- The DID document at the published endpoint doesn't match the DID inside the manifest. Bob must run `spl identity generate` again or bring the DID document in line with the daemon's identity.
+
+### POST /v1/federation/pair returns 401
+
+```
+peer rejected handshake: 401 Unauthorized
+```
+
+The handshake is authenticated by the manifest signature, not by a bearer — but the responder's pair handler still runs the standard auth middleware. Check on Bob's side: `auth.required = true` is fine, but the `/v1/federation/pair` route must be reachable without a pre-existing bearer (the handshake is the bearer-mint event). In the canonical config this Just Works; if you've layered a custom permission rule on top, audit it:
+
+```bash
+spl config list-permission-rules | grep federation
+```
+
+A permission rule that requires `record_write` for the federation:pair route will lock out pairing. Either widen the rule or delete it.
+
+### Sync cursor doesn't advance
+
+```bash
+spl federation show <pair_id>
+# last_sync_cursor: clock=42, lagging by 138 records
+```
+
+Causes, in order of likelihood:
+
+1. **`auth.required = true` on the peer + the federation token's scopes don't cover what's being read.** Check `spl federation show <pair_id>` for the peer-issued token's scopes; you need at minimum `federation:sync` and `federation:subscribe`. Mint a new token with the right scopes if needed.
+2. **The peer paused the pair and didn't tell you.** `spl federation refresh <pair_id>` will resync the manifest and surface state changes.
+3. **Network drop between cursor advances.** The cursor is monotonic — re-running `spl sync` is safe, idempotent, and resumes from the last good position.
+4. **Same-clock cursor skip (rare, historical bug).** Older peers' `(clock, id_prefix)` cursor implementation could permanently skip a same-clock record arriving out of order. Symptom: lag never decreases even after restart. Workaround: upgrade the peer, then pause + force-resync via `spl federation pause` + `resume`.
+
+### Whole-pair recovery procedure
+
+When a pair goes wrong in a way the per-mode debug doesn't fix:
+
+```bash
+# 1. Pause to stop further drift.
+spl federation pause <pair_id>
+
+# 2. Snapshot both sides for forensics.
+spl thread snapshot th_federation_pairs > /tmp/local-pairs.snap.jsonl
+ssh bob 'spl thread snapshot th_federation_pairs > /tmp/bob-pairs.snap.jsonl'
+
+# 3. Compare the records — usually one side has a transition the other doesn't.
+spl debug thread-diff <local-pair-record-id> <bob-pair-record-id>
+
+# 4. If the divergence is irreparable, revoke + re-pair.
+spl federation revoke <pair_id>
+spl federation pair https://bob.example/
+```
+
+Re-pairing is cheap. The historical cursor on the new pair starts at the current peer clock; you don't get the missed records back unless you also restore from snapshots, but you get a clean slate.
+
+## 4. Soak results — what to expect at steady state
+
+The federation soak test exercises a two-instance pair under a mixed workload (record emit, AITL approvals, fold-rule reloads) for an extended window. Reference numbers from a recent run, in CSV form so you can compare against your own:
+
+```csv
+window,duration_min,records_emitted,records_synced,sync_lag_p50_ms,sync_lag_p99_ms,reconcile_queue_max,errors
+warmup,5,1240,1240,180,420,3,0
+ramp,15,8420,8420,210,512,7,0
+steady,60,33180,33180,225,548,9,0
+spike,5,4860,4860,610,1290,18,0
+recovery,15,7240,7240,240,580,12,0
+```
+
+What to read off the table:
+
+- **`sync_lag_p50_ms` ≈ 200ms in steady state.** Continuous mode keeps round-trip latency in the polite range — anything over 1s sustained is a yellow flag.
+- **`sync_lag_p99_ms` < 1.5s during a 4× emit spike.** SSE buffering catches up within the spike window; polling-mode pairs would show much worse tail latency under the same load.
+- **`reconcile_queue_max` < 20 in a 4× spike.** This is the bound that matters for capacity planning (next section).
+- **`errors = 0`.** The soak passes only when zero pair-level errors land. A soak with errors is a regression.
+
+If your numbers look meaningfully worse:
+
+- **p50 lag > 500ms in steady state** → check network latency between peers; pairs are not designed for cross-continent links without `set-mode polling` and longer intervals.
+- **`reconcile_queue_max` > 50** → the consuming side's adapter is the bottleneck, not the pair. Profile the adapter's per-record cost.
+- **Errors > 0** → walk them in `~/.syncro/logs/spl.log` filtered on `target=syncropel_engine::federation`.
+
+The CSV format above is what `spl federation soak --csv` emits, so you can pipe it directly into a spreadsheet or comparison tool.
+
+## 5. Capacity planning
+
+Per pair, in continuous mode:
+
+| Resource | Per pair (steady) | Per pair (4× spike) |
+|---|---|---|
+| Memory (responder side) | ~12 MB | ~24 MB |
+| Memory (initiator side) | ~8 MB | ~16 MB |
+| Bandwidth | 2-4 KB/s | 8-16 KB/s |
+| Open TCP connections | 1 (SSE) | 1 (SSE) |
+| File descriptors | 4-6 | 6-10 |
+
+Per pair, in polling mode (5 min default):
+
+| Resource | Per pair |
+|---|---|
+| Memory | ~3 MB |
+| Bandwidth | < 100 B/s average (bursty around poll cycles) |
+| Open TCP connections | 0 (only during poll) |
+
+Practical limits:
+
+- **A single daemon comfortably runs 50+ pairs in polling mode** on a 2 GB / 1 vCPU Fly Machine, assuming the workload is dominated by sync rather than user-facing work.
+- **For continuous mode, plan ~10-20 pairs** before you start contending with adapter throughput. Each open SSE adds a per-tick overhead the reconciler has to absorb.
+- **Bandwidth is rarely the constraint.** The constraint is record-ingest throughput on the receiving side, which is bounded by the adapter pipeline, not by the pair primitive.
+
+To measure your own ceiling, drive `spl federation soak` against a known peer and watch `reconcile_queue_max` and `sync_lag_p99_ms`. The pair primitive is healthy as long as the queue stays bounded and the lag tail stays under a second.
+
+## What's next
+
+- Federation discovery internals (DNS, manifest, signature): [Operate / Relay](/docs/operate/relay).
+- Cross-namespace consent: `spl federation grant --help`.
+- Whole-instance backup and recovery: [Instance Lifecycle](/docs/operate/instance-lifecycle).
