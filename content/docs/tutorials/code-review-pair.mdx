@@ -1,0 +1,283 @@
+---
+title: Build a multi-user code review flow
+description: Two daemons, one shared workspace template, records flowing both ways consent-gated. The complete two-person walkthrough using the bundled code-review-pair template.
+---
+
+By the end of this tutorial, two daemons — call them **alice** and
+**bob** — will be paired, share a workspace, and exchange code-review
+records over a single federation link. Alice opens a review request;
+Bob publishes a verdict; both surface in a shared three-pane view.
+
+This is the smallest end-to-end multi-user flow Syncropel supports.
+It uses the `code-review-pair` workspace template plus the composed
+`spl federation invite` command — both shipped in the standard
+binary.
+
+Allow ~15-20 minutes for the happy path.
+
+## What you'll build
+
+```
+┌──────────────────────────┐         ┌──────────────────────────┐
+│  alice (submitter)       │         │  bob (reviewer)          │
+│                          │         │                          │
+│  th_review_inbox  ──────────────────────────►  th_review_inbox │
+│  (request published)     │         │  (request appears)       │
+│                          │         │                          │
+│  th_review_done  ◄─────────────────────────── th_review_done  │
+│  (verdict appears)       │         │  (verdict published)     │
+└──────────────────────────┘         └──────────────────────────┘
+```
+
+Three threads (`th_review_inbox`, `th_review_active`,
+`th_review_done`) flow over a single federation pair, gated by
+consent on a `code` namespace.
+
+## Prerequisites
+
+- Two daemons. The simplest setup: one running on the default port
+  (`9100`) and a second on `9201` in a separate terminal. Both can
+  live on the same machine; that's what this tutorial uses.
+- Identity initialized on each — `spl identity show` should report
+  a DID; if not, `spl identity generate`.
+- `spl version` reports `0.27.2` or newer (when `code-review-pair`
+  template + `spl federation invite` both ship).
+
+For convenience this tutorial gives each daemon its own data
+directory and uses `--insecure-localhost` so they can pair without
+TLS certificates. For real cross-host setups, both daemons should
+serve TLS instead.
+
+## 1. Boot two daemons
+
+In terminal A (alice):
+
+```bash
+SYNCROPEL_HOME="$HOME/.syncro-alice" \
+spl serve --port 9100 --insecure-localhost
+```
+
+In terminal B (bob):
+
+```bash
+SYNCROPEL_HOME="$HOME/.syncro-bob" \
+spl serve --port 9201 --insecure-localhost
+```
+
+Verify each is healthy:
+
+```bash
+curl -s http://127.0.0.1:9100/health
+curl -s http://127.0.0.1:9201/health
+```
+
+Each should return a JSON `{"status": "ok", ...}`.
+
+## 2. Install the template on both daemons
+
+Both alice and bob install the same template. The template scaffolds
+a workspace declaring three threads and three view components. Each
+side gets their own copy.
+
+In a third terminal, alice's host:
+
+```bash
+SPL_SERVE_URL=http://127.0.0.1:9100 \
+spl workspace init alice-review-pair --template code-review-pair
+cd alice-review-pair
+SPL_SERVE_URL=http://127.0.0.1:9100 \
+spl workspace publish --draft
+cd ..
+```
+
+Same in bob's terminal pointing at port 9201:
+
+```bash
+SPL_SERVE_URL=http://127.0.0.1:9201 \
+spl workspace init bob-review-pair --template code-review-pair
+cd bob-review-pair
+SPL_SERVE_URL=http://127.0.0.1:9201 \
+spl workspace publish --draft
+cd ..
+```
+
+You now have two daemons, each with their own copy of the
+`code-review-pair` workspace published as a draft.
+
+## 3. Pair the daemons
+
+Alice initiates the pair:
+
+```bash
+SPL_SERVE_URL=http://127.0.0.1:9100 \
+spl federation invite http://127.0.0.1:9201 \
+    --grant-namespace code \
+    --grant-thread th_review_inbox \
+    --grant-thread th_review_active \
+    --grant-thread th_review_done
+```
+
+The first time, the handshake will pause for actor-in-the-loop
+approval on bob's side. Switch to bob's terminal and approve:
+
+```bash
+SPL_SERVE_URL=http://127.0.0.1:9201 \
+spl aitl list
+# copy the pending request ID
+SPL_SERVE_URL=http://127.0.0.1:9201 \
+spl aitl approve <id>
+```
+
+Back in alice's terminal, the invite command finishes:
+
+```
+Invited did:sync:instance:bob-...
+
+  Pair ID:                fed_<sha256>
+  Peer DID:               did:sync:instance:bob-...
+  Consent grants:         1
+    - code                 cg_<id>
+  Thread allows:          3
+    - th_review_inbox
+    - th_review_active
+    - th_review_done
+
+Send the recipient this URL so they can rediscover the pair:
+  http://127.0.0.1:9201/.well-known/syncropel
+```
+
+The pair is live. From now on `spl sync` consults the pair store
+automatically.
+
+## 4. Open a review request (alice)
+
+Alice publishes a `code_review.request.v1` record on the inbox
+thread. For records with custom body shapes (anything beyond the
+built-in `intend`/`know`/`do`/`learn` shortcuts), `POST /v1/records`
+on the daemon is the canonical surface:
+
+```bash
+ALICE_DID=$(curl -s http://127.0.0.1:9100/.well-known/syncropel | jq -r .did)
+
+curl -s -X POST http://127.0.0.1:9100/v1/records \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"thread\": \"th_review_inbox\",
+    \"actor\": \"$ALICE_DID\",
+    \"act\": \"INTEND\",
+    \"data_type\": \"SCALAR\",
+    \"parents\": [],
+    \"clock\": 0,
+    \"body\": {
+      \"kind\": \"code_review.request.v1\",
+      \"_v\": 1,
+      \"title\": \"Refactor auth middleware\",
+      \"branch\": \"feature/auth-rewrite\",
+      \"summary\": \"Migrate session tokens to encrypted-at-rest storage.\",
+      \"diff_url\": \"https://example.com/pulls/42\"
+    }
+  }"
+```
+
+The daemon assigns the canonical record id (SHA-256 of the
+content-addressed fields) and returns it. Setting the right `clock`
+manually is fine for a tutorial; in real adapters the SDKs handle
+clock sequencing for you (see [TypeScript
+SDK](../guides/typescript-sdk) or [Python
+SDK](../guides/python-sdk)).
+
+To get the record to bob's side, run a sync pull:
+
+```bash
+SPL_SERVE_URL=http://127.0.0.1:9201 \
+spl sync th_review_inbox from did:sync:instance:alice-...
+```
+
+(Substitute alice's DID — `spl identity show` on alice's daemon
+prints it. You can also derive it from the invite output's pair
+record on bob's side via `spl federation list`.)
+
+After the pull completes, bob's inbox thread carries alice's
+request:
+
+```bash
+SPL_SERVE_URL=http://127.0.0.1:9201 \
+spl thread records th_review_inbox
+```
+
+## 5. Publish a verdict (bob)
+
+Bob reviews the request (in real life: looks at the diff, makes a
+decision) and publishes a `code_review.verdict.v1` record:
+
+```bash
+BOB_DID=$(curl -s http://127.0.0.1:9201/.well-known/syncropel | jq -r .did)
+
+curl -s -X POST http://127.0.0.1:9201/v1/records \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"thread\": \"th_review_done\",
+    \"actor\": \"$BOB_DID\",
+    \"act\": \"KNOW\",
+    \"data_type\": \"SCALAR\",
+    \"parents\": [],
+    \"clock\": 0,
+    \"body\": {
+      \"kind\": \"code_review.verdict.v1\",
+      \"_v\": 1,
+      \"request_title\": \"Refactor auth middleware\",
+      \"verdict\": \"approved\",
+      \"comments\": \"Migration plan looks safe. Two minor nits inline.\"
+    }
+  }"
+```
+
+To get the verdict back to alice:
+
+```bash
+SPL_SERVE_URL=http://127.0.0.1:9100 \
+spl sync th_review_done from did:sync:instance:bob-...
+```
+
+Alice's `th_review_done` now carries the verdict:
+
+```bash
+SPL_SERVE_URL=http://127.0.0.1:9100 \
+spl thread records th_review_done
+```
+
+## 6. Render in Studio (optional)
+
+The `code-review-pair` template ships with a three-pane view
+(`Inbox` / `In review` / `Verdicts`). To see it rendered, point a
+browser at each daemon's Studio surface (the path depends on your
+deployment — typically `/local` against the local daemon).
+
+The Inbox pane folds `code_review.request.v1` records. The In
+review pane folds `code_review.assignment.v1` (a record bob would
+emit when claiming a request). The Verdicts pane folds
+`code_review.verdict.v1`.
+
+## What you just demonstrated
+
+- A workspace template that's *multi-user by design* — two roles
+  with distinct publishing patterns, both sharing the same view
+  components.
+- A federation pair established with one composed command, including
+  consent and thread allowlists.
+- Records flowing in both directions consent-gated. Alice's request
+  reaches bob; bob's verdict reaches alice; nothing else crosses
+  unless you grant it.
+- The same template that anyone can install via `spl workspace init`
+  to start the same flow with their own collaborators.
+
+## Where to go next
+
+- [Pair two stewards in one command](../guides/federation-pair) —
+  what `invite` composes on top of.
+- [Invite another steward (composed)](../guides/federation-invite) —
+  full reference for the `invite` arguments.
+- [Consent management](../guides/consent) — what hash levels mean
+  and how the consent filter chooses between competing grants.
+- [Async federation](../guides/async-federation) — how syncs work in
+  the background once a pair is established.

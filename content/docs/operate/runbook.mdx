@@ -279,6 +279,33 @@ The HEALTHCHECK in the docker image hits `/health`. If you're behind a reverse p
 
 The 4-loop kernel holds working state in memory for active threads. If you're seeing unbounded growth, capture a snapshot via `spl status -o json` and file it. This hasn't been observed in practice, but it's a class of bug to watch for.
 
+## Dispatch under memory pressure: read the warn log
+
+When you dispatch a worker — `spl task dispatch <SKL>`, `spl run <goal>`, or any other path that spawns a subprocess — the daemon emits one of three log lines at spawn:
+
+```
+DEBUG dispatch pre-flight: host memory healthy avail_gb=8.1
+INFO  dispatch pre-flight: host approaching memory pressure avail_gb=3.2
+WARN  dispatch pre-flight: host under memory pressure — OOM-kill risk; consider sequential dispatch avail_gb=1.4
+```
+
+The lines are visible in `~/.syncro/logs/spl.log` (filter for `dispatch pre-flight`) and in `journalctl` if you're running under systemd. They're driven by `MemAvailable` from `/proc/meminfo`, classified into three bands:
+
+| Band | Threshold | Meaning |
+|---|---|---|
+| Healthy | `≥ 4 GiB` available | Plenty of headroom. Parallel dispatch is fine. |
+| Approaching | `2-4 GiB` available | Workers may run, but you're trending toward pressure. Consider whether a second parallel worker is worth it. |
+| Critical | `< 2 GiB` available | OOM-kill risk. Drop to sequential dispatch (`max_concurrent = 1` on the adapter) **before** you spawn more workers. |
+
+The Critical line is the actionable one. When you see it:
+
+1. **Don't start more parallel workers.** The currently-spawning worker may already be at risk.
+2. **Free memory** — close idle browser tabs, idle agent sessions, anything not load-bearing. Each idle agent process commonly consumes 200-500 MB resident.
+3. **Verify free memory after cleanup** — `free -h` and check `available`.
+4. **If a worker was killed during the pressure window**, follow the salvage procedure below.
+
+Linux-only — the pre-flight check no-ops gracefully on macOS and Windows (no `/proc/meminfo`). On those platforms, watch the OS process monitor instead.
+
 ## Dispatched worker died unexpectedly: salvage procedure
 
 If `spl task show SKL-XXXX` reports `Status: failed` with `Prior attempts: 1 failed ($0.00 total)` shortly after a parallel dispatch, the worker subprocess almost certainly hit a SIGKILL — most often from the kernel OOM-killer under host memory pressure. The good news: any work the worker had finished writing to disk before the kill is **still in the worktree**, even though `commits ahead: 0`. You can usually salvage it without re-dispatching.

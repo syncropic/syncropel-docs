@@ -1,0 +1,261 @@
+---
+title: Invite another steward (composed)
+description: Use `spl federation invite` to pair, grant, and allow threads in one composed command. The single-verb adoption flow that wraps the underlying primitives.
+---
+
+## What this is
+
+`spl federation invite <peer>` is a composed command that does, in one
+step, what would otherwise take two or three separate commands:
+
+1. Establish a federation pair (or look up an existing one).
+2. Emit consent grants on the namespaces you want shared.
+3. Add threads to the pair's allowlist.
+4. Print a forwardable manifest URL the recipient can use to discover
+   the pair from their side.
+
+It exists because saying "let Bob see my code-review records" is the
+common case, and chaining `spl federation pair` + `spl federation
+grant` + thread-allow each time gets tedious. Use the composed verb
+for adoption flows, demos, and onboarding scripts. Reach for the
+discrete primitives (covered in the [federation pair
+guide](./federation-pair) and the [consent guide](./consent)) when
+you need richer namespace mapping or thread-by-thread control.
+
+## Who this is for
+
+- Operators who want a single command for "pair + share these
+  namespaces."
+- Authors of onboarding scripts and demo flows.
+- Anyone who's hit the awkward middle step of needing the `pair_id`
+  from the handshake before they can run `grant`.
+
+If you're new to federation, read the [federation pair
+guide](./federation-pair) first — `invite` is a thin composition on
+top of pair, and the failure modes are the same.
+
+## Prerequisites
+
+- Both daemons are running and reachable.
+- Each has a cryptographic identity (`spl identity show`; if missing,
+  `spl identity generate`).
+- The local daemon has the destination URL or, if a pair already
+  exists, the `pair_id`.
+
+## The headline command
+
+```bash
+spl federation invite https://bob.example.com \
+    --grant-namespace code \
+    --grant-thread th_review_inbox
+```
+
+That's the full multi-user-onboarding shape: pair with `bob.example.com`,
+grant cross-namespace consent on `code`, and allow the thread
+`th_review_inbox` on the pair. Output:
+
+```
+Invited did:sync:instance:bob-fedb12...
+
+  Pair ID:                fed_<sha256-of-both-DIDs>
+  Peer DID:               did:sync:instance:bob-fedb12...
+  Peer URL:               https://bob.example.com
+  Consent grants:         1
+    - code                 cg_<id>
+  Thread allows:          1
+    - th_review_inbox
+
+Send the recipient this URL so they can rediscover the pair:
+  https://bob.example.com/.well-known/syncropel
+
+Next steps:
+  spl federation show did:sync:instance:bob-fedb12...
+  spl sync th_review_inbox from did:sync:instance:bob-fedb12...
+```
+
+If you'd rather just establish the pair now and grant later, omit
+`--grant-namespace` and `--grant-thread`. If the pair already exists,
+the command skips the handshake and goes straight to the grants.
+
+## Argument reference
+
+### `<peer>` (positional, required)
+
+One of:
+
+- A URL — `https://...` or `http://...` (HTTPS-reachable instance).
+  The handshake runs on first contact.
+- An existing `pair_id` — `pair_<hash>` form. The command resolves
+  the pair, then proceeds to grants.
+
+Bare handles (`alice/code`, `bob`) are not yet supported and are
+rejected with a pointer.
+
+### `--grant-namespace <NS>` (repeatable)
+
+Emit one consent grant per namespace. Defaults to a same-name
+local↔peer mapping at hash level L1 (records pass but with redacted
+bodies — see [Consent management](./consent) for what each level
+shares). Repeat the flag for multiple namespaces:
+
+```bash
+spl federation invite https://bob.example.com \
+    --grant-namespace code \
+    --grant-namespace docs \
+    --grant-namespace research
+```
+
+For richer namespace mapping (say, your local `code` mapped to bob's
+`engineering`), use the discrete `spl federation grant` form
+directly.
+
+### `--grant-thread <TH>` (repeatable)
+
+Add a thread to the pair's allowlist. Each `--grant-thread` emits a
+`pair_config.v1` record carrying the thread ID. Threads must start
+with the canonical `th_` prefix; bare names are rejected.
+
+```bash
+spl federation invite https://bob.example.com \
+    --grant-thread th_review_inbox \
+    --grant-thread th_review_active \
+    --grant-thread th_review_done
+```
+
+### `--map <local:peer>` (repeatable)
+
+Forwarded to the underlying pair flow when establishing a new pair.
+Ignored when the pair already exists. Use this to declare proposed
+namespace mappings up-front:
+
+```bash
+spl federation invite https://bob.example.com \
+    --map code:engineering \
+    --grant-namespace code
+```
+
+### `--auto-approve`
+
+Reserved for forward compatibility — currently a no-op. Today the
+peer's actor-in-the-loop gate is the policy decision, and the
+initiator cannot bypass it. The flag is recorded in `-o json`
+output for future tooling parity.
+
+### `--auto-generate-identity`
+
+Forwarded to the underlying pair flow. Generate a local identity if
+none exists. Useful for first-run onboarding scripts.
+
+### `--no-strict`
+
+Forwarded to the underlying pair flow. Skip strict manifest expiry
+check during handshake.
+
+### `-o json`
+
+Emit a structured JSON object instead of the human-readable summary:
+
+```json
+{
+  "status": "invited",
+  "pair_id": "fed_...",
+  "peer_did": "did:sync:instance:...",
+  "peer_base_url": "https://bob.example.com",
+  "grants": [
+    { "namespace": "code", "grant_id": "cg_..." }
+  ],
+  "thread_allows": [
+    { "thread": "th_review_inbox", "record_id": "..." }
+  ],
+  "recipient_manifest_url": "https://bob.example.com/.well-known/syncropel",
+  "auto_approve_requested": false
+}
+```
+
+## Use cases
+
+### Just-pair (no consent yet)
+
+The minimal call — handshake only. Useful when you want to defer
+consent decisions to a separate moment:
+
+```bash
+spl federation invite https://bob.example.com
+```
+
+You can run `spl federation grant` later to open specific namespaces
+once you've decided which to share.
+
+### Onboard a code-review partner
+
+Three threads + one namespace, one command:
+
+```bash
+spl federation invite https://bob.example.com \
+    --grant-namespace code \
+    --grant-thread th_review_inbox \
+    --grant-thread th_review_active \
+    --grant-thread th_review_done
+```
+
+Pairs naturally with the bundled `code-review-pair` workspace
+template — see the [code-review-pair
+walkthrough](../tutorials/code-review-pair) for the full two-person
+flow.
+
+### Re-grant against an existing pair
+
+If you've already paired but want to add more namespaces or threads
+later, pass the `pair_id` instead of a URL:
+
+```bash
+spl federation invite pair_<hash> \
+    --grant-namespace docs \
+    --grant-thread th_documentation_drafts
+```
+
+The handshake is skipped; only the grants are emitted.
+
+### Scripted onboarding
+
+Use `-o json` and a tool like `jq` to script:
+
+```bash
+RESPONSE=$(spl federation invite https://bob.example.com \
+    --grant-namespace code -o json)
+PAIR_ID=$(echo "$RESPONSE" | jq -r .pair_id)
+RECIPIENT_URL=$(echo "$RESPONSE" | jq -r .recipient_manifest_url)
+echo "Forward this to the recipient: $RECIPIENT_URL"
+```
+
+## Failure modes
+
+- **Peer unreachable** — the handshake step fails with the same
+  error the underlying `spl federation pair` would surface. Run
+  `curl https://bob.example.com/.well-known/syncropel` manually to
+  verify reachability.
+- **Peer manifest expired** — the strict check fails by default.
+  Pass `--no-strict` if you trust the peer or rerun after the peer
+  refreshes their manifest.
+- **Thread without `th_` prefix** — `--grant-thread foo` is rejected
+  at parse time. Use `th_foo` (or whatever the actual canonical
+  thread ID is on your daemon).
+- **Bare handle as peer** — `spl federation invite alice/code` is
+  rejected with a pointer to use a URL or existing `pair_id`. Handle
+  resolution depends on a directory service that isn't shipped yet.
+
+If a step fails partway through, earlier steps are NOT rolled back.
+The pair record is durable and recoverable; partial grant emits
+leave a clear trail in the audit log. Re-run the command — pair
+resolution is idempotent.
+
+## See also
+
+- [Pair two stewards in one command](./federation-pair) — the
+  underlying primitive `invite` composes on top of.
+- [Consent management](./consent) — what hash levels mean and how
+  the consent filter chooses between competing grants.
+- [Async federation](./async-federation) — sync semantics once a
+  pair is established.
+- [`code-review-pair` walkthrough](../tutorials/code-review-pair) —
+  worked example of the full two-person flow.
