@@ -20,10 +20,10 @@ spl init
 spl serve --daemon
 
 # 4. Add → start → complete → approve a task
-spl task add "Read the Syncropel quickstart" --priority high --domain learning
+spl task add "Read the Syncropel quickstart" --priority high --domain meta
 spl task start TASK-0001
-spl task done TASK-0001 --summary "Read it. Set up local kernel."
-SPL_ACTOR=did:sync:agent:director spl task approve TASK-0001 --notes "Quickstart complete"
+spl task done TASK-0001 --summary "Read it. Set up local kernel." --domain meta
+SPL_ACTOR=did:sync:agent:director spl task approve TASK-0001 --domain meta --notes "Quickstart complete"
 
 # 5. See your first trust evidence
 spl trust
@@ -33,7 +33,7 @@ If those eight commands ran clean, you're done. The rest of this page explains w
 
 ## What just happened
 
-You produced four immutable, content-addressed records on a thread, accumulated trust evidence in the `learning` domain, and proved the loop works. Every other Syncropel feature — federation, AI agent dispatch, CEL automation, namespaces — composes on top of this primitive.
+You produced four immutable, content-addressed records on a thread, accumulated trust evidence in the `meta` domain (where Syncropel groups infrastructure/process/onboarding work), and proved the loop works. Every other Syncropel feature — federation, AI agent dispatch, CEL automation, namespaces — composes on top of this primitive.
 
 | Step | What ran | What got recorded |
 |---|---|---|
