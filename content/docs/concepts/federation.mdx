@@ -19,9 +19,9 @@ Every record has a content hash derived from its canonical JSON form. The same r
 
 ### 2. Federation is pull-based
 
-Each instance decides what to fetch, from which peer, at what cadence. Nobody pushes into you uninvited. The "pair" relationship is literally *instance B says it will pull changes for thread T from instance A* — unidirectional and thread-scoped. For bidirectional sync you create two pairs.
+Each instance decides what to fetch, from which peer, at what cadence. Nobody pushes into you uninvited. The transport is pull-per-direction: the source responds to `GET /v1/sync/changes?since=<cursor>` queries; the receiver decides when to ask. A pair between two stewards establishes the credentials and consent envelope; both sides then pull from each other on their own schedules.
 
-This choice is deliberate. Push-based federation requires the source to know its subscribers; pull-based means each instance is responsible for its own state. The source just responds to `GET /v1/sync/changes?thread=T&since=<cursor>` queries.
+This choice is deliberate. Push-based federation requires the source to know its subscribers; pull-based means each instance is responsible for its own state.
 
 ### 3. Identity and consent are explicit
 
@@ -71,16 +71,18 @@ Topology is **emergent, not configured**:
 
 Operators reason about pairs, not graph shapes. The protocol does not impose a topology.
 
-### Legacy sync-only pairs
+### Thread filtering on a pair
 
-Before the pair primitive, "pair" referred narrowly to a unidirectional thread-scoped subscription configured ad-hoc via `spl sync` with `--peer-token`. That mechanism still works for backward compatibility, but it is no longer the recommended path. The legacy fields:
+A pair connects two stewards. By default, all consent-permitted threads sync. When you want narrower control — e.g., share `th_shared_workspace` and `th_shared_design` but not the rest of `default` — apply per-pair filters:
 
-- `peer_did` — the peer's identity
-- `peer_url` — where to reach them on the network
-- `thread_id` — which thread to sync
-- `cursor` — how far we've read (an opaque token the peer provides)
+- `spl federation thread-allow <pair-id> <thread-id>` — allowlist a specific thread for this pair. Records on threads not in the allowlist don't leave.
+- `spl federation thread-rule <pair-id> '<CEL expression>'` — a CEL predicate evaluated against `record` and `thread()`. Useful for "all threads under namespace X" or "only threads tagged shared".
 
-Pairs are created via `POST /v1/sync/pairs` or `spl fleet sync add`. A pull loop runs in the background: every few seconds, ask the peer for changes since the last cursor, fetch them, verify signatures, pass through the consent filter, ingest. If the peer is unreachable, exponential backoff kicks in; the pair shows `state: failing` with a classified error code (`CONNECT_REFUSED`, `TIMEOUT`, `DNS_FAILURE`, `HTTP_4XX`, `HTTP_5XX`) so the operator knows what to fix.
+Filters compose with consent: a record needs to clear consent (cross-namespace permission) AND match the pair's allowlist/rules to propagate.
+
+### Legacy sync-only pairs (pre-v0.24)
+
+Before the pair primitive shipped in v0.24 "Mesh", `pair` meant a unidirectional thread-scoped subscription configured via `spl fleet sync add` with explicit token plumbing. The CLI still supports it for backward compatibility — see [the legacy section in CLI reference](/docs/reference/cli#federation--pair-sync-legacy-spl-fleet-sync-surface) — but new pairs should use `spl federation pair <peer-url>`.
 
 ### Consent — what's allowed to cross namespaces
 
@@ -111,24 +113,23 @@ Three common misconceptions worth heading off.
 
 **Federation is not a mesh overlay.** There's no distributed hash table, no routing, no multi-hop delivery. Every pair is a direct HTTPS connection between two daemons. Discovery helps them find each other; data flows point-to-point.
 
-**Federation is not full replication.** A pair syncs a specific thread, not everything on the peer. Want to sync five threads? Five pairs. Want a "replicate everything" mode? That's a deliberate non-goal for now — it encourages the wrong mental model.
+**Federation is not full replication.** A pair connects two stewards but does not auto-replicate every record on either side. Consent grants gate cross-namespace traffic; per-pair allowlists and CEL rules narrow within. The default isn't "replicate everything"; the default is "nothing crosses without an explicit consent grant."
 
-**Federation is not a trust mechanism.** Pairing with a peer doesn't mean you trust them. Every record they send is signed, verified, consent-filtered, and trust-weighted independently. The pair just says "I'm willing to receive records from this source."
+**Federation is not a trust mechanism.** Pairing with a peer doesn't mean you trust them. Every record they send is signed, verified, consent-filtered, and trust-weighted independently. The pair says "we're willing to exchange records under these consent and filtering rules" — not "this actor's records auto-receive trust evidence."
 
 ## How the pieces fit together
 
 A typical end-to-end flow:
 
 1. Alice runs `spl init` on her laptop. A `did:key` identity is generated. She starts `spl serve --daemon`.
-2. Bob runs `spl init` on his workstation, also on the same network. Same thing — his daemon is up.
-3. Alice runs `spl fleet sync peers discover`. mDNS finds Bob's daemon on the LAN.
-4. Alice runs `spl fleet sync add <bob's-did> th_shared_workspace`, confirming she wants to pull records from Bob's shared workspace thread.
-5. Bob does the same in reverse, creating a pair pulling from Alice.
-6. Alice emits a record: `spl intend --thread th_shared_workspace "review the design"`.
-7. Within ~5 seconds Bob's pair has pulled it, signature-verified it, and ingested it into his local store.
-8. If Alice and Bob are in different namespaces, the consent filter runs. If there's no matching grant, nothing propagates. If there's a grant with L0, records arrive intact. If the grant excludes L0, records arrive with `{"redacted": true}` bodies.
+2. Bob runs `spl init` on his workstation. Same thing — his daemon is up. Both have signed manifests at `/.well-known/syncropel`.
+3. Alice runs `spl federation pair https://bob.example/` — discovery + 3-roundtrip handshake + reciprocal token mint + persistent pair record on `th_federation_pairs`. Bob's side persists a mirror pair record automatically. The pair is bidirectional from this moment.
+4. (Optional) Alice narrows what she shares: `spl federation thread-allow <pair-id> th_shared_workspace`. Without an allowlist, all consent-permitted threads sync.
+5. Alice emits a record: `spl intend --thread th_shared_workspace "review the design"`.
+6. Within ~5 seconds Bob's instance has pulled it, signature-verified it, run consent + thread filters, and ingested it into his local store. Alice's side pulls Bob's emissions on the same cadence.
+7. If Alice and Bob are in different namespaces, the consent filter runs. If there's no matching grant, nothing propagates. If there's a grant with L0, records arrive intact. If the grant excludes L0, records arrive with `{"redacted": true}` bodies.
 
-The whole flow is about two minutes of setup. Once a pair exists, propagation is automatic and continuous.
+The whole flow is about a minute of setup. Once a pair exists, propagation is automatic, continuous, and bidirectional.
 
 ## What's enforced today vs the spec
 
