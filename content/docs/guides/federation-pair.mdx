@@ -5,7 +5,9 @@ description: Use `spl federation pair` to establish a record-bound persistent re
 
 ## What this is
 
-`spl federation pair <peer-url>` is the one-command way to establish a federation relationship between two Syncropel instances. The command:
+A *steward* is any running Syncropel instance — your laptop daemon, a hosted instance at `<label>.syncropel.com`, or a self-hosted server you run for a project. Two stewards can be **paired** so they sync records consent-gated.
+
+`spl federation pair <peer-url>` is the one-command way to establish that pair between two stewards. The command:
 
 1. Discovers and verifies the peer's signed manifest at `/.well-known/syncropel`.
 2. Runs a 3-roundtrip handshake (nonce-protected against replay).

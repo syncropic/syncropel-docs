@@ -113,7 +113,7 @@ spl task comment <id|alias> "text"
 spl task edit <id|alias> --set field=value [--reason "..."]
 spl task plan <parent> "sub-goal"
 spl task handoff <id|alias>
-spl task dispatch <id|alias> [--worktree]
+spl task dispatch <id|alias> [--worktree] [--resume] [--budget USD] [--timeout SECS] [--max-turns N]
 spl task tree <id|alias>
 ```
 
@@ -590,9 +590,49 @@ Fan-out descriptors set `target` to one of:
 
 Custom strategies (e.g. trust-weighted selection).
 
-## Federation — Pair Sync
+## Federation — Pair Lifecycle (canonical, v0.24+)
 
-Continuous record sync between two daemons. See the [federation guide](/docs/guides/federation) for walk-through and semantics.
+The `spl federation` verb is the canonical surface for federation pair management (ADR-063). One command establishes a pair; subsequent verbs manage its lifecycle. See the [federation pair guide](/docs/guides/federation-pair) for a walkthrough.
+
+```bash
+# Establish (the one-command primitive)
+spl federation pair <peer-url>                  # Discover + verify + handshake + persist
+spl federation pair add <peer-url> [--auto-approve]   # Same; explicit verb
+
+# Lifecycle CRUD
+spl federation list [--json]                    # All pairs with state column
+spl federation show <peer-did | pair-id>        # Detail (auto-detects which kind of id)
+spl federation refresh <peer-did | pair-id>     # Re-fetch peer manifest
+
+# State transitions
+spl federation pause <peer-did | pair-id>       # Stop sync; cursors preserved
+spl federation resume <peer-did | pair-id>      # Resume a paused pair
+spl federation revoke <peer-did | pair-id>      # Terminal; emits pair.revoke.v1
+
+# Sync mode + cadence
+spl federation set-mode <pair-id> {continuous|polling|on-demand}
+spl federation set-poll-interval <pair-id> <secs>   # Only meaningful when mode=polling
+
+# Cross-namespace consent grants (composes with ADR-024)
+spl federation grant <pair-id> <namespace>      # Add consent grant
+spl federation revoke-grant <grant-id>          # Remove a specific grant
+
+# Thread filtering
+spl federation thread-allow <pair-id> <thread-id>           # Add thread to allowlist
+spl federation thread-rule <pair-id> '<CEL expression>'     # CEL rule on `record` + `thread()`
+
+# Flat aliases (skip the `pair` verb; equivalent to the above)
+spl federation list                              # ≡ spl federation pair list
+spl federation show <id>                         # ≡ spl federation pair show
+```
+
+**Pair states**: `not_paired`, `establishing`, `active`, `paused`, `degraded` (peer unreachable; auto-retry), `revoked` (terminal).
+
+**Pair direction**: a pair on X with `peer_did=Y` means X pulls from Y (records flow Y→X). For bidirectional sync, run `spl federation pair` on each side.
+
+## Federation — Pair Sync (legacy `spl fleet sync` surface)
+
+Pre-v0.24 surface for federation pair management. Still functional but **superseded by `spl federation`** above for new pairs. See the [federation guide](/docs/guides/federation) for legacy walkthrough.
 
 ```bash
 spl fleet sync add [--peer-url URL] <PEER_DID> <THREAD_ID>   # Create a pair
@@ -605,7 +645,7 @@ spl fleet sync kick <PAIR_ID>                                # Force immediate p
 spl fleet sync remove <PAIR_ID>                              # Delete pair
 ```
 
-**Pair direction**: a pair on X with `peer_did=Y` means X pulls from Y (records flow Y→X). For bidirectional sync, create one pair on each side. `--peer-url` overrides DID resolution — useful when the peer's DID isn't in a shared directory.
+`--peer-url` overrides DID resolution — useful when the peer's DID isn't in a shared directory.
 
 **One-shot sync** (bulk-fetch a thread from a peer without a continuous pair):
 
