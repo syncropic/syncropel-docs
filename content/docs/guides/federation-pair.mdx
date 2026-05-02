@@ -55,9 +55,29 @@ That's it. Output looks like:
                  spl sync th_workspace from did:sync:instance:bob-fedb12...
 ```
 
-The default posture is **manual approval on both sides**. The operator on bob's host sees the pending request via `spl aitl list` and approves with `spl aitl approve <id>`. Once approved, bob mints the SA + token and returns it to alice in the handshake response.
+The default posture is **manual approval on both sides**. The operator on bob's host sees the pending request via `spl aitl list` and approves with `spl aitl approve <id>`. Once approved, bob mints the SA + token and the result becomes retrievable by alice via the pair status poll.
 
 For trusted environments where you want auto-approve (e.g., a fleet of stewards under one operator), see [Auto-approval via CEL](#auto-approval-via-cel) below.
+
+### What happens during operator approval
+
+When alice runs `spl federation pair add <peer-url>` and bob's posture is manual-approval:
+
+1. Bob receives the handshake POST, validates the manifest, and emits a `pair_pending.v1` AITL record on `th_federation_pairs`. Bob's response: `202 Accepted` with the `pair_id` and `aitl_record_id`.
+2. Alice's CLI auto-polls `POST /v1/federation/pair/<pair_id>/poll` (with the original nonce) on a 2-second interval, up to a 60-second window. The poll endpoint is unauthenticated; the nonce serves as the knowledge-factor proof that the caller is the original initiator.
+3. Bob's operator runs `spl aitl approve <id>`. The AITL decide handler dispatches on `body.aitl.kind` (`syncropel.federation.pair_pending.v1`) → calls the federation pair completion path → mints SA + token, emits a signed `pair.genesis.v1` on bob's `th_federation_pairs`, stores the result in bob's pending-pair-approvals map (5-minute TTL).
+4. Alice's next poll receives `state: "active"` along with the issued token + responder manifest. The pending-pair-approvals entry is consumed (one-shot — the plaintext token does not linger in bob's memory beyond a successful poll).
+5. Alice's CLI continues with the post-init flow: persists the local genesis on her `th_federation_pairs`, stores the peer credential locally, sends the confirm POST to bob.
+
+If alice's 60-second poll window elapses without approval (operator on PTO, weekend, etc.), her CLI prints a hint and exits 0:
+
+```
+! still pending after 60s; re-run `spl federation pair add` once the peer operator approves
+```
+
+Re-running creates a new `pair_id` (new nonce); the stale AITL on bob's side can be `aitl reject`-ed manually or will TTL out.
+
+> **Authoritative reference**: [ADR-069](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-069-aitl-kind-dispatcher-and-pair-completion.md) covers the AITL kind dispatcher pattern and the operator-approval completion contract end-to-end.
 
 ## The full lifecycle
 
