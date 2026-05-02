@@ -1,0 +1,105 @@
+---
+title: Hosted instance signup
+description: Skip the install — sign up at syncropel.com and have a fully-portable Syncropel instance running in under a minute. Self-hosted and hosted are first-class equals; this page walks through the hosted onboarding path end-to-end.
+---
+
+If you don't want to install `spl` on a machine you maintain, syncropel.com hosts an instance for you on a per-customer Fly Machine. The instance you get is a full Syncropel daemon — the same binary, the same APIs, the same record store, the same federation surface as a self-hosted one. You can `spl export` and walk away to self-hosted at any time (the [steward equivalence doctrine](/docs/concepts/federation#steward-equivalence) is binding).
+
+This page covers the signup flow you'll see at syncropel.com/signup, what each step does behind the scenes, and what to do when the page hands you a bootstrap token.
+
+## Before you start
+
+You need:
+
+- An email address that can receive verification mail.
+- A choice of instance label — a subdomain under `syncropel.com`, e.g. `alice.syncropel.com`. Lowercase letters, digits, and `-`. 3–32 characters. The label is yours for the lifetime of your account.
+- A way to save a one-time-displayed bootstrap token (a password manager is fine; a sticky note is not).
+
+You do **not** need: a credit card (free tier exists), a Cloudflare or Fly account, Docker, or a domain you control.
+
+## The flow
+
+### 1. Sign up
+
+Visit [syncropel.com/signup](https://syncropel.com/signup). Clerk handles the account creation — email verification, password, optional social login. After verification you're returned to the signup form.
+
+### 2. Pick a label
+
+The signup page asks for a label. The label becomes both your subdomain and your default namespace prefix. If you pick `alice`, your instance lives at `alice.syncropel.com` and your records land under namespace `alice` by default.
+
+Reserved labels (`api`, `docs`, `www`, `app`, `admin`, etc.) are rejected with an inline error. Pick something specific to you or your project.
+
+### 3. Watch the provision phases
+
+Submitting the form starts a Cloudflare Worker that walks through the provision phases live. The signup page shows each phase as it lands:
+
+| Phase | What's happening | Typical time |
+|---|---|---|
+| `reserve` | Label reserved against the global registry; a fresh `instance_id` minted. | < 1s |
+| `app_create` | Fly app `spl-<label>-<id>` created in the syncropic-ops org. | 1-2s |
+| `volume_create` | Per-app persistent volume allocated for `~/.syncro/hub.db`. | 1-2s |
+| `dns` | `<label>.syncropel.com` CNAME'd to the Fly app's edge. | 5-15s |
+| `image_build` / `deploy` | Fly Machine boots from the syncropel-core release image, with `SPL_BOOTSTRAP_TOKEN` injected via env. | 20-40s |
+| `bootstrap` | Kernel reads the env var, mints the admin service account, ready for auth. | 1-2s |
+| `dns_propagate` | The DNS record propagates through Cloudflare. | up to ~30s |
+| `ready` | Instance is reachable; bootstrap token shown to you. | — |
+
+Total time to `ready` is typically 60–120 seconds. The form streams progress; if any phase fails, the page surfaces the error envelope from the Worker and gives you a retry path.
+
+### 4. Save the bootstrap token
+
+When provisioning finishes, the page displays your bootstrap token **once**. It looks like:
+
+```
+spl_prod_sa-bootstrap-env_a4f1b8c2e7d39406b18fa92e0d1c5e3b_8f4a26e1c5d83b7290f6e1c4
+```
+
+This is the canonical bearer for your instance's first admin service account, per [ADR-035 D1](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-035-bearer-token-authentication.md). Save it somewhere durable. If you lose it before pairing a permanent credential, you'll need to revoke and re-bootstrap (recoverable, but not zero-friction).
+
+### 5. Land on the dashboard
+
+After you click through, you're redirected to your instance's dashboard. The browser's IndexedDB now holds your bootstrap bearer; subsequent requests to `<label>.syncropel.com` are auto-authed. The dashboard's first-run banner explains the next 3–5 things you should do (mint a service account for CLI use, create your first thread, optionally pair a second device).
+
+## What you can do once you're in
+
+The same things any Syncropel user can do, with the same CLI and SDK surface as a self-hosted operator:
+
+- **Use the web UI** at `<label>.syncropel.com` — the workspace, threads, tasks, search.
+- **Connect the CLI** by saving the bootstrap token: `spl token save <bearer>`. Now `spl thread list` etc. talk to your hosted instance over HTTPS.
+- **Pair more devices** via `spl pair browser-mobile` or the Settings → Connections page in the web UI.
+- **Federate** with another Syncropel instance via `spl federation pair <peer-url>` — see the [federation pair guide](/docs/guides/federation-pair).
+- **Export everything** at any time via `spl export` — see [Portability](/docs/guides/portability).
+
+You don't manage the daemon — Fly's machine restart-on-OOM, Cloudflare's edge proxy, and the auth-proxy Worker handle uptime. You can still see daemon health via `<label>.syncropel.com/health` and rich state via `<label>.syncropel.com/v1/health` (auth-protected).
+
+## Hosted vs. self-hosted — which to pick
+
+Both serve the same protocol. Pick by where you want the data and who manages uptime.
+
+| | Hosted (syncropel.com/signup) | Self-hosted (`spl serve --daemon`) |
+|---|---|---|
+| Where the data lives | Fly Machine + per-customer volume | Your `~/.syncro/hub.db` |
+| Who handles uptime | Cloudflare + Fly | You |
+| Backup story | Operator-snapshot policy on Fly | You — see [Backup discipline](/docs/operate/runbook#backup-discipline) |
+| Federation | Yes — full peer | Yes — full peer |
+| Cost | Free tier; paid for scale | Whatever your machine costs |
+| Lock-in | None — `spl export` round-trips | None — same binary |
+
+Hosted is the path of least friction; self-hosted is the path of zero dependence on syncropel.com. Both are first-class.
+
+## When provisioning fails
+
+Most provisioning failures fall into one of three buckets:
+
+- **Label collision.** Someone reserved that label first. Pick another.
+- **Boot timeout.** The Fly Machine took longer than the Worker's deadline. The page suggests waiting 30–60s and retrying — the underlying app may already be live.
+- **Bootstrap token rejection.** The kernel booted but the auth handshake hit a state issue. Less common since v0.27.1; if it happens, the diagnostic page links to a fresh provision retry.
+
+For all three, the signup page surfaces a structured error envelope — no log scraping. If retries don't help, the diagnostics on the page contain everything support needs.
+
+## What's next
+
+- **[Service accounts and tokens](/docs/get-started/service-accounts)** — mint a permanent CLI bearer instead of using the bootstrap token long-term.
+- **[Pairing a browser or phone](/docs/get-started/pairing)** — get a second device onto the same instance.
+- **[First run](/docs/get-started/first-run)** — the same first-day walkthrough applies once you have any working instance, hosted or self-hosted.
+- **[Portability guide](/docs/guides/portability)** — `spl export` / `spl import`, the binding gate that keeps "leavable any time" honest.

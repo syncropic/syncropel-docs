@@ -1,0 +1,174 @@
+---
+title: Body kinds
+description: Schema reference for built-in `body.kind` values. Records you can subscribe to, query against, and project from — emitted by the kernel during dispatch, inference, and federation.
+---
+
+`body.kind` is the body-convention discriminant — a string in scope.category.entity[.version] format that names the schema of `record.body`. Built-in kinds emitted by the kernel are documented here; user-extension kinds (anything outside the `core.*` and `syncropel.*` reserved scopes) follow the same grammar but live in their own registries.
+
+For the kind grammar itself (3 vs 4 segments, allowed characters, reserved scopes, version semantics), see [ADR-034](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-034-body-kind-grammar.md).
+
+## Kinds emitted by dispatch
+
+Every `spl task dispatch` (or any other dispatch path) emits a sequence of records that lets operators reconstruct what happened from the log alone — no log scraping, no subprocess inspection. Subscribe to these kinds to build live observability dashboards; query against them to answer "what did this dispatch cost / why did it fail / where in the codepath did it exit."
+
+### `syncropel.dispatch.stream_event.v1`
+
+One record per Assistant event from the dispatched agent. Carries token deltas (this event) and running totals (cumulative for the dispatch). Survives subprocess crashes — if the final `result` event never arrives, accumulated tokens and partial cost can still be reconstructed.
+
+```json
+{
+  "kind": "syncropel.dispatch.stream_event.v1",
+  "topic": "stream_event_seen",
+  "event_type": "assistant",
+  "tokens_in_delta": 1247,
+  "tokens_out_delta": 89,
+  "tokens_in_accum": 8431,
+  "tokens_out_accum": 1102,
+  "cost_usd_delta": 0.02145,
+  "turn_id": "turn_abc123"
+}
+```
+
+### `syncropel.dispatch.session.v1`
+
+Captures the Claude CLI session UUID from the first `system` init event. Written once per dispatch. Bridges Syncropel records to `~/.claude/projects/<project-slug>/<session_id>.jsonl` for raw Claude-side data (tool uses, tool results, full message history). `spl task diagnose` correlates via this record.
+
+```json
+{
+  "kind": "syncropel.dispatch.session.v1",
+  "topic": "claude_session_captured",
+  "session_id": "abc-123-...",
+  "project_cwd": "/home/dev/syncropel-core",
+  "project_slug": "-home-dev-syncropel-core",
+  "model": "claude-opus-4",
+  "turn_id": "turn_abc123"
+}
+```
+
+### `syncropel.dispatch.subprocess_exit.v1`
+
+Emitted after `child.wait()` regardless of which completion codepath fired. Records the objective facts — PID, exit code, signal, duration, last stream event seen — that previously only existed as log lines.
+
+```json
+{
+  "kind": "syncropel.dispatch.subprocess_exit.v1",
+  "topic": "subprocess_exited",
+  "pid": 12345,
+  "exit_code": 0,
+  "signal": null,
+  "duration_ms": 18400,
+  "last_stream_event_type": "result",
+  "last_stream_event_clock": 47,
+  "turn_id": "turn_abc123"
+}
+```
+
+### `syncropel.dispatch.complete.v1`
+
+The terminal completion record. Carries the same fields as the historical `dispatch_complete` plus three enums describing how the dispatch ended. Use these to distinguish "succeeded normally" from "subprocess crashed" from "we hit a wall-clock budget" in one query.
+
+```json
+{
+  "kind": "syncropel.dispatch.complete.v1",
+  "topic": "dispatch_complete",
+  "success": true,
+  "cost_usd": 0.34,
+  "cost_source": "result_event",
+  "completion_codepath": "result_event",
+  "failure_reason": null,
+  "duration_ms": 18400,
+  "turn_id": "turn_abc123"
+}
+```
+
+#### `cost_source` (where the final `cost_usd` figure came from)
+
+| Value | Meaning |
+|---|---|
+| `result_event` | Came from the terminal `result` stream event (authoritative). |
+| `accumulated_from_events` | Computed by summing per-event usage deltas (used when `result` never arrived). |
+| `unknown` | No figure available — stream ended before any cost signal. |
+
+#### `completion_codepath` (which exit branch fired)
+
+| Value | Meaning |
+|---|---|
+| `result_event` | Subprocess emitted a terminal `result` stream event. The happy path. |
+| `line_timeout` | `per_line_timeout` fired — subprocess went silent for too long. |
+| `budget_deadline` | Absolute wall-clock deadline (`budget_deadline`) was reached. |
+| `stream_eof_fallback` | stdout closed without a `result` event — child exited or stdout broke. |
+
+#### `failure_reason` (null on success)
+
+| Value | Meaning |
+|---|---|
+| `null` | Success. |
+| `result_missing` | stdout closed before a `result` event arrived. |
+| `subprocess_exited_nonzero` | Subprocess exited non-zero after closing stdout. |
+| `line_timeout` | `per_line_timeout` fired. |
+| `budget_exceeded` | Absolute wall-clock deadline reached. |
+| `read_error` | stdout read error mid-dispatch. |
+| `result_reported_error` | `result` event arrived but reported `is_error: true`. |
+
+See the [dispatch observability guide](/docs/guides/dispatch-observability) for example queries against these records — including `spl task diagnose <id>` and `spl logs --trace-id`.
+
+## Kinds emitted by inference
+
+The inference executor (per ADR-049) commits a `KNOW` record on the query thread when the pipeline cannot produce an answer. Every non-success path emits one `infer.error.v1` record with a stable `body.code`.
+
+### `infer.error.v1`
+
+```json
+{
+  "kind": "infer.error.v1",
+  "code": "quorum_not_met",
+  "message": "Required min_quorum=3 valid responses; received 2.",
+  "details": {
+    "min_quorum": 3,
+    "valid_responses": 2,
+    "total_dispatched": 5
+  },
+  "partial_responses": ["rec_abc...", "rec_def..."]
+}
+```
+
+`details` carries code-specific context (projected cost, elapsed seconds, missing field, etc.) — no internal Rust error strings leak through. `partial_responses` carries the IDs of `DO` records collected before a post-dispatch failure, so you can inspect what the responders did manage to produce.
+
+#### `code` taxonomy (10 values)
+
+Maps the 8-step inference pipeline (ADR-049 D4). Every non-success branch emits exactly one of these.
+
+| Code | Step | Meaning |
+|---|---|---|
+| `invalid_query` | 1 | Query body failed schema / grammar validation — missing required field, shape mismatch, unknown fold function. |
+| `no_candidates` | 2 | Hard-filter produced zero candidates. The responder pool was non-empty but no entry satisfied the predicate set. |
+| `no_relevant_candidates` | 3 | Candidates existed but the relevance scorer dropped every one below the configured threshold (`top_k` empty). |
+| `cost_budget_exceeded` | 4 (pre-dispatch) | Projected total cost exceeded `side_effects.max_cost_usd` (or the namespace default). |
+| `responder_unavailable` | 4–5 | One or more selected responders returned dispatch errors before any response could be collected. |
+| `latency_timeout` | 5 | The `side_effects.max_latency_secs` deadline elapsed before `min_quorum` valid responses arrived. |
+| `quorum_not_met` | 6 | Valid (non-error) responses were fewer than `fold.min_quorum` after filtering error-shaped DOs. |
+| `fold_failed` | 7 | The fold function returned an error (missing evaluator, expression failed, etc.). |
+| `answer_shape_mismatch` | 8 | The folded answer did not satisfy `answer_shape.kind` / `required_fields` / `schema_ref`. |
+| `obligation_conflict` | 8 / ADR-048 D5 | Obligation resolution raised a `ValidationError` conflict that the envelope's strategy could not merge. |
+
+Wire-form is snake_case as shown. Match on `body.code` to route or filter.
+
+## Other built-in kinds
+
+Pointers to the rest of the kind surface — full schemas live in their own reference pages.
+
+- **`core.workspace.v1`** + **`core.workspace_view.v1`** — workspace manifests + per-thread-per-actor projection memory. See [Workspaces](/docs/concepts/workspaces).
+- **`core.credential.v1`** — secrets and external credentials. See [Secrets](/docs/concepts/secrets).
+- **`core.consent.v1`** — cross-namespace consent grants for federation. See [Consent](/docs/guides/consent).
+- **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`** — CEL-driven engine config records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).
+- **`core.subscription.v1`** — Server-Sent-Events subscription manifests.
+- **`core.runtime.v1`** — pluggable runtime descriptor for extensions (ADR-050). See [Extensions](/docs/guides/extensions).
+- **`core.artifact.v1`** — published artifact records (ADR-052).
+- **`infer.query.v1`** — inference query records. Documented in detail at [infer.query.v1 schema reference](/docs/reference/infer-query-schema).
+
+## What's next
+
+- **[CLI reference](/docs/reference/cli)** — commands that emit and query against these records.
+- **[Dispatch observability guide](/docs/guides/dispatch-observability)** — example queries + `spl task diagnose` walkthrough.
+- **[`infer.query.v1` schema](/docs/reference/infer-query-schema)** — the inference query body shape that pairs with `infer.error.v1`.
+- **[ADR-034: body.kind grammar](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-034-body-kind-grammar.md)** — the grammar all kinds (built-in or extension) follow.

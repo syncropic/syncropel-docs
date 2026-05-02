@@ -1,0 +1,124 @@
+---
+title: FAQ
+description: Common questions about Syncropel — what the vocabulary means, why things behave a certain way, where to look when something doesn't.
+---
+
+Short answers with links to deeper docs. If a question isn't here and you think it should be, [open an issue](https://github.com/syncropic/syncropel-docs/issues).
+
+## Vocabulary
+
+### What's a steward? What's an instance?
+
+They're the same thing. A **steward** is any running Syncropel instance — your laptop daemon, a hosted instance at `<label>.syncropel.com`, a self-hosted server you run for a project. The L6 doctrine commits that every steward — laptop, hosted, or self-hosted — is a full instance with identical capabilities. See the [glossary entry](/docs/reference/glossary#steward) and the [federation pair guide](/docs/guides/federation-pair).
+
+### What's a thread? How is it different from a record?
+
+A **record** is the atomic unit — one immutable, content-addressed, signed observation with 8 fields. A **thread** is the coordination context that records share — every record carries a `thread` field; records on the same thread form a causal chain you can fold to derive state. See [Records](/docs/concepts/records) and [Threads](/docs/concepts/threads).
+
+### What's a namespace? Is it the same as a tenant?
+
+A **namespace** is the unit of tenancy, governance, and federation — a 5-level hierarchy `DEFAULT → ORG → PROJECT → ENV → JOB`. Cross-namespace record sharing is consent-gated. On a multi-tenant hosted instance, each tenant gets a namespace; on a single-operator instance, everything lives in `DEFAULT`. See [Namespaces](/docs/guides/namespaces).
+
+### What's the difference between an actor and a service account?
+
+An **actor** is anyone who emits records — a human (`did:sync:user:alice`), an AI agent (`did:sync:agent:dev`), a system component (`did:sync:system:engine`), or a service account (`did:sync:sa:cmv-adapter`). A **service account** is a specific kind of actor authenticated by a bearer token. Actors are *who*; service accounts are *how a non-human actor authenticates*. See [Actors](/docs/concepts/actors).
+
+## Operations
+
+### How do I switch between instances?
+
+Three forms today:
+1. **CLI**: change which daemon `spl` talks to via `SPL_DAEMON_URL=https://<other>.syncropel.com spl <cmd>` or persistently in `~/.syncro/config.toml`.
+2. **Web UI**: profile picker in the status bar — switches `useDaemonConnectionStore` to a different paired daemon.
+3. **Browser**: navigate to `<other>.syncropel.com` directly — you'll need a bearer paired for that origin.
+
+The frontend treatment of multi-instance UX is being refined in v0.28 "Unify"; the CLI and SDK paths are stable.
+
+### Why am I getting `AUTH_REQUIRED` when I `curl` my daemon?
+
+The default posture since v0.16 is auth-on (`auth.required = true`). Four causes:
+
+1. **No `Authorization` header.** Add `-H "Authorization: Bearer <token>"`. See [Service accounts and tokens](/docs/get-started/service-accounts).
+2. **Expired or revoked token.** Verify with `spl serve --status` and re-pair if needed.
+3. **Hitting `/v1/health`** (auth-protected, rich body) instead of `/health` (open, minimal liveness). For probes that don't have a token, use `/health` or `/.well-known/syncropel`.
+4. **Insecure-localhost daemon on a non-loopback interface.** `--insecure-localhost` only binds 127.0.0.1; if you `curl` from another machine, it can't reach.
+
+For a guided diagnostic, see [Troubleshooting connection](/docs/operate/troubleshooting-connection).
+
+### How do I leave hosted Syncropel and take my data with me?
+
+`spl export` produces a portable bundle (records, threads, federation pairs, secrets, consent grants, identity); `spl import` ingests it on a fresh instance. The round-trip is the binding [steward equivalence](/docs/concepts/federation#steward-equivalence) gate — every paid customer can leave at any time. See [Portability](/docs/guides/portability).
+
+### How do I reset trust scores?
+
+Trust evidence is records (LEARN on actor's trust thread). To reset:
+1. Stop accumulating new evidence by pausing the relevant routing rules (`spl config disable-rule <name>`).
+2. Emit a `LEARN` on `th_trust_<actor>` with a `body.kind = "trust.reset.v1"` marker per the substrate change convention.
+3. The next trust query rebuilds from the post-reset evidence only.
+
+Resetting is rarely the right move — usually you want to *bias* trust by adding more evidence at the desired weight rather than discard accumulated history.
+
+### Why did my `spl task dispatch` fail with `E2BIG` (Argument list too long)?
+
+Pre-v0.27.1, dispatch envelopes carried brief content inline in the goal argv, which could exceed the OS `ARG_MAX` for briefs over ~7 KB. Fixed in v0.27.1 (SKL-0536) — briefs are now passed by file path. Upgrade with `curl -sSf https://get.syncropic.com/spl | sh` and restart your daemon.
+
+If you see the same symptom on v0.27.1+, it's a different bug — open an issue with `spl version` output.
+
+## Hosted vs. self-hosted
+
+### Where does my data live in hosted mode?
+
+On a per-customer Fly Machine, in a SQLite file (`~/.syncro/hub.db`) on a per-app persistent volume. Snapshots are operator-managed; portability is via `spl export` (which you can run anytime against your hosted instance). See [Hosted instance signup](/docs/get-started/hosted).
+
+### Can I federate hosted ↔ self-hosted?
+
+Yes — federation is daemon-agnostic. `spl federation pair` works regardless of where each peer runs. You can have a laptop self-hosted instance paired with a hosted instance and a friend's self-hosted instance simultaneously. See [Federation pair](/docs/guides/federation-pair).
+
+### Is there a free tier?
+
+Yes — the hosted free tier exists for evaluation and small-scale use. Specifics on the [pricing page](https://syncropel.com/pricing) (rate limits, retention windows, fair-use thresholds). Self-hosted has no Syncropel-side cost ever.
+
+## Federation
+
+### What's a federation pair?
+
+A long-lived bilateral relationship between two stewards, established by `spl federation pair <peer-url>`. The pair record carries reciprocal DIDs, scoped tokens, and a lifecycle (`active` / `paused` / `degraded` / `revoked`). All federated sync traffic flows through the pair — no pair, no sync. See [Federation pair](/docs/guides/federation-pair) and [ADR-063](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-063-federation-pair-primitive.md).
+
+### Is federation push or pull?
+
+**Pull-first.** Bob's instance polls Alice's `/v1/sync/changes` endpoint and pulls new records — Alice never pushes to Bob. This avoids per-pair endpoints, simplifies the trust model, and lets recipients control their own ingest rate. See [ADR-027](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-027-federation-transport.md).
+
+### Can I revoke a pair?
+
+Yes — `spl federation revoke <peer-did | pair-id>`. Terminal state; no undo. Re-establishment requires a fresh `spl federation pair` handshake. The revocation emits a record so the audit trail of who-paired-with-whom-when is preserved.
+
+## Troubleshooting
+
+### My provisioning failed with "image build or machine boot exceeded its timeout"
+
+The Fly Machine boot took longer than the Worker's deadline. The underlying app may already be live — wait 30-60 seconds and retry signup with the same label. If it persists, the page links to a fresh provision retry; the diagnostics carry everything support needs.
+
+### `spl federation pair` returns "manifest signature does not verify against advertised DID"
+
+The peer's `/.well-known/syncropel` manifest carries a signature that doesn't match the DID it claims. Causes: peer running an older version, key rotation that didn't propagate, MITM (rare but real on hostile networks). On the peer, run `spl identity verify` to confirm local key matches resolved DID. See the [federation-pairing operator guide](/docs/operate/federation-pairing).
+
+### Where do I find logs?
+
+Three places, depending on what you need:
+
+| Surface | Command | What's there |
+|---|---|---|
+| Daemon logs | `spl serve --logs` (or `~/.syncro/logs/spl.log`) | Process logs — the daemon's own emit. |
+| Records | `spl thread records <thread-id>` | Anything emitted as a record (most state). |
+| Trace correlation | `spl logs --trace-id <id>` | All log lines + records sharing one trace ID. |
+
+For dispatch debugging specifically, `spl task diagnose <id>` walks the records on a dispatch thread. See the [dispatch observability guide](/docs/guides/dispatch-observability).
+
+## What's next
+
+If your question wasn't covered:
+
+- **[Glossary](/docs/reference/glossary)** — canonical definitions.
+- **[CLI reference](/docs/reference/cli)** — every `spl` verb.
+- **[Operator runbook](/docs/operate/runbook)** — daemon lifecycle, recovery, backup.
+- **[Open an issue](https://github.com/syncropic/syncropel-docs/issues)** — if the question deserves an answer here, we'd like to add it.
