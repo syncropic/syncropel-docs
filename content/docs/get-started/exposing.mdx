@@ -144,7 +144,7 @@ From the browser's devtools network tab, the daemon's responses should include `
 
 ## Federation pairing
 
-Once the daemon is reachable on a stable URL, a federation peer can pair to it. The pairing flow mints a `federation:manage` scoped service account, exchanges public keys, and sets up a sync subscription. See the [Federation guide](/docs/guides/federation) for the full flow and the [Discovery guide](/docs/guides/federation-discovery) for auto-discovery via DNS or mDNS.
+Once the daemon is reachable on a stable URL, a federation peer can pair to it. The pairing flow mints reciprocal `federation:manage`-scoped service accounts, exchanges public keys, and persists a pair record on both sides. See the [Federation pair guide](/docs/guides/federation-pair) for the canonical `spl federation pair <peer-url>` walkthrough and the [Discovery guide](/docs/guides/federation-discovery) for auto-discovery via DNS or mDNS.
 
 ## Decision matrix
 
@@ -160,6 +160,6 @@ Once the daemon is reachable on a stable URL, a federation peer can pair to it. 
 ## See also
 
 - [Authentication and service accounts](/docs/operate/keyring) — scopes, token lifecycle, emergency recovery
-- [Federation guide](/docs/guides/federation) — pair two daemons for bi-directional sync
+- [Federation pair guide](/docs/guides/federation-pair) — pair two daemons for bi-directional sync via `spl federation pair`
 - [Operator runbook](/docs/operate/runbook) — backup discipline, recovery, upgrades
 - [Troubleshooting](/docs/get-started/troubleshooting) — when an exposed daemon isn't reachable or CORS is blocking

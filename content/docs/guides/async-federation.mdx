@@ -5,7 +5,7 @@ description: Use a store-and-forward relay so your laptop and phone can particip
 
 ## Who this is for
 
-You have two Syncropel daemons that are rarely online at the same time — a laptop and a mobile device, two teammates in different time zones, or a hosted instance and a home server that sleeps overnight. Standard [synchronous federation](/docs/guides/federation) requires both peers to be reachable during the sync window; async federation works around that with a store-and-forward relay.
+You have two Syncropel daemons that are rarely online at the same time — a laptop and a mobile device, two teammates in different time zones, or a hosted instance and a home server that sleeps overnight. Standard [synchronous federation](/docs/guides/federation-pair) requires both peers to be reachable during the sync window; async federation works around that with a store-and-forward relay.
 
 If your daemons are always-on with good network paths to each other, use synchronous federation — it has fewer moving parts. This guide is for the case where they aren't.
 
@@ -156,5 +156,5 @@ The relay's `/metrics` endpoint (if you're operating the relay or have read acce
 
 ## See also
 
-- [Federation guide](/docs/guides/federation) — the synchronous, no-relay counterpart
+- [Federation pair guide](/docs/guides/federation-pair) — the synchronous, no-relay counterpart
 - [Operator guide to running a relay](/docs/operate/relay) — deploy your own
