@@ -65,12 +65,62 @@ After you click through, you're redirected to your instance's dashboard. The bro
 The same things any Syncropel user can do, with the same CLI and SDK surface as a self-hosted operator:
 
 - **Use the web UI** at `<label>.syncropel.com` — the workspace, threads, tasks, search.
-- **Connect the CLI** by saving the bootstrap token: `spl token save <bearer>`. Now `spl thread list` etc. talk to your hosted instance over HTTPS.
-- **Pair more devices** via `spl pair browser-mobile` or the Settings → Connections page in the web UI.
+- **Connect the CLI** — see the next section, *Connect your CLI to the hosted instance*.
+- **Pair more devices** via `spl pair --device <label> --url https://<label>.syncropel.com` or the Settings → Connections page in the web UI.
 - **Federate** with another Syncropel instance via `spl federation pair <peer-url>` — see the [federation pair guide](/docs/guides/federation-pair).
 - **Export everything** at any time via `spl export` — see [Portability](/docs/guides/portability).
 
 You don't manage the daemon — Fly's machine restart-on-OOM, Cloudflare's edge proxy, and the auth-proxy Worker handle uptime. You can still see daemon health via `<label>.syncropel.com/health` and rich state via `<label>.syncropel.com/v1/health` (auth-protected).
+
+## Connect your CLI to the hosted instance
+
+The CLI defaults to a local daemon on `127.0.0.1:9100`. To make it talk to your hosted instance instead, you tell it two things: **where the daemon lives** (`SPL_SERVE_URL`) and **which bearer to attach** (`spl token save`).
+
+### One-time setup
+
+```bash
+# 1. Install the CLI (skip if already installed)
+curl -sSf https://get.syncropic.com/spl | sh           # Linux / WSL — Windows: irm https://get.syncropic.com/spl.ps1 | iex
+
+# 2. Point the CLI at your hosted instance
+export SPL_SERVE_URL=https://<label>.syncropel.com
+
+# 3. Save the bootstrap token shown on signup
+spl token save spl_prod_sa-bootstrap-env_...
+```
+
+`spl token save` writes the bearer to `~/.syncro/token` with `0600` permissions. After save, every subsequent `spl` invocation reads the file and attaches `Authorization: Bearer <token>` to every outbound request — no flag plumbing required.
+
+To make the URL persistent across shells, add the export to your shell rc file (`~/.bashrc`, `~/.zshrc`, etc.):
+
+```bash
+echo 'export SPL_SERVE_URL=https://<label>.syncropel.com' >> ~/.bashrc
+```
+
+### Smoke test
+
+```bash
+spl status
+spl thread list
+spl task add "First task on hosted" --priority normal --domain meta
+spl task list
+```
+
+`spl status` prints which URL it resolved and whether the bearer authenticates. `spl thread list` and `spl task list` should return your account's view (empty if you haven't emitted anything yet — the bootstrap LEARN on `th_engine_config` is namespaced separately).
+
+If you get a `401`, re-paste the token (`spl token save <bearer>`) and verify `SPL_SERVE_URL` points at the right `<label>.syncropel.com`. If you get connection errors, check `<label>.syncropel.com/health` directly in a browser — Fly may still be cold-booting on first request after a long idle.
+
+### Mint a permanent CLI bearer (recommended)
+
+The bootstrap token is fine for the first few minutes, but it's broad-scoped and ties your CLI to "the bootstrap account" rather than to "this device." Mint a device-specific service account instead:
+
+```bash
+spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.com --scopes admin
+```
+
+`spl pair` prints a one-click URL, a QR code, and a plain-text payload — pick whichever fits. For the CLI on the same machine, the simplest path is to copy the printed token and run `spl token save <new-token>` to overwrite the bootstrap bearer. Now your device is paired with a token you can revoke independently if the laptop is ever lost.
+
+See [Service accounts and tokens](/docs/get-started/service-accounts) for the long-form version, including scope narrowing and rotation.
 
 ## Hosted vs. self-hosted — which to pick
 
@@ -93,7 +143,7 @@ Most provisioning failures fall into one of three buckets:
 
 - **Label collision.** Someone reserved that label first. Pick another.
 - **Boot timeout.** The Fly Machine took longer than the Worker's deadline. The page suggests waiting 30–60s and retrying — the underlying app may already be live.
-- **Bootstrap token rejection.** The kernel booted but the auth handshake hit a state issue. Less common since v0.27.1; if it happens, the diagnostic page links to a fresh provision retry.
+- **Bootstrap token rejection.** The kernel booted but the auth handshake hit a state issue. Uncommon — if it happens, the diagnostic page links to a fresh provision retry.
 
 For all three, the signup page surfaces a structured error envelope — no log scraping. If retries don't help, the diagnostics on the page contain everything support needs.
 
