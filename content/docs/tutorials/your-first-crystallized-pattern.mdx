@@ -1,0 +1,172 @@
+---
+title: Your first crystallized pattern
+description: Do the same thing three times, watch the pattern detector form a hash chain, see the trust score evolve, and observe automatic routing kick in. The substrate's cost curve bends here.
+---
+
+## What you'll see
+
+In about 30 minutes, you'll create three structurally similar threads, observe the pattern detector record their hash signatures at four levels, and verify that the next similar work matches the pattern and replays its outcome instead of triggering a fresh LLM call.
+
+After this, you'll understand the **economic claim** behind Syncropel: the marginal cost of a coordination event approaches zero because most events are replays of crystallized patterns, not fresh reasoning.
+
+## Before you start
+
+- `spl 0.33.0` or later (`spl --version`)
+- A daemon running with `spl status` healthy.
+- Completed [Your first AITL approval](./your-first-aitl-approval) — patterns build on top of approved rules.
+- Patience for ~3 emissions and the engine's tick interval. The pattern detector is part of the TICK loop; defaults run every 60 seconds.
+
+This tutorial uses observability via `spl thread records`, `spl trust`, and `curl http://localhost:9100/v1/patterns` (the HTTP surface — `spl pattern` CLI is on the polish backlog per the [patterns concept doc](/docs/concepts/patterns#whats-enforced-today-vs-the-spec)).
+
+## 1. Pick a thread shape and emit three of them
+
+Three structurally similar threads — same INTEND shape, same DO shape, same closing KNOW. A small, deterministic example: counting lines in three files.
+
+```bash
+# Thread 1
+THREAD1=th_count_lines_a
+spl intend "Count the lines in src/main.rs" --thread $THREAD1
+spl do "Read file and count newlines" --thread $THREAD1
+spl know "src/main.rs has 142 lines" --thread $THREAD1 --fulfills
+
+# Thread 2
+THREAD2=th_count_lines_b
+spl intend "Count the lines in src/lib.rs" --thread $THREAD2
+spl do "Read file and count newlines" --thread $THREAD2
+spl know "src/lib.rs has 89 lines" --thread $THREAD2 --fulfills
+
+# Thread 3
+THREAD3=th_count_lines_c
+spl intend "Count the lines in src/main.rs" --thread $THREAD3
+spl do "Read file and count newlines" --thread $THREAD3
+spl know "src/main.rs has 142 lines" --thread $THREAD3 --fulfills
+```
+
+Each `--fulfills` on the closing KNOW marks the thread as successfully closed — that's the trigger for pattern indexing.
+
+## 2. Inspect the hash signatures
+
+Each closed thread is now in the pattern index at four levels:
+
+```bash
+spl thread show $THREAD1
+```
+
+You'll see the standard projection plus a `pattern_hashes` block:
+
+```
+Thread:  th_count_lines_a  (closed, fulfilled)
+  Records: 3 (INTEND → DO → KNOW)
+  Pattern hashes:
+    L0: 7f3a4c2e9b1d8a6f5c4b3a2e1d0c9b8a7f6e5d4c3b2a1908f7e6d5c4b3a2918
+    L1: 8c9d0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f
+    L2: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
+    L3: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3
+```
+
+Now compare to thread 2:
+
+```bash
+spl thread show $THREAD2
+```
+
+Threads 1 and 2 should match at **L1, L2, and L3** — same shape, same operation, same flow boundary. They differ at **L0** (the file paths and line counts are different). This is the structural-vs-content split (per [F8 in the glossary](/docs/reference/glossary)) that makes pattern sharing possible without leaking content.
+
+Thread 1 and thread 3 should match at **L0** — same exact INTEND body, same DO, same KNOW result. That's the strict-cache case.
+
+## 3. Read the pattern index directly
+
+Until `spl pattern list` ships, the pattern index is a substrate-shaped record query. Threads 1+3 are L0-identical; threads 1+2+3 are L1-equivalent. Inspect via the records HTTP API:
+
+```bash
+curl -s -H "Authorization: Bearer $(cat ~/.syncro/token)" \
+  "http://localhost:9100/v1/records?body.kind=core.pattern.observation.v1&limit=10" \
+  | jq '.records[] | {hash_l1: .body.hash_l1, observations: .body.observation_count}'
+```
+
+You should see one entry whose `hash_l1` matches all three threads, with `observation_count: 3`. Each successful `--fulfills` adds one observation.
+
+## 4. Watch the trust score evolve
+
+Each closed thread is also a trust observation in the actor's domain (defaults to `general` if you didn't pass `--domain`). Look at your trust:
+
+```bash
+spl trust
+```
+
+```
+ACTOR                   DOMAIN     SUCCESS   TOTAL    TRUST
+did:sync:user:you       general          3       3    0.439
+```
+
+Three out of three successes. Trust uses Wilson lower-bound — a small sample size always has high uncertainty, so 3/3 ≠ 1.0; it ≈ 0.44. With more observations the score will climb.
+
+Trust is one of the four [crystallization criteria](/docs/concepts/patterns#crystallization-when-a-pattern-graduates):
+
+| Criterion | What it measures | Threshold |
+|---|---|---|
+| **C1 Trust** | Producing actor's trust in the domain | ≥ 0.90 |
+| **C2 Observations** | Times this pattern has been seen | ≥ 100 |
+| **C3 Compression** | MDL compression vs. listing observations | meaningful |
+| **C4 Multi-source** | Distinct (actor, evaluator) pairs | ≥ 2 |
+
+This tutorial demonstrates the **observation phase**, not full crystallization. Three observations from one actor doesn't crystallize. But — and this is the point — the pattern is *queryable* and the *next similar record will match* even before crystallization. Replay short-circuits at L1 today (see [patterns concept § what's enforced](/docs/concepts/patterns#whats-enforced-today-vs-the-spec)).
+
+## 5. Trigger a fourth record and watch automatic match
+
+Emit one more line-count thread:
+
+```bash
+THREAD4=th_count_lines_d
+spl intend "Count the lines in src/test.rs" --thread $THREAD4
+```
+
+Inspect what the engine did with the bare INTEND:
+
+```bash
+spl thread records $THREAD4
+```
+
+If routing has any rules that match the L1 signature of the closed pattern, you should see follow-on engine-emitted records — e.g., a DO with `body.dispatch_handled: true` and `body.replay_source: <pattern_id>`. Those engine-emitted records carry the pattern as evidence: state didn't come from new reasoning, it came from a structural-hash hit.
+
+If no rules exist yet for this shape, the kernel will treat the new INTEND like the unrouted record from [the AITL tutorial](./your-first-aitl-approval) — proposing a routing rule on `th_aitl`. The pattern is observable but no auto-routing happens until a rule covers the shape.
+
+## 6. Inspect the routing fold
+
+The engine's runtime config — what rules will fire next — is the fold over `th_engine_config`:
+
+```bash
+spl thread records th_engine_config | jq '.[] | select(.body.kind == "core.routing_rule.v1") | {name: .body.name, match: .body.match}'
+```
+
+Each entry is a LEARN record describing one rule. The fold-over-records *is* the routing table. There is no separate routing config file. This is what "state = fold(records)" looks like in production code.
+
+## What just happened
+
+You exercised the substrate's **pattern recognition primitive**:
+
+1. **Closed threads are pattern observations.** Every `--fulfills` KNOW closes a thread and emits hash signatures at L0, L1, L2, L3 into the pattern index. This is automatic and free; the index is just records.
+2. **Hash levels separate structure from content.** L0 hashes leak content (so they stay namespace-local per [F8](/docs/reference/glossary)). L1-L3 are structural and safe to federate. This is what enables cross-team pattern sharing without leaking sensitive bodies.
+3. **The cascade favors cheap replays.** When new work arrives, the engine matches L1 → L2 → L3 → semantic → CREATE. Each level is faster + cheaper than the next. Crystallized patterns short-circuit the whole cascade.
+4. **Trust gates promotion.** Three observations don't crystallize because C1 (trust ≥ 0.90) and C2 (observations ≥ 100) aren't met yet. Crystallization is what graduates a pattern from "observed" to "trusted enough to replay without re-checking."
+5. **De-crystallization is real.** If trust drops below 0.80 (per [§07 trust](/docs/concepts/trust)), the pattern un-crystallizes. The system self-corrects rather than replaying into a wall.
+
+The economic claim: at steady state, ~85% of incoming work matches a crystallized pattern and replays at near-zero marginal cost. The remaining 15% (the EXPLORE/CREATE tail) is where operational LLM spend lives. As more patterns crystallize, that fraction shrinks. This is what makes the substrate viable at scale.
+
+## Where to next
+
+- [Patterns concept](/docs/concepts/patterns) — the full model: hash levels, the cascade, crystallization criteria C1-C4, de-crystallization, federation.
+- [Trust concept](/docs/concepts/trust) — Wilson lower-bound math, 90-day decay, CUSUM drift detection, why trust gates pattern promotion.
+- [Engine concept](/docs/concepts/engine) — where pattern matching slots into the four loops (RECONCILE checks the cascade on every routing decision).
+- [Your first federation pair](./your-first-federation-pair) — once patterns crystallize on one steward, they can federate to paired peers (subject to consent + hash-level filter).
+- [Cookbook: Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) — composing trust + AITL into automatic decisions for high-trust actors.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Hash signatures don't appear in `spl thread show` | The thread isn't closed. Pattern indexing fires only when a closing KNOW carries `--fulfills` against a prior INTEND. | Re-emit the closing KNOW with `--fulfills` (or `--fulfills <intend_record_id>` if you want to be explicit). Without it, the thread is "open" and the pattern index doesn't pick it up. |
+| Threads 1 and 2 match at L0 but not L1 | Mis-emitted bodies — likely identical body strings. L0 hashes the bytes; identical bytes → L0 match. | This is fine, just less interesting. Vary the INTEND text between threads (different filename, different parameter) to demonstrate the L0 vs L1 split. |
+| Pattern observation count stuck at 1 | Each thread closed but they hash differently at every level (different body kinds, different actor, different acts). | Verify all three threads use the same act sequence (INTEND → DO → KNOW), the same actor, and structurally similar body shapes. Use `spl thread show <id>` to compare hash blocks side by side. |
+| Trust score flat at 0.0 after `--fulfills` | The closing KNOW didn't include a `--domain` — observations land in `general` and your `spl trust` view may be filtered. | Run `spl trust` with no flags to see all domains. Or pass `--domain code` (or whatever fits) to `spl know` to attribute observations to a specific domain. |
+| Fourth record didn't auto-route | No routing rule covers the pattern's L1 signature yet. Patterns make routing *possible*; rules make it *fire*. | Either approve an AITL proposal (per [the AITL tutorial](./your-first-aitl-approval)) or hand-author a rule with `spl config add-rule`. Patterns and rules are orthogonal — the cascade matches patterns; rules dispatch. |

@@ -1,0 +1,159 @@
+---
+title: Your first AITL approval
+description: Walk through the substrate's self-improvement loop. Emit a record that has no routing rule yet, see the kernel propose one, approve it, and watch the next similar record route automatically.
+---
+
+## What you'll learn
+
+In about 30 minutes, you'll exercise the **AITL** (Actor-In-The-Loop) feedback path that makes Syncropel a learning substrate, not just a record store. You'll emit a record the kernel doesn't yet know how to route, see it surface a proposed routing rule for your approval, accept the proposal, and verify the next similar record routes without any new reasoning.
+
+After this, you'll understand why the substrate is described as "self-improving" — the kernel never silently changes routing or policy; it proposes, an operator approves, and the approval becomes a record that future runs replay.
+
+## Before you start
+
+- `spl 0.33.0` or later (`spl --version`)
+- A running daemon — either local (`spl serve --daemon`) or hosted (`<label>.syncropel.com`).
+- `spl status` returns `healthy`.
+- An LLM provider key configured (`spl config set-key anthropic <key>`) — the kernel's intelligence loop needs a model to reason about new routing. If you're on a hosted instance the key is already wired.
+
+If you've never emitted a record before, do [Your first thread](./first-thread) first. This tutorial assumes you can read `spl thread records <id>` output.
+
+## 1. Confirm intelligence is enabled
+
+Intelligence (the loop that proposes AITL rules) ships off-by-default on local installs. Check:
+
+```bash
+spl config show | grep -i intelligence
+```
+
+If you see `intelligence_enabled: false` (or no entry at all), enable it:
+
+```bash
+spl config set-key anthropic <your-key>
+spl config model claude-sonnet-4-6
+```
+
+The kernel hot-reloads on the next config broadcast — no restart.
+
+## 2. Emit a record with no matching routing rule
+
+Pick a body kind the daemon hasn't seen. The simplest is a fresh thread with a do-something intent:
+
+```bash
+spl intend "Translate the README.md to French" --thread th_fr_translate
+```
+
+Output includes a record id and thread id:
+
+```
+✓ Record created
+  thread:  th_fr_translate
+  record:  rec_8a3c...
+  act:     INTEND
+```
+
+The kernel ingests it, runs the routing match cascade, and finds nothing — no L0/L1/L2/L3 hash hit, no semantic match, no static rule. That miss is what triggers the intelligence loop.
+
+## 3. Watch a proposal land in /aitl
+
+Within a few seconds, the intelligence loop reasons about the unrouted intent and emits an AITL record on the reserved thread `th_aitl`. List pending proposals:
+
+```bash
+spl aitl list
+```
+
+You'll see something like:
+
+```
+ID                 KIND                            BODY (excerpt)
+aitl_3e7a9...      syncropel.routing.propose.v1    propose: route INTENDs matching
+                                                   "translate to <lang>" → translator-agent
+```
+
+The proposal carries a structured body: the CEL match expression the kernel synthesized, the recommended target actor, and a confidence score. The full body is visible with:
+
+```bash
+spl aitl list -o json | jq '.[0]'
+```
+
+Until you act, no rule exists in `th_engine_config` and no future record will route differently.
+
+## 4. Approve the proposal
+
+```bash
+spl aitl approve aitl_3e7a9...
+```
+
+Output:
+
+```
+✓ AITL approved
+  record:  aitl_3e7a9...
+  action:  applied
+  result:  routing_rule_added (name: routing_translator_v1)
+```
+
+What happened mechanically: your approval is itself a record. The AITL kind dispatcher (per ADR-069) reads `body.aitl.kind`, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the substrate's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
+
+Verify the rule landed:
+
+```bash
+spl config list-rules
+```
+
+You should see `routing_translator_v1` in the list.
+
+## 5. Emit a similar record and watch it route automatically
+
+```bash
+spl intend "Translate the CONTRIBUTING.md to Spanish" --thread th_es_translate
+```
+
+This time the routing match cascade hits at L1 (or L2, depending on how the proposal generalized) and the engine fires an INTEND at the translator agent without any new reasoning. Inspect the thread:
+
+```bash
+spl thread records th_es_translate
+```
+
+You should see two records back-to-back: your INTEND, and a follow-on engine-emitted DO with `body.dispatch_handled: true` showing the route fired.
+
+Compare to step 2's thread, which has only your bare INTEND with no follow-on — that's the difference between "kernel is reasoning every time" and "kernel is replaying a learned rule."
+
+## 6. Inspect the audit trail
+
+Approvals, rejections, and rule applications all emit audit records on `th_aitl_decisions`:
+
+```bash
+spl thread records th_aitl_decisions | tail -3
+```
+
+Every AITL decision is a record. There is no "approved by gut feel" path — the trail is structurally complete (per the [governance concept](/docs/concepts/governance)), and the same trail is what trust scoring will use to attribute future routing successes to your approval.
+
+## What just happened
+
+You exercised the substrate's **decision-record loop**:
+
+1. **A miss is data.** When routing finds no match, the kernel doesn't fall back to a hardcoded default — it emits a structured proposal on `th_aitl` and waits.
+2. **An operator's approval is a record.** Not a flag, not a session decision — a signed record on `th_aitl_decisions` that any future replay (export → import, fold rebuild, audit) reads as canonical.
+3. **The rule is record-derived, not config-derived.** Routing rules live on `th_engine_config` as LEARN records. The fold over that thread is the engine's runtime config. State = fold(records).
+4. **Replay closes the loop.** The next similar record matches and skips reasoning entirely. Cost goes from "one LLM call" to "one expression evaluation" — that's the gradient that makes the system economically viable at scale (see [patterns](/docs/concepts/patterns)).
+
+This is the smallest example of why AITL is the substrate's self-improvement primitive: the kernel proposes, you decide, and your decision becomes durable substrate.
+
+## Where to next
+
+- [Your first crystallized pattern](./your-first-crystallized-pattern) — what happens after the same approved rule fires 100 times: the pattern crystallizes, replay short-circuits the cascade entirely.
+- [Patterns concept](/docs/concepts/patterns) — the four hash levels, crystallization criteria C1-C4, the matching cascade.
+- [Engine concept](/docs/concepts/engine) — the four loops (INGEST, RECONCILE, TICK, CRON) and how AITL slots into RECONCILE.
+- [Governance concept](/docs/concepts/governance) — why permissions, AITL, and audit are all the same primitive (records on reserved threads).
+- [CEL expressions guide](/docs/guides/cel-expressions) — author your own AITL rules instead of waiting for the kernel to propose them.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `spl aitl list` always returns empty | Intelligence is disabled; the kernel didn't emit a proposal. | Confirm `spl config show` reports a model + provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. The daemon hot-reloads on the next broadcast. |
+| Proposal stays in `pending` forever | You're reading from a paired peer, not the originating instance. AITL state is per-instance until the proposal is approved + the resulting rule federates. | Run `spl aitl list` against the instance that *emitted* the original record. Check `spl actor list` to confirm which DID is the active actor. |
+| `spl aitl approve` returns `403 forbidden` | Default-secure auth on a hosted instance — the bearer token doesn't have `aitl:approve` scope. | Mint a service account with the right scopes: `spl service-account create --name "AITL approver" --scopes aitl:approve --with-token`, then `spl token save <token>`. |
+| Approved rule didn't fire on the next similar record | The proposal generalized too narrowly (matches L0 only) — the second record differs at L0. | Inspect with `spl config list-rules`, find the rule, and broaden its CEL `match` expression. The pattern layer will eventually crystallize the broader shape on its own; manual editing is the fast path. |
+| `spl thread records th_aitl_decisions` is empty after approval | The approve command emitted on a different namespace from the one you're reading. | Pass `--namespace <ns>` to match the namespace the original record was emitted into, or run `spl thread records th_aitl_decisions --namespace default`. |
