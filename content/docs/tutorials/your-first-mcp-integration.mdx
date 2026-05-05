@@ -1,0 +1,179 @@
+---
+title: Your first MCP integration
+description: Wire Claude Code (or any MCP-compatible AI client) to your spl daemon. Use a tool from the client; watch records appear in /local. The smallest end-to-end MCP loop.
+---
+
+## What you'll build
+
+In about 30 minutes, you'll connect an AI client — Claude Code is the canonical example, but any [MCP](https://modelcontextprotocol.io/) client works the same way — to your local Syncropel daemon. You'll invoke a tool from the client, watch a record land in your daemon's record log, and inspect it via `spl thread list`.
+
+After this, you'll understand why Syncropel is described as a **first-class MCP target**: every action an AI client takes against your substrate is a record on a thread, signed by the actor that did it. The audit trail is complete by construction — no separate logging, no "did the agent really call this tool?" question.
+
+## Before you start
+
+- `spl 0.33.0` or later (`spl --version`)
+- A daemon running locally — `spl serve --daemon`. Hosted instances also work but require an extra step (the bearer token must reach the MCP client; covered below).
+- An MCP-compatible AI client. This tutorial walks Claude Code in detail; the same pattern applies to Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI, Claude Desktop, Codex, etc.
+- The `claude` binary on your PATH if you're using Claude Code (`claude --version`).
+
+This tutorial is a **journeyed walkthrough**. For the full nine-client matrix with all per-OS config paths, see [AI Clients — three integration patterns](/docs/integrate/ai-clients).
+
+## 1. Confirm your daemon serves MCP
+
+Syncropel ships an MCP server as a subcommand of the same `spl` binary. You don't install anything extra.
+
+```bash
+spl mcp serve --help
+```
+
+You should see help output describing stdio JSON-RPC 2.0. The MCP server speaks stdio (the canonical MCP transport), so it's launched by the AI client as a subprocess; you don't run it manually for the client.
+
+You can sanity-check the server by piping a list-tools call yourself:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | spl mcp serve | head -c 500
+```
+
+You should see a JSON response listing tools — `intend`, `do`, `know`, `learn`, `thread_list`, `thread_show`, etc. If the call hangs, the daemon isn't running — start it with `spl serve --daemon` and retry.
+
+## 2. Configure Claude Code
+
+Claude Code owns its own MCP registry via its `mcp` subcommand. The simplest path is the bundled setup helper:
+
+```bash
+spl mcp setup-claude-code
+```
+
+Output:
+
+```
+✓ Registered syncropel MCP server with Claude Code
+  command: spl
+  args:    [mcp, serve]
+  scope:   user
+```
+
+Internally this shells out to `claude mcp add syncropel -- spl mcp serve`. You can verify Claude Code now knows about it:
+
+```bash
+claude mcp list
+```
+
+You should see `syncropel` in the list with status `running` (or it'll spin up on first use).
+
+For other clients — Cursor, Cline, Zed, etc. — the corresponding setup verbs are `spl mcp setup-cursor`, `spl mcp setup-cline`, `spl mcp setup-zed`, and so on. Each one writes to the client's native config location and is idempotent.
+
+## 3. Open Claude Code and discover the tools
+
+Start a Claude Code session in a workspace directory (any directory works for this test):
+
+```bash
+cd /tmp && claude
+```
+
+Inside Claude Code, type `/mcp` to see registered servers and their tools. You should see `syncropel` in the list with the available tools (`intend`, `do`, `know`, `learn`, plus thread + record helpers).
+
+If `/mcp` shows `syncropel` but with `disabled` or `error`, jump to the Troubleshooting section — the most common cause is the daemon not running on the expected port.
+
+## 4. Invoke a tool from Claude Code
+
+Ask Claude Code to record an intent, then to read the thread back. A natural prompt:
+
+```
+Use the syncropel MCP server to record this intent: "Try out the MCP integration".
+Then list my recent threads and show me the one that was just created.
+```
+
+Claude Code will (in order):
+1. Call `mcp__syncropel__intend` with the body.
+2. Call `mcp__syncropel__thread_list`.
+3. Call `mcp__syncropel__thread_show` on the new thread id.
+
+After the model finishes, you'll see in Claude Code's UI which tools fired and what they returned. Each call **happened against your local daemon**, signed by an actor DID, and is now part of the substrate.
+
+## 5. Verify records landed in the daemon
+
+In a separate terminal:
+
+```bash
+spl thread list
+```
+
+You should see the new thread at the top of the list with a single INTEND record. Inspect it:
+
+```bash
+spl thread records <thread_id>
+```
+
+```
+ACTOR                              ACT       BODY (excerpt)
+did:sync:agent:claude-code         INTEND    Try out the MCP integration
+```
+
+The actor DID is the one Claude Code authenticated as — by default `did:sync:agent:claude-code`, but this is configurable via `claude mcp add ... --env SYNCROPEL_ACTOR=did:sync:agent:my-team-claude` if you run multiple workspaces under different identities.
+
+## 6. Watch records appear in /local in real time
+
+If you have the web UI running (or the hosted equivalent), open `/local` in a browser. The thread appears at the top of the thread list within ~1 second of the MCP call (records broadcast on a SSE channel; the UI subscribes to it). This is what closes the loop visually — the tool call → the record → the surface, all the same primitive.
+
+You can also subscribe from the CLI:
+
+```bash
+spl thread records <thread_id> --watch
+```
+
+Now go back to Claude Code and prompt:
+
+```
+Record an observation that the integration is working: KNOW "MCP integration verified, records flowing".
+```
+
+The new record streams into your terminal in real time as Claude Code executes the tool call.
+
+## 7. Inspect the actor's trust and audit trail
+
+Every MCP tool call is a record signed by the actor; over time, those records accumulate trust observations. List the actor:
+
+```bash
+spl actor show did:sync:agent:claude-code
+```
+
+You'll see the actor's record-emission history, the threads it participates in, and (eventually) trust scores per domain as your reviewers approve or reject the work.
+
+For an audit-grade view of every MCP call:
+
+```bash
+spl thread records th_audit_records --filter "body.actor.startsWith('did:sync:agent:claude')"
+```
+
+The audit thread `th_audit_records` carries a metadata record per emission. There is no separate "MCP call log" — the substrate already has it.
+
+## What just happened
+
+You exercised the substrate's **MCP primitive** end-to-end:
+
+1. **The substrate is a first-class MCP target.** `spl mcp serve` is a tool-providing server that any MCP-compatible client can subprocess. No middleware, no proxy, no custom integration layer — just the substrate exposing its native verbs (intend/do/know/learn + thread queries) as MCP tools.
+2. **Tool calls are records.** Every MCP invocation is a record on a thread, signed by the agent's DID. There is no "did the agent really call this?" question — the substrate's [structural completeness invariant](/docs/concepts/governance) means anything that didn't produce a record didn't happen.
+3. **Identity follows the agent across surfaces.** The same actor DID an agent uses via MCP is the actor DID it uses via SDK calls, via `spl` CLI, via the HTTP API. One identity, all surfaces.
+4. **Audit is structural.** `th_audit_records` is just records on a reserved thread. The audit trail and the operational data live in the same substrate; you can't have one without the other.
+5. **Capability discovery is automatic** (per [ADR-036](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-036-capability-discovery.md)). The MCP `tools/list` response is generated from the daemon's verb registry, so adding a new substrate verb adds a new MCP tool with no extra wiring.
+
+This is the substrate's "any agent can plug in" promise made concrete: an AI client doesn't need to know what Syncropel *is*; it just sees a few well-shaped tools and uses them, and the substrate captures the causal trail.
+
+## Where to next
+
+- [AI Clients — three integration patterns](/docs/integrate/ai-clients) — the full nine-client setup matrix with per-OS config paths and edge cases (Zed gotcha, OpenCode top-level key, Cline globalStorage path).
+- [Programmatic agents](/docs/integrate/programmatic-agents) — for agents that write code: the `@syncropel/sdk` (npm) and `syncropel` (PyPI) clients give a typed surface to the same substrate.
+- [Records concept](/docs/concepts/records) — the 8-field immutable unit. Every MCP call produces one.
+- [Governance concept](/docs/concepts/governance) — why audit, permission, and AITL are all the same primitive (records on reserved threads).
+- [Service accounts and tokens](/docs/get-started/service-accounts) — when you want a long-lived non-human bearer for an agent (instead of relying on the bootstrap token on a hosted instance).
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `/mcp` in Claude Code shows `syncropel` with `error` or `disabled` | Daemon isn't running, or `spl` isn't on the PATH that Claude Code subprocesses inherited (common on macOS with shell-init differences). | Confirm `spl status` works in a fresh shell. If it does but Claude Code still can't find it, pass an absolute path: `claude mcp remove syncropel && claude mcp add syncropel -- /usr/local/bin/spl mcp serve`. |
+| Tools list is empty | The daemon is on a non-default port and the MCP server defaulted to the wrong URL. | Pass an explicit URL via env: `claude mcp add syncropel --env SPL_SERVE_URL=http://127.0.0.1:9200 -- spl mcp serve`. |
+| MCP calls return `401 unauthorized` | Default-secure auth is enabled (the v0.16+ default) and no bearer is configured for the MCP subprocess. | Mint a service-account token: `spl service-account create --name "claude-code" --scopes records:write --with-token`, save the token: `spl token save <token>`, then re-launch Claude Code so the subprocess re-reads `~/.syncro/token`. |
+| MCP calls succeed but records don't appear in `/local` | The browser's connection state is pinned to a different daemon URL than the one MCP wrote to. | Open `/local/connection` (or the workspace switcher in the header) and verify the active daemon URL matches the daemon Claude Code wrote to. Switch instances if not. |
+| CORS errors in browser console after MCP calls landed records | The web UI's origin isn't in the daemon's CORS allowlist. | Add it: `spl config cors-allow http://localhost:3000` (or whichever origin the UI runs on). The daemon hot-reloads on the next broadcast. |
