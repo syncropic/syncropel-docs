@@ -5,7 +5,7 @@ description: Per-domain `th_audit_*` threads carry audit-grade records for gover
 
 ## TL;DR
 
-Some governance domains (consent, federation pairs, secrets, impersonation, graph traversal, portability) emit a dedicated audit record on a `th_audit_<domain>` thread in addition to the operational record. Other domains (sync pairs, namespaces, AITL, tokens today) use the operational thread itself as the audit trail. Both are audit-grade — operators get the same forensic content either way. The asymmetry follows the criteria documented in [ADR-083](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-083-audit-thread-separation-pattern.md).
+Some governance domains (consent, federation pairs, secrets, impersonation, graph traversal, portability, snapshot/restore, tokens + service accounts) emit a dedicated audit record on a `th_audit_<domain>` thread in addition to the operational record. Other domains (sync pairs, namespaces, AITL) use the operational thread itself as the audit trail. Both are audit-grade — operators get the same forensic content either way. The asymmetry follows the criteria documented in [ADR-083](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-083-audit-thread-separation-pattern.md).
 
 ## Why two patterns
 
@@ -29,8 +29,10 @@ If none of C1/C2/C3 holds, the operational thread serves as the audit trail.
 | `th_audit_graph_traversal_<namespace>` | `graph.consent_check.v1` (denials), related kinds | ADR-080 D7 | Per-namespace; sovereignty boundary; emits on peer-side denial |
 | `th_secret_audit` | `secret.access.v1`, `secret.rotation.v1`, `secret.value_invalidated.v1` | ADR-062, SKL-0448 | DO synchronous BEFORE return; every read/write/list/delete |
 | `th_audit_portability` | `core.portability.event.v1` | SKL-0660 | LEARN per export/import; per-actor and instance scope |
+| `th_audit_snapshots` | `core.snapshot.event.v1` | SKL-0676 | LEARN per snapshot create / restore; criterion C2 (security-sensitive instance-level operation) |
+| `th_audit_tokens` | `core.token_lifecycle_event.v1` | ADR-083 D4, SKL-0677 | LEARN per token mint / revoke + SA create / delete / rotate; mirrors `api_tokens_thread(<ns>)` / `service_accounts_thread(<ns>)` |
 
-Six audit-thread families today. Each was justified at its source ADR against criteria C1/C2/C3 (formalized retroactively by ADR-083).
+Eight audit-thread families today. Each was justified at its source ADR against criteria C1/C2/C3 (formalized retroactively by ADR-083).
 
 ## Catalog of operational-thread audit (no separation)
 
@@ -38,8 +40,6 @@ Six audit-thread families today. Each was justified at its source ADR against cr
 |---|---|---|
 | Sync pair (ADR-030) | `th_sync_control` | LEARN with `topic: pair_state` (lifecycle transitions) + `topic: pair_removed` (terminal) |
 | Namespaces | `th_namespace_registry` | LEARN with `topic: namespace_entry` (create / archive / unarchive / delete) |
-| Tokens | `api_tokens_thread(<namespace>)` | PUT `core.api_token.v1` (mint) + DO `core.api_token.revocation` (revoke) — see [SKL-0677](#future-changes) for planned audit-thread separation |
-| Service accounts | `api_tokens_thread(<namespace>)` | PUT `core.service_account.v1` (create) + DO revocation (delete) + paired mint/revoke (rotation) |
 | AITL approve/reject | (the original AITL proposal thread) | DO with `body.fulfills` or `body.cancels` — the decision IS the audit per the AITL spec |
 
 These domains satisfy none of the C1/C2/C3 criteria strongly enough to warrant separation today. The operational thread is the canonical audit trail; folding it gives operators the same forensic content they would get from a hypothetical sibling audit thread.
@@ -74,11 +74,6 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 For the unseparated domains, the same pattern works against the operational thread. The records carry the same fields you would expect on an audit thread (actor, clock, body):
 
 ```bash
-# Every token mint and revoke in the default namespace
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:9100/v1/threads/api_tokens_default/records" \
-  | jq '.data[] | select(.body.kind | startswith("core.api_token")) | {clock, actor, act, body}'
-
 # Every namespace lifecycle event
 curl -s -H "Authorization: Bearer $TOKEN" \
   "http://localhost:9100/v1/threads/th_namespace_registry/records" \
@@ -102,7 +97,8 @@ spl audit export --since 24h --categories system,aitl,dispatch,governance > /var
 
 # Add per-domain audit threads as needed
 for thread in th_audit_consent th_audit_federation_pairs th_audit_impersonation \
-              th_secret_audit th_audit_portability th_audit_security; do
+              th_secret_audit th_audit_portability th_audit_snapshots th_audit_security \
+              th_audit_tokens; do
   curl -s -H "Authorization: Bearer $TOKEN" \
     "http://localhost:9100/v1/threads/$thread/records" \
     | jq -c '.data[]' >> /var/log/spl-audit.jsonl
@@ -118,14 +114,12 @@ For SOC2 / PCI / NIST 800-53 auditor-facing reports, the simplest narrative is:
 - **Cross-actor and cross-instance governance** (consent grants, federation pairs, graph traversal denials) is audit-traced via the dedicated `th_audit_*` threads listed above.
 - **Security-sensitive credential and identity operations** (secrets, impersonation) are audit-traced via dedicated audit threads with synchronous-before-return emission.
 - **Single-instance administrative operations** (namespace lifecycle, AITL decisions, sync pair lifecycle) are audit-traced via the operational record on the relevant operational thread; folding the thread gives the canonical forensic answer.
-- **Token + service-account lifecycle** is audit-traced via the operational record on `api_tokens_thread(<namespace>)` today; SKL-0677 (planned) separates these onto `th_audit_tokens` for compliance-posture uniformity.
+- **Token + service-account lifecycle** is audit-traced via dedicated `th_audit_tokens` records (`core.token_lifecycle_event.v1` LEARN) emitted alongside the operational records on `api_tokens_thread(<namespace>)` / `service_accounts_thread(<namespace>)`. Per ADR-083 D4, this satisfies criterion C2 marginally with compliance-posture uniformity as the primary motivation.
 
 ADR-083 is the canonical reference an auditor or operator can cite when asking "why is the audit pattern asymmetric across domains?" — the criteria-driven hybrid is the documented answer.
 
 ## Future changes
 
-- **SKL-0677** (planned for v0.32+) — adds `th_audit_tokens` separation for token mint/revoke + service-account create/delete/rotate. Operational records on `api_tokens_thread(<namespace>)` continue to emit unchanged; the new audit thread is additive. Per ADR-083 D4, this satisfies the C2 criterion marginally, with compliance-posture uniformity as the primary motivation.
-- **SKL-0662** (planned) — verifies snapshot/restore audit emission. If criteria C2 (security-sensitive instance-level operation) warrant separation, SKL-0662 adopts the same shape as SKL-0660 portability.
 - **Future SDK affordance** — `client.audit.subscribe()` to subscribe to all audit threads in one call. Tracked when SDK demand surfaces.
 
 Any future audit-thread proposal MUST justify the choice against ADR-083 D1's criteria (C1 / C2 / C3). New `th_audit_*` threads without that justification are out of pattern.
