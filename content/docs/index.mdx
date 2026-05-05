@@ -3,7 +3,11 @@ title: Syncropel Documentation
 description: Coordination protocol for hybrid human-AI teams. Build with immutable records, evidence-based trust, manifest-driven workspaces, and self-improving workflows.
 ---
 
-## Install
+## Two paths to a working instance
+
+**Hosted** — fastest. Sign up at [syncropel.com/signup](https://syncropel.com/signup); a per-customer Syncropel daemon comes up at `<your-label>.syncropel.com` in about a minute. No install, no machine to maintain. Free tier; [pricing](https://syncropel.com/pricing) for scale. Walkthrough: [Hosted instance signup](/docs/get-started/hosted).
+
+**Self-hosted** — install `spl` on a machine you maintain:
 
 ```bash
 # Linux + macOS
@@ -16,7 +20,9 @@ irm https://get.syncropic.com/spl.ps1 | iex
 spl init && spl serve --daemon
 ```
 
-Follow the [Quickstart](/docs/start) for a 10-minute walkthrough — install to first task with trust evidence. Or read [Get Started](/docs/get-started) for the deeper, multi-page onboarding journey.
+Both paths run the same binary, expose the same APIs, and federate with each other. Pick by where you want the data and who handles uptime — full comparison on the [Hosted instance signup](/docs/get-started/hosted) page.
+
+Follow the [Quickstart](/docs/start) for a 5-minute walkthrough — first task with trust evidence. Or read [Get Started](/docs/get-started) for the deeper, multi-page onboarding journey covering both paths.
 
 If you're integrating from code, jump to the [TypeScript SDK](/docs/guides/typescript-sdk) or [Python SDK](/docs/guides/python-sdk).
 
