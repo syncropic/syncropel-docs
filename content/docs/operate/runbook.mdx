@@ -146,7 +146,7 @@ The record log IS the truth. Everything else is a fold over it. As long as `hub.
 ### What needs separate attention
 
 - **`~/.syncro/secrets/`**: API keys for any LLM provider you've configured (Anthropic, OpenAI, Google, etc.). Not in the record log. If you lose this, you lose your provider keys — back them up to a password manager or secure vault.
-- **`~/.syncro-data/`**: task content files (the rich-Markdown bodies for each `SKL-XXXX` task) and the alias-to-thread mapping. The metadata (titles, statuses, hashes) lives in records on `hub.db`; the canonical content files live here on disk and are referenced by path during `spl task dispatch` (see [SKL-0536](https://github.com/syncropic/syncropel-core/blob/main/CHANGELOG.md#0271--2026-05-01) — briefs are passed by file path, not inlined). Backing up `hub.db` without `~/.syncro-data/` leaves task content stranded. Both belong in your snapshot.
+- **`~/.syncro-data/`**: task content files (the rich-Markdown bodies for each task — addressed by their alias, e.g., `MY-001.md`) and the alias-to-thread mapping. The metadata (titles, statuses, hashes) lives in records on `hub.db`; the canonical content files live here on disk and are referenced by path during `spl task dispatch` (briefs are passed by file path since v0.27.1, not inlined — see [the v0.27.1 changelog](https://github.com/syncropic/syncropel-core/blob/main/CHANGELOG.md#0271--2026-05-01)). Backing up `hub.db` without `~/.syncro-data/` leaves task content stranded. Both belong in your snapshot.
 
 ## Recovery from corruption or data loss
 

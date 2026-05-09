@@ -27,12 +27,15 @@ If none of C1/C2/C3 holds, the operational thread serves as the audit trail.
 | `th_audit_federation_pairs` | `syncropel.federation.pair_state_change.v1` | ADR-063 D7 | LEARN per pair lifecycle transition; mirrors `th_federation_pairs` |
 | `th_audit_impersonation` | `core.impersonation.event.v1` | ADR-032 D5 | LEARN per impersonation entry/exit; no separate operational thread |
 | `th_audit_graph_traversal_<namespace>` | `graph.consent_check.v1` (denials), related kinds | ADR-080 D7 | Per-namespace; sovereignty boundary; emits on peer-side denial |
-| `th_secret_audit` | `secret.access.v1`, `secret.rotation.v1`, `secret.value_invalidated.v1` | ADR-062, SKL-0448 | DO synchronous BEFORE return; every read/write/list/delete |
-| `th_audit_portability` | `core.portability.event.v1` | SKL-0660 | LEARN per export/import; per-actor and instance scope |
-| `th_audit_snapshots` | `core.snapshot.event.v1` | SKL-0676 | LEARN per snapshot create / restore; criterion C2 (security-sensitive instance-level operation) |
-| `th_audit_tokens` | `core.token_lifecycle_event.v1` | ADR-083 D4, SKL-0677 | LEARN per token mint / revoke + SA create / delete / rotate; mirrors `api_tokens_thread(<ns>)` / `service_accounts_thread(<ns>)` |
+| `th_secret_audit` | `secret.access.v1`, `secret.rotation.v1`, `secret.value_invalidated.v1` | ADR-062 | DO synchronous BEFORE return; every read/write/list/delete |
+| `th_audit_portability` | `core.portability.event.v1` | v0.31 | LEARN per export/import; per-actor and instance scope |
+| `th_audit_snapshots` | `core.snapshot.event.v1` | v0.32 | LEARN per snapshot create / restore; criterion C2 (security-sensitive instance-level operation) |
+| `th_audit_tokens` | `core.token_lifecycle_event.v1` | ADR-083 D4, v0.32 | LEARN per token mint / revoke + SA create / delete / rotate; mirrors `api_tokens_thread(<ns>)` / `service_accounts_thread(<ns>)` |
+| `th_audit_provisioning` | `core.provisioning.requested.v1`, `core.provisioning.completed.v1` | ADR-084, v0.34.x | LEARN at provisioning request + completion; lives on the platform instance |
+| `th_audit_subscriptions` | `core.subscription.*` (12-member family) | ADR-085, v0.35 | LEARN at every Stripe lifecycle event (subscription created, payment, cancellation, etc.); lives on the platform instance |
+| `th_audit_api_usage` | `core.api.usage.v1`, `core.api.error.v1`, etc. | ADR-089, v0.37 | LEARN per managed inference call (api.syncropic.com); cost + token + tier tracking |
 
-Eight audit-thread families today. Each was justified at its source ADR against criteria C1/C2/C3 (formalized retroactively by ADR-083).
+Eleven audit-thread families today. Each was justified at its source ADR against criteria C1/C2/C3 (formalized retroactively by ADR-083).
 
 ## Catalog of operational-thread audit (no separation)
 

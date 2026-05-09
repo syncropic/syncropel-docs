@@ -36,7 +36,7 @@ Submitting the form starts a Cloudflare Worker that walks through the provision 
 | Phase | What's happening | Typical time |
 |---|---|---|
 | `reserve` | Label reserved against the global registry; a fresh `instance_id` minted. | < 1s |
-| `app_create` | Fly app `spl-<label>-<id>` created in the syncropic-ops org. | 1-2s |
+| `app_create` | Your instance is created on the hosted platform (Fly Machines). | 1-2s |
 | `volume_create` | Per-app persistent volume allocated for `~/.syncro/hub.db`. | 1-2s |
 | `dns` | `<label>.syncropel.com` CNAME'd to the Fly app's edge. | 5-15s |
 | `image_build` / `deploy` | Fly Machine boots from the syncropel-core release image, with `SPL_BOOTSTRAP_TOKEN` injected via env. | 20-40s |

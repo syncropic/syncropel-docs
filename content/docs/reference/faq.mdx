@@ -60,7 +60,7 @@ Resetting is rarely the right move — usually you want to *bias* trust by addin
 
 ### Why did my `spl task dispatch` fail with `E2BIG` (Argument list too long)?
 
-Pre-v0.27.1, dispatch envelopes carried brief content inline in the goal argv, which could exceed the OS `ARG_MAX` for briefs over ~7 KB. Fixed in v0.27.1 (SKL-0536) — briefs are now passed by file path. Upgrade with `curl -sSf https://get.syncropic.com/spl | sh` and restart your daemon.
+Pre-v0.27.1, dispatch envelopes carried brief content inline in the goal argv, which could exceed the OS `ARG_MAX` for briefs over ~7 KB. Fixed in v0.27.1 — briefs are now passed by file path. Upgrade with `curl -sSf https://get.syncropic.com/spl | sh` and restart your daemon.
 
 If you see the same symptom on v0.27.1+, it's a different bug — open an issue with `spl version` output.
 

@@ -13,7 +13,7 @@ description: What spl serve protects against (default-secure auth + filesystem p
 - `~/.syncro/hub.db` is an **unencrypted SQLite** carrying every record. Bearer-token plaintext is NOT stored — only `sha256(secret)` for validation.
 - **Excluded from auto-backup**: `~/.local/share/syncropel/backups/hub.db.bak` does NOT include the keys/ or secrets/ dirs.
 - **What you must do**: exclude `~/.syncro/keys/` and `~/.syncro/secrets/` from cloud-sync (Dropbox, iCloud, OneDrive, rsync, dotfiles repos). On hosted instances: rely on the platform's secret manager rather than mounting `~/.syncro/`.
-- **What's coming**: OS-keyring integration (macOS Keychain, Linux Secret Service, Windows Credential Manager) is post-v0.31 work tracked as SKL-0641. Until it ships, file-permission discipline is the only at-rest defense.
+- **What's coming**: OS-keyring integration (macOS Keychain, Linux Secret Service, Windows Credential Manager) is on the roadmap. Until it ships, file-permission discipline is the only at-rest defense.
 
 ## What's stored where
 
@@ -110,7 +110,7 @@ A `*.syncropel.com` Fly Machine runs `spl serve` with the daemon's identity in t
 
 ### Audit-emission completeness for portability
 
-Per SEC-007 (resolved 2026-05-04 via SKL-0660): every export/import operation emits a `core.portability.event.v1` LEARN record on `th_audit_portability`. Operators auditing "who exported actor X when" or "who initiated instance import" fold this thread:
+Since v0.31, every export/import operation emits a `core.portability.event.v1` LEARN record on `th_audit_portability`. Operators auditing "who exported actor X when" or "who initiated instance import" fold this thread:
 
 ```bash
 spl thread records th_audit_portability -o json | jq '.[] | .body'
@@ -133,9 +133,9 @@ This audit thread does NOT prevent the export from happening — auth scope (`Ad
 | Cross-tenant on shared compute | ✗ | (mitigation: hosted-instance platform isolation) |
 | Audit gap on portability ops | ✓ | `th_audit_portability` (since v0.31) |
 
-## What's coming post-v0.31
+## What's on the roadmap
 
-**OS-keyring integration** (SKL-0641, post-v0.31): integrate the [`keyring` Rust crate](https://crates.io/crates/keyring) to optionally store identity keypair + provider keys in OS keyring services:
+**OS-keyring integration**: planned support for the [`keyring` Rust crate](https://crates.io/crates/keyring) to optionally store identity keypair + provider keys in OS keyring services:
 
 - macOS: Keychain
 - Linux (with DBus): Secret Service (`gnome-keyring`, `kwallet`)
@@ -143,7 +143,7 @@ This audit thread does NOT prevent the export from happening — auth scope (`Ad
 
 The integration will be opt-in and backwards-compatible — file-based fallback continues to work for headless/server contexts where no keyring service is available.
 
-**Decision criteria for v0.32 ship vs later**: spec implications around key rotation semantics, backup/restore round-trip behavior, and federation pair re-establishment after key rotation are non-trivial. v0.31 ships with this documentation; SKL-0641 ships when the spec questions resolve.
+**Decision criteria**: spec implications around key rotation semantics, backup/restore round-trip behavior, and federation pair re-establishment after key rotation are non-trivial. The integration ships when the spec questions resolve.
 
 ## See also
 
@@ -153,5 +153,3 @@ The integration will be opt-in and backwards-compatible — file-based fallback 
 - [`spl doctor`](./doctor.mdx) — automated permission audit
 - ADR-035 (auth substrate, frozen since v0.15)
 - ADR-062 (secrets architecture)
-- SKL-0641 (OS-keyring integration, post-v0.31)
-- `syncropel-research/docs/v0.31-security-audit/` — full audit findings
