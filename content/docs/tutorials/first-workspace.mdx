@@ -177,7 +177,7 @@ components live against your local kernel.
 When you're satisfied:
 
 ```bash
-spl workspace publish --release --catalog https://catalog.syncropel.com/threads/main
+spl workspace publish --release --catalog https://graph.syncropel.com/threads/main
 ```
 
 Output:
@@ -186,7 +186,7 @@ Output:
 ✓ Published release
   record: <sha256>
   lifecycle: published
-  catalog listing: https://catalog.syncropel.com/threads/main/<slug>
+  catalog listing: https://graph.syncropel.com/threads/main/<slug>
 ```
 
 Two records were emitted:
@@ -235,7 +235,7 @@ Want to update? Edit `workspace.json` (add a fourth component, change
 a fold), re-run `spl workspace test`, then:
 
 ```bash
-spl workspace publish --release --version 0.2.0 --catalog https://catalog.syncropel.com/threads/main
+spl workspace publish --release --version 0.2.0 --catalog https://graph.syncropel.com/threads/main
 ```
 
 The `--version` flag writes a label into the manifest before emit.

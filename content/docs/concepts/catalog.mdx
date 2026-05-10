@@ -7,7 +7,7 @@ description: A curated discovery surface that publishes workspace manifests as r
 
 Every `spl serve` ships with a **registry** — a content-addressed store of every record the daemon has ever seen, including any `core.workspace.v1` manifests it has accepted. Registries are private, complete, and unopinionated. They tell you what a particular daemon knows about. They don't tell you what is *good*, *current*, *recommended*, or *safe to mount in your `/local`*.
 
-The **catalog** is the layer above. It is a curated discovery surface — a small, explicit set of workspace manifests an operator deliberately chose to publish for others to consume. Today the catalog at `catalog.syncropel.com` publishes the four `core.workspace.v1` manifests that back `/local/{tasks, dashboard, governance, secrets}`. Tomorrow it can host hundreds of manifests across multiple publishers, each subscribed to via the federation pair primitive.
+The **catalog** is the layer above. It is a curated discovery surface — a small, explicit set of workspace manifests an operator deliberately chose to publish for others to consume. Today the catalog at `graph.syncropel.com` publishes the four `core.workspace.v1` manifests that back `/local/{tasks, dashboard, governance, secrets}`. Tomorrow it can host hundreds of manifests across multiple publishers, each subscribed to via the federation pair primitive.
 
 The architectural framing matters because it constrains the choices. The catalog is not a hub, not a proprietary marketplace, not the canonical source of truth. It is one curated view *over* the substrate, which itself is the canonical store.
 
@@ -15,14 +15,14 @@ The architectural framing matters because it constrains the choices. The catalog
 
 The framing is easier with the negative space drawn first.
 
-- **Not a hub.** A hub centralizes — it owns the data, and clients depend on it being up. The catalog publishes records *to* the substrate. If `catalog.syncropel.com` goes dark, the manifests it published are still in every daemon that fetched them, still content-addressed, still verifiable. The catalog is a *cache that warmed*, not a *system that owns*.
+- **Not a hub.** A hub centralizes — it owns the data, and clients depend on it being up. The catalog publishes records *to* the substrate. If `graph.syncropel.com` goes dark, the manifests it published are still in every daemon that fetched them, still content-addressed, still verifiable. The catalog is a *cache that warmed*, not a *system that owns*.
 - **Not a registry.** A registry is the local store inside every `spl serve`. The catalog is one *publisher* whose records the registry can accept. Anyone running `spl serve` already has a registry; choosing whether to subscribe to the catalog is a separate decision.
 - **Not a gatekeeper.** The catalog publishes the workspaces *we* curate. It does not approve, deny, or rank workspaces published elsewhere. The substrate routes by DID; if you publish `did:sync:alice/notebook`, my daemon fetches it from your endpoint, not through any catalog. The catalog only mediates `did:sync:syncropel-team/*`.
 - **Not a marketplace.** No payments, no ratings, no leaderboards, no recommendation algorithm. Curation today means "the syncropel team thinks this should ship as a default surface" — nothing else.
 
 ## What the catalog serves today
 
-`https://catalog.syncropel.com/v1/records/query` (unauthenticated reads of `core.workspace.v1` records) returns four manifests:
+`https://graph.syncropel.com/v1/records/query` (unauthenticated reads of `core.workspace.v1` records) returns four manifests:
 
 | DID                                        | Slug         | What it backs               |
 |--------------------------------------------|--------------|-----------------------------|
