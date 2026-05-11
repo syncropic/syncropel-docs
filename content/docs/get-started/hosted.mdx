@@ -12,7 +12,7 @@ This page covers the signup flow you'll see at syncropel.com/signup, what each s
 You need:
 
 - An email address that can receive verification mail.
-- A choice of instance label — a subdomain under `syncropel.com`, e.g. `alice.syncropel.com`. Lowercase letters, digits, and `-`. 3–32 characters. The label is yours for the lifetime of your account.
+- A choice of instance label — a subdomain under `syncropel.app`, e.g. `alice.syncropel.app`. Lowercase letters, digits, and `-`. 3–32 characters. The label is yours for the lifetime of your account.
 - A way to save a one-time-displayed bootstrap token (a password manager is fine; a sticky note is not).
 
 You do **not** need: a credit card (free tier exists), Docker, or a domain you control.
@@ -25,7 +25,7 @@ Visit [syncropel.com/signup](https://syncropel.com/signup). Account creation is 
 
 ### 2. Pick a label
 
-The signup page asks for a label. The label becomes both your subdomain and your default namespace prefix. If you pick `alice`, your instance lives at `alice.syncropel.com` and your records land under namespace `alice` by default.
+The signup page asks for a label. The label becomes both your subdomain and your default namespace prefix. If you pick `alice`, your instance lives at `alice.syncropel.app` and your records land under namespace `alice` by default.
 
 Reserved labels (`api`, `docs`, `www`, `app`, `admin`, etc.) are rejected with an inline error. Pick something specific to you or your project.
 
@@ -38,7 +38,7 @@ Submitting the form starts the provisioning sequence and streams progress live. 
 | `reserve` | Label reserved against the global registry; a fresh `instance_id` minted. | < 1s |
 | `app_create` | Your instance is created on the hosted platform. | 1-2s |
 | `volume_create` | Per-customer persistent volume allocated for `~/.syncro/hub.db`. | 1-2s |
-| `dns` | `<label>.syncropel.com` routed to your new instance. | 5-15s |
+| `dns` | `<label>.syncropel.app` routed to your new instance. | 5-15s |
 | `image_build` / `deploy` | Instance boots from the current `spl serve` release image with a one-shot bootstrap token wired in. | 20-40s |
 | `bootstrap` | Kernel reads the bootstrap token, mints the admin service account, ready for auth. | 1-2s |
 | `dns_propagate` | The new DNS record propagates. | up to ~30s |
@@ -58,19 +58,19 @@ This is the canonical bearer for your instance's first admin service account. Sa
 
 ### 5. Land on the dashboard
 
-After you click through, you're redirected to your instance's dashboard. The browser holds your bootstrap bearer; subsequent requests to `<label>.syncropel.com` are auto-authed. The dashboard's first-run banner explains the next 3–5 things you should do (mint a service account for CLI use, create your first thread, optionally pair a second device).
+After you click through, you're redirected to your instance's dashboard. The browser holds your bootstrap bearer; subsequent requests to `<label>.syncropel.app` are auto-authed. The dashboard's first-run banner explains the next 3–5 things you should do (mint a service account for CLI use, create your first thread, optionally pair a second device).
 
 ## What you can do once you're in
 
 The same things any Syncropel user can do, with the same CLI and SDK surface as a self-hosted operator:
 
-- **Use the web UI** at `<label>.syncropel.com` — the workspace, threads, tasks, search.
+- **Use the web UI** at `<label>.syncropel.app` — the workspace, threads, tasks, search.
 - **Connect the CLI** — see the next section, *Connect your CLI to the hosted instance*.
-- **Pair more devices** via `spl pair --device <label> --url https://<label>.syncropel.com` or the Settings → Connections page in the web UI.
+- **Pair more devices** via `spl pair --device <label> --url https://<label>.syncropel.app` or the Settings → Connections page in the web UI.
 - **Federate** with another Syncropel instance via `spl federation pair <peer-url>` — see the [federation pair guide](/docs/guides/federation-pair).
 - **Export everything** at any time via `spl export` — see [Portability](/docs/guides/portability).
 
-You don't manage the daemon — the hosted platform handles restart-on-crash, edge proxying, and TLS. You can still see daemon health via `<label>.syncropel.com/health` and rich state via `<label>.syncropel.com/v1/health` (auth-protected).
+You don't manage the daemon — the hosted platform handles restart-on-crash, edge proxying, and TLS. You can still see daemon health via `<label>.syncropel.app/health` and rich state via `<label>.syncropel.app/v1/health` (auth-protected).
 
 ## Connect your CLI to the hosted instance
 
@@ -83,7 +83,7 @@ The CLI defaults to a local daemon on `127.0.0.1:9100`. To make it talk to your 
 curl -sSf https://get.syncropic.com/spl | sh           # Linux / WSL — Windows: irm https://get.syncropic.com/spl.ps1 | iex
 
 # 2. Point the CLI at your hosted instance
-export SPL_SERVE_URL=https://<label>.syncropel.com
+export SPL_SERVE_URL=https://<label>.syncropel.app
 
 # 3. Save the bootstrap token shown on signup
 spl token save spl_prod_sa-bootstrap-env_...
@@ -94,7 +94,7 @@ spl token save spl_prod_sa-bootstrap-env_...
 To make the URL persistent across shells, add the export to your shell rc file (`~/.bashrc`, `~/.zshrc`, etc.):
 
 ```bash
-echo 'export SPL_SERVE_URL=https://<label>.syncropel.com' >> ~/.bashrc
+echo 'export SPL_SERVE_URL=https://<label>.syncropel.app' >> ~/.bashrc
 ```
 
 ### Smoke test
@@ -108,14 +108,14 @@ spl task list
 
 `spl status` prints which URL it resolved and whether the bearer authenticates. `spl thread list` and `spl task list` should return your account's view (empty if you haven't emitted anything yet — the bootstrap LEARN on `th_engine_config` is namespaced separately).
 
-If you get a `401`, re-paste the token (`spl token save <bearer>`) and verify `SPL_SERVE_URL` points at the right `<label>.syncropel.com`. If you get connection errors, check `<label>.syncropel.com/health` directly in a browser — the hosted instance may still be cold-booting on first request after a long idle.
+If you get a `401`, re-paste the token (`spl token save <bearer>`) and verify `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, check `<label>.syncropel.app/health` directly in a browser — the hosted instance may still be cold-booting on first request after a long idle.
 
 ### Mint a permanent CLI bearer (recommended)
 
 The bootstrap token is fine for the first few minutes, but it's broad-scoped and ties your CLI to "the bootstrap account" rather than to "this device." Mint a device-specific service account instead:
 
 ```bash
-spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.com --scopes admin
+spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.app --scopes admin
 ```
 
 `spl pair` prints a one-click URL, a QR code, and a plain-text payload — pick whichever fits. For the CLI on the same machine, the simplest path is to copy the printed token and run `spl token save <new-token>` to overwrite the bootstrap bearer. Now your device is paired with a token you can revoke independently if the laptop is ever lost.

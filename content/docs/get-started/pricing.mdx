@@ -6,7 +6,7 @@ description: Self-host is free. Hosted instances run $25/month, with a 30-day tr
 ## TL;DR
 
 - **Self-host**: free, forever. Run `spl serve` on your laptop or your own server. No subscription, no usage limits, no telemetry.
-- **Hosted instance**: **$25 / month**, per instance. Includes a fully-managed `<label>.syncropel.com` running on the platform's infrastructure, with backups, TLS, and auto-recovery.
+- **Hosted instance**: **$25 / month**, per instance. Includes a fully-managed `<label>.syncropel.app` running on the platform's infrastructure, with backups, TLS, and auto-recovery.
 - **30-day trial**: every new hosted instance gets 30 days free. Card on file required to provision (so the transition to paid is automatic), but no charge during trial.
 - **Managed inference (api.syncropic.com)**: optional. If you use it, your subscription includes inline credit; overage rolls into your monthly invoice.
 - **Cancellation**: anytime, from your account portal. 7-day grace period during which the instance keeps running at half rate.
@@ -29,12 +29,12 @@ This is how most developers and small teams use Syncropel. The hosted tier is fo
 
 ### Hosted ($25 / month / instance)
 
-Provision a `<label>.syncropel.com` instance via [syncropel.com/signup](https://syncropel.com/signup). What's included:
+Provision a `<label>.syncropel.app` instance via [syncropel.com/signup](https://syncropel.com/signup). What's included:
 
 | Included | Notes |
 |---|---|
 | Always-on hosted instance running `spl serve` | Auto-restart on crash; rolling updates from upstream |
-| `<label>.syncropel.com` URL with TLS | Wildcard cert managed for you |
+| `<label>.syncropel.app` URL with TLS | Wildcard cert managed for you |
 | Daily backups + 30-day retention | Restore via support request |
 | Bootstrap admin service account | Pair your CLI to it from anywhere in 60 seconds |
 | Edge ingress with auth proxy | DDoS protection, geographic edge, HTTP/3 |
@@ -110,10 +110,10 @@ You've been running `spl serve` on your laptop and want to move to a hosted inst
 # 1. Export your local instance
 spl export --output ~/my-instance.tar.gz
 
-# 2. Provision a hosted instance (gets you a fresh empty <label>.syncropel.com)
+# 2. Provision a hosted instance (gets you a fresh empty <label>.syncropel.app)
 
 # 3. Import your data
-SPL_INSTANCE_URL=https://<label>.syncropel.com \
+SPL_INSTANCE_URL=https://<label>.syncropel.app \
   spl import ~/my-instance.tar.gz
 ```
 
@@ -125,7 +125,7 @@ You're moving off hosted (canceling, sovereignty preference, cost):
 
 ```bash
 # 1. Export your hosted instance (run before canceling)
-SPL_INSTANCE_URL=https://<label>.syncropel.com \
+SPL_INSTANCE_URL=https://<label>.syncropel.app \
   spl export --output ~/migrate.tar.gz
 
 # 2. Install spl locally if you haven't
@@ -138,7 +138,7 @@ spl import ~/migrate.tar.gz
 # 4. Cancel the hosted subscription at your leisure
 ```
 
-You'll lose the `<label>.syncropel.com` URL (returns to the reservation pool 30 days after instance suspension). Federation peers will need to re-pair against your new local DID.
+You'll lose the `<label>.syncropel.app` URL (returns to the reservation pool 30 days after instance suspension). Federation peers will need to re-pair against your new local DID.
 
 ## Self-host vs. hosted: which fits
 
@@ -147,7 +147,7 @@ You'll lose the `<label>.syncropel.com` URL (returns to the reservation pool 30 
 | Cost | Free + hardware | $25/mo + inference overage |
 | Ops | Yours (updates, backups, TLS) | Ours |
 | Always-on | Only when your machine is on | Yes |
-| URL | `localhost:9100` (or however you expose it) | `<label>.syncropel.com` |
+| URL | `localhost:9100` (or however you expose it) | `<label>.syncropel.app` |
 | Provider keys | Yours (per-provider billing) | Yours OR via api.syncropic.com gateway |
 | Backups | Manual (your snapshot procedure) | Daily, 30-day retention |
 | Federation | Peer-to-peer | Same — federation is identical between modes |
