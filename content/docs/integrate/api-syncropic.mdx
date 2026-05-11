@@ -1,35 +1,31 @@
 ---
 title: api.syncropic.com — managed inference
-description: OpenAI-compatible inference gateway for Syncropel instances. Use any OpenAI SDK with your Syncropel API key — multi-provider routing, audit emission, and subscription-aware quotas, in one endpoint.
+description: OpenAI-compatible inference gateway for Syncropel customers. Use any OpenAI SDK with your Syncropel API key — one endpoint, multiple models, audit on your own records, subscription-aware quotas.
 ---
 
 ## TL;DR
 
 `api.syncropic.com` is an OpenAI-compatible inference gateway operated by Syncropic. Point any OpenAI SDK at `https://api.syncropic.com/v1` with your Syncropel API key and you get:
 
-- Multi-provider routing (Anthropic, OpenAI, Google, others) behind one endpoint
+- One endpoint, multiple frontier models, no per-provider API keys
 - OpenAI Chat Completions wire shape — every major SDK works without changes
 - Subscription-aware quotas that compose with your hosted instance billing
-- Per-call audit records on your own substrate (`th_audit_api_usage`) — full cost + token + tier visibility
+- Per-call audit records on your own instance — full cost + token + tier visibility
 
 Most Syncropel customers don't call `api.syncropic.com` directly — your hosted instance does it for you when your CLI or workspace runs an LLM-backed task. This page is for customers who want to call it programmatically (CLI scripts, application backends, custom agents).
 
 ## What it is
 
-A managed-services gateway. One HTTPS endpoint, OpenAI-compat shape, multi-provider behind it. Customers configure once and get whatever provider works for the model name.
+A managed inference gateway. One HTTPS endpoint, OpenAI-compat wire shape, multiple frontier models behind it. You configure once and get the right backing model for whichever model name you ask for.
 
 ```
-                        ┌────────────────────────┐
-your client / app  ───→ │ api.syncropic.com      │
-                        │ (auth + gate + audit)  │
-                        └───────────┬────────────┘
-                                    │
-                       ┌────────────┼────────────┐
-                       ▼            ▼            ▼
-                  Anthropic    OpenAI    Google AI / Together / ...
+                    ┌────────────────────────┐
+your client / app ─→│ api.syncropic.com      │─→ backing model
+                    │ auth · quota · audit   │
+                    └────────────────────────┘
 ```
 
-You don't need a per-provider API key. Your Syncropel subscription gates the call, the gateway picks the upstream, and you get a normal OpenAI-shaped response back.
+You don't manage per-model API keys. Your Syncropel subscription gates the call, the gateway picks the appropriate backend, and you get a normal OpenAI-shaped response back. Audit records land on your instance so cost and usage are queryable.
 
 ## Authentication
 
@@ -64,7 +60,7 @@ curl https://api.syncropic.com/v1/chat/completions \
   -d '{
     "model": "claude-haiku-4-5",
     "messages": [
-      {"role": "user", "content": "what is the syncropel substrate?"}
+      {"role": "user", "content": "Say hello in one sentence."}
     ],
     "max_tokens": 1500
   }'
@@ -82,20 +78,20 @@ Response shape is OpenAI-compatible:
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "Syncropel is a coordination protocol where every interaction..."
+        "content": "Hello — happy to help."
       },
       "finish_reason": "stop"
     }
   ],
   "usage": {
-    "prompt_tokens": 423,
-    "completion_tokens": 56,
-    "total_tokens": 479
+    "prompt_tokens": 12,
+    "completion_tokens": 7,
+    "total_tokens": 19
   }
 }
 ```
 
-Custom response headers expose Syncropel-specific cost data:
+Response headers expose Syncropel-specific cost data:
 
 | Header | Meaning |
 |---|---|
@@ -160,7 +156,7 @@ curl https://api.syncropic.com/v1/chat/completions \
     "model": "claude-haiku-4-5",
     "stream": true,
     "messages": [
-      {"role": "user", "content": "stream a short poem about substrate-as-coordination"}
+      {"role": "user", "content": "Write a one-line haiku about clean code."}
     ]
   }'
 ```
@@ -179,24 +175,22 @@ for chunk in stream:
 
 Notes:
 
-- **Tokens-on-delivery accounting.** You're billed for what was actually streamed to your client, not what the upstream model produced. If you cancel the connection mid-stream, the audit record reflects the partial token count.
-- **Audit records carry a `stream_state` field** on `core.api.usage.v1` — `"completed"` for normal stream end, `"client_disconnect"` if your client closed the connection before the model finished.
-- **Tier gates run up-front.** Subscription, rate limit, and bearer cap are evaluated *before* the upstream connection opens; a 429 or 402 will surface as a normal HTTP response, not as an SSE error frame.
-- **Anonymous tier supports streaming** via `gemini-flash-1.5`. Same per-IP throttle as non-streaming.
+- **Tokens-on-delivery accounting.** You're billed for what was actually streamed to your client, not what the backing model produced. If you cancel the connection mid-stream, the audit record reflects the partial token count.
+- **Audit records carry a `stream_state` field** — `"completed"` for normal stream end, `"client_disconnect"` if your client closed the connection before the model finished.
+- **Tier gates run up-front.** Subscription, rate limit, and bearer cap are evaluated *before* the upstream call begins; a 429 or 402 surfaces as a normal HTTP response, not as an SSE error frame.
+- **Anonymous tier supports streaming** on the included model. Same per-IP throttle as non-streaming.
 
 ## Available models
 
-Model names reflect the upstream provider. Use the OpenAI-compatible name:
+Use the OpenAI-compatible model name as listed below. Pricing reflects the gateway's customer price (per 1M tokens) — gateway markup is included.
 
-| Model | Provider | Tier required | Typical cost (per 1M tokens) |
-|---|---|---|---|
-| `claude-haiku-4-5` | Anthropic | Paid | $1 in / $5 out |
-| `claude-sonnet-4-6` | Anthropic | Paid | $3 in / $15 out |
-| `gpt-4o` | OpenAI | Paid | $2.5 in / $10 out |
-| `gemini-flash-1.5` | Google | Anonymous + Paid | $0.075 in / $0.30 out |
-| `gemini-pro` | Google | Paid | $1.25 in / $5 out |
-
-A 30% gateway markup is applied on top of provider list pricing. If your subscription includes inference credit, that credit is consumed first; overage bills via Stripe Meter on your monthly invoice.
+| Model | Tier required | Approx. cost (per 1M tokens) |
+|---|---|---|
+| `claude-haiku-4-5` | Paid | $1.30 in / $6.50 out |
+| `claude-sonnet-4-6` | Paid | $3.90 in / $19.50 out |
+| `gpt-4o` | Paid | $3.25 in / $13.00 out |
+| `gemini-flash-1.5` | Anonymous + Paid | $0.10 in / $0.39 out |
+| `gemini-pro` | Paid | $1.63 in / $6.50 out |
 
 The full live model list, with current pricing, is available via the capabilities endpoint:
 
@@ -205,6 +199,8 @@ curl https://api.syncropic.com/v1/capabilities \
   -H "Authorization: Bearer $SYNCROPEL_API_KEY"
 ```
 
+If your subscription includes inference credit, that credit is consumed first; overage rolls into your monthly invoice at the listed price.
+
 ## Subscription tiers
 
 Three tiers gate access:
@@ -212,10 +208,10 @@ Three tiers gate access:
 | Tier | Bearer type | Models | Rate limit | Monthly cap |
 |---|---|---|---|---|
 | **Paid** | Per-instance + User-issued (with active subscription) | All models | 60 req/min | Subscription-included credit, then metered overage |
-| **Anonymous** | Anonymous (no Syncropel account) | `gemini-flash-1.5` only | 5 req/min | Hard cap: 100 messages/day per user |
+| **Anonymous** | Anonymous (no Syncropel account) | Single included model | 5 req/min | Hard cap: 100 messages/day per user |
 | **Self-host** | Self-host bearer | All models | 60 req/min | Pay-as-you-go via your subscription |
 
-Anonymous tier is meant for evaluation — you don't need a Syncropel subscription to try the gateway, but you're limited to a single inexpensive model. Sign up for a paid plan to unlock the full model list.
+Anonymous tier is meant for evaluation — you don't need a Syncropel subscription to try the gateway, but you're limited to a single low-cost model. Sign up for a paid plan to unlock the full model list.
 
 See [pricing](/docs/get-started/pricing) for current subscription prices and what's included.
 
@@ -248,18 +244,18 @@ Other common error codes:
 | 402 | `subscription_required` | No active subscription; upgrade or use anonymous tier |
 | 402 | `quota_exceeded` | Subscription monthly cap exceeded |
 | 429 | `rate_limited` | Per-minute rate limit hit; retry after `retry_after_seconds` |
-| 503 | `provider_error` | Upstream provider degraded; retry or try a different model |
+| 503 | `provider_error` | Backing model degraded; retry or try a different model |
 | 503 | `internal_error` | Gateway error; report `request_id` to support |
 
 Every error response includes a `request_id` — include it in support tickets for fast triage.
 
-## Audit on your substrate
+## Audit on your own records
 
-Every successful call emits an audit record on your hosted instance's `th_audit_api_usage` thread. The record carries:
+Every successful call emits an audit record on your hosted instance, under the `th_audit_api_usage` thread. Each record carries:
 
-- `cost_usd` — the gateway's bill for this call (with markup)
+- `cost_usd` — what the call cost you
 - `tokens_input`, `tokens_output` — what was billed
-- `model` — what was actually served
+- `model` — what was served
 - `tier` — paid / anonymous / self-host
 - `latency_ms` — wall-clock time
 - `endpoint`, `request_id` — for tracing
@@ -267,32 +263,24 @@ Every successful call emits an audit record on your hosted instance's `th_audit_
 Query the thread directly:
 
 ```bash
-spl thread records th_audit_api_usage -o json | jq '.[] | .body | {cost_usd, model, tokens_input, tokens_output}'
+spl thread records th_audit_api_usage -o json \
+  | jq '.[] | .body | {cost_usd, model, tokens_input, tokens_output}'
 ```
 
-This makes monthly cost reconciliation a substrate query. No external billing dashboard needed — your audit log is the bill.
+Monthly cost reconciliation is a record query — no external billing dashboard needed.
 
-## Why use api.syncropic.com vs. provider directly
+## Why use api.syncropic.com vs. a model provider directly
 
-You don't *have* to. If you already have an Anthropic API key, you can call Anthropic directly. The gateway's value is in three properties:
+You don't *have* to. If you already have an API key for a specific model provider, you can call them directly. The gateway's value is in three properties:
 
-1. **One endpoint, many providers.** Switch from Haiku to GPT-4o by changing one model string. No new API key, no new SDK.
-2. **Subscription-aligned billing.** Your monthly invoice rolls inference into the same bill as your hosted instance + included credit, instead of N separate provider invoices.
-3. **Substrate-native audit.** Cost + usage land as records on your own substrate, queryable like any other data.
+1. **One endpoint, many models.** Switch from one model to another by changing one model string. No new API key, no new SDK.
+2. **Subscription-aligned billing.** Your monthly invoice rolls inference into the same bill as your hosted instance plus included credit, instead of N separate provider invoices.
+3. **Audit on your own records.** Cost and usage land on your instance as records, queryable like any other data.
 
-For pure cost: direct provider access can be cheaper if you only ever use one provider. For multi-provider workflows or when you want unified audit + billing, the gateway pays for itself.
-
-## What's coming
-
-- More providers (Together AI, Groq, Mistral)
-- Per-tier model expansion (more models on anonymous tier)
-- `/v1/embeddings` endpoint for vector embeddings
-- `/v1/chat/completions/preview` for cost estimates before sending
-
-Track changes in the [Syncropic changelog](https://syncropic.com/changelog).
+For pure cost: direct provider access can be cheaper if you only ever use one provider. For multi-model workflows or unified billing + audit, the gateway pays for itself.
 
 ## See also
 
 - [Pricing](/docs/get-started/pricing) — subscription tiers + included credit
 - [User-issued API keys](https://syncropel.com/account/api-keys) — mint, revoke, scope
-- [HTTP API reference](/docs/reference/http-api) — Syncropel instance API (different endpoint, same auth model)
+- [HTTP API reference](/docs/reference/api) — Syncropel instance API (different endpoint, same auth model)

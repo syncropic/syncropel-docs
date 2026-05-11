@@ -93,7 +93,7 @@ Output:
   result:  routing_rule_added (name: routing_translator_v1)
 ```
 
-What happened mechanically: your approval is itself a record. The AITL kind dispatcher (per ADR-069) reads `body.aitl.kind`, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the substrate's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
+What happened mechanically: your approval is itself a record. The AITL kind dispatcher reads `body.aitl.kind`, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the daemon's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
 
 Verify the rule landed:
 

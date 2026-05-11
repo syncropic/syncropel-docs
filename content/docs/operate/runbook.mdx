@@ -146,7 +146,7 @@ The record log IS the truth. Everything else is a fold over it. As long as `hub.
 ### What needs separate attention
 
 - **`~/.syncro/secrets/`**: API keys for any LLM provider you've configured (Anthropic, OpenAI, Google, etc.). Not in the record log. If you lose this, you lose your provider keys — back them up to a password manager or secure vault.
-- **`~/.syncro-data/`**: task content files (the rich-Markdown bodies for each task — addressed by their alias, e.g., `MY-001.md`) and the alias-to-thread mapping. The metadata (titles, statuses, hashes) lives in records on `hub.db`; the canonical content files live here on disk and are referenced by path during `spl task dispatch` (briefs are passed by file path since v0.27.1, not inlined — see [the v0.27.1 changelog](https://github.com/syncropic/syncropel-core/blob/main/CHANGELOG.md#0271--2026-05-01)). Backing up `hub.db` without `~/.syncro-data/` leaves task content stranded. Both belong in your snapshot.
+- **`~/.syncro-data/`**: task content files (the rich-Markdown bodies for each task — addressed by their alias, e.g., `MY-001.md`) and the alias-to-thread mapping. The metadata (titles, statuses, hashes) lives in records on `hub.db`; the canonical content files live here on disk and are referenced by path during `spl task dispatch`. Backing up `hub.db` without `~/.syncro-data/` leaves task content stranded. Both belong in your snapshot.
 
 ## Recovery from corruption or data loss
 
@@ -308,12 +308,12 @@ Linux-only — the pre-flight check no-ops gracefully on macOS and Windows (no `
 
 ## Dispatched worker died unexpectedly: salvage procedure
 
-If `spl task show SKL-XXXX` reports `Status: failed` with `Prior attempts: 1 failed ($0.00 total)` shortly after a parallel dispatch, the worker subprocess almost certainly hit a SIGKILL — most often from the kernel OOM-killer under host memory pressure. The good news: any work the worker had finished writing to disk before the kill is **still in the worktree**, even though `commits ahead: 0`. You can usually salvage it without re-dispatching.
+If `spl task show <task-id>` reports `Status: failed` with `Prior attempts: 1 failed ($0.00 total)` shortly after a parallel dispatch, the worker subprocess almost certainly hit a SIGKILL — most often from the kernel OOM-killer under host memory pressure. The good news: any work the worker had finished writing to disk before the kill is **still in the worktree**, even though `commits ahead: 0`. You can usually salvage it without re-dispatching.
 
 ### Step 1 — Diagnose the failure mode
 
 ```bash
-spl task diagnose SKL-XXXX | tail -30
+spl task diagnose <task-id> | tail -30
 ```
 
 Look for the `Subprocess` and `Completion` blocks. The OOM-kill signature is:
@@ -326,19 +326,19 @@ Subprocess
   signal:     Some(9)         ← SIGKILL
 
 Completion
-  codepath:        stream_eof_fallback
+  codepath:        stream_eof_fallback   # see body-kind reference
   failure_reason:  result_missing
   success:         false
 ```
 
-If `signal: Some(15)` (SIGTERM) instead of `Some(9)`, you're in a different failure class — process-level shutdown rather than kernel OOM. The salvage steps below still apply, but the prevention guidance at the bottom of this section won't help; investigate budget exhaustion, claude-cli signal handling, or container/cgroup limits instead.
+If `signal: Some(15)` (SIGTERM) instead of `Some(9)`, you're in a different failure class — process-level shutdown rather than kernel OOM. The salvage steps below still apply, but the prevention guidance at the bottom of this section won't help; investigate budget exhaustion, agent-CLI signal handling, or container/cgroup limits instead.
 
 ### Step 2 — Inspect the worktree
 
 The diagnose output reports `worktree:` and `latest commit:`. Switch in and check status:
 
 ```bash
-cd /path/to/syncropel-core-SKL-XXXX
+cd /path/to/<your-project>-<task-id>
 git status -s
 ```
 
@@ -354,29 +354,28 @@ ls -la <new-directories-the-worker-created>
 Does the work look substantively complete (worker had finished, just hadn't committed)? Or partial (mid-flight)?
 
 - **Substantively complete** — proceed to Step 4.
-- **Partial** — read the SKL brief at `~/.syncro-data/tasks/SKL-XXXX.md`, identify the missing acceptance-criteria items, complete them in the worktree, then proceed.
+- **Partial** — read the task brief at `~/.syncro-data/tasks/<task-id>.md`, identify the missing acceptance-criteria items, complete them in the worktree, then proceed.
 
 ### Step 4 — Run the worker end-of-task gate
 
-From the worktree:
+From the worktree, run whatever local-CI gate your project uses. For a Rust project:
 
 ```bash
-export CARGO_RUSTC_WRAPPER=sccache
 cargo fmt --all -- --check          # if it complains, run `cargo fmt --all` to fix
-cargo check -p <touched-crate>
-cargo clippy -p <touched-crate> -- -D warnings
-cargo nextest run -p <touched-crate>
+cargo check
+cargo clippy -- -D warnings
+cargo nextest run                    # or `cargo test` if you don't have nextest
 ```
 
-All four must pass. The salvage is only as trustworthy as the gate.
+Substitute the equivalent for your stack (`npm test`, `pytest`, `go test ./...`, etc.). All gates must pass — the salvage is only as trustworthy as the gate.
 
 ### Step 5 — Commit on the task branch
 
-The worktree is already on `task/SKL-XXXX`. Commit there:
+The worktree is already on a task branch. Commit there:
 
 ```bash
 git add <specific-files>
-git commit -m "feat(scope): <change> (SKL-XXXX)
+git commit -m "feat(scope): <change> (<task-id>)
 
 <commit body>
 
@@ -388,22 +387,20 @@ inventory>; only <missing-item> needed adding. Worker gate green."
 ### Step 6 — Merge to main + run merge-time gate
 
 ```bash
-cd /path/to/syncropel-core   # main worktree
-git merge task/SKL-XXXX --ff-only       # or `git cherry-pick <hash>` if main moved
-cargo fmt --all -- --check
-cargo clippy --all -- -D warnings
-cargo nextest run --workspace
+cd /path/to/<your-project>   # main worktree
+git merge task/<task-id> --ff-only       # or `git cherry-pick <hash>` if main moved
+# Re-run your full-workspace gates
 git push origin main
 ```
 
-### Step 7 — Reopen + dev-done + director-approve
+### Step 7 — Reopen + done + approve
 
 The original worker's `dispatch_complete` left the task in `failed` status. Reopen and walk it through the lifecycle:
 
 ```bash
-spl task reopen SKL-XXXX --reason "salvaged in-session after worker SIGKILL"
-SPL_ACTOR=did:sync:agent:dev      spl task done    SKL-XXXX --summary "..." --domain code
-SPL_ACTOR=did:sync:agent:director spl task approve SKL-XXXX --domain code --notes "..."
+spl task reopen <task-id> --reason "salvaged in-session after worker SIGKILL"
+SPL_ACTOR=did:sync:agent:dev      spl task done    <task-id> --summary "..." --domain code
+SPL_ACTOR=did:sync:agent:director spl task approve <task-id> --domain code --notes "..."
 ```
 
 Reference the salvage commit hash + workspace gate result in the director's `--notes` so trust evidence accumulates correctly.
@@ -411,8 +408,8 @@ Reference the salvage commit hash + workspace gate result in the director's `--n
 ### Step 8 — Clean up the worktree
 
 ```bash
-cd /path/to/syncropel-core
-git worktree remove syncropel-core-SKL-XXXX --force
+cd /path/to/<your-project>
+git worktree remove <your-project>-<task-id> --force
 ```
 
 The task branch persists post-merge; that's fine, it's part of the git history.
@@ -420,7 +417,7 @@ The task branch persists post-merge; that's fine, it's part of the git history.
 ### Avoiding the OOM kill in the first place
 
 - **Cap parallel dispatch by available memory.** On a 16GB host already running a few `claude` sessions and `spl serve`, even `max_concurrent = 2` may be too many. If `MemAvailable < 4GB × N_workers`, drop to `max_concurrent = 1`.
-- **Close idle claude sessions before dispatching parallel.** Each background `claude --dangerously-skip-permissions` session consumes 200-500MB resident.
+- **Close idle agent sessions before dispatching parallel.** Each background agent-CLI session commonly consumes 200-500MB resident.
 - **Watch `dmesg` after a SIGKILL incident** — `dmesg | grep -i 'killed process'` confirms whether the OOM-killer was the culprit (vs. other SIGKILL sources like signal injection or container limits).
 - **Set generous timeouts.** OOM doesn't care about timeout, but a longer timeout gives the worker more chance to commit before any other failure mode fires.
 

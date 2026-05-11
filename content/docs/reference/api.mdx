@@ -348,9 +348,9 @@ HTTP middleware permission denials are emitted as `tracing::warn!` events to the
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/v1/proxy/messages` | Anthropic Messages API proxy (translates to records) |
+| POST | `/v1/proxy/messages` | Messages-API-shape proxy (translates to records) |
 
-The proxy endpoint accepts the Anthropic Messages API format and translates requests into Syncropel records. Use this to route existing AI tool calls through Syncropel for observability and trust tracking.
+The proxy endpoint accepts a Messages-API-shape request body and translates it into Syncropel records. Use this to route existing AI tool calls through Syncropel for observability and trust tracking.
 
 ## Capability discovery
 
@@ -460,13 +460,11 @@ The `federation_manifest` is Ed25519-signed over its canonical JSON (excluding t
   },
   "capabilities_ref": {
     "url": "https://alice.dev/.well-known/syncropel",
-    "key": "capabilities_manifest",
-    "adr": "ADR-036"
+    "key": "capabilities_manifest"
   },
   "responders_ref": {
     "url": "https://alice.dev/.well-known/syncropel",
-    "key": "responders_manifest",
-    "adr": "ADR-043"
+    "key": "responders_manifest"
   },
   "directory": {
     "registered_at": [],

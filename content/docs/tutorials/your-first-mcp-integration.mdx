@@ -156,7 +156,7 @@ You exercised the substrate's **MCP primitive** end-to-end:
 2. **Tool calls are records.** Every MCP invocation is a record on a thread, signed by the agent's DID. There is no "did the agent really call this?" question — the substrate's [structural completeness invariant](/docs/concepts/governance) means anything that didn't produce a record didn't happen.
 3. **Identity follows the agent across surfaces.** The same actor DID an agent uses via MCP is the actor DID it uses via SDK calls, via `spl` CLI, via the HTTP API. One identity, all surfaces.
 4. **Audit is structural.** `th_audit_records` is just records on a reserved thread. The audit trail and the operational data live in the same substrate; you can't have one without the other.
-5. **Capability discovery is automatic** (per [ADR-036](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-036-capability-discovery.md)). The MCP `tools/list` response is generated from the daemon's verb registry, so adding a new substrate verb adds a new MCP tool with no extra wiring.
+5. **Capability discovery is automatic.** The MCP `tools/list` response is generated from the daemon's verb registry, so adding a new verb adds a new MCP tool with no extra wiring.
 
 This is the substrate's "any agent can plug in" promise made concrete: an AI client doesn't need to know what Syncropel *is*; it just sees a few well-shaped tools and uses them, and the substrate captures the causal trail.
 

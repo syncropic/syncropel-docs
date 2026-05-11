@@ -77,8 +77,6 @@ If alice's 60-second poll window elapses without approval (operator on PTO, week
 
 Re-running creates a new `pair_id` (new nonce); the stale AITL on bob's side can be `aitl reject`-ed manually or will TTL out.
 
-> **Authoritative reference**: [ADR-069](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-069-aitl-kind-dispatcher-and-pair-completion.md) covers the AITL kind dispatcher pattern and the operator-approval completion contract end-to-end.
-
 ## The full lifecycle
 
 After pairing, the new `spl federation` subcommands manage the relationship:

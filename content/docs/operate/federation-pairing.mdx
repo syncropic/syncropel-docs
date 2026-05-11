@@ -58,7 +58,7 @@ Pair establishment is a one-shot CLI handshake that exchanges DIDs, signs a mani
     BNet-->>ANet: 200 + cursor advance`}
 />
 
-The diagram above is the canonical handshake; the full sequence is specified in [ADR-063](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-063-federation-pair-primitive.md).
+The diagram above is the canonical handshake — discovery, signed manifest, reciprocal token mint, persistent records on both sides.
 
 ## Prerequisites
 
@@ -298,7 +298,7 @@ Per pair, in polling mode (5 min default):
 
 Practical limits:
 
-- **A single daemon comfortably runs 50+ pairs in polling mode** on a 2 GB / 1 vCPU Fly Machine, assuming the workload is dominated by sync rather than user-facing work.
+- **A single daemon comfortably runs 50+ pairs in polling mode** on a small instance (2 GB / 1 vCPU is plenty), assuming the workload is dominated by sync rather than user-facing work.
 - **For continuous mode, plan ~10-20 pairs** before you start contending with adapter throughput. Each open SSE adds a per-tick overhead the reconciler has to absorb.
 - **Bandwidth is rarely the constraint.** The constraint is record-ingest throughput on the receiving side, which is bounded by the adapter pipeline, not by the pair primitive.
 

@@ -105,7 +105,7 @@ Output:
             token_ttl: 90d
 ```
 
-The AITL kind dispatcher (per ADR-069) recognized the `pair_pending.v1` kind and ran the federation pair completion path: minted a service account on bob's side, emitted a signed `pair.genesis.v1` on bob's `th_federation_pairs`, and wrote the result to a one-shot pending-pair-approvals slot.
+The AITL kind dispatcher recognized the `pair_pending.v1` kind and ran the federation pair completion path: minted a service account on bob's side, emitted a signed `pair.genesis.v1` on bob's `th_federation_pairs`, and wrote the result to a one-shot pending-pair-approvals slot.
 
 ## 4. Watch alice complete the handshake
 
@@ -221,7 +221,6 @@ The pair primitive is the gate to everything else federation does — async rela
 - [Federation pair guide](/docs/guides/federation-pair) — the full lifecycle reference: pause/resume/revoke, sync mode, thread filtering, auto-approval, token rotation.
 - [Federation concept](/docs/concepts/federation) — the model: pull-first HTTP + SSE, CRDT G-Counter merge, steward equivalence, why federation is just records.
 - [Consent guide](/docs/guides/consent) — cross-namespace record sharing rules. Pair authorization is transport; consent is data policy.
-- [ADR-063 federation pair primitive](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-063-federation-pair-primitive.md) — the canonical specification.
 
 ## Troubleshooting
 

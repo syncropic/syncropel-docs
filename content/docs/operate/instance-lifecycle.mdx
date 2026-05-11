@@ -5,7 +5,7 @@ description: Provision an instance, get past the first-run auth chicken-and-egg,
 
 ## Audience
 
-This page is for the operator standing up an `spl serve` instance for real work — laptop, server, container, or a hosted Fly Machine. It covers the lifecycle from `spl init` to teardown without re-deriving the architecture from first principles.
+This page is for the operator standing up an `spl serve` instance for real work — laptop, server, container, or a Syncropic-hosted instance. It covers the lifecycle from `spl init` to teardown without re-deriving the architecture from first principles.
 
 If something is broken right now, jump to [Recovery](/docs/operate/runbook#recovery-from-corruption-or-data-loss) on the runbook page. The lifecycle below assumes you're starting clean.
 
@@ -51,7 +51,7 @@ The daemon implements four cooperating loops over an immutable record log. Every
 The crate boundaries follow the same layering. Nothing above depends on anything below it; the kernel is portable along any of the dashed boundaries (algebra and trust are WASM-safe).
 
 <Mermaid
-  caption="syncropel-core crate dependency graph. Strict layering, no upward dependencies."
+  caption="spl daemon crate dependency graph. Strict layering, no upward dependencies."
   chart={`flowchart TD
     algebra["syncropel-algebra"]
     trust["syncropel-trust"]
@@ -105,9 +105,9 @@ spl status
 
 For a daemon that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance) — `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
 
-### Hosted (Worker-provisioned Fly Machine)
+### Hosted (Syncropic-provisioned)
 
-The hosted-instance flow is the same kernel running in a Firecracker microVM. The provisioning tier is a Cloudflare Worker that calls the Fly Machines API; the auth tier is a sibling Worker that validates a Clerk JWT and forwards to the instance with a bearer token.
+The hosted-instance flow is the same kernel as the self-hosted one — same binary, same record store, same APIs — running on Syncropic's managed platform. Customers don't manage the kernel directly; the provisioning service stands the instance up from a signed-in session and an edge auth layer brokers requests to the right per-customer instance.
 
 <Mermaid
   caption="Self-service hosted instance provisioning. Same kernel, different boot ritual."
@@ -115,25 +115,22 @@ The hosted-instance flow is the same kernel running in a Firecracker microVM. Th
     autonumber
     participant U as Customer browser
     participant Site as syncropel.com
-    participant Prov as provision Worker
-    participant Auth as auth-proxy Worker
-    participant Fly as Fly Machines API
-    participant K as spl kernel<br/>(Firecracker microVM)
+    participant Prov as provisioning service
+    participant Auth as edge auth proxy
+    participant K as spl kernel<br/>(hosted instance)
 
-    U->>Site: sign in via Clerk
-    Site->>Prov: POST /provision<br/>(Clerk JWT, label)
-    Prov->>Prov: generate bootstrap secret<br/>+ KV{label → state}
-    Prov->>Fly: create app + volume + secrets<br/>(SPL_BOOTSTRAP_TOKEN)
-    Prov->>Fly: deploy machine (image, services 80/443)
+    U->>Site: sign in
+    Site->>Prov: POST /provision<br/>(signed-in session, label)
+    Prov->>Prov: reserve label + generate bootstrap secret
+    Prov->>K: create instance + volume<br/>(SPL_BOOTSTRAP_TOKEN injected)
     Prov-->>U: 202 Accepted (poll status)
-    Fly->>K: VM boot
     K->>K: spl serve --daemon<br/>read SPL_BOOTSTRAP_TOKEN
     K->>K: mint SA + token record<br/>(default namespace)
-    K-->>Fly: /health 200
+    K-->>Prov: /health 200
     U->>Site: poll provision status
     Site-->>U: ready (label.syncropel.com)
     U->>Auth: GET label.syncropel.com/v1/...
-    Auth->>Auth: verify Clerk JWT<br/>resolve KV{label → bearer}
+    Auth->>Auth: verify session<br/>resolve label → instance bearer
     Auth->>K: forward + Authorization: Bearer ...
     K-->>Auth: 200 + records
     Auth-->>U: 200`}
@@ -207,7 +204,7 @@ spl config auth-set-cors-origins https://syncropel.com https://app.example.com
 
 ## 4. Backup discipline
 
-> **CRITICAL — read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. The recovery drill (`tests/drills/recovery.sh` in `syncropel-core`) was written specifically because operators conflated the two.
+> **CRITICAL — read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. The recovery drill that ships with the daemon source tree was written specifically because operators conflated the two.
 
 ### What the daemon does for you
 

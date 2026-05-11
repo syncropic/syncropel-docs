@@ -9,7 +9,7 @@ Short answers with links to deeper docs. If a question isn't here and you think 
 
 ### What's a steward? What's an instance?
 
-They're the same thing. A **steward** is any running Syncropel instance — your laptop daemon, a hosted instance at `<label>.syncropel.com`, a self-hosted server you run for a project. The L6 doctrine commits that every steward — laptop, hosted, or self-hosted — is a full instance with identical capabilities. See the [glossary entry](/docs/reference/glossary#steward) and the [federation pair guide](/docs/guides/federation-pair).
+They're the same thing. A **steward** is any running Syncropel instance — your laptop daemon, a hosted instance at `<label>.syncropel.com`, a self-hosted server you run for a project. Syncropel commits that every steward — laptop, hosted, or self-hosted — is a full instance with identical capabilities. See the [glossary entry](/docs/reference/glossary#steward) and the [federation pair guide](/docs/guides/federation-pair).
 
 ### What's a thread? How is it different from a record?
 
@@ -32,7 +32,7 @@ Three forms today:
 2. **Web UI**: profile picker in the status bar — switches `useDaemonConnectionStore` to a different paired daemon.
 3. **Browser**: navigate to `<other>.syncropel.com` directly — you'll need a bearer paired for that origin.
 
-The frontend treatment of multi-instance UX is being refined in v0.28 "Unify"; the CLI and SDK paths are stable.
+The frontend treatment of multi-instance UX continues to evolve; the CLI and SDK paths are stable.
 
 ### Why am I getting `AUTH_REQUIRED` when I `curl` my daemon?
 
@@ -60,15 +60,15 @@ Resetting is rarely the right move — usually you want to *bias* trust by addin
 
 ### Why did my `spl task dispatch` fail with `E2BIG` (Argument list too long)?
 
-Pre-v0.27.1, dispatch envelopes carried brief content inline in the goal argv, which could exceed the OS `ARG_MAX` for briefs over ~7 KB. Fixed in v0.27.1 — briefs are now passed by file path. Upgrade with `curl -sSf https://get.syncropic.com/spl | sh` and restart your daemon.
+Older daemons inlined brief content in the goal argv, which could exceed the OS `ARG_MAX` for briefs over ~7 KB. Current versions pass briefs by file path. Upgrade with `curl -sSf https://get.syncropic.com/spl | sh` and restart your daemon.
 
-If you see the same symptom on v0.27.1+, it's a different bug — open an issue with `spl version` output.
+If you see the same symptom on a recent version, it's a different bug — open an issue with `spl version` output.
 
 ## Hosted vs. self-hosted
 
 ### Where does my data live in hosted mode?
 
-On a per-customer Fly Machine, in a SQLite file (`~/.syncro/hub.db`) on a per-app persistent volume. Snapshots are operator-managed; portability is via `spl export` (which you can run anytime against your hosted instance). See [Hosted instance signup](/docs/get-started/hosted).
+On your per-customer hosted instance, in a SQLite file (`~/.syncro/hub.db`) on a persistent per-customer volume. Snapshots are operator-managed; portability is via `spl export` (which you can run anytime against your hosted instance). See [Hosted instance signup](/docs/get-started/hosted).
 
 ### Can I federate hosted ↔ self-hosted?
 
@@ -82,11 +82,11 @@ Yes — the hosted free tier exists for evaluation and small-scale use. Specific
 
 ### What's a federation pair?
 
-A long-lived bilateral relationship between two stewards, established by `spl federation pair <peer-url>`. The pair record carries reciprocal DIDs, scoped tokens, and a lifecycle (`active` / `paused` / `degraded` / `revoked`). All federated sync traffic flows through the pair — no pair, no sync. See [Federation pair](/docs/guides/federation-pair) and [ADR-063](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-063-federation-pair-primitive.md).
+A long-lived bilateral relationship between two stewards, established by `spl federation pair <peer-url>`. The pair record carries reciprocal DIDs, scoped tokens, and a lifecycle (`active` / `paused` / `degraded` / `revoked`). All federated sync traffic flows through the pair — no pair, no sync. See [Federation pair](/docs/guides/federation-pair).
 
 ### Is federation push or pull?
 
-**Pull-first.** Bob's instance polls Alice's `/v1/sync/changes` endpoint and pulls new records — Alice never pushes to Bob. This avoids per-pair endpoints, simplifies the trust model, and lets recipients control their own ingest rate. See [ADR-027](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-027-federation-transport.md).
+**Pull-first.** Bob's instance polls Alice's `/v1/sync/changes` endpoint and pulls new records — Alice never pushes to Bob. This avoids per-pair endpoints, simplifies the trust model, and lets recipients control their own ingest rate.
 
 ### Can I revoke a pair?
 
@@ -96,7 +96,7 @@ Yes — `spl federation revoke <peer-did | pair-id>`. Terminal state; no undo. R
 
 ### My provisioning failed with "image build or machine boot exceeded its timeout"
 
-The Fly Machine boot took longer than the Worker's deadline. The underlying app may already be live — wait 30-60 seconds and retry signup with the same label. If it persists, the page links to a fresh provision retry; the diagnostics carry everything support needs.
+The instance boot took longer than the provisioning deadline. The underlying instance may already be live — wait 30-60 seconds and retry signup with the same label. If it persists, the page links to a fresh provision retry; the diagnostics carry everything support needs.
 
 ### `spl federation pair` returns "manifest signature does not verify against advertised DID"
 

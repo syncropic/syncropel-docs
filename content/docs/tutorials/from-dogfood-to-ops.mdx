@@ -74,9 +74,9 @@ For a deeper read on bundle contents, see [Portability](/docs/guides/portability
 Open a browser and go to `https://syncropel.com/start`. Pick a label (this becomes your subdomain — e.g., `myteam.syncropel.com`) and confirm the plan tier.
 
 Behind the scenes:
-1. The provisioning Worker reserves the label.
-2. A Fly Machine boots running the same `spl serve` binary you have locally, on a per-customer persistent volume.
-3. The Worker mints a bootstrap bearer token, stores it in a one-shot link, and redirects you to your instance's first-run page.
+1. The provisioning service reserves the label.
+2. A hosted instance boots running the same `spl serve` binary you have locally, on a per-customer persistent volume.
+3. The bootstrap bearer token is minted, stored in a one-shot link, and you're redirected to your instance's first-run page.
 
 The first-run page surfaces:
 - Your hosted URL (`<label>.syncropel.com`)
@@ -208,7 +208,7 @@ This is what makes hosted Syncropel a strictly different deal from most SaaS: th
 - [Backup & restore drill](/docs/operate/backup-restore-drill) — the operator-grade rehearsal procedure (run it before you need it).
 - [Rollback procedure](/docs/operate/rollback-procedure) — when an import goes wrong and you need to revert to the prior state.
 - [Actor portability](/docs/operate/actor-portability) — moving an actor (not a whole instance) between stewards. Different mechanism, similar shape.
-- [Concepts: Federation](/docs/concepts/federation) — the doctrine of steward equivalence that binds the release pipeline to portability.
+- [Concepts: Federation](/docs/concepts/federation) — steward equivalence and what it guarantees about portability.
 
 ## Troubleshooting
 

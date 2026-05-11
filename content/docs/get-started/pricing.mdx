@@ -8,10 +8,10 @@ description: Self-host is free. Hosted instances run $25/month, with a 30-day tr
 - **Self-host**: free, forever. Run `spl serve` on your laptop or your own server. No subscription, no usage limits, no telemetry.
 - **Hosted instance**: **$25 / month**, per instance. Includes a fully-managed `<label>.syncropel.com` running on the platform's infrastructure, with backups, TLS, and auto-recovery.
 - **30-day trial**: every new hosted instance gets 30 days free. Card on file required to provision (so the transition to paid is automatic), but no charge during trial.
-- **Managed inference (api.syncropic.com)**: optional. If you use it, your subscription includes inline credit; overage bills via Stripe Meter at the end of the month.
+- **Managed inference (api.syncropic.com)**: optional. If you use it, your subscription includes inline credit; overage rolls into your monthly invoice.
 - **Cancellation**: anytime, from your account portal. 7-day grace period during which the instance keeps running at half rate.
 
-You can move freely between self-host and hosted using `spl export` / `spl import` — the substrate is portable by design.
+You can move freely between self-host and hosted using `spl export` / `spl import` — your data is portable by design.
 
 ## What you pay for
 
@@ -33,12 +33,12 @@ Provision a `<label>.syncropel.com` instance via [syncropel.com/signup](https://
 
 | Included | Notes |
 |---|---|
-| Always-on Fly Machine running `spl serve` | Auto-restart on crash; rolling updates from upstream |
+| Always-on hosted instance running `spl serve` | Auto-restart on crash; rolling updates from upstream |
 | `<label>.syncropel.com` URL with TLS | Wildcard cert managed for you |
 | Daily backups + 30-day retention | Restore via support request |
 | Bootstrap admin service account | Pair your CLI to it from anywhere in 60 seconds |
-| Cloudflare-fronted ingress with auth-proxy | DDoS protection, geographic edge, HTTP/3 |
-| Storage up to 50 GB on hub.db | Records + indexes; raw blobs go to your own R2/S3 if needed |
+| Edge ingress with auth proxy | DDoS protection, geographic edge, HTTP/3 |
+| Storage up to 50 GB on hub.db | Records + indexes; raw blobs go to your own object storage if needed |
 | **$5 of api.syncropic.com inference credit** | Resets monthly; overage billed as line-item |
 
 What's not included on $25/month:
@@ -51,11 +51,11 @@ What's not included on $25/month:
 
 If you use the [managed inference gateway](/docs/integrate/api-syncropic), it bills against your subscription:
 
-- Each subscription includes **$5 / month of credit** (~3,800 Haiku-class messages, or ~250 Sonnet-class messages, or ~40,000 Gemini Flash messages)
-- Overage bills via Stripe Meter at the end of the month at provider list pricing + 30% gateway markup
+- Each subscription includes **$5 / month of credit** (covers thousands of low-cost-class messages, hundreds of mid-class, dozens of frontier-class — see the per-model price list on the [api.syncropic.com page](/docs/integrate/api-syncropic#available-models))
+- Overage rolls into your monthly invoice at the prices listed on the api.syncropic.com page
 - No surprise charges — there's a hard cap of $50 / month per instance; calls beyond that return `402 quota_exceeded` and you decide whether to raise the cap
 
-You see your live usage at [syncropel.com/account/usage](https://syncropel.com/account/usage). Every call also emits a record on your `th_audit_api_usage` thread, so reconciliation is a substrate query.
+You see your live usage at [syncropel.com/account/usage](https://syncropel.com/account/usage). Every call also emits a record on your `th_audit_api_usage` thread, so reconciliation is a record query.
 
 ## How billing works
 

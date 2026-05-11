@@ -592,7 +592,7 @@ Custom strategies (e.g. trust-weighted selection).
 
 ## Federation — Pair Lifecycle (canonical, v0.24+)
 
-The `spl federation` verb is the canonical surface for federation pair management (ADR-063). One command establishes a pair; subsequent verbs manage its lifecycle. See the [federation pair guide](/docs/guides/federation-pair) for a walkthrough.
+The `spl federation` verb is the canonical surface for federation pair management. One command establishes a pair; subsequent verbs manage its lifecycle. See the [federation pair guide](/docs/guides/federation-pair) for a walkthrough.
 
 ```bash
 # Establish (the one-command primitive)
@@ -613,7 +613,7 @@ spl federation revoke <peer-did | pair-id>      # Terminal; emits pair.revoke.v1
 spl federation set-mode <pair-id> {continuous|polling|on-demand}
 spl federation set-poll-interval <pair-id> <secs>   # Only meaningful when mode=polling
 
-# Cross-namespace consent grants (composes with ADR-024)
+# Cross-namespace consent grants (composes with consent records)
 spl federation grant <pair-id> <namespace>      # Add consent grant
 spl federation revoke-grant <grant-id>          # Remove a specific grant
 

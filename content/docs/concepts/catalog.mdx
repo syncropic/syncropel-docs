@@ -31,7 +31,7 @@ The framing is easier with the negative space drawn first.
 | `did:sync:syncropel-team/governance`       | `governance` | `/local/governance`         |
 | `did:sync:syncropel-team/secrets`          | `secrets`    | `/local/secrets`            |
 
-Each manifest declares components — folds, projections, policy refs — that the renderer mounts. When `/local/tasks` loads, the syncropel-web client hits the catalog for `did:sync:syncropel-team/tasks`, validates the manifest, and renders the table projection over `task.todo.*` records pulled from the local daemon. If the catalog is unreachable or the manifest is malformed, the renderer falls back to a hardcoded React surface — a safety net the architecture preserves on purpose.
+Each manifest declares components — folds, projections, policy refs — that the renderer mounts. When `/local/tasks` loads, the workspace renderer hits the catalog for `did:sync:syncropel-team/tasks`, validates the manifest, and renders the table projection over `task.todo.*` records pulled from the local daemon. If the catalog is unreachable or the manifest is malformed, the renderer falls back to a hardcoded React surface — a safety net the architecture preserves on purpose.
 
 ## How publishing works
 

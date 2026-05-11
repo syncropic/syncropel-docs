@@ -1,6 +1,6 @@
 ---
 title: Syncropel Documentation
-description: Coordination protocol for hybrid human-AI teams. Build with immutable records, evidence-based trust, manifest-driven workspaces, and self-improving workflows.
+description: Coordination protocol for hybrid human-AI teams. Build with immutable records, evidence-based trust, manifest-driven workspaces, and workflows that learn and replay.
 ---
 
 ## Two paths to a working instance
@@ -33,19 +33,19 @@ If you're integrating from code, jump to the [TypeScript SDK](/docs/guides/types
 Every coordination event — chat, task, code change, tool call, observation, intent — becomes a record. Records group into threads. Threads produce trust:
 
 ```text
-fix-checkout-timeout              5 records · 3 actors · trust 0.92
+fix-checkout-timeout              5 records · 3 actors
 
 ● you      INTEND  "Fix checkout timeout before launch"                14m ago
 ○ agent    DO      Profiled API — connection pool saturated at 10     12m ago
 ○ agent    DO      Patch applied: pool 10 → 50, deployed to staging    9m ago
 ○ monitor  KNOW    p99 latency 4.2s → 180ms — 340 users unblocked      6m ago
 ○ agent    LEARN   "Pool sizing must scale with replicas"              now
-                   pattern crystallized (trust 0.92)
+                   captured · next similar issue replays the solution
 ```
 
-`●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and signed by its actor. The `LEARN` at the end crystallizes into a reusable pattern — next time the same shape of issue appears, the solution replays automatically.
+`●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and signed by its actor. The `LEARN` at the end is captured as a reusable pattern — next time the same shape of issue appears, the solution replays automatically.
 
-That same thread can [federate to another instance](/docs/guides/federation-pair) with consent-gated sync, [ship as a workspace](/docs/concepts/workspaces) others can install, or be queried via the [TypeScript SDK](/docs/guides/typescript-sdk) / [Python SDK](/docs/guides/python-sdk) / [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others).
+That same thread can [federate to another instance](/docs/guides/federation-pair) with consent-gated sync, [ship as a workspace](/docs/concepts/workspaces) others can install, or be queried via the [TypeScript SDK](/docs/guides/typescript-sdk) / [Python SDK](/docs/guides/python-sdk) / [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others). Hosted instances ship with **Scribe**, a default conversational agent that responds in any thread you open by typing — you don't have to wire anything up.
 
 ---
 

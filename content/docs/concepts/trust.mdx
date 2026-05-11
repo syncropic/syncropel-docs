@@ -41,7 +41,7 @@ In most deployments, the `judged_by` dimension is mostly-invisible — you typic
 Trust is produced at exactly one place: the evaluation gate. The flow:
 
 1. An actor claims work is complete — `spl task done` or equivalent. This emits a `KNOW` with `body.topic: "task_done_claim"`. **This does not produce trust.**
-2. An evaluator reviews the outcome. In Syncropel's dogfood, that's `spl task approve` or `spl task reject`, which emits a `KNOW` with `body.verdict: "accept"` (or `"reject"`) and `body.judged_by: <completer_did>`. **This produces one trust observation.**
+2. An evaluator reviews the outcome. For the built-in task workflow, that's `spl task approve` or `spl task reject`, which emits a `KNOW` with `body.verdict: "accept"` (or `"reject"`) and `body.judged_by: <completer_did>`. **This produces one trust observation.**
 3. The trust fold (on `TICK` loop) ingests the verdict and updates `(actor, domain, judged_by)` evidence.
 4. The next query of `trust(actor, domain)` returns the updated Wilson score.
 

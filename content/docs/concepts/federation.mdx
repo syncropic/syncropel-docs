@@ -65,7 +65,7 @@ This matters because the hybrid hosted+local model is foundational: a user signs
 
 Topology is **emergent, not configured**:
 - **Pair (2-node)** — the base case. One pair record on each side; transport handles the wire.
-- **Star (1+N)** — most common shape at small scale. Hub pairs with N peers individually; each pair is independent.
+- **Star (1+N)** — most common shape at small scale. One central instance pairs with N peers individually; each pair is independent.
 - **Mesh (full)** — practical at N&lt;10. Above that, pair count + revocation cascades become prohibitive.
 - **Hierarchical** — rarely the right shape. Delegate by namespace, not by federation topology.
 
@@ -82,7 +82,7 @@ Filters compose with consent: a record needs to clear consent (cross-namespace p
 
 ### Legacy sync-only pairs (pre-v0.24)
 
-Before the pair primitive shipped in v0.24 "Mesh", `pair` meant a unidirectional thread-scoped subscription configured via `spl fleet sync add` with explicit token plumbing. The CLI still supports it for backward compatibility — see [the legacy section in CLI reference](/docs/reference/cli#federation--pair-sync-legacy-spl-fleet-sync-surface) — but new pairs should use `spl federation pair <peer-url>`.
+Before the pair primitive landed, `pair` meant a unidirectional thread-scoped subscription configured via `spl fleet sync add` with explicit token plumbing. The CLI still supports it for backward compatibility — see [the legacy section in CLI reference](/docs/reference/cli#federation--pair-sync-legacy-spl-fleet-sync-surface) — but new pairs should use `spl federation pair <peer-url>`.
 
 ### Consent — what's allowed to cross namespaces
 

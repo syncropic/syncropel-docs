@@ -5,7 +5,7 @@ description: Schema reference for built-in `body.kind` values. Records you can s
 
 `body.kind` is the body-convention discriminant — a string in scope.category.entity[.version] format that names the schema of `record.body`. Built-in kinds emitted by the kernel are documented here; user-extension kinds (anything outside the `core.*` and `syncropel.*` reserved scopes) follow the same grammar but live in their own registries.
 
-For the kind grammar itself (3 vs 4 segments, allowed characters, reserved scopes, version semantics), see [ADR-034](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-034-body-kind-grammar.md).
+For the kind grammar itself (3 vs 4 segments, allowed characters, reserved scopes, version semantics), see the [body.kind manifest guide](/docs/guides/body-kind-manifest).
 
 ## Kinds emitted by dispatch
 
@@ -31,15 +31,15 @@ One record per Assistant event from the dispatched agent. Carries token deltas (
 
 ### `syncropel.dispatch.session.v1`
 
-Captures the Claude CLI session UUID from the first `system` init event. Written once per dispatch. Bridges Syncropel records to `~/.claude/projects/<project-slug>/<session_id>.jsonl` for raw Claude-side data (tool uses, tool results, full message history). `spl task diagnose` correlates via this record.
+Captures the agent CLI's session UUID from the first `system` init event. Written once per dispatch. Bridges Syncropel records to the agent's own session log (e.g., `~/.claude/projects/<slug>/<session_id>.jsonl` for Claude Code) for raw side-of-agent data — tool uses, tool results, full message history. `spl task diagnose` correlates via this record.
 
 ```json
 {
   "kind": "syncropel.dispatch.session.v1",
-  "topic": "claude_session_captured",
+  "topic": "agent_session_captured",
   "session_id": "abc-123-...",
-  "project_cwd": "/home/dev/syncropel-core",
-  "project_slug": "-home-dev-syncropel-core",
+  "project_cwd": "/home/dev/my-project",
+  "project_slug": "-home-dev-my-project",
   "model": "claude-opus-4",
   "turn_id": "turn_abc123"
 }
@@ -114,7 +114,7 @@ See the [dispatch observability guide](/docs/guides/dispatch-observability) for 
 
 ## Kinds emitted by inference
 
-The inference executor (per ADR-049) commits a `KNOW` record on the query thread when the pipeline cannot produce an answer. Every non-success path emits one `infer.error.v1` record with a stable `body.code`.
+The inference executor commits a `KNOW` record on the query thread when the pipeline cannot produce an answer. Every non-success path emits one `infer.error.v1` record with a stable `body.code`.
 
 ### `infer.error.v1`
 
@@ -136,7 +136,7 @@ The inference executor (per ADR-049) commits a `KNOW` record on the query thread
 
 #### `code` taxonomy (10 values)
 
-Maps the 8-step inference pipeline (ADR-049 D4). Every non-success branch emits exactly one of these.
+Maps the 8-step inference pipeline. Every non-success branch emits exactly one of these.
 
 | Code | Step | Meaning |
 |---|---|---|
@@ -149,7 +149,7 @@ Maps the 8-step inference pipeline (ADR-049 D4). Every non-success branch emits 
 | `quorum_not_met` | 6 | Valid (non-error) responses were fewer than `fold.min_quorum` after filtering error-shaped DOs. |
 | `fold_failed` | 7 | The fold function returned an error (missing evaluator, expression failed, etc.). |
 | `answer_shape_mismatch` | 8 | The folded answer did not satisfy `answer_shape.kind` / `required_fields` / `schema_ref`. |
-| `obligation_conflict` | 8 / ADR-048 D5 | Obligation resolution raised a `ValidationError` conflict that the envelope's strategy could not merge. |
+| `obligation_conflict` | 8 | Obligation resolution raised a `ValidationError` conflict that the envelope's strategy could not merge. |
 
 Wire-form is snake_case as shown. Match on `body.code` to route or filter.
 
@@ -162,8 +162,8 @@ Pointers to the rest of the kind surface — full schemas live in their own refe
 - **`core.consent.v1`** — cross-namespace consent grants for federation. See [Consent](/docs/guides/consent).
 - **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`** — CEL-driven engine config records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).
 - **`core.subscription.v1`** — Server-Sent-Events subscription manifests.
-- **`core.runtime.v1`** — pluggable runtime descriptor for extensions (ADR-050). See [Extensions](/docs/guides/extensions).
-- **`core.artifact.v1`** — published artifact records (ADR-052).
+- **`core.runtime.v1`** — pluggable runtime descriptor for extensions. See [Extensions](/docs/guides/extensions).
+- **`core.artifact.v1`** — published artifact records.
 - **`infer.query.v1`** — inference query records. Documented in detail at [infer.query.v1 schema reference](/docs/reference/infer-query-schema).
 
 ## What's next
@@ -171,4 +171,4 @@ Pointers to the rest of the kind surface — full schemas live in their own refe
 - **[CLI reference](/docs/reference/cli)** — commands that emit and query against these records.
 - **[Dispatch observability guide](/docs/guides/dispatch-observability)** — example queries + `spl task diagnose` walkthrough.
 - **[`infer.query.v1` schema](/docs/reference/infer-query-schema)** — the inference query body shape that pairs with `infer.error.v1`.
-- **[ADR-034: body.kind grammar](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-034-body-kind-grammar.md)** — the grammar all kinds (built-in or extension) follow.
+- **[body.kind manifest guide](/docs/guides/body-kind-manifest)** — the grammar all kinds (built-in or extension) follow.
