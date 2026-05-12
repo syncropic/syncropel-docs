@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { RunTabs } from './RunTabs';
+import { SurfaceTabs } from './SurfaceTabs';
 
 const tutorials = [
   { title: 'Quickstart', href: '/docs/start', desc: 'Install spl and create your first task in 10 minutes' },
@@ -71,39 +73,27 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Get Started */}
+      {/* Run an instance — tabbed: Hosted (default) / Linux / macOS / Windows */}
       <section className="w-full max-w-[800px] mx-auto px-6 pb-8">
-        <div className="border border-fd-border rounded-lg bg-fd-secondary overflow-hidden">
-          <div className="px-3 py-2 border-b border-fd-border/50 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-fd-border" />
-            <span className="w-2 h-2 rounded-full bg-fd-border" />
-            <span className="w-2 h-2 rounded-full bg-fd-border" />
-            <span className="ml-2 text-[11px] text-fd-muted-foreground font-mono">terminal</span>
-          </div>
-          <div className="p-4 font-mono text-[12px] leading-[1.8] space-y-0.5">
-            <p>
-              <span className="text-fd-muted-foreground">$ </span>
-              <span className="text-fd-foreground">curl -sSf https://get.syncropic.com/spl | sh</span>
-            </p>
-            <p>
-              <span className="text-fd-muted-foreground">$ </span>
-              <span className="text-fd-foreground">spl init &amp;&amp; spl serve --daemon</span>
-            </p>
-            <p className="text-[#059669] dark:text-[#34d399]">
-              ✓ Ready at localhost:9100
-            </p>
-          </div>
+        <div className="flex items-baseline gap-3 mb-4">
+          <h2 className="text-[13px] font-semibold text-fd-foreground">Run an instance</h2>
+          <span className="text-[11px] text-fd-muted-foreground">Pick a path</span>
         </div>
-        <p className="text-sm text-fd-muted-foreground mt-3 text-center">
-          Then follow the{' '}
-          <Link
-            href="/docs/start"
-            className="text-[#c2410c] dark:text-[#d97706] hover:underline font-medium"
-          >
-            Quick Start tutorial
-          </Link>
-          {' '}to create your first record.
-        </p>
+        <RunTabs />
+      </section>
+
+      {/* Divider */}
+      <div className="w-full max-w-[800px] mx-auto px-6">
+        <div className="h-px bg-fd-border" />
+      </div>
+
+      {/* Use it from anywhere — tabbed surfaces: CLI / Studio / SDK */}
+      <section className="w-full max-w-[800px] mx-auto px-6 py-8">
+        <div className="flex items-baseline gap-3 mb-4">
+          <h2 className="text-[13px] font-semibold text-fd-foreground">Use it from anywhere</h2>
+          <span className="text-[11px] text-fd-muted-foreground">One task across three surfaces</span>
+        </div>
+        <SurfaceTabs />
       </section>
 
       {/* Divider */}
