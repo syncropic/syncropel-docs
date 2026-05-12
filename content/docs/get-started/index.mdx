@@ -1,37 +1,31 @@
 ---
 title: Get Started
-description: The installation-to-live-instance journey for Syncropel. Install the CLI, initialize your identity, start the daemon, bootstrap authentication, pair devices, and handle the failure modes you'll hit along the way.
+description: The installation-to-live-instance journey for Syncropel. Install the CLI, initialize your identity, start your instance, and pair devices.
 ---
 
-This section takes you from "I just heard about Syncropel" to "I have a secure daemon running with a browser paired to it." It is intentionally more detailed than the [Quickstart](/docs/start) — read Quickstart if you want the 10-minute happy path; read this section if something went wrong on your first try, or if you're setting up a machine that will do real work.
+This section takes you from "I just heard about Syncropel" to "I have a secure instance running with a browser paired to it." It is intentionally more detailed than the [Quickstart](/docs/start) — read Quickstart if you want the 10-minute happy path; read this section if something went wrong on your first try, or if you're setting up a machine that will do real work.
 
 ## Map
 
 | # | Page | What it covers |
 |---|---|---|
-| 0 | [Hosted instance signup](/docs/get-started/hosted) | Skip install — sign up at syncropel.com and get a fully-portable instance running in under a minute. |
-| 1 | [Install](/docs/get-started/install) | Download and install `spl` on Linux, Windows, or macOS. Pin versions. Verify. |
-| 2 | [First run](/docs/get-started/first-run) | `spl init`, your identity, the `~/.syncro/` tree, and `config.toml`. |
-| 3 | [Starting the daemon](/docs/get-started/daemon) | Three modes (dev, secure local, exposed), lifecycle commands, logs. |
-| 4 | [Service accounts and tokens](/docs/get-started/service-accounts) | Bootstrap your first service account. Save the token. Flip to secure mode. |
-| 5 | [Pairing a browser or phone](/docs/get-started/pairing) | QR pairing, manual pairing, revocation. |
-| 6 | [Exposing the daemon securely](/docs/get-started/exposing) | Tailscale, reverse proxy with TLS, CORS, what not to do. |
-| 7 | [Troubleshooting](/docs/get-started/troubleshooting) | Diagnostic tree for the eight failure modes real users have hit. |
-| 8 | [Reset and uninstall](/docs/get-started/reset-uninstall) | Clean reset, full uninstall per platform, what survives. |
-| 9 | [Windows notes](/docs/get-started/windows) | WSL gotchas, Defender, Firewall, PATH, long paths. |
-| 10 | [Linux and macOS notes](/docs/get-started/linux-macos) | systemd, launchd, PATH, where logs live. |
+| 0 | [Pricing](/docs/get-started/pricing) | Free tier + paid tier limits at a glance. |
+| 1 | [Hosted instance signup](/docs/get-started/hosted) | Skip install — sign up at syncropel.com and get a fully-portable instance running in under a minute. |
+| 2 | [Install](/docs/get-started/install) | Download and install `spl` on Linux, Windows, or macOS. Pin versions. Verify. |
+| 3 | [First run](/docs/get-started/first-run) | `spl init`, your identity, the `~/.syncro/` tree, and `config.toml`. |
+| 4 | [Pairing a browser or phone](/docs/get-started/pairing) | QR pairing, manual pairing, revocation. |
+| 5 | [Troubleshooting](/docs/get-started/troubleshooting) | Diagnostic tree for the failure modes real users have hit. |
+| 6 | [Reset and uninstall](/docs/get-started/reset-uninstall) | Clean reset, full uninstall per platform, what survives. |
 
 ## Suggested reading order
 
-**First time, want a hosted instance.** Read [Hosted instance signup](/docs/get-started/hosted) — the syncropel.com flow gets you to a working instance without installing anything. You can also `spl token save <bearer>` to get the CLI talking to the hosted daemon, then jump back to [Pairing](/docs/get-started/pairing) for additional devices.
+**First time, want a hosted instance.** Read [Hosted instance signup](/docs/get-started/hosted) — the syncropel.com flow gets you to a working instance without installing anything. Then `spl token save <bearer>` to get the CLI talking to your hosted instance, then jump to [Pairing](/docs/get-started/pairing) for additional devices.
 
-**First time installing locally.** Start at [Install](/docs/get-started/install), proceed through [First run](/docs/get-started/first-run) and [Starting the daemon](/docs/get-started/daemon), stop at [Service accounts and tokens](/docs/get-started/service-accounts) — that page gets you to a working secure daemon. Everything after is situational.
+**First time installing locally.** Start at [Install](/docs/get-started/install), proceed through [First run](/docs/get-started/first-run), then [Pairing](/docs/get-started/pairing) once you want a browser or second device on the same instance.
 
 **Pairing a second device.** Jump to [Pairing](/docs/get-started/pairing).
 
 **Something is broken right now.** [Troubleshooting](/docs/get-started/troubleshooting) first, then [Reset and uninstall](/docs/get-started/reset-uninstall) if you need to start over.
-
-**Exposing to other machines.** [Exposing the daemon securely](/docs/get-started/exposing) covers the three safe paths and the one you should never take.
 
 ## What "Syncropel" means on your machine
 
@@ -42,5 +36,5 @@ That's the whole system. No Docker required, no separate language runtime, no ex
 ## See also
 
 - [Quickstart](/docs/start) — the 10-minute walkthrough
-- [Operator Runbook](/docs/operate/runbook) — day-2 operations once your daemon is doing real work
-- [`spl doctor`](/docs/operate/doctor) — one-command diagnostic when a daemon is misbehaving
+- [Operator Runbook](/docs/operate/runbook) — day-2 operations once your instance is doing real work
+- [`spl doctor`](/docs/operate/doctor) — one-command diagnostic when an instance is misbehaving
