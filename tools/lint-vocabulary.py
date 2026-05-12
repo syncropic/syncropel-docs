@@ -37,6 +37,17 @@ RETIRED_TERMS = {
     "Console": "Studio",
 }
 
+# Internal-reference patterns. These should never appear in customer-facing docs.
+# Pattern → suggestion. Uses regex; matched against link-stripped, code-stripped lines.
+INTERNAL_PATTERNS = {
+    r"\bSKL-\d+\b": "(internal task reference — describe behaviour instead)",
+    r"\bADR-\d+\b": "(internal ADR reference — describe behaviour instead)",
+    r"\bFU-\d+\b": "(internal follow-up reference — describe behaviour instead)",
+    r"\bTier [αβγ]\b": "(internal phase reference — describe behaviour instead)",
+    r"\bWave [0-9]+\b": "(internal phase reference — describe behaviour instead)",
+    r"\bsteward equivalence doctrine\b": "(internal vocabulary — say 'hosted and self-hosted are equivalent' or similar)",
+}
+
 # Path globs that are EXEMPT (provenance, history, changelog, research).
 # Patterns are checked against the path RELATIVE to the repo root.
 PATH_WHITELIST = [
@@ -100,6 +111,10 @@ DISABLE_LINE_RE = re.compile(
 
 # Match the retired term as a standalone word.
 TERM_RE = re.compile(r"\b(" + "|".join(re.escape(t) for t in RETIRED_TERMS) + r")\b")
+
+# Compile internal-reference patterns. Iterated separately from RETIRED_TERMS
+# because the keys are already regex (not literal strings).
+INTERNAL_PATTERN_RES = [(re.compile(p), s) for p, s in INTERNAL_PATTERNS.items()]
 
 # YAML frontmatter keys that legitimately quote prior names.
 FRONTMATTER_PROVENANCE_KEYS = (
@@ -284,6 +299,19 @@ def scan_file(path: Path, rel_path: str) -> list[Hit]:
                     line_text=raw_line.rstrip(),
                 )
             )
+
+        for pat_re, suggestion in INTERNAL_PATTERN_RES:
+            for m in pat_re.finditer(line_for_match):
+                hits.append(
+                    Hit(
+                        path=path,
+                        line_no=idx,
+                        col=m.start() + 1,
+                        term=m.group(0),
+                        suggestion=suggestion,
+                        line_text=raw_line.rstrip(),
+                    )
+                )
 
     return hits
 
