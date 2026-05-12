@@ -5,37 +5,32 @@ const tutorials = [
   { title: 'Your First Task', href: '/docs/tutorials/first-task', desc: 'Create, complete, and see trust grow' },
   { title: 'Working with Threads', href: '/docs/tutorials/first-thread', desc: 'Open, fork, and close workflows' },
   { title: 'Build a Workspace', href: '/docs/tutorials/first-workspace', desc: 'Scaffold, edit, test, publish, share' },
-  { title: 'First SDK Integration', href: '/docs/tutorials/first-sdk-integration', desc: 'Emit records from a Node.js script' },
-  { title: 'Multi-namespace setup', href: '/docs/tutorials/multi-namespace', desc: 'Two isolated environments under one ORG' },
 ];
 
 const concepts = [
   { title: 'Records', href: '/docs/concepts/records', desc: 'The 8-field immutable unit' },
   { title: 'Threads', href: '/docs/concepts/threads', desc: 'Coordinated workflows' },
   { title: 'Actors', href: '/docs/concepts/actors', desc: 'Identity and trust profiles' },
-  { title: 'Workspaces', href: '/docs/concepts/workspaces', desc: 'Manifest-driven applications' },
-  { title: 'Catalog', href: '/docs/concepts/catalog', desc: 'Curated discovery surface' },
   { title: 'Trust', href: '/docs/concepts/trust', desc: 'Evidence-based reputation' },
-  { title: 'Federation', href: '/docs/concepts/federation', desc: 'Two instances sync via consent' },
-  { title: 'Secrets', href: '/docs/concepts/secrets', desc: 'Four-layer credential handling' },
-  { title: 'The Engine', href: '/docs/concepts/engine', desc: 'Four loops, ingest to learning' },
 ];
 
 const guides = [
   { title: 'Task Management', href: '/docs/guides/task-management', desc: 'Full lifecycle, creation to approval' },
-  { title: 'Routing Rules', href: '/docs/guides/routing-rules', desc: 'Control how work flows to actors' },
-  { title: 'CEL Expressions', href: '/docs/guides/cel-expressions', desc: 'Author rules across decision points' },
-  { title: 'Federation pair', href: '/docs/guides/federation-pair', desc: 'One-command stewards-as-peers' },
-  { title: 'Inference Overview', href: '/docs/guides/inference/overview', desc: 'infer.query.v1 — what + when + why' },
-  { title: 'Agent Integration', href: '/docs/guides/agent-integration', desc: 'Connect AI agents to Syncropel' },
+  { title: 'Search', href: '/docs/guides/search', desc: 'Semantic + full-text across threads' },
+  { title: 'Namespaces', href: '/docs/guides/namespaces', desc: 'Multi-tenant scoping' },
+  { title: 'Debugging', href: '/docs/guides/debugging', desc: 'doctor → status → debug replay' },
+  { title: 'TypeScript SDK', href: '/docs/guides/typescript-sdk', desc: 'Universal JS/TS client' },
+  { title: 'Python SDK', href: '/docs/guides/python-sdk', desc: 'Emit records from Python' },
+  { title: 'Backup & Recovery', href: '/docs/guides/backup-restore', desc: 'Protect your data and recover safely' },
+  { title: 'body.kind manifest', href: '/docs/guides/body-kind-manifest', desc: 'Record kind grammar and reserved scopes' },
 ];
 
 const reference = [
   { title: 'CLI', href: '/docs/reference/cli', desc: 'Every spl command' },
   { title: 'HTTP API', href: '/docs/reference/api', desc: 'All endpoints' },
-  { title: 'Record Format', href: '/docs/reference/record-format', desc: 'The 8 fields and types' },
   { title: 'Configuration', href: '/docs/reference/configuration', desc: 'Settings, rules, locations' },
   { title: 'Glossary', href: '/docs/reference/glossary', desc: 'Key terms A to Z' },
+  { title: 'FAQ', href: '/docs/reference/faq', desc: 'Common questions' },
 ];
 
 function CardGrid({ items }: { items: { title: string; href: string; desc: string }[] }) {
