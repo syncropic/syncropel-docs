@@ -1,41 +1,79 @@
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { RunTabs } from './RunTabs';
 import { SurfaceTabs } from './SurfaceTabs';
 
+// Sections organized by visitor intent, not docs taxonomy.
+// Every entry in the KEEP set (per syncropel-research/docs/web-summit-trim
+// v2 plan §T) lives in exactly one bucket below.
+
+const startHere = [
+  { title: 'Quickstart', href: '/docs/start', desc: 'Five minutes from zero to a working loop' },
+  { title: 'Hosted signup', href: '/docs/get-started/hosted', desc: '60-second flow at syncropel.com/signup' },
+  { title: 'Install spl', href: '/docs/get-started/install', desc: 'Linux, macOS, Windows — single binary' },
+  { title: 'First run', href: '/docs/get-started/first-run', desc: 'spl init, identity, ~/.syncro/ layout' },
+  { title: 'Pair a device', href: '/docs/get-started/pairing', desc: 'Browser, phone, or second CLI on the same instance' },
+  { title: 'Pricing', href: '/docs/get-started/pricing', desc: 'Free tier + paid tiers — full cost surface' },
+];
+
 const tutorials = [
-  { title: 'Quickstart', href: '/docs/start', desc: 'Install spl and create your first task in 10 minutes' },
-  { title: 'Your First Task', href: '/docs/tutorials/first-task', desc: 'Create, complete, and see trust grow' },
-  { title: 'Working with Threads', href: '/docs/tutorials/first-thread', desc: 'Open, fork, and close workflows' },
-  { title: 'Build a Workspace', href: '/docs/tutorials/first-workspace', desc: 'Scaffold, edit, test, publish, share' },
+  { title: 'Your first task', href: '/docs/tutorials/first-task', desc: 'Create, complete, and see trust grow' },
+  { title: 'Working with threads', href: '/docs/tutorials/first-thread', desc: 'Open, fork, and close workflows' },
+  { title: 'Build a workspace', href: '/docs/tutorials/first-workspace', desc: 'Scaffold, edit, test, publish, share' },
 ];
 
-const concepts = [
-  { title: 'Records', href: '/docs/concepts/records', desc: 'The 8-field immutable unit' },
-  { title: 'Threads', href: '/docs/concepts/threads', desc: 'Coordinated workflows' },
-  { title: 'Actors', href: '/docs/concepts/actors', desc: 'Identity and trust profiles' },
-  { title: 'Trust', href: '/docs/concepts/trust', desc: 'Evidence-based reputation' },
+const mentalModel = [
+  { title: 'Records', href: '/docs/concepts/records', desc: 'The 8-field immutable, content-addressed unit' },
+  { title: 'Threads', href: '/docs/concepts/threads', desc: 'Coordinated workflows that fold to state' },
+  { title: 'Actors', href: '/docs/concepts/actors', desc: 'Identity, trust profiles, persistent memory' },
+  { title: 'Trust', href: '/docs/concepts/trust', desc: 'Wilson-LB evidence with the dial' },
 ];
 
-const guides = [
-  { title: 'Task Management', href: '/docs/guides/task-management', desc: 'Full lifecycle, creation to approval' },
+const build = [
+  { title: 'Task management', href: '/docs/guides/task-management', desc: 'Full lifecycle from creation to approval' },
   { title: 'Search', href: '/docs/guides/search', desc: 'Semantic + full-text across threads' },
-  { title: 'Namespaces', href: '/docs/guides/namespaces', desc: 'Multi-tenant scoping' },
-  { title: 'Debugging', href: '/docs/guides/debugging', desc: 'doctor → status → debug replay' },
-  { title: 'TypeScript SDK', href: '/docs/guides/typescript-sdk', desc: 'Universal JS/TS client' },
-  { title: 'Python SDK', href: '/docs/guides/python-sdk', desc: 'Emit records from Python' },
-  { title: 'Backup & Recovery', href: '/docs/guides/backup-restore', desc: 'Protect your data and recover safely' },
+  { title: 'Namespaces', href: '/docs/guides/namespaces', desc: 'Multi-tenant scoping with the 5-level hierarchy' },
+  { title: 'Debugging', href: '/docs/guides/debugging', desc: 'doctor → status → debug replay → audit export' },
+  { title: 'TypeScript SDK', href: '/docs/guides/typescript-sdk', desc: 'Universal JS/TS — Node, Deno, Bun, Workers' },
+  { title: 'Python SDK', href: '/docs/guides/python-sdk', desc: 'httpx-based, fail-open record client' },
   { title: 'body.kind manifest', href: '/docs/guides/body-kind-manifest', desc: 'Record kind grammar and reserved scopes' },
+  { title: 'AI clients (MCP)', href: '/docs/integrate/ai-clients', desc: 'Claude Desktop, Cursor, Cline, Zed, OpenCode' },
+  { title: 'api.syncropic.com', href: '/docs/integrate/api-syncropic', desc: 'Single AI-gateway endpoint, many providers' },
+];
+
+const operate = [
+  { title: 'Operator runbook', href: '/docs/operate/runbook', desc: 'Lifecycle, recovery, backup discipline, upgrades' },
+  { title: 'spl doctor', href: '/docs/operate/doctor', desc: 'Top-down diagnostic — start here when stuck' },
+  { title: 'Security model', href: '/docs/operate/security-model', desc: 'Auth, service accounts, on-disk, threat surface' },
+  { title: 'Backup & recovery', href: '/docs/guides/backup-restore', desc: 'Protect data, restore safely' },
+  { title: 'Troubleshooting', href: '/docs/get-started/troubleshooting', desc: 'Diagnostic tree for the common failure modes' },
+  { title: 'Reset & uninstall', href: '/docs/get-started/reset-uninstall', desc: 'Clean reset and full uninstall per platform' },
 ];
 
 const reference = [
-  { title: 'CLI', href: '/docs/reference/cli', desc: 'Every spl command' },
-  { title: 'HTTP API', href: '/docs/reference/api', desc: 'All endpoints' },
-  { title: 'Configuration', href: '/docs/reference/configuration', desc: 'Settings, rules, locations' },
+  { title: 'CLI', href: '/docs/reference/cli', desc: 'Every spl command with flags + examples' },
+  { title: 'HTTP API', href: '/docs/reference/api', desc: 'All endpoints with request examples' },
+  { title: 'Configuration', href: '/docs/reference/configuration', desc: 'config.toml settings, rules, data locations' },
   { title: 'Glossary', href: '/docs/reference/glossary', desc: 'Key terms A to Z' },
-  { title: 'FAQ', href: '/docs/reference/faq', desc: 'Common questions' },
+  { title: 'FAQ', href: '/docs/reference/faq', desc: 'Vocabulary, hosted vs self-hosted, federation' },
 ];
 
-function CardGrid({ items }: { items: { title: string; href: string; desc: string }[] }) {
+interface NavSection {
+  readonly title: string;
+  readonly tagline: string;
+  readonly items: ReadonlyArray<{ title: string; href: string; desc: string }>;
+}
+
+const NAV_SECTIONS: ReadonlyArray<NavSection> = [
+  { title: 'Start here', tagline: 'Get an instance running on your terms', items: startHere },
+  { title: 'Tutorials', tagline: 'Learn by doing — 15-30 minutes each', items: tutorials },
+  { title: 'Mental model', tagline: 'What Syncropel actually is, under the hood', items: mentalModel },
+  { title: 'Build with Syncropel', tagline: 'SDKs, AI clients, gateways, dev tools', items: build },
+  { title: 'Operate in production', tagline: 'Day-2 ops, security, recovery', items: operate },
+  { title: 'Reference', tagline: 'Look things up', items: reference },
+];
+
+function CardGrid({ items }: { items: ReadonlyArray<{ title: string; href: string; desc: string }> }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
       {items.map((item) => (
@@ -96,60 +134,39 @@ export default function HomePage() {
         <SurfaceTabs />
       </section>
 
-      {/* Divider */}
-      <div className="w-full max-w-[800px] mx-auto px-6">
-        <div className="h-px bg-fd-border" />
-      </div>
-
-      {/* Tutorials */}
-      <section className="w-full max-w-[800px] mx-auto px-6 py-8">
-        <div className="flex items-baseline gap-3 mb-4">
-          <h2 className="text-[13px] font-semibold text-fd-foreground">Tutorials</h2>
-          <span className="text-[11px] text-fd-muted-foreground">Step-by-step learning</span>
+      {/* Intent-organized navigation — replaces the prior 4-section taxonomy.
+          Same 33 KEEP-set destinations, organized by visitor intent: Start here →
+          Tutorials → Mental model → Build → Operate → Reference. */}
+      {NAV_SECTIONS.map((section, idx) => (
+        <div key={section.title} className="w-full">
+          {/* Divider */}
+          <div className="w-full max-w-[800px] mx-auto px-6">
+            <div className="h-px bg-fd-border" />
+          </div>
+          <section className="w-full max-w-[800px] mx-auto px-6 py-8">
+            <div className="flex items-baseline gap-3 mb-4">
+              <h2 className="text-[13px] font-semibold text-fd-foreground">{section.title}</h2>
+              <span className="text-[11px] text-fd-muted-foreground">{section.tagline}</span>
+            </div>
+            <CardGrid items={section.items} />
+          </section>
         </div>
-        <CardGrid items={tutorials} />
-      </section>
-
-      {/* Divider */}
-      <div className="w-full max-w-[800px] mx-auto px-6">
-        <div className="h-px bg-fd-border" />
-      </div>
-
-      {/* Concepts */}
-      <section className="w-full max-w-[800px] mx-auto px-6 py-8">
-        <div className="flex items-baseline gap-3 mb-4">
-          <h2 className="text-[13px] font-semibold text-fd-foreground">Concepts</h2>
-          <span className="text-[11px] text-fd-muted-foreground">Understand how it works</span>
-        </div>
-        <CardGrid items={concepts} />
-      </section>
+      ))}
 
       {/* Divider */}
       <div className="w-full max-w-[800px] mx-auto px-6">
         <div className="h-px bg-fd-border" />
       </div>
 
-      {/* Guides */}
+      {/* Browse everything tail */}
       <section className="w-full max-w-[800px] mx-auto px-6 py-8">
-        <div className="flex items-baseline gap-3 mb-4">
-          <h2 className="text-[13px] font-semibold text-fd-foreground">Guides</h2>
-          <span className="text-[11px] text-fd-muted-foreground">Solve specific problems</span>
-        </div>
-        <CardGrid items={guides} />
-      </section>
-
-      {/* Divider */}
-      <div className="w-full max-w-[800px] mx-auto px-6">
-        <div className="h-px bg-fd-border" />
-      </div>
-
-      {/* Reference */}
-      <section className="w-full max-w-[800px] mx-auto px-6 py-8">
-        <div className="flex items-baseline gap-3 mb-4">
-          <h2 className="text-[13px] font-semibold text-fd-foreground">Reference</h2>
-          <span className="text-[11px] text-fd-muted-foreground">Look things up</span>
-        </div>
-        <CardGrid items={reference} />
+        <Link
+          href="/docs"
+          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fd-muted-foreground hover:text-fd-foreground transition-colors"
+        >
+          Browse the full docs hub
+          <ArrowRight size={12} aria-hidden />
+        </Link>
       </section>
 
       {/* Footer */}
