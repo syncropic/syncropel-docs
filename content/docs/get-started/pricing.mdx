@@ -23,7 +23,7 @@ You run `spl serve` on hardware you control. Syncropic gets no money, no telemet
 - Federation works peer-to-peer; no Syncropic-operated server in the path
 - Provider keys (Anthropic, OpenAI, Google) are yours; you bill those directly
 - Updates via `curl https://get.syncropic.com/spl | sh` — single binary, ~10 MB
-- License: Apache-2.0; the spec, the kernel, and every SDK are open source
+- License: Apache-2.0; the spec, the runtime, and every SDK are open source
 
 This is how most developers and small teams use Syncropel. The hosted tier is for customers who want zero ops.
 
@@ -86,7 +86,7 @@ After trial:
 - Effective at end of current billing period
 - 7-day grace period after period ends — instance keeps running so you can export
 - Final invoice for any inference overage from that period
-- Full data export via `spl export` ([portability docs](/docs/operate/actor-portability))
+- Full data export via `spl export`
 
 No questions asked, no retention call.
 
@@ -100,7 +100,7 @@ The full refund policy is at [syncropel.com/refunds](https://syncropel.com/refun
 
 ## Self-host ↔ hosted: moving between
 
-Substrate portability (see [Actor portability](/docs/operate/actor-portability)) makes the transition straightforward in both directions.
+`spl export` round-trips your data — both directions take the same path.
 
 ### Self-host → hosted
 
@@ -131,7 +131,7 @@ SPL_INSTANCE_URL=https://<label>.syncropel.app \
 # 2. Install spl locally if you haven't
 curl https://get.syncropic.com/spl | sh
 
-# 3. Start a local daemon and import
+# 3. Start a local instance and import
 spl serve --daemon
 spl import ~/migrate.tar.gz
 

@@ -19,7 +19,7 @@ If you've written code against Git's commit model or CouchDB's document model, t
 | 2 | `thread` | yes | The thread this record belongs to — a `th_` + 64 hex char content address. |
 | 3 | `actor` | yes | Who emitted it — a DID like `did:sync:user:alice` or `did:sync:agent:dev`. |
 | 4 | `act` | yes | The act type — one of 8: `INTEND`, `DO`, `KNOW`, `LEARN`, `GET`, `PUT`, `CALL`, `MAP`. |
-| 5 | `body` | yes | The JSON payload. Opaque to the kernel; conventions live inside it. |
+| 5 | `body` | yes | The JSON payload. Opaque to Syncropel; conventions live inside it. |
 | 6 | `clock` | yes | A logical timestamp, monotonic per `(actor, thread)`. Starts at 0 on a new thread. |
 | 7 | `data_type` | yes | One of 6: `SCALAR`, `FORMULA`, `DISTRIBUTION`, `REFERENCE`, `MORPHISM`, `VOID`. |
 | 8 | `judged_by` | **no** | Pointer to the record whose judgment this reflects. Often null. |
@@ -42,7 +42,7 @@ Three consequences follow:
 
 **3. There's no "renaming" a record.** Every field matters. Change one character in the body, you get a different ID, you get a different record. This is the property that makes content-addressed federation viable — two instances with the same set of hashes have the same set of records, and that's decidable in one comparison.
 
-The hash is over *canonical* JSON: keys sorted alphabetically at every depth, no whitespace, numbers without trailing zeros. Any implementation that serializes the same 7 fields gets the same bytes and thus the same ID. See [Record Format reference](/docs/reference/record-format) for the full encoding rules.
+The hash is over *canonical* JSON: keys sorted alphabetically at every depth, no whitespace, numbers without trailing zeros. Any implementation that serializes the same 7 fields gets the same bytes and thus the same ID. See the [Glossary](/docs/reference/glossary) for the full encoding rules.
 
 ## Act types
 
@@ -70,16 +70,16 @@ Most CLI commands emit a single act — `spl intend` emits `INTEND`, `spl do` em
 
 ## The body is opaque
 
-The kernel does not validate the contents of `body`. It hashes the bytes, stores the record, and moves on. All semantic conventions — "a task INTEND has `body.task = true`", "a closing KNOW has `body.fulfills`", "a routing rule is a LEARN on `th_engine_config` with `body.topic = routing_rule`" — live one layer up, in the projector, the fold, the adapters, and the SDKs.
+Syncropel does not validate the contents of `body`. It hashes the bytes, stores the record, and moves on. All semantic conventions — "a task INTEND has `body.task = true`", "a closing KNOW has `body.fulfills`", "a routing rule is a LEARN on `th_engine_config` with `body.topic = routing_rule`" — live one layer up, in the projector, the fold, the adapters, and the SDKs.
 
-This is intentional. The kernel's guarantee is *"every record has the shape"*. The guarantee *"every body of act X has the shape Y"* is a convention that different consumers can agree on and evolve without touching the ingest path.
+This is intentional. Syncropel's guarantee is *"every record has the shape"*. The guarantee *"every body of act X has the shape Y"* is a convention that different consumers can agree on and evolve without touching the ingest path.
 
 Two practical consequences:
 
-- **Adding a new kind of record is a documentation problem, not a kernel change.** New task statuses, new config topics, new adapter metadata — all of them land as new `body.topic` values with no kernel modification.
-- **Malformed bodies are caught at the consumer, not the kernel.** A LEARN with a broken routing rule ingests fine; the config loader rejects it at reload time and emits a warning. Loose at the boundary, strict at the use site.
+- **Adding a new kind of record is a documentation problem, not a runtime change.** New task statuses, new config topics, new adapter metadata — all of them land as new `body.topic` values without changes to the runtime.
+- **Malformed bodies are caught at the consumer, not at ingest.** A LEARN with a broken routing rule ingests fine; the config loader rejects it at reload time and emits a warning. Loose at the boundary, strict at the use site.
 
-The one exception is `body.namespace`, which the kernel reads to enforce [namespace narrowing](/docs/concepts/namespaces) at ingest. That check has a dedicated code path precisely because namespace is a security boundary, not a semantic convention.
+The one exception is `body.namespace`, which Syncropel reads to enforce namespace narrowing at ingest. That check has a dedicated code path precisely because namespace is a security boundary, not a semantic convention.
 
 ## Immutability and supersession
 
@@ -107,9 +107,9 @@ Because folds are pure, three properties follow:
 
 1. **Any divergence is a bug in the fold, not data corruption.** The records are the ground truth.
 2. **Consistency across instances is the content-address property.** Two instances with the same records will produce the same folded state.
-3. **Rebuild-from-scratch is always available.** A corrupted derived cache (trust, instance registry, namespace registry) is fixed by replaying records. The daemon does this automatically on every startup.
+3. **Rebuild-from-scratch is always available.** A corrupted derived cache (trust, instance registry, namespace registry) is fixed by replaying records. Syncropel does this automatically on every startup.
 
-The kernel bootstraps trust by replaying all KNOW records with verdicts. It bootstraps engine config by replaying all LEARN records on `th_engine_config`. Crash recovery is not a special path — it's the only path.
+The instance bootstraps trust by replaying all KNOW records with verdicts. It bootstraps engine config by replaying all LEARN records on `th_engine_config`. Crash recovery is not a special path — it's the only path.
 
 ## What goes in and what doesn't
 
@@ -132,6 +132,5 @@ When in doubt, record it. The ingest path is fast (under 100µs in the happy pat
 
 - **[Threads](/docs/concepts/threads)** — how records are organized into workflows.
 - **[Actors](/docs/concepts/actors)** — who emits records and how identity persists.
-- **[The engine](/docs/concepts/engine)** — the 4-loop system that turns records into action.
-- **[Record format reference](/docs/reference/record-format)** — field-level encoding, canonical JSON, thread ID derivation.
+- **[Trust](/docs/concepts/trust)** — how records accumulate into evidence-based reputation.
 - **[Glossary](/docs/reference/glossary)** — the vocabulary used across the docs.

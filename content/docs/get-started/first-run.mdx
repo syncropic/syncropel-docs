@@ -93,7 +93,7 @@ What `spl init` creates. The private key lives on this one machine. If you move 
 
 ### Portable identities
 
-For users who want a single DID across multiple devices, `spl identity upgrade` migrates the ephemeral `did:key` to a portable format backed by a shared signing key. The upgrade path and supported formats are covered in [Actor portability](/docs/operate/actor-portability).
+For users who want a single DID across multiple devices, `spl identity upgrade` migrates the ephemeral `did:key` to a portable format backed by a shared signing key. The upgrade is reversible — `spl identity revert` rolls it back.
 
 Portability is optional. You can run Syncropel for years without upgrading.
 
@@ -116,7 +116,6 @@ If any of these look off, `spl doctor` will flag them with the exact `chmod` fix
 
 ## See also
 
-- [Starting your instance](/docs/get-started/daemon) — next page: boot `spl serve`
-- [Your first AITL approval](/docs/tutorials/your-first-aitl-approval) — Syncropel's self-improvement loop, walked end-to-end in ~30 minutes
+- [Pairing a browser or phone](/docs/get-started/pairing) — get a second device onto the same instance
 - [`spl doctor`](/docs/operate/doctor) — audit your `~/.syncro/` state at any time
-- [Actor portability](/docs/operate/actor-portability) — upgrade ephemeral identity to portable
+- [Quickstart](/docs/start) — five-minute happy path if you haven't done it yet

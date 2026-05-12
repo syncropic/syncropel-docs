@@ -17,9 +17,9 @@ parts as you go, plan ~20 minutes.
 
 ## Prerequisites
 
-- `spl serve --daemon` running locally — see [Run the daemon](/docs/get-started/daemon)
+- `spl serve --daemon` running locally — see the [Quickstart](/docs/start) if not yet
 - Identity initialized via `spl init` — see [First run](/docs/get-started/first-run)
-- A browser pointed at [`syncropel.com/local`](https://syncropel.com/local) (Studio)
+- A browser pointed at your instance (Studio)
 - `spl version` reports `0.21` or newer
 
 If anything above is missing, the tutorial flow won't work — fix it
@@ -145,8 +145,7 @@ spl workspace test
 ```
 
 The full testing flow — adding new fixtures, validating against
-schemas, watching with `--watch` — is documented in [Testing
-workspaces](/docs/operate/workspace/testing).
+schemas, watching with `--watch` — is available via `spl workspace test --help`.
 
 ## 4. Publish a draft
 
@@ -166,11 +165,10 @@ Output:
 A **draft** is local-only. The manifest is stored as a record in your
 namespace, but it does not federate, does not appear in any catalog,
 and only your `publisher_did` can subscribe to it. Drafts are for
-iteration — see [Workspace lifecycle](/docs/operate/workspace/lifecycle)
-for the full state machine.
+iteration; promote to a release when ready.
 
 Open the link in your browser. Studio renders the manifest's three
-components live against your local kernel.
+components live against your local instance.
 
 ## 5. Publish a release
 
@@ -226,8 +224,8 @@ did:sync:<your-did>/my-recipes
 Either path lands them at the same manifest.
 
 For one-off sharing — bug reports, debug bundles, point-in-time
-snapshots that *don't* go through the catalog — see
-[`spl share`](/docs/operate/workspace/sharing).
+snapshots that *don't* go through the catalog — use `spl share` to
+generate a portable bundle.
 
 ## 7. Iterate
 
@@ -248,10 +246,9 @@ content-addressed and identical hashes don't re-emit.
 
 ## Next steps
 
-- Add a `View` component with a custom projection — see [Projections](/docs/guides/projections)
 - Try a different `display_kind` (recipe-collection, course, newsletter, …)
-- Write your own template and submit to the [templates gallery](/docs/templates)
-- Browse the [templates gallery](/docs/templates) for more worked examples
+- Adjust the manifest's components, re-run `spl workspace test`, publish a new release
+- Build a custom projection inside the manifest's `View` component
 
 You're done. You scaffolded, edited, tested, published, and shared a
 workspace. The same pattern scales — every workspace in the catalog

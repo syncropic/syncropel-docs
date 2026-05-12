@@ -24,7 +24,7 @@ The 64 hex characters after the prefix are the hash. The prefix makes thread IDs
 The seed inputs vary by creator:
 - **Task threads** are seeded from the alias and a nonce, so `TASK-0001` maps to one stable thread ID.
 - **Dispatch threads** are seeded from the parent thread, target actor, and dispatch timestamp, so each run gets a fresh ID.
-- **Reserved threads** (`th_engine_config`, `th_instance_registry`, `th_fleet_control`, `th_consent`, `th_namespace_registry`, `th_actor_registry`) have hand-assigned, well-known IDs baked into the kernel and documented in the spec.
+- **Reserved threads** (`th_engine_config`, `th_instance_registry`, `th_fleet_control`, `th_consent`, `th_namespace_registry`, `th_actor_registry`) have hand-assigned, well-known IDs baked into Syncropel and documented in the spec.
 
 Client code never invents a thread ID freely. It either uses a well-known constant, derives from a seed, or asks the server to mint one. This is what lets a federation pair target a thread by ID alone — the ID is portable across instances.
 
@@ -64,7 +64,7 @@ This gives clean audit: the child thread has the full execution trace; the paren
 
 ## Tasks are threads (with conventions)
 
-A task in Syncropel is a thread whose opening INTEND has `body.task = true` and whose body carries alias, assignee, domain, priority, labels, and success criteria. Nothing in the kernel enforces this — it's the task fold (in `syncropel-engine/src/fold/task.rs`) that recognizes the pattern and projects it into the `spl task show` view.
+A task in Syncropel is a thread whose opening INTEND has `body.task = true` and whose body carries alias, assignee, domain, priority, labels, and success criteria. Nothing in the runtime enforces this — it's the task fold that recognizes the pattern and projects it into the `spl task show` view.
 
 This has three practical consequences:
 
@@ -74,7 +74,7 @@ This has three practical consequences:
 
 ## Reserved threads
 
-A handful of thread IDs are baked into the kernel because the system uses them to bootstrap itself:
+A handful of thread IDs are reserved because Syncropel uses them to bootstrap itself:
 
 | Thread | Purpose | Read by |
 |---|---|---|
@@ -85,7 +85,7 @@ A handful of thread IDs are baked into the kernel because the system uses them t
 | `th_fleet_control` | Kill switch state: soft / hard / emergency freeze records. | CEL permission rules on every write. |
 | `th_consent` | Cross-namespace consent grants. | The federation consent filter on every sync pull. |
 
-Every one of these is just a thread. Records on them follow the same rules. The kernel treats them specially only in the sense that derived state is eagerly rebuilt when new records land — same reload pattern for all.
+Every one of these is just a thread. Records on them follow the same rules. The runtime treats them specially only in the sense that derived state is eagerly rebuilt when new records land — same reload pattern for all.
 
 ## Participants and roles
 
@@ -112,6 +112,5 @@ A typical engineer's weekly footprint is dozens of task threads, a handful of di
 
 - **[Records](/docs/concepts/records)** — the unit records attach to.
 - **[Actors](/docs/concepts/actors)** — who writes to threads.
-- **[The engine](/docs/concepts/engine)** — how records on threads trigger routing.
+- **[Trust](/docs/concepts/trust)** — how thread verdicts produce reputation.
 - **[Task management guide](/docs/guides/task-management)** — threads with task conventions, end to end.
-- **[CEL expressions](/docs/guides/cel-expressions)** — the `thread()` function for rules that need thread state.

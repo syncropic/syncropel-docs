@@ -39,9 +39,9 @@ Three valid bearer types:
 
 | Bearer | Issued by | Use case |
 |---|---|---|
-| **Per-instance kernel bearer** | Hosted instance provisioning | Your hosted instance's daemon uses this automatically |
+| **Per-instance bearer** | Hosted instance provisioning | Your hosted instance uses this automatically |
 | **User-issued API key** | `syncropel.com/account/api-keys` | Your scripts and apps; revocable per-key |
-| **Self-host bearer** | Your own `spl serve` | Self-host customers running their own daemon |
+| **Self-host bearer** | Your own `spl serve` | Self-host customers running their own instance |
 
 Mint a user-issued API key at [syncropel.com/account/api-keys](https://syncropel.com/account/api-keys). Store the value in a secret manager — the plaintext is shown once at mint time.
 

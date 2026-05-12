@@ -3,9 +3,9 @@ title: Hosted instance signup
 description: Skip the install — sign up at syncropel.com and have a fully-portable Syncropel instance running in under a minute. Self-hosted and hosted are first-class equals; this page walks through the hosted onboarding path end-to-end.
 ---
 
-If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel instance for you. The instance you get is a full Syncropel daemon — the same binary, the same APIs, the same record store, the same federation surface as a self-hosted one. You can `spl export` and walk away to self-hosted at any time (the [steward equivalence doctrine](/docs/concepts/federation#steward-equivalence) is binding).
+If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel instance for you. The instance is a full Syncropel runtime — the same binary, the same APIs, the same record store, the same federation surface as a self-hosted one. You can move freely between hosted and self-hosted at any time — `spl export` round-trips your data, and the same binary runs on both ends.
 
-This page covers the signup flow you'll see at syncropel.com/signup, what each step does behind the scenes, and what to do when the page hands you a bootstrap token.
+This page covers the signup flow you'll see at syncropel.com/signup, what each step does, and what to do when the page hands you a bootstrap token.
 
 ## Before you start
 
@@ -40,7 +40,7 @@ Submitting the form starts the provisioning sequence and streams progress live. 
 | `volume_create` | Per-customer persistent volume allocated for `~/.syncro/hub.db`. | 1-2s |
 | `dns` | `<label>.syncropel.app` routed to your new instance. | 5-15s |
 | `image_build` / `deploy` | Instance boots from the current `spl serve` release image with a one-shot bootstrap token wired in. | 20-40s |
-| `bootstrap` | Kernel reads the bootstrap token, mints the admin service account, ready for auth. | 1-2s |
+| `bootstrap` | Instance reads the bootstrap token, mints the admin service account, ready for auth. | 1-2s |
 | `dns_propagate` | The new DNS record propagates. | up to ~30s |
 | `ready` | Instance is reachable; bootstrap token shown to you. | — |
 
@@ -70,11 +70,11 @@ The same things any Syncropel user can do, with the same CLI and SDK surface as 
 - **Federate** with another Syncropel instance via `spl federation pair <peer-url>` — see the [federation pair guide](/docs/guides/federation-pair).
 - **Export everything** at any time via `spl export` — see [Portability](/docs/guides/portability).
 
-You don't manage the daemon — the hosted platform handles restart-on-crash, edge proxying, and TLS. You can still see daemon health via `<label>.syncropel.app/health` and rich state via `<label>.syncropel.app/v1/health` (auth-protected).
+You don't manage the runtime — the hosted platform handles restart-on-crash, edge proxying, and TLS. You can still see instance health via `<label>.syncropel.app/health` and rich state via `<label>.syncropel.app/v1/health` (auth-protected).
 
 ## Connect your CLI to the hosted instance
 
-The CLI defaults to a local daemon on `127.0.0.1:9100`. To make it talk to your hosted instance instead, you tell it two things: **where the daemon lives** (`SPL_SERVE_URL`) and **which bearer to attach** (`spl token save`).
+The CLI defaults to a local instance on `127.0.0.1:9100`. To make it talk to your hosted instance instead, you tell it two things: **where the instance lives** (`SPL_SERVE_URL`) and **which bearer to attach** (`spl token save`).
 
 ### One-time setup
 
@@ -126,7 +126,7 @@ See [Service accounts and tokens](/docs/get-started/service-accounts) for the lo
 
 Both serve the same protocol. Pick by where you want the data and who manages uptime.
 
-| | Hosted (syncropel.com/signup) | Self-hosted (`spl serve --daemon`) |
+| | Hosted (syncropel.com/signup) | Self-hosted (`spl serve`) |
 |---|---|---|
 | Where the data lives | Per-customer hosted instance + persistent volume | Your `~/.syncro/hub.db` |
 | Who handles uptime | Syncropic | You |
@@ -143,14 +143,13 @@ Most provisioning failures fall into one of three buckets:
 
 - **Label collision.** Someone reserved that label first. Pick another.
 - **Boot timeout.** Your instance took longer than the provisioning deadline. The page suggests waiting 30–60s and retrying — the underlying instance may already be live.
-- **Bootstrap token rejection.** The kernel booted but the auth handshake hit a state issue. Uncommon — if it happens, the diagnostic page links to a fresh provision retry.
+- **Bootstrap token rejection.** The instance booted but the auth handshake hit a state issue. Uncommon — if it happens, the diagnostic page links to a fresh provision retry.
 
 For all three, the signup page surfaces a structured error envelope — no log scraping. If retries don't help, the diagnostics on the page contain everything support needs.
 
 ## What's next
 
-- **[Service accounts and tokens](/docs/get-started/service-accounts)** — mint a permanent CLI bearer instead of using the bootstrap token long-term.
 - **[Pairing a browser or phone](/docs/get-started/pairing)** — get a second device onto the same instance.
 - **[First run](/docs/get-started/first-run)** — the same first-day walkthrough applies once you have any working instance, hosted or self-hosted.
-- **[Your first AITL approval](/docs/tutorials/your-first-aitl-approval)** — start the operator-journey track of tutorials that walks you from "installed" to "dogfooding productively."
-- **[Portability guide](/docs/guides/portability)** — `spl export` / `spl import`, the binding gate that keeps "leavable any time" honest.
+- **[Your first task](/docs/tutorials/first-task)** — five-minute end-to-end walkthrough — create, complete, and earn trust evidence.
+- **[Security model](/docs/operate/security-model)** — bearer tokens, service accounts, what's on-disk.

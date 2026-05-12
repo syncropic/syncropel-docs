@@ -38,7 +38,7 @@ If that succeeds, the path resolution was the issue. On Linux and macOS the daem
 
 ### `auth.required is enabled but no service accounts exist`
 
-Fail-closed guard is doing its job. You haven't bootstrapped the first service account yet. Follow the four-step flow on the [Service accounts page](/docs/get-started/service-accounts#the-bootstrap-flow) — start the daemon in `--insecure-localhost`, bootstrap the SA, save the token, restart in secure mode.
+Fail-closed guard is doing its job. You haven't bootstrapped the first service account yet. Start the instance in `--insecure-localhost`, run `spl service-account create --bootstrap`, save the token via `spl token save <bearer>`, then restart without `--insecure-localhost`.
 
 ### `address already in use`
 
@@ -121,7 +121,7 @@ Check for a hidden prompt:
 wf.msc
 ```
 
-Accept the firewall prompt (or add a rule manually — see [Windows notes](/docs/get-started/windows#windows-firewall)). The install proceeds once the binary is allowed to bind.
+Accept the firewall prompt (or add an inbound rule manually for `spl.exe` in `wf.msc`). The install proceeds once the binary is allowed to bind.
 
 ## `where.exe spl` returns nothing after install
 
@@ -224,5 +224,4 @@ Every check reports `pass`, `warn`, or `fail` with a specific fix. If `doctor` i
 
 - [`spl doctor`](/docs/operate/doctor) — one-command diagnostic with specific fixes
 - [Reset and uninstall](/docs/get-started/reset-uninstall) — how to cleanly start over
-- [Windows notes](/docs/get-started/windows) — WSL, Defender, Firewall, PATH, long paths
 - [Operator runbook → Recovery](/docs/operate/runbook) — restore from backup after data loss

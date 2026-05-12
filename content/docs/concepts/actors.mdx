@@ -5,7 +5,7 @@ description: Every participant — human, AI agent, service account, system comp
 
 ## Overview
 
-An actor is any entity that emits records. A person typing at a terminal, an AI agent running in a subprocess, a CI pipeline posting via HTTP, a federation peer syncing records from across the network — all of them are actors. The kernel does not distinguish "user" from "agent" at the data plane. Everyone produces the same 8-field record shape and accumulates the same kind of trust evidence.
+An actor is any entity that emits records. A person typing at a terminal, an AI agent running in a subprocess, a CI pipeline posting via HTTP, a federation peer syncing records from across the network — all of them are actors. Syncropel does not distinguish "user" from "agent" at the data plane. Everyone produces the same 8-field record shape and accumulates the same kind of trust evidence.
 
 This uniformity is the design. A hybrid human-AI team needs a model where "who did it" is a first-class field with consistent semantics; two separate identity models (one for humans, one for AIs) would force every downstream consumer — trust, governance, audit — to branch. The actor model collapses that into one.
 
@@ -19,8 +19,8 @@ Every actor has a Decentralized Identifier:
 did:sync:user:alice          — a human
 did:sync:agent:dev           — an AI development agent
 did:sync:agent:director      — an AI review agent
-did:sync:system:engine       — the kernel itself (emits notifications)
-did:sync:system:intelligence — the kernel's reasoning agent
+did:sync:system:engine       — the runtime itself (emits notifications)
+did:sync:system:intelligence — the runtime's reasoning agent
 did:sync:system:sa_abc123    — a service account (bearer-token authenticated)
 did:key:z6Mk...              — a self-describing public-key identity
 did:web:alice.dev            — a domain-rooted identity
@@ -30,23 +30,23 @@ The last segment (`alice`, `dev`, `director`) is a human-readable label — the 
 
 Three properties hold across all DIDs:
 
-1. **Permanence.** Once trust is accumulated under a DID, it does not migrate to a different one. Swap the AI model behind `did:sync:agent:dev` and its trust persists — the DID is the identity, not the substrate.
+1. **Permanence.** Once trust is accumulated under a DID, it does not migrate to a different one. Swap the AI model behind `did:sync:agent:dev` and its trust persists — the DID is the identity, not the underlying model.
 2. **Global uniqueness at the namespace level.** Two records with `actor = did:sync:user:alice` on the same namespace mean the same person. Two people named Alice at different orgs get different DIDs (`did:sync:user:alice@acme` vs `did:sync:user:alice@bigcorp`) or different namespaces.
 3. **No authority needed.** `did:key` is self-describing (the DID *is* the public key). `did:web` resolves over HTTPS at a domain you control. `did:sync` resolves through the Syncropic-hosted or self-hosted directory. Pick whichever matches your trust model.
 
 ## The three-layer separation
 
-Actor identity is layered to make substrate changes invisible to anyone but the operator:
+Actor identity is layered to make model changes invisible to anyone but the operator:
 
 | Layer | What it is | How often it changes |
 |---|---|---|
 | **Identity (DID)** | The permanent handle. `did:sync:agent:dev`. | Never. |
-| **Substrate** | The current implementation backing the actor — which AI model, which CLI binary, which version of your fine-tune. | Occasionally — a model upgrade, a new adapter version. |
-| **Instance** | The currently-running process or session. PID, port, token. | Every session. |
+| **Implementation** | The current implementation backing the actor — which AI model, which CLI binary, which version of your fine-tune. | Occasionally — a model upgrade, a new adapter version. |
+| **Session** | The currently-running process or session. PID, port, token. | Every session. |
 
 When you upgrade the AI model behind `did:sync:agent:dev`, its DID and trust profile don't change. The accumulated `trust(did:sync:agent:dev, code)` stays where it was — because the evidence is about *what this actor produced under review*, not about *which model produced it*.
 
-This also means the trust evidence is worth reading carefully when you *do* swap a substrate. If the new model is meaningfully different, you may want to reset trust manually (emit a `LEARN` record marking a substrate change) rather than letting old evidence persist.
+This also means the trust evidence is worth reading carefully when you *do* swap an implementation. If the new model is meaningfully different, you may want to reset trust manually (emit a `LEARN` record marking the change) rather than letting old evidence persist.
 
 ## Actor kinds
 
@@ -54,10 +54,10 @@ The second-to-last segment of the DID classifies the actor's kind:
 
 - **`user`** — a human, typically with a keyboard. Emits records via `spl intend/do/know/learn`, through the web UI, or via SDK calls.
 - **`agent`** — an AI. Usually dispatched via an adapter (`cli_adapter`, `proxy_adapter`). Every AI in a dispatched session is a distinct agent DID.
-- **`system`** — a kernel component. Writes notifications (`did:sync:system:engine`), proposes routing rules (`did:sync:system:intelligence`), emits governance denials (`did:sync:system:governance`).
+- **`system`** — a Syncropel component. Writes notifications (`did:sync:system:engine`), proposes routing rules (`did:sync:system:intelligence`), emits governance denials (`did:sync:system:governance`).
 - **`service`** — a machine calling the HTTP API. Phones, CI pipelines, webhooks, federation peers. Authenticated by bearer token minted from `spl service-account create`.
 
-The kernel treats all four uniformly for trust, routing, and governance. The distinction is editorial — it helps the `spl actor list` view group them and helps humans reading audit logs make sense of what they're looking at.
+Syncropel treats all four uniformly for trust, routing, and governance. The distinction is editorial — it helps the `spl actor list` view group them and helps humans reading audit logs make sense of what they're looking at.
 
 ## Registration and the actor registry
 
@@ -109,13 +109,13 @@ When an agent CLI adapter dispatches an agent, it loads the agent's manual from 
 
 ## Authenticators: how actors prove they're themselves
 
-For CLI work on the local daemon, no authenticator is needed — the actor is inferred from `config.toml` or `SPL_ACTOR` env var. For HTTP API calls, an authenticator is required once the daemon has `auth.required = true` (the default):
+For CLI work on the local instance, no authenticator is needed — the actor is inferred from `config.toml` or `SPL_ACTOR` env var. For HTTP API calls, an authenticator is required once the instance has `auth.required = true` (the default):
 
 - **Bearer tokens** — minted per service account via `spl service-account create`. Injected by the SDK, the CLI, federation peers, and webhooks. Revocable per-token via `spl service-account revoke`.
 - **Signed records for federation** — every record pulled from a peer includes an Ed25519 signature over its canonical form. The signature is verified against the actor's DID document on ingest.
-- **Keychain-held private keys** — for operators running their own `did:key` or `did:web` identity. The key lives in `~/.syncro/secrets/`; the daemon signs on the actor's behalf.
+- **Keychain-held private keys** — for operators running their own `did:key` or `did:web` identity. The key lives in `~/.syncro/secrets/`; the instance signs on the actor's behalf.
 
-See the [Keyring guide](/docs/operate/keyring) for the full auth workflow — first-SA bootstrap, token lifecycle, federation pairing, emergency recovery.
+See the [security model](/docs/operate/security-model) for the full auth workflow — first-SA bootstrap, token lifecycle, federation pairing, emergency recovery.
 
 ## What actors don't do
 
@@ -132,5 +132,4 @@ Worth naming explicitly because the actor model is compact.
 - **[Trust](/docs/concepts/trust)** — the evidence model that ranks actors per domain.
 - **[Records](/docs/concepts/records)** — what actors produce.
 - **[Threads](/docs/concepts/threads)** — the coordination context actors participate in.
-- **[Actors and adapters guide](/docs/guides/actors-and-adapters)** — register, dispatch, and configure.
-- **[Keyring guide](/docs/operate/keyring)** — service accounts, bearer tokens, federation auth.
+- **[Security model](/docs/operate/security-model)** — service accounts, bearer tokens, federation auth.

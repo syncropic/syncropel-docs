@@ -20,7 +20,7 @@ rm -rf ~/.syncro            # wipe state
 spl init                    # regenerate identity and config
 ```
 
-After `spl init` you're back at the start of the onboarding flow — start the daemon in dev mode, bootstrap a service account, save the token, flip to secure mode. See [Service accounts](/docs/get-started/service-accounts).
+After `spl init` you're back at the start of the onboarding flow — start the instance in dev mode (`spl serve --daemon --insecure-localhost`), bootstrap a service account (`spl service-account create --bootstrap`), save the token (`spl token save <bearer>`), and restart without `--insecure-localhost`.
 
 ### Windows
 
@@ -87,7 +87,7 @@ spl serve --uninstall-service
 # then proceed with the uninstall steps above
 ```
 
-See [Windows Service](/docs/operate/windows-service) for details.
+See the [Operator runbook](/docs/operate/runbook) for Windows-specific service notes.
 
 ### If you installed a systemd user unit (Linux)
 

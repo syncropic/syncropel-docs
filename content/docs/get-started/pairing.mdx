@@ -63,7 +63,7 @@ All three end at the same place: the device stores the URL and token in encrypte
 | Token expired or revoked | red | Your token was nuked. Click **Re-pair** to run through pairing again. |
 | Browser blocked the connection | gray | Chrome's local-network protection refused the fetch. The dashboard explains recovery. |
 
-For the full set of failure modes (10 in total) and a fix per state, see [Troubleshooting connection issues](/docs/operate/troubleshooting-connection).
+For the full set of failure modes, see [Troubleshooting](/docs/get-started/troubleshooting).
 
 ### On a phone or iPad
 
@@ -178,7 +178,6 @@ Then re-pair that device with the new token. The old token dies; the service acc
 
 ## See also
 
-- [Exposing your instance securely](/docs/get-started/exposing) — make your instance reachable from other machines safely
-- [Authentication and service accounts](/docs/operate/keyring) — the full reference on tokens, scopes, and lifecycle
-- [Troubleshooting connection issues](/docs/operate/troubleshooting-connection) — the 10 connection-state failure modes the `/local` workspace can hit, with remediation per state and a common-error-code reference
-- [Troubleshooting](/docs/get-started/troubleshooting) — for "dashboard shows connected but no records" and similar cases
+- [Security model](/docs/operate/security-model) — bearer tokens, service accounts, what's on-disk
+- [Troubleshooting](/docs/get-started/troubleshooting) — diagnostic tree for the most common failure modes
+- [Operator runbook](/docs/operate/runbook) — day-2 operations once your instance is doing real work
