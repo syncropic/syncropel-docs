@@ -49,19 +49,35 @@ The user `PATH` update takes effect for **new** PowerShell / CMD sessions. Close
 
 ## macOS
 
-A prebuilt macOS binary is on the near-term roadmap but not yet
-shipped via the public install feed. Until then, the supported paths
-for macOS users are:
+Prebuilt macOS binaries **are** published — the release pipeline builds
+both Apple Silicon (`darwin-aarch64`) and Intel (`darwin-x86_64`) targets
+for every tagged release. Install by downloading the binary directly:
 
-- **Linux on a VM or Docker** — run `spl` inside a Linux container and
-  expose port 9100 to your Mac.
-- **Remote Linux host** — run `spl serve` on a Linux server and pair
-  your local browser to it (see [Pairing](/docs/get-started/pairing)).
-- **WSL on Windows** — if you're cross-platform, the Linux script
-  works under WSL.
+```bash
+# Apple Silicon (M1/M2/M3/M4):
+curl -fsSL https://releases.syncropic.com/spl-rust/latest/spl-darwin-aarch64 -o spl
 
-Watch the [releases page](https://releases.syncropic.com/spl-rust/) for
-when prebuilt macOS binaries land.
+# Intel Mac:
+curl -fsSL https://releases.syncropic.com/spl-rust/latest/spl-darwin-x86_64 -o spl
+
+# Then make it executable and put it on your PATH:
+chmod +x spl
+mkdir -p ~/.local/bin && mv spl ~/.local/bin/
+# Ensure ~/.local/bin is on PATH (add to ~/.zshrc if it isn't already):
+export PATH="$HOME/.local/bin:$PATH"
+
+spl version
+```
+
+To pin a specific release, swap `latest` for the version, e.g.
+`.../spl-rust/0.41.0/spl-darwin-aarch64`.
+
+On first run, macOS Gatekeeper may quarantine a binary downloaded via
+`curl`. If macOS refuses to run it, clear the quarantine attribute:
+`xattr -d com.apple.quarantine ~/.local/bin/spl`.
+
+Browse all published builds at the
+[releases page](https://releases.syncropic.com/spl-rust/).
 
 ## Pinning to a specific version
 
