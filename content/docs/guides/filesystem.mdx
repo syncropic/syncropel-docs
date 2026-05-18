@@ -1,0 +1,133 @@
+---
+title: Working with files
+description: Browse, upload, organize, and publish files on a Syncropel instance with the spl fs command.
+---
+
+Every Syncropel instance has a [filesystem](/docs/concepts/files) — a place
+for your working files, published artifacts, and connected drives. This guide
+walks through managing it from the command line with `spl fs`.
+
+## Before you start
+
+You need a running instance — see [Your first run](/docs/get-started/first-run)
+to set one up locally, or [Hosted instances](/docs/get-started/hosted) for a
+managed one. `spl fs` talks to whichever instance your CLI is pointed at, and
+uses the same credential as the rest of the CLI — if you've already paired or
+saved a token, you're set ([Authentication](/docs/get-started/pairing)).
+
+## Browse
+
+`spl fs ls` lists a directory. With no path, it lists the filesystem root —
+the four top-level areas:
+
+```bash
+spl fs ls
+```
+
+To look inside an area, give a path:
+
+```bash
+spl fs ls /files
+```
+```
+/files   (files)
+  / projects                         dir                0
+    notes.md                         file             482
+    data.csv                         file           15834
+```
+
+## Upload a file
+
+`spl fs cp` uploads a local file into your working area under `/files`:
+
+```bash
+spl fs cp ./quarterly-report.md /files/quarterly-report.md
+```
+```
+✓ uploaded ./quarterly-report.md -> /files/quarterly-report.md (4821 bytes)
+  content hash:  9565f5d1cf0a882c35dd2fc1cf2c29a90c8769b923fa9681e696fbd19f2bf345
+```
+
+Large files upload in chunks and resume cleanly if a transfer is
+interrupted — re-run the same command and it picks up where it left off.
+
+## Inspect a file
+
+`spl fs stat` shows a file's metadata — its kind, size, and content hash:
+
+```bash
+spl fs stat /files/quarterly-report.md
+```
+
+`spl fs cat` prints a file's contents to your terminal:
+
+```bash
+spl fs cat /files/quarterly-report.md
+```
+
+## Organize
+
+Create directories, move and rename, and remove files inside `/files`:
+
+```bash
+spl fs mkdir /files/reports
+spl fs mv /files/quarterly-report.md /files/reports/q1.md
+spl fs rm /files/reports/old-draft.md
+spl fs rm /files/reports --recursive   # remove a directory and its contents
+```
+
+These work in `/files` and in any writable connected drive. `/artifacts` and
+`/threads` are read-only — they reject changes by design.
+
+## Publish a file
+
+When a working file is finished, **publish** it. Publishing promotes the file
+to `/artifacts` as a permanent, read-only artifact with a fixed address:
+
+```bash
+spl fs publish /files/reports/q1.md
+```
+```
+✓ published /files/reports/q1.md
+  content hash:  9565f5d1cf0a882c35dd2fc1cf2c29a90c8769b923fa9681e696fbd19f2bf345
+  manifest:      35b25801ff8d7079d7f0d72eaab43fc5b4083d4136c8ad78e6193c7e0e7ff8d0
+```
+
+The content hash is the artifact's permanent address — it's derived from the
+file's exact bytes, so it never changes and always points at precisely that
+version. The working copy stays in `/files`; you can keep editing it and
+publish again later, and each publish produces its own fixed artifact. See
+[Files](/docs/concepts/files#working-files-and-artifacts) for the model.
+
+## Connected drives
+
+`spl fs mounts` lists external drives connected to the instance. Connected
+drives appear under `/mnt/<name>` and can be browsed like any other directory:
+
+```bash
+spl fs mounts
+spl fs ls /mnt/my-drive
+```
+
+## JSON output for scripting
+
+Every `spl fs` command accepts `-o json` (or `--json`), so you can drive the
+filesystem from scripts:
+
+```bash
+spl fs ls /files -o json | jq '.entries[].name'
+spl fs stat /files/data.csv --json | jq '.size_bytes'
+```
+
+## In the browser
+
+Everything here is also available visually. Open your instance on the web and
+use the **Files** tab — it's a browser for the same filesystem, so a file you
+upload from the terminal shows up there immediately, and vice versa.
+
+## What's next
+
+- [Files](/docs/concepts/files) — the filesystem model: the four areas, and
+  the working-file → artifact lifecycle.
+- [CLI reference: Files](/docs/reference/cli#files) — the complete `spl fs`
+  command list.

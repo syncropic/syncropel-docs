@@ -117,6 +117,37 @@ spl task dispatch <id|alias> [--worktree] [--resume] [--budget USD] [--timeout S
 spl task tree <id|alias>
 ```
 
+## Files
+
+Browse and manage an instance's [filesystem](/docs/concepts/files). See the
+[filesystem guide](/docs/guides/filesystem) for a walkthrough.
+
+```bash
+spl fs ls [PATH]                 # list a directory (defaults to the root)
+spl fs stat <PATH>               # show a path's metadata
+spl fs cat <PATH>                # print a file's contents to stdout
+spl fs cp <LOCAL> <DEST>         # upload a local file into /files
+spl fs mkdir <PATH>              # create a directory
+spl fs mv <FROM> <TO>            # move or rename a path
+spl fs rm <PATH> [--recursive]   # remove a file, or a directory and its contents
+spl fs publish <PATH>            # promote a working file to an immutable artifact
+spl fs mounts                    # list connected external drives
+```
+
+| Command | Purpose |
+|---|---|
+| `ls` | List a directory — `/files`, `/artifacts`, `/mnt/<name>`, `/threads` |
+| `stat` | Metadata for one path — kind, size, content hash |
+| `cat` | Print a file's bytes to stdout |
+| `cp` | Upload a local file into the `/files` working area |
+| `mkdir` | Create a directory |
+| `mv` | Move or rename a path |
+| `rm` | Remove a path — `--recursive` for a non-empty directory |
+| `publish` | Promote a working file to a permanent, read-only artifact in `/artifacts` |
+| `mounts` | List external drives mounted into the instance |
+
+Every subcommand accepts `-o json` (or `--json`) for scripting.
+
 ## Workspaces
 
 A workspace is a content-addressed bundle of fold, projection, and policy

@@ -2,6 +2,13 @@
 
 All notable additions and revisions to docs.syncropel.com are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-05-18 — Filesystem documentation
+
+- **[Files](/docs/concepts/files)** — new concept page. Every instance has a filesystem with four areas: `/files` (working files), `/artifacts` (published, immutable files), `/mnt` (connected drives), and `/threads` (files derived from threads). Covers the working-file → published-artifact lifecycle.
+- **[Working with files](/docs/guides/filesystem)** — new guide. A hands-on `spl fs` walkthrough: browse, upload, inspect, organize, publish, and connected drives — with JSON output for scripting and the Files tab for the browser.
+- **[CLI reference → Files](/docs/reference/cli#files)** — new `spl fs` section: `ls`, `stat`, `cat`, `cp`, `mkdir`, `mv`, `rm`, `publish`, `mounts`.
+- Both new pages added to the published nav (Concepts, Guides). Closes the documentation gap for the instance filesystem shipped in `spl` v0.44.0.
+
 ## 2026-05-12 — Web Summit trim
 
 - **Trimmed published surface from 118 pages to 35 pages.** Power-user content (advanced tutorials, federation deep-dives, cookbook, governance, ops sub-pages) stays in the repo as `.mdx` source but is nav-hidden via `meta.json` and URL-redirected to the canonical KEEP-set page via `public/_redirects` (Cloudflare Workers Static Assets).

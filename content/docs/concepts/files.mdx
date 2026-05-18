@@ -1,0 +1,100 @@
+---
+title: Files
+description: Every Syncropel instance has a filesystem — a place for your working files, published artifacts, connected drives, and files derived from your threads.
+---
+
+Every Syncropel instance has a **filesystem** — a place to keep files. You
+browse it, upload to it, and organize it much like the filesystem on your own
+computer, except it lives with your instance and follows you wherever you
+reach that instance from.
+
+Files are kept separately from [records](/docs/concepts/records). Records are
+the small, immutable facts that make up your coordination history; files are
+the bytes — documents, datasets, images, exports. Keeping them apart means a
+large upload never slows down your record history, and your records stay a
+clean, fast log.
+
+## The four areas
+
+The filesystem has four top-level areas, each with its own rules:
+
+| Area | What it holds | Can you change it? |
+|---|---|---|
+| `/files` | Your working files — anything you're actively using or editing | Yes — upload, rename, move, delete freely |
+| `/artifacts` | Published files — finished work you've promoted from `/files` | No — artifacts are permanent and read-only |
+| `/mnt` | Connected drives — external storage you've mounted into the instance | Depends on the drive |
+| `/threads` | Files derived from your threads — attachments and outputs tied to a conversation or task | No — read-only |
+
+You'll spend most of your time in `/files`. The other three areas each have a
+specific job, described below.
+
+## Working files and artifacts
+
+`/files` is your working area. Put anything there — a draft, a dataset you're
+cleaning, a report in progress. You can change or delete a working file at any
+time; nothing is fixed until you decide it is.
+
+When a file is finished, you **publish** it. Publishing copies the file into
+`/artifacts` and gives it a permanent address based on its exact contents — a
+*content hash*. That address never changes and always points at exactly those
+bytes. An artifact is read-only: it can never be altered or quietly swapped,
+so it's safe to share, cite, or depend on.
+
+```bash
+# work on a file
+spl fs cp ./report-draft.md /files/report.md
+
+# when it's done, publish it
+spl fs publish /files/report.md
+# → published; content hash: 9565f5d1cf0a...
+```
+
+The working file stays in `/files`; the published copy is now an immutable
+artifact. Publishing draws a clean line between work in progress and finished,
+shareable output — you work freely in `/files`, then promote a file to
+something fixed when it's ready.
+
+## Connected drives
+
+`/mnt` is where **connected drives** appear — external storage you mount into
+the instance so you can browse it alongside your own files. A connected drive
+shows up as `/mnt/<name>`, and whether you can write to it depends on the
+drive itself.
+
+`spl fs mounts` lists the drives currently connected to your instance.
+
+## Files from your threads
+
+`/threads` holds files that belong to your [threads](/docs/concepts/threads) —
+attachments and outputs produced in the course of a conversation or a task. It
+is read-only: these files are a view of what your threads contain, and the
+thread is where they're actually managed.
+
+## Using your files
+
+There are two ways to work with the filesystem:
+
+- **The command line** — `spl fs` browses and manages the filesystem from your
+  terminal: `ls`, `cat`, `cp`, `mkdir`, `mv`, `rm`, `publish`, and more. The
+  [filesystem guide](/docs/guides/filesystem) is a full walkthrough.
+- **The Files tab** — when you open your instance on the web, the Files tab
+  gives you a visual browser for the same filesystem.
+
+Both reach the same files. Anything you upload from the terminal is there in
+the Files tab, and vice versa.
+
+## Privacy
+
+Your filesystem belongs to you. Each instance's files are isolated — reaching
+an instance gives you its filesystem, and only its filesystem. Browsing,
+uploading, and downloading all require a valid credential, exactly like the
+rest of the instance; see [Authentication](/docs/get-started/pairing).
+
+## What's next
+
+- [Working with files](/docs/guides/filesystem) — a hands-on walkthrough of
+  every `spl fs` command, from your first upload to publishing an artifact.
+- [CLI reference: Files](/docs/reference/cli#files) — the complete `spl fs`
+  command list.
+- [Threads](/docs/concepts/threads) — the conversations and tasks the
+  `/threads` area draws its files from.
