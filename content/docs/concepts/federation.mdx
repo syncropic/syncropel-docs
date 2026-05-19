@@ -71,6 +71,8 @@ Topology is **emergent, not configured**:
 
 Operators reason about pairs, not graph shapes. The protocol does not impose a topology.
 
+That emergent network of peers — and the cross-instance discovery it makes possible — is what Syncropel calls **[the Graph](./graph)**. The Graph is a *pattern*, not a server: every paired instance is already part of it.
+
 ### Thread filtering on a pair
 
 A pair connects two stewards. By default, all consent-permitted threads sync. When you want narrower control — e.g., share `th_shared_workspace` and `th_shared_design` but not the rest of `default` — apply per-pair filters:
@@ -143,6 +145,7 @@ What's enforced today is the strict default: no consent, no crossing. An operato
 
 ## What's next
 
+- **[The Graph](./graph)** — the federation pattern: how instances discover each other and the workspaces they publish
 - **[Federation pair guide](/docs/guides/federation-pair)** — hands-on `spl federation pair` walkthrough with two local daemons
 - **[Consent management](/docs/guides/consent)** — the full consent grant flow for cross-namespace sharing
 - **[Records](./records), [Threads](./threads), [Actors](./actors)** — the primitives federation composes over
