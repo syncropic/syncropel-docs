@@ -1,6 +1,6 @@
 ---
 title: Build a multi-user code review flow
-description: Two daemons, one shared workspace template, records flowing both ways consent-gated. The complete two-person walkthrough using the bundled code-review-pair template.
+description: Two daemons paired in one command, code-review records flowing both ways consent-gated. The complete two-person federation walkthrough.
 ---
 
 By the end of this tutorial, two daemons — call them **alice** and
@@ -9,9 +9,9 @@ records over a single federation link. Alice opens a review request;
 Bob publishes a verdict; both surface in a shared three-pane view.
 
 This is the smallest end-to-end multi-user flow Syncropel supports.
-It uses the `code-review-pair` workspace template plus the composed
-`spl federation invite` command — both shipped in the standard
-binary.
+It uses the composed `spl federation invite` command shipped in the
+standard binary — no extra setup, the records and threads are created
+as the flow runs.
 
 Allow ~15-20 minutes for the happy path.
 
@@ -73,36 +73,24 @@ curl -s http://127.0.0.1:9201/health
 
 Each should return a JSON `{"status": "ok", ...}`.
 
-## 2. Install the template on both daemons
+## 2. Confirm both instances are ready
 
-Both alice and bob install the same template. The template scaffolds
-a workspace declaring three threads and three view components. Each
-side gets their own copy.
+There is nothing to scaffold. The code-review flow runs on records and
+threads directly — the threads are created as records flow into them.
+A workspace is only the optional surface you would *install* to view
+those records side by side; see
+[Authoring a workspace](/docs/operate/workspace/authoring) if you want
+to build that view afterwards.
 
-In a third terminal, alice's host:
-
-```bash
-SPL_SERVE_URL=http://127.0.0.1:9100 \
-spl workspace init alice-review-pair --template code-review-pair
-cd alice-review-pair
-SPL_SERVE_URL=http://127.0.0.1:9100 \
-spl workspace publish --draft
-cd ..
-```
-
-Same in bob's terminal pointing at port 9201:
+In a third terminal, confirm each instance is reachable:
 
 ```bash
-SPL_SERVE_URL=http://127.0.0.1:9201 \
-spl workspace init bob-review-pair --template code-review-pair
-cd bob-review-pair
-SPL_SERVE_URL=http://127.0.0.1:9201 \
-spl workspace publish --draft
-cd ..
+SPL_SERVE_URL=http://127.0.0.1:9100 spl status
+SPL_SERVE_URL=http://127.0.0.1:9201 spl status
 ```
 
-You now have two daemons, each with their own copy of the
-`code-review-pair` workspace published as a draft.
+Both should report a healthy instance. You now have two daemons ready
+to be paired.
 
 ## 3. Pair the daemons
 
@@ -260,16 +248,16 @@ emit when claiming a request). The Verdicts pane folds
 
 ## What you just demonstrated
 
-- A workspace template that's *multi-user by design* — two roles
-  with distinct publishing patterns, both sharing the same view
-  components.
+- A code-review flow that's *multi-user by design* — two roles, two
+  daemons, distinct publishing patterns on each side.
 - A federation pair established with one composed command, including
   consent and thread allowlists.
 - Records flowing in both directions consent-gated. Alice's request
   reaches bob; bob's verdict reaches alice; nothing else crosses
   unless you grant it.
-- The same template that anyone can install via `spl workspace init`
-  to start the same flow with their own collaborators.
+- A pattern anyone can repeat to start the same flow with their own
+  collaborators — and a flow you can wrap in an installed workspace to
+  view both sides side by side.
 
 ## Where to go next
 

@@ -1,158 +1,148 @@
 ---
 title: Workspaces
-description: A workspace is a content-addressed bundle of fold, projection, and policy components — the unit you author, test, publish, and share.
+description: A workspace is a record that carries a complete interactive surface — what to show, how to lay it out, and what it is allowed to do. Install one, use it, write your own.
 ---
 
-A **workspace** is a description of a programmable surface — what records to
-gather, how to project them into something a person can read or interact with,
-and who is allowed to do what. You author it as a single JSON file, test it
-against fixture records, and publish it. Anyone you share it with can fold
-the same description over their own records and get a working surface.
+A **workspace** is a record that carries a complete interactive surface. It
+describes what a screen looks like, how its regions are laid out, which
+records feed it, and what the surface is allowed to do on your behalf. Your
+instance interprets that description at render time and shows you a working
+page.
 
-Workspaces are the unit Syncropel uses to package application-shaped things
-without becoming an application platform in the gatekept-app-store sense.
-A workspace is data — a record like any other.
+Because a workspace *is* a record, you do not install software to get one.
+You emit the record — or someone shares it with you — and the surface is
+live. There is no build step, no plugin to compile, no runtime to restart.
+A new workspace is one `core.workspace.v1` record away.
+
+Every fresh instance boots with a **Tasks** workspace already installed, so
+your instance is never a blank screen. Everything below — the shape, the
+catalog, the lifecycle — is the same whether you are looking at that starter
+workspace or one you wrote yourself.
 
 ## The shape
 
-A workspace lives in `workspace.json`. The body of that file is a record of
-kind `core.workspace.v1` with the following shape:
+A workspace body is a record of kind `core.workspace.v1`. It has three
+parts: `meta` (what the workspace is), `regions` (what it shows), and
+`lifecycle` (where it is in its life).
 
 ```json
 {
   "kind": "core.workspace.v1",
-  "name": "Compare Job Offers",
-  "summary": "Score and rank job offers across compensation, growth, and culture.",
-  "display_kind": "tracker",
-  "publisher_did": "did:sync:user:alice",
-
-  "components": [
-    {
-      "id": "offers",
-      "kind": "view",
-      "fold_spec": { "thread_filter": { "body.kind": "compare.offer.v1" } },
-      "projection_options": {
-        "default": "table",
-        "options": {
-          "table": { "ref": "<sha>" },
-          "radar": { "ref": "<sha>" }
-        }
-      },
-      "policy_ref": "<sha>"
+  "schema_version": "2.0.0",
+  "meta": {
+    "slug": "tasks",
+    "title": "Tasks",
+    "icon": "check-square",
+    "rail": true,
+    "shell": "workspace",
+    "defaults": { "bucket": "all" },
+    "capabilities": {
+      "emit": [ { "act": "INTEND", "kind": "core.task" } ],
+      "navigate": "same-origin"
     }
-  ],
-
-  "permissions_required": [
-    "records.emit:compare.offer.v1",
-    "records.query:compare.offer.v1"
-  ]
+  },
+  "regions": {
+    "header": { "srp": "0.7", "root": { } },
+    "body":   { "srp": "0.7", "root": { } }
+  },
+  "lifecycle": "published"
 }
 ```
 
-A workspace declares **components** — each one a small fold + projection +
-policy triple — and the renderer composes them into a single surface. The
-five component kinds are:
+### `meta` — what the workspace is
 
-| Kind | Use it for |
+| Field | What it does |
 |---|---|
-| `page` | A self-contained authored document with embedded blocks. Good for prose, mixed text/data, free-form notes |
-| `view` | A saved (query, projection, layout) tuple. Good for tables, charts, boards over a record set |
-| `thread_view` | A live thread of records with per-record projection. Good for chat-shaped, comment-shaped, log-shaped surfaces |
-| `workspace` | Another workspace. Lets you compose: a "course" workspace can include a "past semesters" sub-workspace |
-| `external` | A pointer to an iframe extension. Lets you embed custom code that speaks the standard extension protocol |
+| `slug` | The workspace's route and its key in the catalog. Unique per instance. |
+| `title` | The human-readable name shown in the UI. |
+| `icon` | An icon name used wherever the workspace is listed. |
+| `rail` | When `true`, the workspace is pinned to the navigation rail. |
+| `shell` | The layout archetype the regions are arranged into. |
+| `defaults` | Optional starting state — initial filter, selected tab, and so on. |
+| `capabilities` | What the workspace is allowed to do. See [Capabilities](#capabilities). |
+
+### `regions` — what it shows
+
+`regions` is a map. Each key is a slot in the layout — `header`, `body`,
+`rail`, `browse`, `status`, `aside` — and each value is a **projection
+document**: a declarative description of UI built from a small set of
+nodes (tables, forms, text, charts, and so on). See
+[Projections](/docs/guides/projections) for the document format and
+[React components](/docs/guides/react-components) for the nodes a host
+renders.
+
+A projection document carries **query bindings, not baked-in data**. The
+workspace record stays static and content-addressed; the live records it
+displays are resolved when the surface renders. The same workspace, opened
+by two different people, shows each of them their own records folded the
+same way.
+
+### `lifecycle` — where it is in its life
+
+One of `draft`, `published`, or `archived`. Lifecycle is declared by
+whoever emits the record. Changing it means emitting a new record — see
+[Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle).
+
+## Capabilities
+
+`meta.capabilities` is the ceiling on what a workspace may do. It is part
+of the record body, so it is fixed the moment the workspace is content-
+addressed — a workspace cannot quietly grant itself new powers.
+
+| Field | What it controls |
+|---|---|
+| `emit` | The record kinds the surface may write, as `{ act, kind }` pairs. A surface with no `emit` entry is read-only. |
+| `navigate` | Where the surface may send you: `same-origin` (within your instance), `external-confirmed` (elsewhere, with a confirmation), or `none`. |
+
+Anything a workspace tries that is not declared here is refused by the
+host. This is what makes it safe to install a workspace someone else
+wrote: you can read its `capabilities` block before you install it and
+know exactly what it can touch.
 
 ## How workspaces relate to records
 
 Records are the substrate. Threads are coordination contexts. **Workspaces
-sit on top** — they say "give me records of these kinds, fold them this way,
-render them with this projection."
+sit on top** — a workspace says "gather records like this, lay them out
+like that, and let me do these things."
 
-A workspace doesn't store data. It describes how to view data. The same
-workspace, run by two different people, shows them their own records folded
-identically. When you share a workspace with a friend, you're sharing the
-description; the records still live with whoever produced them.
-
-This is why a workspace is content-addressed: its identity is the SHA-256 of
-the canonical JSON. Two people running the "same" workspace are running
+A workspace does not store data. It describes how to view and act on data.
+This is why a workspace is content-addressed: its identity is the SHA-256
+of its canonical JSON. Two people running the "same" workspace are running
 literally the same description, byte-for-byte verified.
 
-## The lifecycle
+What is deliberately **not** in a workspace body:
 
-A workspace moves through three lifecycle states:
+- **A process model** — a workspace does not run; your instance interprets it.
+- **Storage configuration** — your records live wherever you keep them.
+- **Authentication wiring** — handled by the instance's identity layer.
+- **Secrets** — a workspace never carries keys.
 
-| State | Visible to | Federates? | Catalog? |
-|---|---|---|---|
-| `draft` | Just you (the publisher) | No | No |
-| `published` | Per workspace policy | Yes | Yes (if listed) |
-| `archived` | Per workspace policy | Yes | No (de-listed) |
+## The catalog
 
-Lifecycle transitions are emits — each one is a new record with a new content
-hash. Records are immutable, so the historical state is always recoverable.
-[Workspace lifecycle](/docs/operate/workspace/lifecycle) walks the full
-state machine.
+Every instance keeps its workspaces on a single well-known thread — the
+**workspace catalog**. Installing a workspace emits its record there;
+listing your workspaces folds that thread.
 
-## What you don't see in a workspace
+Discovery is an ordinary query: ask your instance for records of kind
+`core.workspace.v1`. The catalog is not a separate service or a gatekept
+app store — it is records, queried like any other records.
 
-Things that are deliberately **not** in the workspace body:
-
-- **Process model** — there is none. A workspace doesn't run; the substrate
-  folds it.
-- **Storage configuration** — your records are wherever you store them. A
-  workspace just says which kinds to fold.
-- **Authentication wiring** — handled by the substrate's identity layer.
-- **Network configuration** — federation is the substrate's job.
-- **Encryption keys** — separate primitive. A workspace doesn't carry
-  secrets.
-
-This narrowness is the point. Everything a workspace does is "compose
-substrate primitives." Adding a new feature to a workspace doesn't require
-changing the runtime — it requires composing different existing primitives.
-
-## Display kinds
-
-The technical kind name is always `core.workspace.v1` — that's how the
-schema validators and tooling find your manifest. But the **user-facing
-label** is data-driven. Set `display_kind` to one of the registered values
-and the UI renders accordingly:
-
-| `display_kind` | UI calls it | Typical shape |
-|---|---|---|
-| `workspace` (default) | "Workspace" | Generic |
-| `newsletter` | "Newsletter" | One-author broadcast; mostly Page components |
-| `course` | "Course" | Syllabus + assignments + discussion + gradebook |
-| `library` | "Library" | Mostly catalog views, read-only |
-| `department` | "Department" | Org-scoped, role-gated |
-| `playbook` | "Playbook" | Pattern + view + extensions for a recurring workflow |
-| `recipe-collection` | "Recipes" | Many small Page components, casual sharing |
-| `tracker` | "Tracker" | Single-fold, recurring use |
-
-You can also set a custom value (e.g., `"podcast"`, `"protocol"`); the
-renderer falls back to default treatment but the value is preserved for
-consumers who want to filter or group.
-
-## Slug namespacing under your DID
-
-Workspace names are scoped under your `publisher_did`. If two people both
-publish a workspace named `timetracker-pro`, they coexist:
-
-```
-did:sync:user:alice/timetracker-pro
-did:sync:user:bob/timetracker-pro
+```bash
+spl workspace list
 ```
 
-No squatting, forking is first-class. When you share a workspace, the
-canonical reference is the full `did:user/slug` form; the catalog UI may
-collapse to just the slug when context disambiguates.
+See [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle)
+for the full command surface.
 
 ## What's next
 
+- [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle) —
+  `install`, `list`, `show`, `update`, `archive`, and the lifecycle field.
+- [Authoring a workspace](/docs/operate/workspace/authoring) — write your
+  own `core.workspace.v1` document from scratch.
 - [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) —
-  scaffold, edit, test, publish, share in 10 minutes.
-- [Templates gallery](/docs/templates) — seven starter templates, each a
-  worked example.
-- [Workspace lifecycle](/docs/operate/workspace/lifecycle) — draft,
-  published, archived, and the transitions between them.
-- [Testing workspaces](/docs/operate/workspace/testing) — `spl workspace
-  test`, fixtures, expected outputs, deterministic folds.
-- [Sharing for bug repro](/docs/operate/workspace/sharing) — `spl share`,
-  consent records, replay.
+  install the starter, then write and install one of your own.
+- [Projections](/docs/guides/projections) — the projection-document format
+  the `regions` are written in.
+- [`core.workspace.v1` schema](https://syncropel.com/schemas/config/core-workspace.v1.schema.json)
+  — the machine-readable body schema.

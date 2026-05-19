@@ -18,8 +18,8 @@ It's the right tool for:
   reach (different namespace, different instance, federated peer).
 - An auditor needs a snapshot of a thread for offline review.
 
-It's **not** the right tool for catalog publishing — that's
-[`spl workspace publish --release`](/docs/operate/workspace/lifecycle#published).
+It's **not** the right tool for installing a workspace — that's
+[`spl workspace install`](/docs/operate/workspace/lifecycle).
 `spl share` is one-shot, recipient-scoped, signature-verified, and
 optionally time-bounded.
 
@@ -161,7 +161,7 @@ forked thread first (emit corrections, archive the originals), then
 
 ## See also
 
-- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) — the happy path that uses `--draft` and `--release`, not `spl share`
-- [Workspace lifecycle](/docs/operate/workspace/lifecycle) — when to publish vs. when to share
-- [Testing workspaces](/docs/operate/workspace/testing) — exercising your workspace with fixtures
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) — installing and managing a workspace, not one-off sharing
+- [Installing & managing workspaces](/docs/operate/workspace/lifecycle) — install, update, archive
+- [Authoring a workspace](/docs/operate/workspace/authoring) — write a workspace document
 - [Backup & recovery](/docs/guides/backup-restore) — the durable-snapshot primitive

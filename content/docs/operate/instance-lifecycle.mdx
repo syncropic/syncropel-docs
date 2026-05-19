@@ -159,7 +159,7 @@ spl token save "$BEARER"
 spl status
 ```
 
-This is the path the hosted Worker uses (the secret is delivered as a Fly secret), and it is the cleanest path for self-hosters because there is no insecure-bind window. The SA is minted once; subsequent restarts with `SPL_BOOTSTRAP_TOKEN` set are no-ops because the SA already exists.
+This is the path the hosted provisioner uses (the secret is delivered as a platform-managed secret), and it is the cleanest path for self-hosters because there is no insecure-bind window. The SA is minted once; subsequent restarts with `SPL_BOOTSTRAP_TOKEN` set are no-ops because the SA already exists.
 
 Validation rules: secret length 16–256 ASCII printable characters, no whitespace or control bytes. Out-of-range values fall through to the existing preflight (warn-and-continue), so a malformed env var will not lock the daemon out.
 
@@ -185,7 +185,7 @@ This is the path documented in [Authentication & Service Accounts](/docs/operate
 
 ### Path C — hosted Worker (no shell access)
 
-Sign in at syncropel.com, click Provision. The Worker mints the bootstrap secret as a Fly secret, the kernel reads it on boot, and the Worker resolves a per-label bearer from KV when forwarding requests. You receive a working `https://<label>.syncropel.app` URL; you do not see or store the bootstrap secret yourself.
+Sign in at syncropel.com, click Provision. The provisioner mints the bootstrap secret as a platform-managed secret, the instance reads it on boot, and a per-label bearer is resolved when forwarding requests. You receive a working `https://<label>.syncropel.app` URL; you do not see or store the bootstrap secret yourself.
 
 ## 3. Auth posture for production
 
@@ -256,7 +256,7 @@ Three probe surfaces, three intended consumers.
 
 | Path | Returns | Use for |
 |---|---|---|
-| `GET /health` | `200 ok` if process is alive and bound | Load-balancer liveness / Fly health |
+| `GET /health` | `200 ok` if process is alive and bound | Load-balancer liveness / platform health checks |
 | `GET /v1/engine/health` | JSON with reconcile counters, queue depth, AITL pending count | Operator readiness, alerting |
 | `GET /v1/engine/health` (with `details=true`) | Full per-loop breakdown including expression-cache stats | Capacity planning, debugging |
 

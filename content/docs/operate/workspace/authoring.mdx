@@ -1,0 +1,141 @@
+---
+title: Authoring a workspace
+description: Write a core.workspace.v1 document — meta, regions, and capabilities — then install it. A workspace is a JSON file; this is what goes in it.
+---
+
+A workspace is a single JSON document. Authoring one means writing that
+document and installing it. There is no scaffold to generate and no
+project layout to follow — one file, of kind `core.workspace.v1`.
+
+This page covers the document. For the commands that put it on your
+instance, see
+[Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle).
+
+## The skeleton
+
+Start from this and fill it in:
+
+```json
+{
+  "kind": "core.workspace.v1",
+  "schema_version": "2.0.0",
+  "meta": {
+    "slug": "my-workspace",
+    "title": "My Workspace",
+    "icon": "layout-dashboard",
+    "rail": true,
+    "shell": "workspace",
+    "capabilities": {
+      "emit": [],
+      "navigate": "none"
+    }
+  },
+  "regions": {
+    "header": { "srp": "0.7", "root": { } },
+    "body":   { "srp": "0.7", "root": { } }
+  },
+  "lifecycle": "draft"
+}
+```
+
+Keep `lifecycle` at `draft` while you iterate — a draft is installed but
+not advertised. Flip it to `published` when the workspace is ready.
+
+## Writing `meta`
+
+`meta` is the workspace's identity and its frame.
+
+- **`slug`** is required whenever `meta` is present, and it must be a
+  non-empty string. It is both the workspace's route and its key in the
+  catalog — pick something short and stable, because changing it later
+  creates a *different* workspace rather than renaming this one.
+- **`title`** and **`icon`** are how the workspace shows up in lists and
+  on the navigation rail.
+- **`rail: true`** pins the workspace to the rail. Leave it `false` (or
+  omit it) for workspaces you open occasionally.
+- **`shell`** names the layout archetype your regions are arranged into.
+  `"workspace"` is the general-purpose archetype.
+- **`defaults`** is an optional object of starting state — an initial
+  filter, a selected tab — handed to the regions on first render.
+
+## Writing `regions`
+
+`regions` is a map from a layout slot to a **projection document**. The
+slot keys are the parts of the layout:
+
+| Region | Typical use |
+|---|---|
+| `rail` | Navigation between sections of the workspace. |
+| `browse` | A list or tree the rest of the surface reacts to. |
+| `header` | Title, summary, top-level controls. |
+| `body` | The main content. |
+| `status` | A thin strip of counts or state. |
+| `aside` | A secondary panel — detail, help, context. |
+
+You only include the regions you use; most workspaces are a `header` and
+a `body`.
+
+Each region value is a projection document — `{ "srp": "<version>",
+"root": <node> }`. The `root` node and its children are the actual UI:
+tables, forms, text, charts, and so on. Projection documents bind to
+queries rather than carrying data, so the workspace stays static while
+the records it shows stay live. The node catalog and the document format
+are covered in [Projections](/docs/guides/projections) and
+[React components](/docs/guides/react-components).
+
+## Declaring `capabilities`
+
+`meta.capabilities` is the ceiling on what your workspace may do. Declare
+the minimum it needs — a host refuses anything not listed here.
+
+```json
+"capabilities": {
+  "emit": [
+    { "act": "INTEND", "kind": "core.task" }
+  ],
+  "navigate": "same-origin"
+}
+```
+
+- **`emit`** lists the record kinds the surface may write, each as an
+  `{ act, kind }` pair. A workspace that only displays records leaves
+  `emit` empty and is read-only.
+- **`navigate`** is `same-origin`, `external-confirmed`, or `none`.
+
+`capabilities` is part of the hashed body, so it is fixed once the
+workspace is content-addressed. Declare it from the very first record —
+it cannot be added later without changing the workspace's identity.
+
+## Validate and install
+
+The kernel checks the document *shape* on install — that there is no
+legacy `components` field, that `meta.slug` is a non-empty string, that
+every region is a well-formed projection document, and that `lifecycle`
+is one of the three allowed values. A document that fails any of these is
+rejected and nothing is emitted.
+
+Deeper checks — that every projection node is a known type with valid
+props — come from the published `core.workspace.v1` JSON Schema. Validate
+against it in your editor or CI before you install:
+
+```
+https://syncropel.com/schemas/config/core-workspace.v1.schema.json
+```
+
+When the document is clean:
+
+```bash
+spl workspace install ./my-workspace.json
+spl workspace show my-workspace
+```
+
+Iterate by editing the file and running `spl workspace update <slug>
+./my-workspace.json`.
+
+## See also
+
+- [Workspaces](/docs/concepts/workspaces) — the concept and the body shape.
+- [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle) —
+  install, update, archive.
+- [Projections](/docs/guides/projections) — the projection-document format.
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace).

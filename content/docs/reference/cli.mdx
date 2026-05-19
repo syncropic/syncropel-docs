@@ -150,33 +150,29 @@ Every subcommand accepts `-o json` (or `--json`) for scripting.
 
 ## Workspaces
 
-A workspace is a content-addressed bundle of fold, projection, and policy
-components that you author, test, publish, and share. See [the workspace
-concept](/docs/concepts/workspaces) for the full picture.
+A workspace is a `core.workspace.v1` record that carries an interactive
+surface. You install one from a document file at runtime — no rebuild. See
+[the workspace concept](/docs/concepts/workspaces) for the full picture.
 
 ```bash
-spl workspace init <name> [--template <id>] [--target <path>]
-spl workspace test [--fixture <name>] [--update] [--watch] [-o json]
-spl workspace publish [--draft | --release] [--catalog <thread-ref>] [--version <label>] [--skip-tests]
-spl workspace subscribe <workspace-ref> [--version-pin <sha-or-label>] [--grant <scope>]
+spl workspace install <file>
+spl workspace update <slug> <file>
+spl workspace list
+spl workspace show <slug>
+spl workspace archive <slug>
+spl workspace subscribe <workspace-ref> [--version-pin <sha-or-label>] [--pinned-publisher <did>] [--grant <scope>] [--federated | --private]
 spl workspace unsubscribe <workspace-ref> [--reason <text>]
-spl workspace migrate <workspace.json> --using <migration.json> [--output <path>]
 ```
 
 | Command | Description |
 |---|---|
-| `workspace init <name>` | Scaffold a starter workspace from a template. Default template is `tracker`. Available: `tracker`, `multi-page`, `newsletter`, `course`, `recipe-collection`, `solo-tracker`, `catalog` |
-| `workspace test` | Run the native test runner over `tests/fixtures/` and compare against `tests/expected/`. Deterministic — same input bytes yield same output bytes |
-| `workspace test --update` | Write expected files from current fold output. Use after intentional fixture changes |
-| `workspace test --watch` | Re-run on file save (manual verification mode) |
-| `workspace publish` | Default: emit as draft. Drafts are namespace-local and not federated |
-| `workspace publish --release` | Emit as published — federates per workspace policy |
-| `workspace publish --release --catalog <ref>` | Also emits a catalog listing record signed by your `publisher_did` |
-| `workspace publish --version <label>` | Writes a human-readable semver label into the manifest before emit |
-| `workspace publish --skip-tests` | Bypass the structural test phase (schema validation still runs) |
-| `workspace subscribe <ref>` | Record your subscription to a workspace, optionally pinning a publisher and version |
-| `workspace unsubscribe <ref>` | Re-emit subscription with `active: false` (records are immutable; no delete) |
-| `workspace migrate` | Apply a declared upgrade-path record to transform a workspace from one major version to the next |
+| `workspace install <file>` | Validate a `core.workspace.v1` document file and emit it onto the instance's workspace catalog. The workspace is live immediately |
+| `workspace update <slug> <file>` | Re-emit the workspace under an existing slug. The file's `meta.slug` must match. Identical content is a no-op |
+| `workspace list` | List the workspaces the instance serves — the latest record per slug |
+| `workspace show <slug>` | Print the full `core.workspace.v1` body — `meta`, `capabilities`, `regions`, `lifecycle` |
+| `workspace archive <slug>` | Re-emit the workspace with `lifecycle: "archived"` — soft delete; existing subscriptions keep working |
+| `workspace subscribe <ref>` | Record your subscription to a workspace by its content hash, optionally pinning a publisher and version. Namespace-local unless `--federated` |
+| `workspace unsubscribe <ref>` | Re-emit the subscription as inactive (records are immutable; no delete) |
 
 Workspaces are walked in [Build your first workspace](/docs/tutorials/first-workspace).
 

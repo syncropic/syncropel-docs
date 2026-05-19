@@ -1,0 +1,99 @@
+---
+title: The Graph
+description: The Graph is how Syncropel instances discover and reach each other — a federation pattern, not a service. Any instance can be a node; no one owns it.
+---
+
+The **Graph** is how Syncropel instances find and reach each other. When
+two instances pair, records flow between them; when many instances pair,
+the result is a graph of peers over which workspaces, records, and
+queries travel. The Graph is that pattern — not a product, not a server,
+not a place you log in to.
+
+This matters because it constrains the design. The Graph is not a hub
+and not the canonical source of truth. The substrate — the records
+themselves — is canonical. The Graph is one *view over* the substrate:
+the connectivity between instances and the discovery that connectivity
+makes possible.
+
+## A node is just an instance
+
+Every `spl serve` is already a Graph node. There is nothing extra to
+install. Pairing your instance with a peer (see
+[Federation](/docs/concepts/federation)) joins you to that peer's slice
+of the Graph; pairing with more peers widens it.
+
+A **public Graph node** is simply an instance that has chosen to make
+some of its records — for example its `core.workspace.v1` workspaces —
+readable without a credential. `graph.syncropel.com` is one such node:
+a public index that the Syncropel team operates. It is useful, but it is
+not special. Anyone can run a node. A company can run a private one for
+its teams; a community can run a curated one for its members; a niche
+can run one for its field. Pluralism is structural.
+
+## What the Graph is not
+
+The shape is clearest drawn in negative space.
+
+- **Not a hub.** A hub centralizes — it owns the data and clients depend
+  on it being up. A Graph node publishes records *to* the substrate. If
+  a node goes dark, the records it published are still in every instance
+  that fetched them — still content-addressed, still verifiable. A node
+  is a *cache that warmed*, not a *system that owns*.
+- **Not a gatekeeper.** A node publishes what its operator curates. It
+  does not approve, deny, or rank what is published elsewhere. The
+  substrate routes by identity: if a peer publishes a workspace, your
+  instance fetches it from *that peer*, not through any central node.
+- **Not a marketplace.** No payments, no ratings, no leaderboards, no
+  recommendation algorithm. A node's curation means only "this node's
+  operator chose to publish this" — nothing more.
+
+## Discovery is a query
+
+Finding what the Graph offers is an ordinary query. To see the
+workspaces a node publishes, you ask it for records of kind
+`core.workspace.v1` — the same fold your own instance runs for
+[`spl workspace list`](/docs/operate/workspace/lifecycle). A node adds
+no new format; it is an instance whose records are readable, queried
+like any other records.
+
+Cross-instance queries — asking a question that traverses several paired
+peers at once, consent-gated and budget-bounded at every hop — are the
+Graph's query primitive. They are how a question reaches beyond the
+records on your own instance without any peer having to hand over its
+whole store.
+
+## The Graph and your workspace catalog
+
+Do not confuse the Graph with your instance's **workspace catalog**.
+
+- Your **workspace catalog** is local — the list of `core.workspace.v1`
+  records *your* instance serves. `spl workspace list` folds it. See
+  [Workspaces](/docs/concepts/workspaces).
+- The **Graph** is how a workspace published on *another* instance can
+  reach yours at all: you pair with that instance, discover its
+  workspace by query, and install it onto your own catalog.
+
+The Graph carries workspaces between instances; the catalog is where one
+lands once it arrives.
+
+## Why a discovery layer at all
+
+A substrate of records is correct and complete, and unhelpful for the
+question "which of all possible workspaces should I install?" Discovery
+is the missing ingredient, and discovery is irreducibly opinionated —
+someone has to choose what a node recommends, and be accountable for it.
+
+The Graph gives that opinion a shape without giving it power. An opinion
+is a record on a node, signed by its operator, addressable, replicable.
+Disagreeing with a node's curation means subscribing to a different node
+— not forking the substrate. Opinion at the edges, mechanism at the
+core.
+
+## What's next
+
+- [Federation](/docs/concepts/federation) — pairing two instances, the
+  primitive the Graph is built from.
+- [Workspaces](/docs/concepts/workspaces) — what travels across the
+  Graph and lands in your catalog.
+- [Federation discovery](/docs/guides/federation-discovery) — how an
+  instance advertises what it serves.

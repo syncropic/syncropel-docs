@@ -1,179 +1,136 @@
 ---
-title: Workspace Lifecycle
-description: Draft, published, and archived — the three lifecycle states a workspace manifest moves through, what each means, and how to transition between them.
+title: Installing & managing workspaces
+description: Install a workspace from a document file, list what your instance serves, inspect one, update it, and archive it — all at runtime, with no rebuild.
 ---
 
-A `core.workspace.v1` manifest carries a `lifecycle` field. Three
-values are recognized:
+A workspace is a `core.workspace.v1` record. Managing workspaces means
+emitting and reading those records on your instance's workspace catalog —
+nothing is compiled in, and nothing needs a restart. The `spl workspace`
+commands below are the runtime surface for that.
 
-| Lifecycle | Visibility | Federates? | Listable in catalog? | Subscribable? |
-|---|---|---|---|---|
-| `draft` | Publisher only | No | No | No |
-| `published` | Per workspace policy | Yes | Yes (if listed) | Yes |
-| `archived` | Per workspace policy | Yes | No (de-listed) | No (existing subs grandfather) |
-
-Lifecycle is **declared by the publisher** at emit time and is part of
-the canonical manifest record — changing lifecycle means emitting a
-new manifest record with a new content hash.
-
-## Draft
+## Install a workspace
 
 ```bash
-spl workspace publish --draft
+spl workspace install ./my-workspace.json
 ```
 
-A draft is the iteration state. The manifest is a real record stored
-in your namespace, but:
+`install` reads a `core.workspace.v1` document file, checks it against the
+workspace body shape, and emits it as a record onto your instance's
+workspace catalog. The moment the record lands, the workspace is live —
+open it at its `slug` route.
 
-- It does not federate to peers.
-- It does not appear in catalog queries.
-- It cannot be subscribed to via `core.subscription.v1`.
-- Only the workspace's `publisher_did` (and actors with explicit
-  `records.query` permission on the namespace) can resolve it.
+If the file is not a well-formed workspace document — for example, it is
+missing `meta.slug`, or a region is not a valid projection document — the
+install is refused and nothing is emitted. See
+[Authoring a workspace](/docs/operate/workspace/authoring) for the
+document format.
 
-Drafts are the right state for:
-
-- First scaffold from `spl workspace init`
-- Dogfooding while you iterate fold rules and projections
-- Internal review on a private namespace
-- CI that asserts manifest validity on every commit
-
-You can draft-emit as often as you like. Each emit is a new record.
-Identical manifests deduplicate by content hash; the second emit is a
-no-op.
-
-View a draft live in Studio at:
-
-```
-https://syncropel.com/local/workspaces/<your-slug>
-```
-
-Studio renders the draft's components against records in your local
-kernel. Friends cannot see this URL — there is no draft URL on the
-public catalog by design.
-
-## Published
+## List installed workspaces
 
 ```bash
-spl workspace publish --release --catalog https://graph.syncropel.com/threads/main
+spl workspace list
 ```
 
-Publishing a release does two things:
+This folds the workspace catalog and shows the latest record for each
+`slug` — title, lifecycle, and content hash. Because every install is a
+new immutable record, `list` always reflects the most recent version of
+each workspace.
 
-1. Emits the manifest with `lifecycle: published`. The record
-   federates per the workspace's federation policy (typically all
-   peers paired to the namespace).
-2. If `--catalog <thread-ref>` is provided, also emits a
-   `core.artifact_listing.v1` record on the catalog thread, signed by
-   `publisher_did`, naming the workspace and pointing at the manifest's
-   content hash.
+Add `-o json` for a machine-readable list.
 
-A published workspace is **discoverable** (catalog listing) and
-**subscribable** (`core.subscription.v1` accepts it).
-
-`--catalog` is optional — you can publish without listing if you only
-want DID-resolution access (e.g. `did:sync:<your-did>/my-recipes`).
-Friends with the resolver can subscribe without ever seeing the
-catalog.
-
-The publish flow runs `spl workspace test` first by default. A
-release whose tests fail will not be emitted unless you pass
-`--skip-tests`, which prints a warning and emits anyway. Pre-flight
-test gates are a defense against shipping a broken fold to subscribers
-who already trust your `publisher_did`.
-
-### Versioning a release
+## Inspect a workspace
 
 ```bash
-spl workspace publish --release --version 1.2.0 --catalog ...
+spl workspace show tasks
 ```
 
-`--version <label>` writes the label into the manifest's
-`version_label` field before emit. Subscribers see the new label
-through the catalog and (depending on their Studio policy) get an
-update prompt or auto-pull.
+`show <slug>` prints the full `core.workspace.v1` body of the named
+workspace — `meta`, `capabilities`, `regions`, and `lifecycle`. Read the
+`capabilities` block before you trust a workspace someone else wrote: it
+is the complete list of what the surface may emit and where it may
+navigate.
 
-Versioning is purely a label — the manifest's content hash is the
-authoritative identifier. Two manifests with `version_label: "1.0.0"`
-and different content hashes are different manifests; subscribers
-distinguish by hash, not label.
-
-### Re-publishing identical content
-
-Publishing the same manifest twice is a no-op. The CLI computes the
-content hash before emit and exits with an informational message:
-
-```
-already published at <sha256>
-```
-
-This makes `spl workspace publish --release` safe to run from CI on
-every commit — only manifests that actually changed produce records.
-
-## Archived
-
-When a workspace should be retired:
+## Update a workspace
 
 ```bash
-spl workspace publish --release --version 1.5.0 --lifecycle archived
+spl workspace update tasks ./my-workspace.json
 ```
 
-(`--lifecycle archived` emits a new manifest record with
-`lifecycle: archived`.)
+`update <slug> <file>` re-emits a workspace under an existing slug. The
+file's `meta.slug` must match the slug you name. Records are immutable, so
+this appends a new record rather than mutating the old one — the previous
+version stays addressable forever, and `list` resolves the latest by
+clock.
 
-An archived workspace:
+Updating an *unchanged* document is a no-op: identical content produces an
+identical hash, and the catalog already holds that record.
 
-- De-lists from the catalog (catalog rendering filters by lifecycle).
-- Cannot be newly subscribed to.
-- Existing subscriptions are grandfathered — subscribers still resolve
-  the most recent published manifest until they explicitly unsubscribe
-  or migrate to a successor workspace.
-- Federates so peers can mark it archived in their local indexes.
+## The lifecycle field
 
-Archive is the **soft delete**. The historical records remain
-addressable forever (records are immutable by F13). The lifecycle field
-just signals to renderers and subscribers that no further releases are
-expected.
+Every workspace body carries a `lifecycle` field with one of three values:
 
-### Migrating subscribers off an archived workspace
+| Lifecycle | Meaning | Listed? | Subscribable? |
+|---|---|---|---|
+| `draft` | Work in progress — installed but not advertised. | No | No |
+| `published` | Ready for use — the normal state. | Yes | Yes |
+| `archived` | Retired — kept for history, not for new use. | No | Existing subscriptions keep working |
 
-If you're archiving because a successor workspace replaces this one,
-emit a `core.migration.v1` record
-naming the archived workspace and the successor. Subscriber Studios
-can use the migration record to offer one-click upgrade.
-
-## Transition matrix
-
-```
-                  ┌──────────┐
-                  │   None   │  (manifest never emitted)
-                  └────┬─────┘
-                       │ spl workspace publish --draft
-                       ▼
-                  ┌──────────┐
-                  │  Draft   │◀─┐
-                  └────┬─────┘  │ further --draft emits (no-ops if identical)
-                       │        │
-                       │ spl workspace publish --release
-                       ▼        │
-                  ┌──────────┐  │
-                  │Published │──┘ (re-issue draft? emit a new draft manifest)
-                  └────┬─────┘
-                       │ spl workspace publish --release --lifecycle archived
-                       ▼
-                  ┌──────────┐
-                  │ Archived │
-                  └──────────┘
-```
-
-The transitions are not stateful in the kernel — each transition is
-just an emit of a new manifest record with a new lifecycle value. The
-**latest** record by clock for a given `(publisher_did, slug)` is the
+Lifecycle is not kernel state — it is just a field on the record. Moving a
+workspace between states means emitting a new record with a different
+`lifecycle` value. The **latest record by clock for a given slug** is the
 authoritative state.
+
+## Archive a workspace
+
+```bash
+spl workspace archive tasks
+```
+
+`archive <slug>` re-emits the workspace's latest body with
+`lifecycle: "archived"`. This is a soft delete:
+
+- The workspace stops appearing in `spl workspace list`.
+- It can no longer be newly subscribed to.
+- Existing subscriptions are grandfathered — subscribers keep resolving it.
+- Every historical record stays addressable forever; records are immutable.
+
+To bring an archived workspace back, `update` it with a body whose
+`lifecycle` is `published` again.
+
+## Subscribe to a workspace
+
+```bash
+spl workspace subscribe <workspace-hash>
+```
+
+`subscribe` records *your* relationship to a workspace — it emits a
+`core.subscription.v1` record naming the workspace by its content hash.
+Subscriptions carry your pin (which version you track), any permission
+grants you have accepted, and your pinned-publisher choice. `unsubscribe
+<workspace-hash>` re-asserts the relationship as inactive; it never
+deletes, because records are immutable.
+
+Subscriptions are namespace-local by default. Pass `--federated` on
+`subscribe` to make a subscription visible to your peers.
+
+## Discovering workspaces
+
+The workspace catalog is just records. You can query it directly without
+the `spl workspace` commands:
+
+```bash
+spl query --kind core.workspace.v1
+```
+
+This is the same fold `spl workspace list` performs. Filtering on
+`body.kind` is how any tool — a browser, a script, another instance —
+finds the workspaces an instance serves.
 
 ## See also
 
-- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) — the happy path through draft → published
-- [Testing workspaces](/docs/operate/workspace/testing) — `spl workspace test`, fixtures, expected
-- [Sharing for bug repro](/docs/operate/workspace/sharing) — `spl share`, consent, replay
+- [Workspaces](/docs/concepts/workspaces) — what a workspace is.
+- [Authoring a workspace](/docs/operate/workspace/authoring) — write the
+  document you install.
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) —
+  the happy path, end to end.
 - [`core.workspace.v1` schema](https://syncropel.com/schemas/config/core-workspace.v1.schema.json)
