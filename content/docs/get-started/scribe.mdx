@@ -80,6 +80,69 @@ Anthropic, OpenAI, and a local Ollama runtime.
 Either way, once a backend is configured, Scribe responds in any thread
 you open — no further wiring.
 
+## Delegating multi-step work — `@agent <goal>`
+
+Scribe is good at conversation. For multi-step work — "audit my
+last week of dispatches and write a summary", "find every record
+on this thread tagged 'beta' and emit a consent grant for each" —
+you want a different shape: a real agent that can plan, run tools,
+check its own work, and stop when it is actually done.
+
+Open a message with `@agent <goal>` and Scribe delegates the work
+to a real agent loop. Two things change:
+
+1. **The loop runs as *you*, not as Scribe.** It uses your
+   identity, your permissions, and your tier — Scribe steps aside
+   for the duration. Records the loop emits are signed by your
+   actor DID.
+2. **The kernel decides when the loop is done — not the loop
+   itself.** A kernel-issued Evaluator independently checks the
+   work against success criteria it derived from your goal. The
+   loop cannot self-certify success.
+
+The loop's progress lands on the same thread as a series of
+records — `core.agent.turn.v1`, `core.agent.tool_call.v1`,
+`core.agent.tool_result.v1`, eventually `core.agent.loop_outcome.v1`
+— so you watch it the same way you watch any other conversation.
+
+### What it can do is shaped by your tier
+
+Every actor has a tier (Trial / Paid / Team / Operator), and the
+tier sets ceilings on the loop:
+
+| Tier | Max turns | Wall-clock | Daily cost | Daily loops | Verify forced |
+|---|---|---|---|---|---|
+| **Trial** | 5 | 2 min | $0.50 | 10 | yes |
+| **Paid** | 16 | 10 min | $5 | 200 | optional |
+| **Team** | 50 | 30 min | $50 | 2000 | optional |
+| **Operator** | ∞ | ∞ | ∞ | ∞ | optional |
+
+The Trial tier always verifies — the Evaluator pair is forced on
+— because a loop that can self-certify on a free tier is the wrong
+default. Paid and above can opt in to verify mode (e.g. for
+high-stakes goals where you want the kernel to grade the result).
+
+If a goal needs more than your tier allows — too many turns, too
+much time, too much money — the loop denies the request up front
+rather than getting stuck partway. `POST /v1/agent/loop/preview`
+returns your effective caps and remaining daily budget so you can
+size goals before sending them.
+
+### Stopping a loop
+
+Click the cancel button in the chat surface, or emit a
+`core.agent.loop_cancel.v1` `DO` record on the loop's thread — the
+reconciler propagates the cancel to the in-process loop, which
+exits cleanly with a `cancelled` outcome.
+
+### Self-hosted note
+
+`@agent` needs both an inference backend (same as ordinary Scribe
+replies) and the kernel's loop service, which is on by default in
+v0.49. To disable it instance-wide, set
+`agentic_loop_enabled: false` on the `core.engine.actor_adapter.v1`
+record for the chat actor.
+
 ## Troubleshooting — Scribe is silent
 
 If you send a message and nothing comes back, work through this in order:
