@@ -3,6 +3,17 @@ title: API Reference
 description: HTTP endpoints for the Syncropel server.
 ---
 
+import { Callout } from 'fumadocs-ui/components/callout';
+
+<Callout type="info" title="v0.52 path + error code rename">
+
+In **v0.52.0 "Foundational"** (2026-05-20), the agent-loop HTTP surface
+was renamed from `/v1/agent/*` to `/v1/work/*` per
+[ADR-125](/docs/reference/spec). Error codes `AGENT_LOOP_*` → `WORK_*`.
+Hard cutover — the old paths return 404. v0.51 clients must update.
+
+</Callout>
+
 ## Base URL
 
 ```
@@ -297,18 +308,18 @@ curl -X POST http://localhost:9100/v1/dispatch \
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/v1/agent/loop` | Start an agent loop. Body: `{goal, max_turns?, verify?, workspace?}`. Returns the loop's `thread` id. |
-| POST | `/v1/agent/loop/preview` | Cost preview — returns effective tier caps, usage so far today, `would_be_denied`, and `denial_reason` without starting a loop. |
-| GET | `/v1/agent/loop/{thread}` | Loop status for the given thread. |
-| POST | `/v1/agent/loop/{thread}/cancel` | Cancel a running loop. Emits a `core.agent.loop_cancel.v1` `DO` record; the reconciler propagates the cancel to the in-process loop. |
-| GET | `/v1/agent/loop/{thread}/stream` | SSE live progress for the given loop thread. Alias for the thread-watch handler — the loop thread itself is the filter. |
-| GET | `/v1/agent/compensation/review` | Per-actor compensation review (operator tier only). Returns total compensations + breakdown by seam + breakdown by violated assumption + anomaly score vs. fleet median. |
-| GET | `/v1/agent/compensation/review/top` | Top anomalous actors by compensation rate (operator tier only). |
+| POST | `/v1/work/loop` | Start an agent loop. Body: `{goal, max_turns?, verify?, workspace?}`. Returns the loop's `thread` id. |
+| POST | `/v1/work/loop/preview` | Cost preview — returns effective tier caps, usage so far today, `would_be_denied`, and `denial_reason` without starting a loop. |
+| GET | `/v1/work/loop/{thread}` | Loop status for the given thread. |
+| POST | `/v1/work/loop/{thread}/cancel` | Cancel a running loop. Emits a `core.work.loop_cancel.v1` `DO` record; the reconciler propagates the cancel to the in-process loop. |
+| GET | `/v1/work/loop/{thread}/stream` | SSE live progress for the given loop thread. Alias for the thread-watch handler — the loop thread itself is the filter. |
+| GET | `/v1/work/compensation/review` | Per-actor compensation review (operator tier only). Returns total compensations + breakdown by seam + breakdown by violated assumption + anomaly score vs. fleet median. |
+| GET | `/v1/work/compensation/review/top` | Top anomalous actors by compensation rate (operator tier only). |
 
 ### Start a loop
 
 ```bash
-curl -X POST http://localhost:9100/v1/agent/loop \
+curl -X POST http://localhost:9100/v1/work/loop \
   -H "Authorization: Bearer $SPL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -323,31 +334,31 @@ Returns `{thread: "th_...", loop_id: "...", verify: true}`. Watch progress via t
 ### Cost preview before starting
 
 ```bash
-curl -X POST http://localhost:9100/v1/agent/loop/preview \
+curl -X POST http://localhost:9100/v1/work/loop/preview \
   -H "Authorization: Bearer $SPL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"goal": "..."}'
 ```
 
-Returns the actor's effective tier (Trial / Paid / Team / Operator), the tier caps (`max_turns`, `wall_clock_secs`, `token_budget`, `daily_cost_cap_usd`, `daily_loop_cap`), usage so far today (`loop_count`, `cost_usd`), `forced_verification: bool`, `estimated_cost_usd`, and — if the request would exceed a cap — `would_be_denied: true` with `denial_reason` set to `AGENT_LOOP_DAILY_CAP_EXCEEDED` or `AGENT_LOOP_DAILY_COUNT_EXCEEDED`.
+Returns the actor's effective tier (Trial / Paid / Team / Operator), the tier caps (`max_turns`, `wall_clock_secs`, `token_budget`, `daily_cost_cap_usd`, `daily_loop_cap`), usage so far today (`loop_count`, `cost_usd`), `forced_verification: bool`, `estimated_cost_usd`, and — if the request would exceed a cap — `would_be_denied: true` with `denial_reason` set to `WORK_DAILY_CAP_EXCEEDED` or `WORK_DAILY_COUNT_EXCEEDED`.
 
 ### Watch live progress over SSE
 
 ```bash
-curl -N http://localhost:9100/v1/agent/loop/th_abc123.../stream \
+curl -N http://localhost:9100/v1/work/loop/th_abc123.../stream \
   -H "Authorization: Bearer $SPL_TOKEN"
 ```
 
-Emits the loop's thread records as they land — `core.agent.turn.v1`, `core.agent.tool_call.v1`, `core.agent.tool_result.v1`, and ultimately `core.agent.loop_outcome.v1`.
+Emits the loop's thread records as they land — `core.work.turn.v1`, `core.work.tool_call.v1`, `core.work.tool_result.v1`, and ultimately `core.work.loop_outcome.v1`.
 
 ### Cancel a loop
 
 ```bash
-curl -X POST http://localhost:9100/v1/agent/loop/th_abc123.../cancel \
+curl -X POST http://localhost:9100/v1/work/loop/th_abc123.../cancel \
   -H "Authorization: Bearer $SPL_TOKEN"
 ```
 
-This emits a `core.agent.loop_cancel.v1` `DO` record on the loop's thread; the reconciler propagates the cancel to the in-process loop, which exits with a `cancelled` outcome.
+This emits a `core.work.loop_cancel.v1` `DO` record on the loop's thread; the reconciler propagates the cancel to the in-process loop, which exits with a `cancelled` outcome.
 
 ## Decisions
 

@@ -3,6 +3,29 @@ title: Body kinds
 description: Schema reference for built-in `body.kind` values. Records you can subscribe to, query against, and project from — emitted by the kernel during dispatch, inference, and federation.
 ---
 
+import { Callout } from 'fumadocs-ui/components/callout';
+
+<Callout type="info" title="v0.52 actor-uniform reframe (ADR-125)">
+
+In **v0.52.0 "Foundational"** (2026-05-20) the agent-loop body-kind family
+was renamed from `core.agent.*` to `core.work.*` per the actor-uniform
+reframe ratified in [ADR-125](/docs/reference/spec). The work primitive is
+actor-agnostic — humans, LLM agents, workflows, and automation all emit
+the same body shapes. Hard cutover per ADR-073 D8 one-time override:
+v0.51 records remain readable; new emits of `core.agent.*` reject at
+ingest. The per-actor delegation kinds `core.scribe.delegation.v1` +
+`core.guide.delegation.v1` collapsed into the unified
+`core.work.delegation.v1` with `delegator_kind` ∈ \{scribe, guide, user,
+agent, system\}. `core.agent.aitl.v1` was restructured + renamed to
+`core.work.decision_request.v1` (D3 — `requester` + `decider_did` |
+`decider_role` + `question` + `options` + `context`).
+
+D-BOUNDARY: the inference seam (`IntelligenceAgent`,
+`did:sync:system:intelligence`, `infer.query.v1`) stays LLM-coded and is
+exempt from the rename.
+
+</Callout>
+
 `body.kind` is the body-convention discriminant — a string in scope.category.entity[.version] format that names the schema of `record.body`. Built-in kinds emitted by the kernel are documented here; user-extension kinds (anything outside the `core.*` and `syncropel.*` reserved scopes) follow the same grammar but live in their own registries.
 
 For the kind grammar itself (3 vs 4 segments, allowed characters, reserved scopes, version semantics), see the [body.kind manifest guide](/docs/guides/body-kind-manifest).
@@ -155,36 +178,36 @@ Wire-form is snake_case as shown. Match on `body.code` to route or filter.
 
 ## Kinds emitted by the agent loop
 
-Every run of an agent loop (`spl agent-loop`, `POST /v1/agent/loop`, or a chat-actor delegating to one via `@agent <goal>`) emits a sequence of records that lets you reconstruct what the loop saw, what it tried, what tools it called, and what the kernel's Evaluator decided — entirely from the records. Subscribe to these on the loop's thread (or query against them) to build live progress UIs and post-hoc audits.
+Every run of an agent loop (`spl work-loop`, `POST /v1/work/loop`, or a chat-actor delegating to one via `@agent <goal>`) emits a sequence of records that lets you reconstruct what the loop saw, what it tried, what tools it called, and what the kernel's Evaluator decided — entirely from the records. Subscribe to these on the loop's thread (or query against them) to build live progress UIs and post-hoc audits.
 
 ### Loop lifecycle
 
-- **`core.agent.loop.v1`** — the loop record itself. Carries goal, tier, ceilings (`max_turns`, `wall_clock_secs`, `token_budget`), and the locked verification mode.
-- **`core.agent.turn.v1`** — one turn of the loop. Sequenced by `body.turn_index`; carries the prompt fold, model call summary, and per-turn cost.
-- **`core.agent.tool_call.v1`** + **`core.agent.tool_result.v1`** — every tool invocation and its result. The tool-call body is permission-checked through the kernel; the result body carries success or a structured failure code.
-- **`core.agent.loop_outcome.v1`** — the terminal record. `body.verdict` is `success` (kernel-locked, never self-reported by the loop itself — the kernel decides) or one of the failure verdicts.
+- **`core.work.loop.v1`** — the loop record itself. Carries goal, tier, ceilings (`max_turns`, `wall_clock_secs`, `token_budget`), and the locked verification mode.
+- **`core.work.turn.v1`** — one turn of the loop. Sequenced by `body.turn_index`; carries the prompt fold, model call summary, and per-turn cost.
+- **`core.work.tool_call.v1`** + **`core.work.tool_result.v1`** — every tool invocation and its result. The tool-call body is permission-checked through the kernel; the result body carries success or a structured failure code.
+- **`core.work.loop_outcome.v1`** — the terminal record. `body.verdict` is `success` (kernel-locked, never self-reported by the loop itself — the kernel decides) or one of the failure verdicts.
 
 ### Verification
 
 When the loop runs in `verify: true` mode (forced on for trial-tier actors), the kernel issues an independent Evaluator pair:
 
-- **`core.agent.plan.v1`** — the planner's read of the goal before the loop runs.
-- **`core.agent.criteria.v1`** — the success criteria the Evaluator will check against.
-- **`core.agent.evaluation.v1`** — the Evaluator's verdict at the end of the loop. The loop's own claim of "done" does not close it — the Evaluator's verdict does.
-- **`core.agent.turn_judgment.v1`** — per-turn judgement output (D-TURNJUDGE).
+- **`core.work.plan.v1`** — the planner's read of the goal before the loop runs.
+- **`core.work.criteria.v1`** — the success criteria the Evaluator will check against.
+- **`core.work.evaluation.v1`** — the Evaluator's verdict at the end of the loop. The loop's own claim of "done" does not close it — the Evaluator's verdict does.
+- **`core.work.turn_judgment.v1`** — per-turn judgement output (D-TURNJUDGE).
 
 ### Compensation + governance
 
-- **`core.agent.compensation.v1`** — emitted when a loop violates a harness assumption (e.g. exceeded a ceiling, used a forbidden tool, produced a malformed argument). The compensation record names the seam + the violated assumption + context. Operators can review per-actor anomalies via `GET /v1/agent/compensation/review`.
-- **`core.agent.aitl.v1`** — pause-for-human-approval, when a loop reaches an AITL gate.
-- **`core.agent.loop_cancel.v1`** — substrate-native cancel. A `DO` of this kind on the loop thread propagates through the reconciler to the in-process loop, which exits with a `cancelled` outcome.
+- **`core.work.compensation.v1`** — emitted when a loop violates a harness assumption (e.g. exceeded a ceiling, used a forbidden tool, produced a malformed argument). The compensation record names the seam + the violated assumption + context. Operators can review per-actor anomalies via `GET /v1/work/compensation/review`.
+- **`core.work.decision_request.v1`** — pause-for-human-approval, when a loop reaches an AITL gate.
+- **`core.work.loop_cancel.v1`** — substrate-native cancel. A `DO` of this kind on the loop thread propagates through the reconciler to the in-process loop, which exits with a `cancelled` outcome.
 
 ### Chat-actor delegation (v0.49)
 
 When a Scribe or Guide chat-actor receives a message that opens with `@agent <goal>`, it delegates to a real loop running under the **user**'s identity (not the chat-actor's), and pair-completes when the loop terminates.
 
-- **`core.scribe.delegation.v1`** — Scribe's record that it has handed a goal off to an agent loop. `body.parent_loop_id` references the spawned loop.
-- **`core.guide.delegation.v1`** — same shape, for the Guide actor.
+- **`core.work.delegation.v1`** — Scribe's record that it has handed a goal off to an agent loop. `body.parent_loop_id` references the spawned loop.
+- **`core.work.delegation.v1`** — same shape, for the Guide actor.
 - **`core.actor.usage.v1`** — daily per-actor aggregate (loop count, input/output tokens, cost). Emitted by the usage aggregator; consumed by the cost-preview endpoint to surface "you've used $X.YZ of your $Z.WW daily cap."
 
 For the complete agent-loop family (29 kinds total — including artifact, note, coercion, and the v0.39 scribe/guide call/response/error family) see [the body-kinds manifest](/docs/guides/body-kind-manifest) — the manifest is the canonical source, and stays byte-identical with the kernel registry.

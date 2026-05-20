@@ -3,6 +3,16 @@ title: CLI Reference
 description: Complete reference for the spl command-line interface.
 ---
 
+import { Callout } from 'fumadocs-ui/components/callout';
+
+<Callout type="info" title="v0.52 command rename">
+
+In **v0.52.0 "Foundational"** (2026-05-20), `spl agent-loop` was renamed
+to `spl work-loop` per [ADR-125](/docs/reference/spec). Hard cutover —
+the old name is gone.
+
+</Callout>
+
 ## Global Options
 
 All commands support:
@@ -464,12 +474,12 @@ For queries more complex than the CLI can build, pipe a JSON file:
 spl infer --query-file query.json --wait
 ```
 
-## Agent loop — `spl agent-loop`
+## Work loop — `spl work-loop`
 
-Run a records-native agent loop with workspace tools. The loop emits records onto its thread as it works (`core.agent.turn.v1`, `core.agent.tool_call.v1`, etc.); the kernel decides terminal success in `--verify` mode. See the [Agent loop concept page](/docs/concepts/agent-loop) for the full primitive.
+Run a records-native agent loop with workspace tools. The loop emits records onto its thread as it works (`core.work.turn.v1`, `core.work.tool_call.v1`, etc.); the kernel decides terminal success in `--verify` mode. See the [Agent loop concept page](/docs/concepts/agent-loop) for the full primitive.
 
 ```bash
-spl agent-loop "<goal>" \
+spl work-loop "<goal>" \
   [--workspace <DIR>] \
   [--max-turns <N>] \
   [--model <NAME>] \
@@ -494,10 +504,10 @@ spl agent-loop "<goal>" \
 
 ```bash
 # Local in-process run, no verify
-spl agent-loop "Summarise this week's dispatches"
+spl work-loop "Summarise this week's dispatches"
 
 # Daemon-run, verified, JSON output
-spl agent-loop "Find every record tagged 'beta' and emit consent grants" \
+spl work-loop "Find every record tagged 'beta' and emit consent grants" \
   --remote --verify --json
 ```
 
