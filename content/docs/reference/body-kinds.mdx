@@ -175,7 +175,7 @@ When the loop runs in `verify: true` mode (forced on for trial-tier actors), the
 
 ### Compensation + governance
 
-- **`core.agent.compensation.v1`** — emitted when a loop violates a harness assumption (e.g. exceeded a ceiling, used a forbidden tool, produced a malformed argument). The compensation record names the seam + the violated assumption + context. Operators can review per-actor anomalies via `POST /v1/agent/compensation/review`.
+- **`core.agent.compensation.v1`** — emitted when a loop violates a harness assumption (e.g. exceeded a ceiling, used a forbidden tool, produced a malformed argument). The compensation record names the seam + the violated assumption + context. Operators can review per-actor anomalies via `GET /v1/agent/compensation/review`.
 - **`core.agent.aitl.v1`** — pause-for-human-approval, when a loop reaches an AITL gate.
 - **`core.agent.loop_cancel.v1`** — substrate-native cancel. A `DO` of this kind on the loop thread propagates through the reconciler to the in-process loop, which exits with a `cancelled` outcome.
 

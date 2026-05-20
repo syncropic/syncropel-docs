@@ -464,6 +464,43 @@ For queries more complex than the CLI can build, pipe a JSON file:
 spl infer --query-file query.json --wait
 ```
 
+## Agent loop — `spl agent-loop`
+
+Run a records-native agent loop with workspace tools. The loop emits records onto its thread as it works (`core.agent.turn.v1`, `core.agent.tool_call.v1`, etc.); the kernel decides terminal success in `--verify` mode. See the [Agent loop concept page](/docs/concepts/agent-loop) for the full primitive.
+
+```bash
+spl agent-loop "<goal>" \
+  [--workspace <DIR>] \
+  [--max-turns <N>] \
+  [--model <NAME>] \
+  [--tools <CSV>] \
+  [--remote] \
+  [--verify] \
+  [--token <BEARER>] \
+  [--json]
+```
+
+| Flag | Meaning |
+|---|---|
+| `<goal>` | The goal in natural language (positional, required). |
+| `--workspace <DIR>` | Directory the workspace tools (`read`/`write`/`bash`/etc.) are confined to. Default: current dir. |
+| `--max-turns <N>` | Cap on loop turns. Default: 20. Tier ceilings may clamp this below the requested value. |
+| `--model <NAME>` | Inference model. Default: `claude-sonnet-4-6`. |
+| `--tools <CSV>` | Allowlist of tool names (comma-separated). Default: all available tools. |
+| `--remote` | Run the loop on the daemon (substrate-native tools, no host `bash`) instead of in-process. Records land in the substrate and the thread is watchable from anywhere. |
+| `--verify` | Run under independent evaluation (ADR-112): planner expands the goal into acceptance criteria, a separate evaluator judges the result, the loop never self-asserts "done". Forced on for Trial-tier actors. |
+| `--token <BEARER>` | Bearer token for daemon auth. Precedence: `--token` > `SPL_TOKEN` env > `~/.syncro/token`. |
+| `--json` | Emit machine-readable progress instead of pretty text. |
+
+```bash
+# Local in-process run, no verify
+spl agent-loop "Summarise this week's dispatches"
+
+# Daemon-run, verified, JSON output
+spl agent-loop "Find every record tagged 'beta' and emit consent grants" \
+  --remote --verify --json
+```
+
 ## Namespaces
 
 5-level hierarchy for tenancy, governance, and policy composition. See spec §08-governance/04.
