@@ -1,0 +1,233 @@
+---
+title: Content overrides (Tier 2)
+description: Author a core.site.v1 record to override the L0 identity card's content slots — name, mission, links, Connect button. The spl site family wraps the lifecycle; the record shape is portable.
+---
+
+Tier 2 is the record-driven layer of [the instance site](/docs/operate/site).
+You author a `core.site.v1` record on the `th_site` thread and the
+renderer applies its `content` slots on top of the L0 default. The
+`spl site` family wraps the verb shapes; the underlying record is the
+same one a fleet seed script or a backup restore would emit.
+
+## The shape
+
+A site record carries the operator's DID as `owner`, a lifecycle flag,
+and an optional `content` object. Slots are optional — leave a slot
+absent to keep the L0 default for that field.
+
+```json
+{
+  "kind": "core.site.v1",
+  "schema_version": "1.0.0",
+  "lifecycle": "published",
+  "owner": "did:sync:user:dpwanjala",
+  "content": {
+    "name": "Acme Research Lab",
+    "kind_label": "Coordination Instance",
+    "heading": "A working Syncropel instance for the Acme research team.",
+    "subheading": "All artifacts are records. Browse the capabilities below.",
+    "links": [
+      { "label": "Internal handbook", "href": "/w/handbook" },
+      { "label": "GitHub", "href": "https://github.com/acme", "external": true },
+      { "label": "Status", "href": "/health", "indicator": "live" }
+    ],
+    "connect": { "label": "Connect", "href": "https://syncropel.com/connect?url=https%3A%2F%2Facme.syncropel.app" },
+    "did_display": true
+  },
+  "theme": {
+    "accent": "#c2410c"
+  }
+}
+```
+
+### `content` slots
+
+Every field is optional. Slot-by-slot fall-through to the L0 default
+means partial overrides are first-class — you can set just the name and
+leave everything else at the default.
+
+| Slot | Type | What it overrides | L0 default |
+| --- | --- | --- | --- |
+| `name` | string ≤ 128 | The large serif heading + `<title>` | "A Syncropel Instance" |
+| `kind_label` | string ≤ 64 | The small mono uppercase label under the name | "Syncropel Instance" |
+| `heading` | string ≤ 500 | The mission paragraph (serif, lead) | A one-line description of the coordination model |
+| `subheading` | string ≤ 500 | The about paragraph (sans, muted) | (none) |
+| `logo_ref` | string | Replace the generative glyph (`asset:<id>`, `https://...`, or `file:<name>`) | Generative glyph derived from instance DID |
+| `links` | array, ≤ 6 | Replace the 6 default link cards | About, Docs, Get started, Capabilities, GitHub, Status |
+| `connect` | object | Custom Connect button label + target, or `{"hidden": true}` to drop it | Connect → Studio for this instance |
+| `did_display` | bool | Show / hide the DID copy footer | `true` |
+
+### Link card shape
+
+Each entry in `links` is a small object. The renderer encodes external
+links with a `↗` glyph and `target="_blank"` automatically when
+`external: true`.
+
+```json
+{
+  "label": "Status",
+  "href": "/health",
+  "external": false,
+  "indicator": "live"
+}
+```
+
+The `indicator` field accepts `"live"` today, which surfaces a small
+animated green dot next to the label — used for status surfaces. Other
+indicators may land in later versions.
+
+### `theme` (status note)
+
+The `theme.accent` field is part of the v1.0 record schema, but in
+v0.50.0 the renderer does not yet thread theme overrides from the
+record into the inline `:root` block. Setting `theme.accent` via record
+is currently a no-op visually. The accent override IS reachable today
+via the [Tier 3 filesystem overlay](/docs/operate/site/filesystem-overlay)'s
+`theme.css`. The record-side wiring is tracked as a follow-up and will
+land in a patch release without changing the record shape.
+
+## The `spl site` family
+
+The CLI wraps the record lifecycle. Every verb emits or queries records;
+there is no separate state file.
+
+### Initialise a draft
+
+```bash
+spl site init
+```
+
+Creates an empty `core.site.v1` draft record on `th_site` for your
+operator DID. Fails if a draft already exists — pass `--force` to
+overwrite. A draft is invisible to `GET /`; the L0 default keeps
+serving until you publish.
+
+### Inspect what you have
+
+```bash
+spl site show              # shows the draft if any, else the published record
+spl site show --published  # forces the published view
+spl site show --json       # JSON shape for scripting / piping
+```
+
+### Patch content slots
+
+```bash
+spl site set --name "Acme Research Lab"
+spl site set --kind-label "Coordination Instance"
+spl site set --heading "A working Syncropel instance for the Acme team."
+spl site set --subheading "All artifacts are records. Browse the capabilities below."
+spl site set --did-display true
+```
+
+`set` is a patch — flags you don't pass leave the corresponding slot
+unchanged. To clear a slot and fall back to the L0 default, use
+`--unset`:
+
+```bash
+spl site set --unset heading           # clear one slot
+spl site set --unset name kind_label   # clear several at once
+```
+
+### Manage the links grid
+
+```bash
+# Append a link (max 6 total replace the L0 defaults)
+spl site link add --label "Status" --href "/health" --indicator live
+spl site link add --label "GitHub" --href "https://github.com/acme" --external
+spl site link add --label "Internal handbook" --href "/w/handbook"
+
+# Remove the Nth link (0-indexed)
+spl site link remove 2
+
+# Clear all overrides — fall back to the L0 default 6 links
+spl site link clear
+```
+
+### Manage the Connect button
+
+```bash
+# Custom Connect button label + target
+spl site connect set --label "Open in Studio" --href "https://syncropel.com/connect?url=https%3A%2F%2Facme.syncropel.app"
+
+# Hide the Connect button entirely
+spl site connect hide
+
+# Clear the override — restore the default Connect → Studio
+spl site connect unset
+```
+
+### Theme accent
+
+```bash
+spl site theme --accent "#c2410c"   # set the accent (record-side; see status note above)
+spl site theme --unset              # clear the override
+```
+
+### Preview before publishing
+
+```bash
+spl site preview                              # writes /tmp/spl-site-preview.html
+spl site preview --out ./preview.html         # custom output path
+spl site preview --out ./preview.html --published  # preview the published version
+```
+
+Opens nothing — the verb only writes the file. Open it in your browser
+to verify the look before promoting the draft.
+
+### Publish
+
+```bash
+spl site publish
+```
+
+Promotes the current draft to `lifecycle: "published"`. The next
+`GET /` serves it. Publishing emits a new record (with a higher clock
+than the existing published record), so the old version stays in the
+record log — walking `th_site` shows the full history of edits.
+
+### Archive
+
+```bash
+spl site archive
+```
+
+Archives the current published record. After archival the resolver
+falls back to the L0 default; the L0 floor is preserved. To return to
+the published content, publish a new draft.
+
+## What the record log looks like
+
+After a typical authoring session, the `th_site` thread carries one
+or two records per content version:
+
+```
+th_site
+├── PUT  clock=0   lifecycle=draft       (spl site init)
+├── PUT  clock=1   lifecycle=draft       (spl site set --name ...)
+├── PUT  clock=2   lifecycle=draft       (spl site set --heading ...)
+├── PUT  clock=3   lifecycle=published   (spl site publish)
+├── PUT  clock=4   lifecycle=draft       (next iteration)
+└── PUT  clock=5   lifecycle=published   (spl site publish again)
+```
+
+Walking the thread:
+
+```bash
+spl thread records th_site -o json | jq '.records[] | {clock, lifecycle: .body.lifecycle}'
+```
+
+To revert to an earlier published version, copy that record's `body`,
+emit it again with a fresh clock. There is no destructive rewrite —
+every change is an append.
+
+## Fleet seeding
+
+For instances provisioned from a blueprint or scripted from a fleet
+runbook, the record is what you check in. Drop a JSON file like the
+example at the top of this page into your seed records directory, then
+POST it through `/v1/records` with the operator's DID as `actor`. The
+seed loader in `syncropic-ops/services/graph/seed/seed.sh` is one
+reference shape; the `core.site.v1` body in
+`syncropic-ops/services/graph/seed/records/10-site.json` is the
+record that runs `graph.syncropel.com` itself.

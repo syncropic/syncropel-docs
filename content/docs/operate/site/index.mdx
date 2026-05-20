@@ -1,0 +1,121 @@
+---
+title: The instance site
+description: Every Syncropel instance serves a landing page at GET / — a bespoke L0 identity card by default, with record-driven and filesystem-based customization on top. This is what the public sees first.
+---
+
+Every Syncropel instance serves a landing page at `GET /` — the first
+thing a visitor sees when they hit `<your-instance>.syncropel.com` or
+`alice.syncropel.app`. That page is rendered by the kernel itself,
+server-side, from data the instance already has.
+
+The default landing page is a bespoke L0 identity card: the instance
+name, a generative glyph derived from the instance DID, a one-line
+mission, six default links to capabilities and federation surfaces, and
+a Connect button to Syncropel Studio. It looks good with zero
+configuration — that is the point.
+
+When you want to make it your own, three tiers of customization stack
+on top of the default. Each tier adds capability without breaking the
+floor.
+
+## The three tiers
+
+**Tier 1 — the L0 identity card (always on)**: the floor. A real instance
+serves a real-looking page from the moment it boots, with no setup. The
+glyph, the typography, the structural rhythm — these come from the
+kernel and cannot be removed. They are what makes one Syncropel instance
+visibly the same network as every other one.
+
+**Tier 2 — record-driven content overrides**: publish a `core.site.v1`
+record on the `th_site` thread to override slots on the L0 card. The
+name. The kind label under the name. The mission paragraph. The about
+paragraph. The links grid (up to six cards replace the default six). The
+Connect button label and target. The DID copy footer visibility. This is
+what the `spl site` family of commands authors — and what fleet seed
+scripts emit programmatically.
+
+**Tier 3 — filesystem overlay** (`~/.syncro/site/`): drop CSS, assets,
+and a small allowlist of `<head>` content at known paths on the host
+filesystem, and the renderer picks them up on each request. This is the
+WordPress-theme-style escape hatch for operators who want full control:
+load a custom font, add an Open Graph image, override the accent palette
+across both light and dark themes. The kernel enforces strict allowlists
+on what shapes of content can land in `<head>` — no inline scripts, no
+arbitrary HTML — so the L0 floor remains intact even with overlays
+applied.
+
+## What the renderer produces
+
+One render path, one HTML document, sub-100 KB on the wire including
+inlined CSS. No JavaScript framework. The only script the page loads is
+a progressive-enhancement helper for the DID copy button, served from
+the same origin under a strict CSP. The rendered HTML is server-rendered
+markup with the inline stylesheet first, so visitors see the page on
+first paint without waiting for hydration.
+
+The render contract:
+
+```
+render_site(card, content, overlay) → HTML
+```
+
+- `card` — the L0 identity, derived from the daemon's identity record.
+  Always present.
+- `content` — the operator's `core.site.v1` content overrides. Optional.
+- `overlay` — the parsed Tier 3 filesystem overlay (theme CSS, head
+  fragment, assets). Optional, cached with a 5-second LRU at the
+  process level.
+
+Anything operator-supplied flows through the same renderer; the L0 card
+shape is always the substrate. Operators add and override, never replace
+the structural design.
+
+## When to use which tier
+
+- **Just deployed an instance?** The L0 default is doing its job — leave
+  it. Decide later whether you need to customize.
+- **Want to set a name and mission for your team's instance?** Use
+  Tier 2. Run [`spl site init` and `spl site set`](/docs/operate/site/content-overrides)
+  to author a `core.site.v1` record, then `spl site publish` to make it
+  live. Records are part of normal Syncropel coordination state — they
+  back up with the rest of the instance, they federate over the Graph,
+  they version cleanly.
+- **Need to brand the instance for an organization with their own
+  visual language?** Combine Tier 2 with [Tier 3 filesystem overlay](/docs/operate/site/filesystem-overlay).
+  Tier 2 covers the copy; Tier 3 covers the typography and color and
+  custom imagery.
+
+## What's not in scope
+
+The instance site is not a CMS. It's an identity card that publishes
+what the instance is and where its capabilities live. If you need
+articles, pages, or a navigable site map, that is what a workspace is
+for — and workspaces are an entirely separate primitive
+(see [Workspaces](/docs/concepts/workspaces)).
+
+There is also no JavaScript runtime on the rendered page beyond the DID
+copy helper. Interactive surfaces live in workspaces or in Studio at
+`syncropel.com`, mounted under their own origins with their own CSP and
+their own state.
+
+## The records-native view
+
+The instance site is a record like everything else in Syncropel. The
+published page you see at `GET /` is the latest `lifecycle: "published"`
+`core.site.v1` record on the `th_site` thread, owned by the operator's
+DID. The resolver folds the thread, picks that record, hands its
+`content` and `theme` to the renderer.
+
+That means:
+
+- Every change to the landing page leaves a record. Walking the
+  `th_site` thread shows the history of how the site evolved.
+- Reverting to an older version is a record emit, not a file restore.
+- Archiving the published record returns the instance to the L0
+  default; nothing is lost, the resolver just falls back.
+- A draft (`lifecycle: "draft"`) is installed but invisible to
+  `GET /` until you `spl site publish` it.
+
+For the architecture rationale and the design decisions behind the
+three-tier model, see [ADR-104 (Amendment 2 v2)](https://github.com/syncropic/syncropel-spec/blob/main/15-decisions/ADR-104-core-site-v1-instance-site-primitive.md)
+in the specification repository.
