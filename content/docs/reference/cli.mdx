@@ -5,11 +5,15 @@ description: Complete reference for the spl command-line interface.
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-<Callout type="info" title="v0.52 command rename">
+<Callout type="info" title="v0.52: command renamed">
 
-In **v0.52.0 "Foundational"** (2026-05-20), `spl agent-loop` was renamed
-to `spl work-loop` per [ADR-125](/docs/reference/spec). Hard cutover —
-the old name is gone.
+In **v0.52.0 "Foundational"** (2026-05-20), the `spl agent-loop`
+command was renamed to **`spl work-loop`**. The behaviour is unchanged —
+only the name shifted, in keeping with the new framing of the primitive
+as a goal-structured *work loop* that any actor can drive.
+
+The old name returns "unknown subcommand" — scripts that called
+`spl agent-loop` need a one-line update.
 
 </Callout>
 
@@ -476,7 +480,7 @@ spl infer --query-file query.json --wait
 
 ## Work loop — `spl work-loop`
 
-Run a records-native agent loop with workspace tools. The loop emits records onto its thread as it works (`core.work.turn.v1`, `core.work.tool_call.v1`, etc.); the kernel decides terminal success in `--verify` mode. See the [Agent loop concept page](/docs/concepts/agent-loop) for the full primitive.
+Run a records-native work loop with workspace tools. The loop emits records onto its thread as it works (`core.work.turn.v1`, `core.work.tool_call.v1`, etc.); the kernel decides terminal success in `--verify` mode. See the [Work loop concept page](/docs/concepts/work-loop) for the full primitive.
 
 ```bash
 spl work-loop "<goal>" \

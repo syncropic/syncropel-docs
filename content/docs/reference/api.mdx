@@ -5,12 +5,15 @@ description: HTTP endpoints for the Syncropel server.
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-<Callout type="info" title="v0.52 path + error code rename">
+<Callout type="info" title="v0.52: path + error code rename">
 
-In **v0.52.0 "Foundational"** (2026-05-20), the agent-loop HTTP surface
-was renamed from `/v1/agent/*` to `/v1/work/*` per
-[ADR-125](/docs/reference/spec). Error codes `AGENT_LOOP_*` → `WORK_*`.
-Hard cutover — the old paths return 404. v0.51 clients must update.
+In **v0.52.0 "Foundational"** (2026-05-20), the work-loop HTTP routes
+moved from `/v1/agent/*` to `/v1/work/*`, and the corresponding error
+codes changed from `AGENT_LOOP_*` to `WORK_*` (for example,
+`AGENT_LOOP_NO_PROVIDER` → `WORK_NO_PROVIDER`).
+
+The old paths return `404` — clients hitting `/v1/agent/loop` or related
+URLs should switch to the new ones below.
 
 </Callout>
 
@@ -304,11 +307,11 @@ curl -X POST http://localhost:9100/v1/dispatch \
   }'
 ```
 
-## Agent loop
+## Work loops
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/v1/work/loop` | Start an agent loop. Body: `{goal, max_turns?, verify?, workspace?}`. Returns the loop's `thread` id. |
+| POST | `/v1/work/loop` | Start a work loop. Body: `{goal, max_turns?, verify?, workspace?}`. Returns the loop's `thread` id. |
 | POST | `/v1/work/loop/preview` | Cost preview — returns effective tier caps, usage so far today, `would_be_denied`, and `denial_reason` without starting a loop. |
 | GET | `/v1/work/loop/{thread}` | Loop status for the given thread. |
 | POST | `/v1/work/loop/{thread}/cancel` | Cancel a running loop. Emits a `core.work.loop_cancel.v1` `DO` record; the reconciler propagates the cancel to the in-process loop. |

@@ -33,13 +33,13 @@ Each new message on the same thread folds into the next response, so multi-turn 
 
 ## Delegating multi-step work — `@agent <goal>`
 
-Like Scribe, the Guide can delegate to a real agent loop when you open a message with `@agent <goal>`. The same rules apply:
+Like Scribe, the Guide can delegate to a real work loop when you open a message with `@agent <goal>`. The same rules apply:
 
 - The loop runs as **you** (under your DID, your tier, your permissions) — not as the Guide.
 - The kernel's Evaluator decides terminal success — the loop never self-asserts "done".
 - Trial-tier actors always run in `verify` mode; Paid and above can opt in.
 
-A `core.guide.delegation.v1` record opens the delegation; the loop's outcome closes it. See [Agent loops](/docs/concepts/agent-loop) for the full primitive.
+A `core.work.delegation.v1` record opens the delegation; the loop's outcome closes it. See [Work loops](/docs/concepts/work-loop) for the full primitive.
 
 ## The three personas
 
@@ -99,5 +99,5 @@ Every Guide interaction is observable. The well-known thread `th_audit_guide` ca
 ## Where to go next
 
 - **[Scribe](/docs/get-started/scribe)** — the general-purpose conversational agent the Guide is a sibling to.
-- **[Agent loops](/docs/concepts/agent-loop)** — the multi-step primitive `@agent` delegates to.
+- **[Work loops](/docs/concepts/work-loop)** — the multi-step primitive `@agent` delegates to.
 - **[Workspaces](/docs/concepts/workspaces)** — how blueprints (which set the Guide's persona) work.

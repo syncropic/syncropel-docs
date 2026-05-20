@@ -5,24 +5,42 @@ description: Schema reference for built-in `body.kind` values. Records you can s
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-<Callout type="info" title="v0.52 actor-uniform reframe (ADR-125)">
+<Callout type="info" title="v0.52: body-kind family renamed">
 
-In **v0.52.0 "Foundational"** (2026-05-20) the agent-loop body-kind family
-was renamed from `core.agent.*` to `core.work.*` per the actor-uniform
-reframe ratified in [ADR-125](/docs/reference/spec). The work primitive is
-actor-agnostic — humans, LLM agents, workflows, and automation all emit
-the same body shapes. Hard cutover per ADR-073 D8 one-time override:
-v0.51 records remain readable; new emits of `core.agent.*` reject at
-ingest. The per-actor delegation kinds `core.scribe.delegation.v1` +
-`core.guide.delegation.v1` collapsed into the unified
-`core.work.delegation.v1` with `delegator_kind` ∈ \{scribe, guide, user,
-agent, system\}. `core.agent.aitl.v1` was restructured + renamed to
-`core.work.decision_request.v1` (D3 — `requester` + `decider_did` |
-`decider_role` + `question` + `options` + `context`).
+In **v0.52.0 "Foundational"** (2026-05-20) the family of body kinds that
+describes goal-structured work was renamed from `core.agent.*` to
+`core.work.*`. The same primitive serves any actor doing
+goal-structured work — humans, LLM agents, workflows, automation — so
+the family name reflects that.
 
-D-BOUNDARY: the inference seam (`IntelligenceAgent`,
-`did:sync:system:intelligence`, `infer.query.v1`) stays LLM-coded and is
-exempt from the rename.
+What changed:
+
+- `core.agent.*` (15 kinds: `loop`, `turn`, `tool_call`, `tool_result`,
+  `loop_outcome`, `loop_cancel`, `plan`, `criteria`, `evaluation`, `turn_judgment`,
+  `note`, `compensation`, `artifact`, `coercion`) → `core.work.*` with the
+  same names.
+- `core.agent.aitl.v1` → `core.work.decision_request.v1`, with a clearer
+  body shape: `requester` + `decider_did` or `decider_role` + `question`
+  + `options` + `context`.
+- `core.scribe.delegation.v1` and `core.guide.delegation.v1` → unified
+  `core.work.delegation.v1` with a `delegator_kind` field.
+- New kinds: `core.work.trust_delta.v1`, `core.actor.preferences.v1`,
+  `core.engine.actor_defaults.v1`.
+
+What stays the same:
+
+- Records emitted under the old names before v0.52 remain readable —
+  you can still query them, fold them, and project from them.
+- The 8-record-field envelope (`parents`, `thread`, `actor`, `act`,
+  `body`, `clock`, `data_type`, `judged_by`) is unchanged.
+
+What to update:
+
+- Clients emitting `core.agent.*` records need to switch to the new
+  names — the kernel rejects new emits of the old names.
+
+See the [unified body-kinds list](#body-kinds) below for the v0.52
+shape.
 
 </Callout>
 
@@ -176,9 +194,9 @@ Maps the 8-step inference pipeline. Every non-success branch emits exactly one o
 
 Wire-form is snake_case as shown. Match on `body.code` to route or filter.
 
-## Kinds emitted by the agent loop
+## Kinds emitted by the work loop
 
-Every run of an agent loop (`spl work-loop`, `POST /v1/work/loop`, or a chat-actor delegating to one via `@agent <goal>`) emits a sequence of records that lets you reconstruct what the loop saw, what it tried, what tools it called, and what the kernel's Evaluator decided — entirely from the records. Subscribe to these on the loop's thread (or query against them) to build live progress UIs and post-hoc audits.
+Every run of a work loop (`spl work-loop`, `POST /v1/work/loop`, or a chat-actor delegating to one via `@agent <goal>`) emits a sequence of records that lets you reconstruct what the loop saw, what it tried, what tools it called, and what the kernel's Evaluator decided — entirely from the records. Subscribe to these on the loop's thread (or query against them) to build live progress UIs and post-hoc audits.
 
 ### Loop lifecycle
 
@@ -206,11 +224,11 @@ When the loop runs in `verify: true` mode (forced on for trial-tier actors), the
 
 When a Scribe or Guide chat-actor receives a message that opens with `@agent <goal>`, it delegates to a real loop running under the **user**'s identity (not the chat-actor's), and pair-completes when the loop terminates.
 
-- **`core.work.delegation.v1`** — Scribe's record that it has handed a goal off to an agent loop. `body.parent_loop_id` references the spawned loop.
+- **`core.work.delegation.v1`** — Scribe's record that it has handed a goal off to a work loop. `body.parent_loop_id` references the spawned loop.
 - **`core.work.delegation.v1`** — same shape, for the Guide actor.
 - **`core.actor.usage.v1`** — daily per-actor aggregate (loop count, input/output tokens, cost). Emitted by the usage aggregator; consumed by the cost-preview endpoint to surface "you've used $X.YZ of your $Z.WW daily cap."
 
-For the complete agent-loop family (29 kinds total — including artifact, note, coercion, and the v0.39 scribe/guide call/response/error family) see [the body-kinds manifest](/docs/guides/body-kind-manifest) — the manifest is the canonical source, and stays byte-identical with the kernel registry.
+For the complete work-loop family (29 kinds total — including artifact, note, coercion, and the v0.39 scribe/guide call/response/error family) see [the body-kinds manifest](/docs/guides/body-kind-manifest) — the manifest is the canonical source, and stays byte-identical with the kernel registry.
 
 ## Other built-in kinds
 

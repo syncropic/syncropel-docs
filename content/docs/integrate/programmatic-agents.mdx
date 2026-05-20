@@ -35,7 +35,7 @@ You need an agent harness that supports code execution. Examples:
 
 - **Anthropic Claude with `code_execution`** (via the API's built-in code tool)
 - **OpenAI** with code interpreter (supports Python; use the `syncropel` PyPI package)
-- **Cloudflare Workers** running an agent loop with fetch + V8 isolates
+- **Cloudflare Workers** running a work loop with fetch + V8 isolates
 - **Custom Python/Node sandbox** you control (Docker, Firecracker, gvisor)
 - Any other code-execution-capable model harness — the SDK is pure HTTP+JSON
 

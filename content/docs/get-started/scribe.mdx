@@ -89,7 +89,7 @@ you want a different shape: a real agent that can plan, run tools,
 check its own work, and stop when it is actually done.
 
 Open a message with `@agent <goal>` and Scribe delegates the work
-to a real agent loop. Two things change:
+to a real work loop. Two things change:
 
 1. **The loop runs as *you*, not as Scribe.** It uses your
    identity, your permissions, and your tier — Scribe steps aside
@@ -101,8 +101,8 @@ to a real agent loop. Two things change:
    loop cannot self-certify success.
 
 The loop's progress lands on the same thread as a series of
-records — `core.agent.turn.v1`, `core.agent.tool_call.v1`,
-`core.agent.tool_result.v1`, eventually `core.agent.loop_outcome.v1`
+records — `core.work.turn.v1`, `core.work.tool_call.v1`,
+`core.work.tool_result.v1`, eventually `core.work.loop_outcome.v1`
 — so you watch it the same way you watch any other conversation.
 
 ### What it can do is shaped by your tier
@@ -124,14 +124,14 @@ high-stakes goals where you want the kernel to grade the result).
 
 If a goal needs more than your tier allows — too many turns, too
 much time, too much money — the loop denies the request up front
-rather than getting stuck partway. `POST /v1/agent/loop/preview`
+rather than getting stuck partway. `POST /v1/work/loop/preview`
 returns your effective caps and remaining daily budget so you can
 size goals before sending them.
 
 ### Stopping a loop
 
 Click the cancel button in the chat surface, or emit a
-`core.agent.loop_cancel.v1` `DO` record on the loop's thread — the
+`core.work.loop_cancel.v1` `DO` record on the loop's thread — the
 reconciler propagates the cancel to the in-process loop, which
 exits cleanly with a `cancelled` outcome.
 
@@ -165,7 +165,7 @@ If you send a message and nothing comes back, work through this in order:
 ## Where to go next
 
 - [The Syncropic Guide](/docs/get-started/guide) — Scribe's sibling agent, specialised for instance-orientation questions.
-- [Agent loops](/docs/concepts/agent-loop) — the primitive `@agent` delegates to.
+- [Work loops](/docs/concepts/work-loop) — the primitive `@agent` delegates to.
 - [Hosted instance signup](/docs/get-started/hosted) — get an instance in under a minute
 - [api.syncropic.com](/docs/integrate/api-syncropic) — the managed inference gateway in full
 - [Threads](/docs/concepts/threads) — the coordination primitive a conversation is built on
