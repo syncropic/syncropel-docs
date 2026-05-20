@@ -1,0 +1,148 @@
+---
+title: Agent loops
+description: An agent loop is a records-native primitive — a kernel-managed plan/act/check cycle that emits every step as a record, runs tools the kernel permission-checks, and ends only when a kernel-locked Evaluator decides it has actually finished.
+---
+
+## Overview
+
+An **agent loop** is what you get when you stop treating "an AI doing work" as an opaque process and start treating it as a sequence of records on a thread.
+
+Every turn the loop takes, every tool it calls, every result it gets, every judgement made about its work — they are all records on the loop's thread. You can subscribe to them, query against them, fold them, and audit them with the same tools you use for every other Syncropel record. There is no separate "agent log" to scrape.
+
+```
+loop opens on a new thread
+  │
+  ├─ turn 1: core.agent.turn.v1
+  │   ├─ tool call: core.agent.tool_call.v1
+  │   └─ tool result: core.agent.tool_result.v1
+  │
+  ├─ turn 2: core.agent.turn.v1
+  │   └─ ...
+  │
+  ├─ (optional) judgement: core.agent.turn_judgment.v1
+  └─ outcome: core.agent.loop_outcome.v1   ← kernel-locked verdict
+```
+
+The loop runs in one of two modes:
+
+- **In-process** — the loop runs in the same process that started it (`spl agent-loop "..."` does this by default). Workspace tools have direct host access — `bash`, file reads, file writes — confined to a workspace directory.
+- **Remote** — the loop runs on the daemon (`spl agent-loop ... --remote`, or any `POST /v1/agent/loop` call). Tools are substrate-native (no host shell); records land in the substrate and the thread is watchable from anywhere.
+
+## Why "records-native"
+
+Other agent frameworks treat the loop as the source of truth and emit telemetry on the side. Syncropel inverts this: the records *are* the truth. The loop is a reconciler-driven task whose state is the fold of its thread.
+
+The consequence is that everything follows from existing Syncropel primitives:
+
+- **Pause + resume** is free — pause is just stopping the reconciler; resume is reading the thread back and continuing.
+- **Multi-actor visibility** is free — anyone on the loop's thread sees its records.
+- **Federation** is free — a peer pulling the thread gets the whole loop.
+- **Cancel** is a record (`core.agent.loop_cancel.v1` `DO`) that the reconciler propagates — no out-of-band shutdown signal.
+- **Trust** flows naturally through the record's `actor` field — the loop runs under a real DID (the user's DID, in the chat-actor delegation case), and trust accumulates on that DID, not on an opaque "agent" process.
+
+## The four components
+
+```
+goal
+ │
+ ▼
+┌─────────────┐     ┌──────────────────┐
+│   Planner   │ ──▶ │  Tool registry   │ ◀── permission checks (CEL)
+└─────────────┘     └──────────────────┘
+       │                    ▲
+       │                    │ tool calls
+       ▼                    │
+┌─────────────┐             │
+│   Driver    │ ────────────┘
+│  (the loop) │
+└─────────────┘
+       │
+       │ context via curated projection
+       ▼
+┌─────────────┐
+│  Evaluator  │ ──▶ verdict — the loop never self-asserts "done"
+└─────────────┘
+       │
+       ▼
+   outcome record
+```
+
+1. **The driver** is the loop itself — read context, call the model, dispatch tool calls, write results, repeat. It does not decide when to stop.
+2. **The tool registry** is the set of tools the loop can call. Each tool is permission-checked through the kernel before it runs; tool calls and results are records.
+3. **The Evaluator pair** (active in `verify` mode) is independent: a planner expands the goal into success criteria at turn 0, and an evaluator judges the result before the loop completes. The driver and the evaluator can never be the same process — that is what "kernel-locked" means.
+4. **Curated projection** assembles context for each turn. The driver does not fold the whole thread; it folds a *projection* that selectively surfaces the records the current turn needs.
+
+## Verify mode and the Evaluator contract
+
+The most important constraint: **a loop never decides it is done**. The kernel does, via an independent Evaluator.
+
+In `verify: true` mode (forced on for Trial-tier actors, opt-in for everyone else):
+
+- At turn 0 a **planner** reads the goal and emits `core.agent.plan.v1` plus `core.agent.criteria.v1` — the success criteria the result will be checked against.
+- The loop runs as normal.
+- After what the loop *thinks* is the last turn, a separate **evaluator** judges the result against those criteria and emits `core.agent.evaluation.v1`.
+- Only the evaluator's verdict closes the loop. The outcome record (`core.agent.loop_outcome.v1`) carries `verdict: "success"` only when the evaluator says so — never on the loop's say-so.
+
+This closes the well-documented failure mode where models confidently rate mediocre work as complete. The Wilson-LB trust input the rest of the system feeds on now has an honest signal.
+
+## Tier-shaped guardrails
+
+Every actor has a **tier** (Trial / Paid / Team / Operator), and the tier shapes what the loop can do:
+
+| Tier | Max turns | Wall-clock | Token budget | Daily cost | Daily loops | Verify forced |
+|---|---|---|---|---|---|---|
+| **Trial** | 5 | 2 min | 20k | $0.50 | 10 | yes |
+| **Paid** | 16 | 10 min | 200k | $5 | 200 | optional |
+| **Team** | 50 | 30 min | 1M | $50 | 2000 | optional |
+| **Operator** | ∞ | ∞ | ∞ | ∞ | ∞ | optional |
+
+Requests that exceed the tier's ceiling are denied up front — the loop does not start, no compensation record is emitted, the actor gets a clear `denial_reason` (`AGENT_LOOP_DAILY_CAP_EXCEEDED` or `AGENT_LOOP_DAILY_COUNT_EXCEEDED`). Use `POST /v1/agent/loop/preview` to size goals before sending them.
+
+## Compensation records — when an assumption is violated
+
+Sometimes a loop violates an assumption the kernel made about it — it tries to exceed a ceiling, calls a forbidden tool, produces a malformed tool argument. The kernel emits a `core.agent.compensation.v1` record naming the seam (where the violation happened), the assumption (what was violated), and the context.
+
+Compensation records are observable to operators. The review endpoints (`GET /v1/agent/compensation/review`, `/review/top`) aggregate per-actor anomalies against the fleet median — actors whose loops compensate at well above the fleet rate are surfaced. This is how the system notices when a previously-trustworthy actor's loops start misbehaving.
+
+Importantly, compensation records are **not punishment** — they are observability. A high compensation count on a single goal might mean the loop is exploring an unusual boundary; a sustained high rate across many goals is what the anomaly score catches.
+
+## Chat-actor delegation — `@agent`
+
+A conversation with [Scribe](/docs/get-started/scribe) or the Syncropic Guide is one-shot: you ask, it answers. For multi-step work, open the message with `@agent <goal>` and the chat-actor delegates to a real loop.
+
+Two things change when delegation happens:
+
+1. **The loop runs as *the user*, not as Scribe/Guide.** It uses the user's identity, permissions, and tier — Scribe steps aside for the duration. Every record the loop emits is signed by the user's actor DID.
+2. **The chat-actor's response and the loop's outcome pair up.** A `core.scribe.delegation.v1` (or `core.guide.delegation.v1`) record opens the delegation; the loop's outcome closes it. This is the same pair-completion pattern the [AITL dispatcher](/docs/guides/cookbook-claude-session-correlation) uses.
+
+Delegation is auto-classified — Scribe sees a message that opens with `@agent` and starts a loop. The classifier is heuristic in v0.49 (verbs like "build", "audit", "find every…"); it can be tightened with explicit `@agent` opening.
+
+## How to start a loop
+
+Three entry points, same primitive:
+
+```bash
+# CLI — local in-process
+spl agent-loop "Summarise this week's dispatches"
+
+# CLI — daemon-run, verified
+spl agent-loop "..." --remote --verify
+
+# HTTP API
+curl -X POST http://localhost:9100/v1/agent/loop \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -d '{"goal": "...", "verify": true}'
+
+# Chat — @agent delegation
+# (type into any Scribe/Guide thread)
+@agent audit my last 7 days of dispatches and write a summary
+```
+
+See the [CLI reference](/docs/reference/cli#agent-loop--spl-agent-loop) and [API reference](/docs/reference/api#agent-loop) for full surface, and the [body-kinds reference](/docs/reference/body-kinds#kinds-emitted-by-the-agent-loop) for the records the loop emits.
+
+## What's next
+
+- [Scribe](/docs/get-started/scribe) — the default conversational agent that delegates to a loop via `@agent`.
+- [Actors](/docs/concepts/actors) — the DIDs records (and loops) are attributed to.
+- [Threads](/docs/concepts/threads) — the coordination context a loop lives on.
+- [Trust](/docs/concepts/trust) — how the kernel-locked Evaluator feeds the trust signal.
