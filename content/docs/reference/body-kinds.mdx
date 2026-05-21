@@ -207,7 +207,7 @@ Every run of a work loop (`spl work-loop`, `POST /v1/work/loop`, or a chat-actor
 
 ### Verification
 
-When the loop runs in `verify: true` mode (forced on for trial-tier actors), the kernel issues an independent Evaluator pair:
+When the loop runs in `verification: "evaluator"` mode (forced on for trial-tier actors), an independent Evaluator pair is issued:
 
 - **`core.work.plan.v1`** — the planner's read of the goal before the loop runs.
 - **`core.work.criteria.v1`** — the success criteria the Evaluator will check against.

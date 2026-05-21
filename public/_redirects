@@ -27,13 +27,11 @@
 # templates/ — 1 UNPUBLISH → guides
 /docs/templates/  /docs/guides/task-management/  301
 
-# concepts/ — 8 UNPUBLISH → records
-/docs/concepts/workspaces/   /docs/concepts/records/  301
-/docs/concepts/catalog/      /docs/concepts/records/  301
+# concepts/ — 5 still UNPUBLISH; 2 restored (workspaces, federation) for v0.54
+/docs/concepts/catalog/      /docs/concepts/graph/    301
 /docs/concepts/patterns/     /docs/concepts/records/  301
 /docs/concepts/namespaces/   /docs/concepts/records/  301
 /docs/concepts/governance/   /docs/concepts/records/  301
-/docs/concepts/federation/   /docs/concepts/records/  301
 /docs/concepts/secrets/      /docs/concepts/records/  301
 /docs/concepts/engine/       /docs/concepts/records/  301
 
@@ -45,7 +43,6 @@
 /docs/guides/federation-pair/      /docs/guides/task-management/  301
 /docs/guides/federation-invite/    /docs/guides/task-management/  301
 /docs/guides/federation/           /docs/guides/task-management/  301
-/docs/guides/federation-discovery/ /docs/guides/task-management/  301
 /docs/guides/async-federation/     /docs/guides/task-management/  301
 /docs/guides/consent/              /docs/guides/task-management/  301
 /docs/guides/portability/          /docs/guides/task-management/  301
@@ -80,28 +77,23 @@
 /docs/cookbook/audit-critical-with-ensemble-audit/       /docs/guides/task-management/  301
 /docs/cookbook/escalate-to-human-on-low-confidence/      /docs/guides/task-management/  301
 
-# integrate/ — 1 UNPUBLISH → ai-clients
-/docs/integrate/programmatic-agents/  /docs/integrate/ai-clients/  301
+# integrate/ — programmatic-agents restored for v0.54
 
-# operate/ — 15 UNPUBLISH (incl. troubleshooting-connection demoted in v2; workspace/* subsection) → runbook
+# operate/ — 12 UNPUBLISH; 3 restored (instance-lifecycle, workspace/lifecycle, workspace/sharing) for v0.54
 /docs/operate/actor-portability/         /docs/operate/runbook/  301
 /docs/operate/audit-export/              /docs/operate/runbook/  301
 /docs/operate/audit-threads/             /docs/operate/runbook/  301
 /docs/operate/extension-publishing/      /docs/operate/runbook/  301
 /docs/operate/federation-pairing/        /docs/operate/runbook/  301
 /docs/operate/fleet-benchmarking/        /docs/operate/runbook/  301
-/docs/operate/instance-lifecycle/        /docs/operate/runbook/  301
 /docs/operate/keyring/                   /docs/operate/runbook/  301
 /docs/operate/persist-instance/          /docs/operate/runbook/  301
 /docs/operate/relay/                     /docs/operate/runbook/  301
 /docs/operate/troubleshooting-connection/  /docs/operate/runbook/  301
 /docs/operate/windows-service/           /docs/operate/runbook/  301
-/docs/operate/workspace/lifecycle/       /docs/operate/runbook/  301
-/docs/operate/workspace/sharing/         /docs/operate/runbook/  301
 /docs/operate/workspace/testing/         /docs/operate/runbook/  301
 
-# reference/ — 4 UNPUBLISH → cli
+# reference/ — 3 UNPUBLISH; body-kinds restored for v0.54
 /docs/reference/record-format/        /docs/reference/cli/  301
-/docs/reference/body-kinds/           /docs/reference/cli/  301
 /docs/reference/infer-query-schema/   /docs/reference/cli/  301
 /docs/reference/iframe-host-snippet/  /docs/reference/cli/  301

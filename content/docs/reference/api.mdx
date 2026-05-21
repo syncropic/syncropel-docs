@@ -328,11 +328,11 @@ curl -X POST http://localhost:9100/v1/work/loop \
   -d '{
     "goal": "Summarise this week of dispatches",
     "max_turns": 16,
-    "verify": true
+    "verification": "evaluator"
   }'
 ```
 
-Returns `{thread: "th_...", loop_id: "...", verify: true}`. Watch progress via the stream endpoint or query the thread directly.
+Returns the new thread id, the resolved tier, and an `effective_config` block carrying the wall-clock, token budget, and verification mode the loop will run under. Watch progress via the stream endpoint or query the thread directly.
 
 ### Cost preview before starting
 
