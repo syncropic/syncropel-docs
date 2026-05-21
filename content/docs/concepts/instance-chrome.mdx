@@ -1,0 +1,135 @@
+---
+title: Instance chrome
+description: The rail, side panels, and footer that wrap every screen of your instance are a record — declare your chrome instead of compiling it.
+---
+
+A [workspace](/docs/concepts/workspaces) describes one screen. The
+**instance chrome** describes everything *around* the screens — the
+navigation rail down the side, the context panels, the footer with your
+identity and status. It is the frame your instance lives in.
+
+Like a workspace, the chrome is a record. You do not edit source code and
+redeploy to change your navigation or rename your instance — you emit a
+`core.instance.shell.v1` record and the frame updates. Your instance
+interprets that record at render time and draws the chrome around
+whatever screen you are on.
+
+Five record kinds now fully declare an instance: its
+[identity](/docs/concepts/actors), its landing page (`core.site.v1`),
+its [workspaces](/docs/concepts/workspaces) (`core.workspace.v1`), its
+description (`core.instance.metadata.v1`), and its chrome
+(`core.instance.shell.v1`). Nothing about how an instance looks is
+hardcoded.
+
+## The four regions
+
+A chrome record describes four layout regions. Each is optional — leave
+one out and your instance falls back to a sensible default for it.
+
+| Region | Where it sits | Typical content |
+|---|---|---|
+| `rail` | The primary navigation column. | Links to your workspaces, sections, the home route. |
+| `sidebar` | The context panel beside the main content. | Recent activity, the landing surfaces on your home page. |
+| `drawer` | An overlay panel that slides over the content. | Status, tool palettes, secondary navigation. |
+| `footer` | The strip along the bottom. | Status indicators, your identity chip, a version tag. |
+
+These are **authoring slots** — they say where a piece of chrome belongs,
+not how a particular screen draws it. The desktop renderer puts the
+`rail` down the left; a mobile renderer maps it to a bottom tab bar; a
+terminal renderer maps it to a menu. You author intent once and every
+renderer interprets it.
+
+## The shape
+
+A chrome body is a record of kind `core.instance.shell.v1`.
+
+```json
+{
+  "kind": "core.instance.shell.v1",
+  "schema_version": "1.0.0",
+  "lifecycle": "published",
+  "owner": "did:sync:user:you",
+  "extends": "default-latest",
+  "meta": {
+    "title": "My Instance",
+    "default_route": "/home"
+  },
+  "regions": {
+    "rail":    { "srp": "0.9", "root": { } },
+    "sidebar": { "srp": "0.9", "root": { } },
+    "drawer":  null,
+    "footer":  { "srp": "0.9", "root": { } }
+  }
+}
+```
+
+| Field | What it does |
+|---|---|
+| `lifecycle` | `draft` (authored, only you see it), `published` (live for everyone), or `archived` (retired — your instance falls back to the default chrome). |
+| `owner` | Your DID. The chrome is yours; this is what marks a viewer as the owner. |
+| `extends` | Optional. Inherit unset regions from a bundled default (`default-latest`) instead of declaring all four yourself. |
+| `meta.title` | The instance name shown in the browser tab and the masthead. |
+| `meta.default_route` | The path you land on after switching into this instance. |
+| `regions` | The four regions. A region set to `null` renders nothing; a region left out is inherited from `extends`; a region with a document renders that document. |
+
+Each region's value is a **projection document** — the same declarative
+UI format a workspace's regions use. See
+[Projections](/docs/guides/projections) for the document format.
+
+## Authoring your chrome
+
+The `spl chrome` command authors the record for you, starting from a
+bundled template.
+
+```bash
+spl chrome init --template personal   # scaffold a draft from a template
+spl chrome show                       # inspect the current draft
+spl chrome validate my-shell.json     # schema-check a file, no daemon needed
+spl chrome publish                    # promote the draft to live
+spl chrome archive                    # retire it, fall back to the default
+```
+
+`init` takes one of four templates — `personal`, `graph-showcase`,
+`library`, or `team` — each a different starting point. A draft is
+private to you until you `publish` it. See the
+[CLI reference](/docs/reference/cli#chrome) for the full command surface.
+
+## How a renderer gets your chrome
+
+Studio resolves your chrome the moment it loads, through one request:
+
+- `GET /v1/instance/bootstrap` returns your published chrome, your
+  instance description, and the viewer's identity together — one
+  round-trip, so the frame draws without a waterfall of calls. It is a
+  **public** endpoint: an anonymous visitor gets your public chrome; a
+  signed-in viewer additionally sees what they are allowed to do.
+
+If you would rather fetch just the chrome, `GET /v1/instance/shell`
+returns the resolved `core.instance.shell.v1` record on its own. Both
+are covered in the [API reference](/docs/reference/api#instance).
+
+If no chrome has been published, a renderer falls back to its bundled
+default — so an instance is never frameless, even before you author
+anything.
+
+## What chrome is not
+
+- **It is not a workspace.** A workspace is one interactive screen;
+  chrome is the frame that holds every screen.
+- **It does not grant power.** Chrome decides what is *shown*, not what
+  is *allowed*. A rail link to a screen a viewer cannot use simply will
+  not function — the kernel remains the authority on permissions.
+- **It carries no data.** Like a workspace, a chrome record carries
+  query bindings, not baked-in content. The same chrome shows each
+  viewer their own records.
+
+## What's next
+
+- [Workspaces](/docs/concepts/workspaces) — the interactive screens the
+  chrome frames.
+- [`spl chrome` reference](/docs/reference/cli#chrome) — the full
+  authoring command surface.
+- [`core.instance.shell.v1` body kind](/docs/reference/body-kinds) — the
+  record schema.
+- [Projections](/docs/guides/projections) — the document format the
+  regions are written in.

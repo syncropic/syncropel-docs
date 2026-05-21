@@ -569,9 +569,66 @@ For the discovery workflow and how this composes with `did:web`, `did:sync`, and
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/v1/identity` | The daemon's own identity (DID + public-key info) |
+| GET | `/v1/identity` | The instance's identity, plus the calling token's authentication state |
 
-Returns `{actor, display_name, did, method, key_path, key_fingerprint}`. Populated from `~/.syncro/config.toml` at daemon startup. New installs generate a `did:key:...` on `spl init`; upgraded installs without a DID in config need `spl init --force` once.
+Returns the instance's own identity — `{actor, display_name, did, method, key_path, key_fingerprint}` — populated at daemon startup. New installs generate a `did:key:...` on `spl init`; upgraded installs without a DID need `spl init --force` once.
+
+This endpoint requires a valid bearer token. Since **v0.53** the response also reports the calling token's own authentication state, so a renderer can decide what to show the viewer:
+
+| Field | Description |
+|---|---|
+| `is_authenticated` | `true` for any request that reached this endpoint with a valid token. |
+| `scopes` | The token's resolved capability scopes (`admin` is the catch-all). |
+| `service_account_id` | The service account behind the token, or `null` for a key-based identity. |
+| `expires_at` | When the token expires, or `null` if it does not. |
+
+The anonymous form of this block — `is_authenticated: false`, `scopes: []` — is what an unauthenticated caller sees inside the [bootstrap aggregate](#instance) below.
+
+## Instance
+
+Endpoints that resolve an instance's **chrome** — the `core.instance.shell.v1` record that frames every screen of Studio. See [Instance chrome](/docs/concepts/instance-chrome) for the concept.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/instance/shell` | The resolved instance chrome record |
+| GET | `/v1/instance/bootstrap` | Chrome + instance metadata + viewer identity, in one round-trip |
+
+### GET `/v1/instance/shell`
+
+Returns the resolved `core.instance.shell.v1` record. Requires a valid bearer token (`records:read` scope).
+
+| Query parameter | Description |
+|---|---|
+| `lifecycle` | `published` (default) — the live chrome. `draft` — the owner's unpublished draft; owner-only. |
+
+```json
+{
+  "object": "instance_shell",
+  "version": 4,
+  "shell": { "kind": "core.instance.shell.v1", "...": "..." }
+}
+```
+
+Returns `404` when no chrome has been published — a renderer falls back to its bundled default.
+
+### GET `/v1/instance/bootstrap`
+
+The aggregate a renderer calls on load. Returns the published chrome, the instance metadata, and the caller's identity together, so the frame draws without a waterfall of requests.
+
+This endpoint is **auth-invariant** — it needs no token. An anonymous caller gets the public surface; a caller presenting a valid token additionally sees their resolved scopes in the `identity` block.
+
+```json
+{
+  "object": "instance_bootstrap",
+  "shell": { "...": "core.instance.shell.v1 record, or null" },
+  "metadata": { "...": "core.instance.metadata.v1 record, or null" },
+  "identity": { "object": "identity", "is_authenticated": false, "scopes": [] },
+  "is_owner": false,
+  "ts": "2026-05-20T18:30:00Z"
+}
+```
+
+`shell` is `null` when no chrome has been published. `is_owner` is `true` only when the caller's identity matches the chrome's `owner`.
 
 ## Federation sync
 

@@ -190,6 +190,32 @@ spl workspace unsubscribe <workspace-ref> [--reason <text>]
 
 Workspaces are walked in [Build your first workspace](/docs/tutorials/first-workspace).
 
+## Chrome
+
+Your instance's chrome — the navigation rail, side panels, and footer that
+wrap every screen — is a `core.instance.shell.v1` record. The `spl chrome`
+family authors it. See [the instance chrome
+concept](/docs/concepts/instance-chrome) for the full picture.
+
+```bash
+spl chrome show [--published]
+spl chrome init [--template <name>] [--force]
+spl chrome validate <file>
+spl chrome publish
+spl chrome archive
+```
+
+| Command | Description |
+|---|---|
+| `chrome show` | Print the current chrome record — the draft if one exists, otherwise the published record. `--published` forces the published lookup |
+| `chrome init` | Scaffold a draft `core.instance.shell.v1` from a bundled template. `--template` is one of `personal` (default), `graph-showcase`, `library`, `team`. Fails if a draft already exists — re-run with `--force` to overwrite |
+| `chrome validate <file>` | Schema-check a `core.instance.shell.v1` body in a local file. No daemon needed — good for pre-commit hooks. Exit `0` on valid, `1` on invalid |
+| `chrome publish` | Promote the current draft to `lifecycle: published` — the live chrome that `GET /v1/instance/shell` serves and renderers draw |
+| `chrome archive` | Archive the published record. Renderers fall back to the bundled default chrome |
+
+The command is named `chrome`, not `shell`, to keep it clear of the
+"shell = terminal" reflex; the record it writes is `core.instance.shell.v1`.
+
 ## Share
 
 One-shot bug-repro bundles. Share a thread (with explicit consent) so a
@@ -502,7 +528,7 @@ spl work-loop "<goal>" \
 | `--model <NAME>` | Inference model. Default: `claude-sonnet-4-6`. |
 | `--tools <CSV>` | Allowlist of tool names (comma-separated). Default: all available tools. |
 | `--remote` | Run the loop on the daemon (substrate-native tools, no host `bash`) instead of in-process. Records land in the substrate and the thread is watchable from anywhere. |
-| `--verify` | Run under independent evaluation (ADR-112): planner expands the goal into acceptance criteria, a separate evaluator judges the result, the loop never self-asserts "done". Forced on for Trial-tier actors. |
+| `--verify` | Run under independent evaluation: a planner expands the goal into acceptance criteria, a separate evaluator judges the result, and the loop never self-asserts "done". Forced on for Trial-tier actors. |
 | `--token <BEARER>` | Bearer token for daemon auth. Precedence: `--token` > `SPL_TOKEN` env > `~/.syncro/token`. |
 | `--json` | Emit machine-readable progress instead of pretty text. |
 

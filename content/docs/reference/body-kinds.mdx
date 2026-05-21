@@ -235,6 +235,7 @@ For the complete work-loop family (29 kinds total — including artifact, note, 
 Pointers to the rest of the kind surface — full schemas live in their own reference pages.
 
 - **`core.workspace.v1`** + **`core.workspace_view.v1`** — a workspace (an interactive surface carried as a record) + per-thread-per-actor projection memory. See [Workspaces](/docs/concepts/workspaces).
+- **`core.instance.shell.v1`** — an instance's Studio chrome (the navigation rail, side panels, and footer that frame every screen) carried as a record. Resolved at `GET /v1/instance/shell` and in the `GET /v1/instance/bootstrap` aggregate. See [Instance chrome](/docs/concepts/instance-chrome).
 - **`core.credential.v1`** — secrets and external credentials. See [Secrets](/docs/concepts/secrets).
 - **`core.consent.v1`** — cross-namespace consent grants for federation. See [Consent](/docs/guides/consent).
 - **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`** — CEL-driven engine config records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).

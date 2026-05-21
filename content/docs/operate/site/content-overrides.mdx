@@ -224,10 +224,10 @@ every change is an append.
 ## Fleet seeding
 
 For instances provisioned from a blueprint or scripted from a fleet
-runbook, the record is what you check in. Drop a JSON file like the
-example at the top of this page into your seed records directory, then
-POST it through `/v1/records` with the operator's DID as `actor`. The
-seed loader in `syncropic-ops/services/graph/seed/seed.sh` is one
-reference shape; the `core.site.v1` body in
-`syncropic-ops/services/graph/seed/records/10-site.json` is the
-record that runs `graph.syncropel.com` itself.
+runbook, the record is what you check in. Keep your `core.site.v1`
+document in version control alongside your provisioning scripts, then
+POST it through `/v1/records` with the operator's DID as `actor` as a
+post-provision step. Because the record is content-addressed, the same
+file produces the same site on every instance you seed it into — which
+makes a checked-in site record the simplest way to keep a fleet's
+landing pages consistent.
