@@ -1,6 +1,6 @@
 ---
 title: Work loops
-description: A work loop is a records-native primitive — a kernel-managed plan/act/check cycle that emits every step as a record, runs tools the kernel permission-checks, and ends only when a kernel-locked Evaluator decides it has actually finished.
+description: A work loop is a records-native primitive — a managed plan/act/check cycle that emits every step as a record, runs tools that are permission-checked before they execute, and ends only when an independent Evaluator decides it has actually finished.
 ---
 
 ## Overview
@@ -30,14 +30,14 @@ The loop runs in one of two modes:
 
 ## Why "records-native"
 
-Other agent frameworks treat the loop as the source of truth and emit telemetry on the side. Syncropel inverts this: the records *are* the truth. The loop is a reconciler-driven task whose state is the fold of its thread.
+Other agent frameworks treat the loop as the source of truth and emit telemetry on the side. Syncropel inverts this: the records *are* the truth. The loop is a managed task whose state is derived from the records on its thread.
 
 The consequence is that everything follows from existing Syncropel primitives:
 
-- **Pause + resume** is free — pause is just stopping the reconciler; resume is reading the thread back and continuing.
+- **Pause + resume** is free — pause is just halting the runner; resume is re-reading the thread and continuing.
 - **Multi-actor visibility** is free — anyone on the loop's thread sees its records.
 - **Federation** is free — a peer pulling the thread gets the whole loop.
-- **Cancel** is a record (`core.work.loop_cancel.v1` `DO`) that the reconciler propagates — no out-of-band shutdown signal.
+- **Cancel** is a record (`core.work.loop_cancel.v1` `DO`) that the runtime propagates — no out-of-band shutdown signal.
 - **Trust** flows naturally through the record's `actor` field — the loop runs under a real DID (the user's DID, in the chat-actor delegation case), and trust accumulates on that DID, not on an opaque "agent" process.
 
 ## The four components
@@ -74,16 +74,47 @@ goal
 
 ## Verify mode and the Evaluator contract
 
-The most important constraint: **a loop never decides it is done**. The kernel does, via an independent Evaluator.
+The most important constraint: **a loop never decides it is done**. An independent Evaluator does.
 
-In `verify: true` mode (forced on for Trial-tier actors, opt-in for everyone else):
+In verify mode (`verification: "evaluator"` — forced on for Trial-tier actors, opt-in for everyone else):
 
 - At turn 0 a **planner** reads the goal and emits `core.work.plan.v1` plus `core.work.criteria.v1` — the success criteria the result will be checked against.
 - The loop runs as normal.
 - After what the loop *thinks* is the last turn, a separate **evaluator** judges the result against those criteria and emits `core.work.evaluation.v1`.
 - Only the evaluator's verdict closes the loop. The outcome record (`core.work.loop_outcome.v1`) carries `verdict: "success"` only when the evaluator says so — never on the loop's say-so.
 
-This closes the well-documented failure mode where models confidently rate mediocre work as complete. The Wilson-LB trust input the rest of the system feeds on now has an honest signal.
+This closes the well-documented failure mode where models confidently rate mediocre work as complete. The trust signal the rest of the system feeds on now has an honest input.
+
+## Outcomes
+
+Every loop ends with a `core.work.loop_outcome.v1` record. The `outcome` field is one of five values, and any non-success outcome carries enough structure for a reader to know exactly what happened:
+
+| Outcome | `success` | What it means |
+|---|---|---|
+| `completed` | `true` or `false` | The loop ran to completion. In verify mode, `success: true` is the evaluator's verdict; `success: false` means the loop ran but did not meet the goal. Without verify mode, `success` reflects whether the loop produced a non-empty result. |
+| `blocked` | `false` | The loop halted because it could not proceed. A paired `core.work.coercion.v1` record carries the structured reason. |
+| `cancelled` | `false` | Someone explicitly cancelled the loop while it was running. |
+| `timeout` | `false` | The loop hit its wall-clock or token budget before finishing. |
+| `failed` | `false` | The loop crashed unrecoverably — an upstream or infrastructure error, not an agent decision. |
+
+The `blocked` outcome is the most important one to understand, because it is how a well-behaved loop reports an honest "I can't do this" rather than producing noise.
+
+### Coercion reasons
+
+A `blocked` outcome is always paired with a `core.work.coercion.v1` record whose `reason` field is one of:
+
+| Reason | What happened |
+|---|---|
+| `tool_unavailable` | The loop identified a tool it would need to make progress, but the tool is not in its grant. If the tool is in the actor's *requestable* set, the loop can escalate via a decision request. |
+| `ambiguous_goal` | The goal has more than one reasonable interpretation. The loop surfaces the alternatives rather than picking one silently. |
+| `precondition_failed` | A goal assumed something that turned out not to hold — for example, "summarise the records on this thread" when the thread is empty. |
+| `decision_required` | The loop reached a fork that needs a human call. A `core.work.decision_request.v1` is emitted; the loop blocks until you respond. |
+| `input_invalid` | A goal parameter could not be parsed into something concrete — an unparseable date range, a malformed reference. |
+| `internal_error` | The language model or an upstream service returned an unexpected error after the loop's retry budget was exhausted. |
+
+The coercion record carries a `narrative` field explaining the situation in prose, and, where relevant, a `missing_tools` array or a `decision_request_ref`. Workspace surfaces render it as a card alongside the outcome.
+
+The contract that makes this work is that the loop's tool registry is the source of truth: a loop cannot "almost" call a missing tool, and the kernel will not let it. When the language model produces a tool call the loop does not have, the registry rejects it and the loop halts with a structured coercion record. There is no path through which a missing tool becomes a confident-but-fabricated answer.
 
 ## Tier-shaped guardrails
 
@@ -113,9 +144,11 @@ A conversation with [Scribe](/docs/get-started/scribe) or the Syncropic Guide is
 Two things change when delegation happens:
 
 1. **The loop runs as *the user*, not as Scribe/Guide.** It uses the user's identity, permissions, and tier — Scribe steps aside for the duration. Every record the loop emits is signed by the user's actor DID.
-2. **The chat-actor's response and the loop's outcome pair up.** A `core.work.delegation.v1` (or `core.work.delegation.v1`) record opens the delegation; the loop's outcome closes it. This is the same pair-completion pattern the [AITL dispatcher](/docs/guides/cookbook-claude-session-correlation) uses.
+2. **The chat-actor's response and the loop's outcome pair up.** A `core.work.delegation.v1` record opens the delegation; the loop's outcome closes it. This is the same pair-completion pattern decision requests use.
 
-Delegation is auto-classified — Scribe sees a message that opens with `@agent` and starts a loop. The classifier is heuristic in v0.49 (verbs like "build", "audit", "find every…"); it can be tightened with explicit `@agent` opening.
+Delegation is auto-classified — Scribe sees a message that opens with `@agent` and starts a loop. The classifier is heuristic (verbs like "build", "audit", "find every…"); it can be tightened with an explicit `@agent` opening.
+
+See [Agents](/docs/concepts/agents) for the user-facing view of this seam — what the launch surface shows, what the capability is, what the outcomes mean.
 
 ## How to start a loop
 
@@ -131,7 +164,8 @@ spl work-loop "..." --remote --verify
 # HTTP API
 curl -X POST http://localhost:9100/v1/work/loop \
   -H "Authorization: Bearer $SPL_TOKEN" \
-  -d '{"goal": "...", "verify": true}'
+  -H "Content-Type: application/json" \
+  -d '{"goal": "...", "verification": "evaluator"}'
 
 # Chat — @agent delegation
 # (type into any Scribe/Guide thread)
@@ -142,7 +176,8 @@ See the [CLI reference](/docs/reference/cli#work-loop--spl-work-loop) and [API r
 
 ## What's next
 
+- [Agents](/docs/concepts/agents) — the user-facing view of LLM actors driving loops, including `@agent` invocation and outcome interpretation.
 - [Scribe](/docs/get-started/scribe) — the default conversational agent that delegates to a loop via `@agent`.
 - [Actors](/docs/concepts/actors) — the DIDs records (and loops) are attributed to.
 - [Threads](/docs/concepts/threads) — the coordination context a loop lives on.
-- [Trust](/docs/concepts/trust) — how the kernel-locked Evaluator feeds the trust signal.
+- [Trust](/docs/concepts/trust) — how the Evaluator feeds the trust signal.
