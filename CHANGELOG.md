@@ -2,6 +2,26 @@
 
 All notable additions and revisions to docs.syncropel.com are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-05-21 — Files in your instance (the in-Studio editor)
+
+- **[Working with files in your instance](/docs/guides/files-in-studio)** —
+  new guide covering the Files tab in a browser: the tree + viewer layout,
+  per-kind rendering (markdown, code, JSON, CSV, image, PDF, plain text),
+  the inline editor with autosave + manual save + status indicator, right-
+  click context actions (New file / New folder / Rename / Delete),
+  drag-and-drop upload from your computer, drag-to-move inside the tree,
+  recovering unsaved changes after a crash, the conflict banner when
+  another writer touches the file under you, quick find with `⌘K`,
+  attaching files to chat messages with `@files`, agent-recent decorations,
+  and the mobile experience.
+- **[Files concept](/docs/concepts/files)** updated. The "Using your
+  files" section now describes the Files tab as a full editor (not just a
+  browser), and the "What's next" list links to both the command-line
+  and browser walkthroughs.
+- **[Working with files (command line)](/docs/guides/filesystem)** —
+  the "In the browser" section now pulls users into the new guide
+  instead of mentioning the Files tab in a single line.
+
 ## 2026-05-18 — Filesystem documentation
 
 - **[Files](/docs/concepts/files)** — new concept page. Every instance has a filesystem with four areas: `/files` (working files), `/artifacts` (published, immutable files), `/mnt` (connected drives), and `/threads` (files derived from threads). Covers the working-file → published-artifact lifecycle.
