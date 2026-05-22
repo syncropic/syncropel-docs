@@ -1,13 +1,13 @@
 ---
 title: Work loops
-description: A work loop is a records-native primitive — a managed plan/act/check cycle that emits every step as a record, runs tools that are permission-checked before they execute, and ends only when an independent Evaluator decides it has actually finished.
+description: A work loop is a records-native primitive — a managed plan/act/check cycle that emits every step as a record, runs tools that are permission-checked before they execute, and ends with a structured outcome that names exactly what happened.
 ---
 
 ## Overview
 
 A **work loop** is what you get when you stop treating "an actor doing goal-structured work" as an opaque process and start treating it as a sequence of records on a thread.
 
-The actor doing the work can be an LLM agent, a human driving a UI, a workflow, or any other automation — the loop primitive is the same. Every turn it takes, every tool it calls, every result it gets, every judgement made about its work, are all records on the loop's thread. You can subscribe to them, query against them, fold them, and audit them with the same tools you use for every other Syncropel record. There is no separate "agent log" to scrape.
+The actor doing the work can be an LLM agent, a human driving a UI, a workflow, or any other automation — the loop primitive is the same. Every turn it takes, every tool it calls, every result it gets, every halt reason, are all records on the loop's thread. You can subscribe to them, query against them, fold them, and audit them with the same tools you use for every other Syncropel record. There is no separate "agent log" to scrape.
 
 ```
 loop opens on a new thread
@@ -19,8 +19,7 @@ loop opens on a new thread
   ├─ turn 2: core.work.turn.v1
   │   └─ ...
   │
-  ├─ (optional) judgement: core.work.turn_judgment.v1
-  └─ outcome: core.work.loop_outcome.v1   ← kernel-locked verdict
+  └─ outcome: core.work.loop_outcome.v1   ← structured terminal record
 ```
 
 The loop runs in one of two modes:
@@ -40,62 +39,32 @@ The consequence is that everything follows from existing Syncropel primitives:
 - **Cancel** is a record (`core.work.loop_cancel.v1` `DO`) that the runtime propagates — no out-of-band shutdown signal.
 - **Trust** flows naturally through the record's `actor` field — the loop runs under a real DID (the user's DID, in the chat-actor delegation case), and trust accumulates on that DID, not on an opaque "agent" process.
 
-## The four components
+## How a loop completes
 
-```
-goal
- │
- ▼
-┌─────────────┐     ┌──────────────────┐
-│   Planner   │ ──▶ │  Tool registry   │ ◀── permission checks (CEL)
-└─────────────┘     └──────────────────┘
-       │                    ▲
-       │                    │ tool calls
-       ▼                    │
-┌─────────────┐             │
-│   Driver    │ ────────────┘
-│  (the loop) │
-└─────────────┘
-       │
-       │ context via curated projection
-       ▼
-┌─────────────┐
-│  Evaluator  │ ──▶ verdict — the loop never self-asserts "done"
-└─────────────┘
-       │
-       ▼
-   outcome record
-```
+A turn either calls a tool or it doesn't. The loop continues as long as the agent keeps calling tools. When the agent emits a turn with no tool calls, the work is finished and the loop closes with an outcome.
 
-1. **The driver** is the loop itself — read context, call the model, dispatch tool calls, write results, repeat. It does not decide when to stop.
-2. **The tool registry** is the set of tools the loop can call. Each tool is permission-checked through the kernel before it runs; tool calls and results are records.
-3. **The Evaluator pair** (active in `verify` mode) is independent: a planner expands the goal into success criteria at turn 0, and an evaluator judges the result before the loop completes. The driver and the evaluator can never be the same process — that is what "kernel-locked" means.
-4. **Curated projection** assembles context for each turn. The driver does not fold the whole thread; it folds a *projection* that selectively surfaces the records the current turn needs.
+Three other paths end the loop early:
 
-## Verify mode and the Evaluator contract
+- A **resource ceiling is reached** — turns, tokens, wall-clock, or a USD cost cap. The outcome names which one.
+- The agent **can't make progress** — it needs a tool it doesn't have, the goal is ambiguous, or it needs a decision from you. The outcome is `blocked` with a structured coercion record alongside it.
+- A **repeated-failure pattern is detected** — the same tool call with the same arguments fails multiple times in a row. The loop halts with `guardrail_halt` rather than thrashing.
 
-The most important constraint: **a loop never decides it is done**. An independent Evaluator does.
-
-In verify mode (`verification: "evaluator"` — forced on for Trial-tier actors, opt-in for everyone else):
-
-- At turn 0 a **planner** reads the goal and emits `core.work.plan.v1` plus `core.work.criteria.v1` — the success criteria the result will be checked against.
-- The loop runs as normal.
-- After what the loop *thinks* is the last turn, a separate **evaluator** judges the result against those criteria and emits `core.work.evaluation.v1`.
-- Only the evaluator's verdict closes the loop. The outcome record (`core.work.loop_outcome.v1`) carries `verdict: "success"` only when the evaluator says so — never on the loop's say-so.
-
-This closes the well-documented failure mode where models confidently rate mediocre work as complete. The trust signal the rest of the system feeds on now has an honest input.
+In every case the terminal record carries enough structure that a reader knows exactly what happened. The loop never returns a confident-but-fabricated "done."
 
 ## Outcomes
 
-Every loop ends with a `core.work.loop_outcome.v1` record. The `outcome` field is one of five values, and any non-success outcome carries enough structure for a reader to know exactly what happened:
+Every loop ends with a `core.work.loop_outcome.v1` record. The `outcome` field is one of eight values:
 
 | Outcome | `success` | What it means |
 |---|---|---|
-| `completed` | `true` or `false` | The loop ran to completion. In verify mode, `success: true` is the evaluator's verdict; `success: false` means the loop ran but did not meet the goal. Without verify mode, `success` reflects whether the loop produced a non-empty result. |
-| `blocked` | `false` | The loop halted because it could not proceed. A paired `core.work.coercion.v1` record carries the structured reason. |
-| `cancelled` | `false` | Someone explicitly cancelled the loop while it was running. |
-| `timeout` | `false` | The loop hit its wall-clock or token budget before finishing. |
+| `completed` | `true` | The agent ran to a turn with no tool calls — the work is done. |
 | `failed` | `false` | The loop crashed unrecoverably — an upstream or infrastructure error, not an agent decision. |
+| `cancelled` | `false` | Someone explicitly cancelled the loop while it was running. |
+| `blocked` | `false` | The loop halted because it could not proceed. A paired `core.work.coercion.v1` record carries the structured reason. |
+| `max_turns` | `false` | The loop hit its turn ceiling before finishing. Increase `max_turns` or scope the goal smaller. |
+| `budget_exhausted` | `false` | A token, USD, or wall-clock budget ran out. The body carries a `budget_kind` field naming which one. |
+| `guardrail_halt` | `false` | The same tool call with the same arguments failed enough times in a row that the loop was stopped to prevent thrashing. The body carries the tool name, an arguments hash, and the failure count. |
+| `awaiting_actor` | — | The loop is paused waiting for a human decision (a `core.work.decision_request.v1` was raised). Not a terminal outcome — the loop resumes when you respond. |
 
 The `blocked` outcome is the most important one to understand, because it is how a well-behaved loop reports an honest "I can't do this" rather than producing noise.
 
@@ -120,18 +89,37 @@ The contract that makes this work is that the loop's tool registry is the source
 
 Every actor has a **tier** (Trial / Paid / Team / Operator), and the tier shapes what the loop can do:
 
-| Tier | Max turns | Wall-clock | Token budget | Daily cost | Daily loops | Verify forced |
-|---|---|---|---|---|---|---|
-| **Trial** | 5 | 2 min | 20k | $0.50 | 10 | yes |
-| **Paid** | 16 | 10 min | 200k | $5 | 200 | optional |
-| **Team** | 50 | 30 min | 1M | $50 | 2000 | optional |
-| **Operator** | ∞ | ∞ | ∞ | ∞ | ∞ | optional |
+| Tier | Max turns | Wall-clock | Token budget | Daily cost | Daily loops |
+|---|---|---|---|---|---|
+| **Trial** | 5 | 2 min | 20k | $0.50 | 10 |
+| **Paid** | 16 | 10 min | 200k | $5 | 200 |
+| **Team** | 50 | 30 min | 1M | $50 | 2000 |
+| **Operator** | ∞ | ∞ | ∞ | ∞ | ∞ |
 
 Requests that exceed the tier's ceiling are denied up front — the loop does not start, no compensation record is emitted, the actor gets a clear `denial_reason` (`WORK_DAILY_CAP_EXCEEDED` or `WORK_DAILY_COUNT_EXCEEDED`). Use `POST /v1/work/loop/preview` to size goals before sending them.
 
+## Task budget
+
+A loop can carry an optional `task_budget` — a per-loop ceiling on turns, tokens, or USD cost that overlays the tier's daily limits. When set, the budget is **visible to the language model** in its system prompt, so the model can pace its own work and wrap up gracefully as the budget shrinks. When the budget is hit, the loop ends with `budget_exhausted` and the `budget_kind` field names which one.
+
+```bash
+spl work-loop "Summarise this week's dispatches" --max-turns 8 --usd-budget 0.50
+```
+
+## Repeated-failure guardrail
+
+If the same tool call with the same arguments fails repeatedly — same name, same arguments, same error shape — the loop will eventually halt rather than continue retrying. This catches the case where the model gets stuck on a single failed call and would otherwise spin until the turn cap runs out.
+
+The behaviour is two-stage:
+
+1. After a small number of identical failures, the next attempt with the same signature returns a synthetic failure result telling the agent "this exact call has failed N times; change strategy or stop." The agent reads it on its next turn and decides what to do.
+2. If the agent keeps trying anyway, the loop halts with `guardrail_halt` and a `core.work.guardrail.v1` record naming the tool, the arguments hash, and the count.
+
+The guardrail is shape-aware — it does not count one-shot transient errors, only repeated identical failures.
+
 ## Compensation records — when an assumption is violated
 
-Sometimes a loop violates an assumption the kernel made about it — it tries to exceed a ceiling, calls a forbidden tool, produces a malformed tool argument. The kernel emits a `core.work.compensation.v1` record naming the seam (where the violation happened), the assumption (what was violated), and the context.
+Sometimes a loop violates an assumption the system made about it — for example, the loop wraps up prematurely as it nears its context limit. The kernel emits a `core.work.compensation.v1` record naming the seam, the assumption, and the context.
 
 Compensation records are observable to operators. The review endpoints (`GET /v1/work/compensation/review`, `/review/top`) aggregate per-actor anomalies against the fleet median — actors whose loops compensate at well above the fleet rate are surfaced. This is how the system notices when a previously-trustworthy actor's loops start misbehaving.
 
@@ -158,14 +146,14 @@ Three entry points, same primitive:
 # CLI — local in-process
 spl work-loop "Summarise this week's dispatches"
 
-# CLI — daemon-run, verified
-spl work-loop "..." --remote --verify
+# CLI — daemon-run with a task budget
+spl work-loop "..." --remote --max-turns 8
 
 # HTTP API
 curl -X POST http://localhost:9100/v1/work/loop \
   -H "Authorization: Bearer $SPL_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"goal": "...", "verification": "evaluator"}'
+  -d '{"goal": "...", "max_turns": 8}'
 
 # Chat — @agent delegation
 # (type into any Scribe/Guide thread)
@@ -180,4 +168,4 @@ See the [CLI reference](/docs/reference/cli#work-loop--spl-work-loop) and [API r
 - [Scribe](/docs/get-started/scribe) — the default conversational agent that delegates to a loop via `@agent`.
 - [Actors](/docs/concepts/actors) — the DIDs records (and loops) are attributed to.
 - [Threads](/docs/concepts/threads) — the coordination context a loop lives on.
-- [Trust](/docs/concepts/trust) — how the Evaluator feeds the trust signal.
+- [Trust](/docs/concepts/trust) — how the records a loop emits feed the trust signal.

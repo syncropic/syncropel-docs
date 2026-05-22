@@ -311,7 +311,7 @@ curl -X POST http://localhost:9100/v1/dispatch \
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/v1/work/loop` | Start a work loop. Body: `{goal, max_turns?, verify?, workspace?}`. Returns the loop's `thread` id. |
+| POST | `/v1/work/loop` | Start a work loop. Body: `{goal, max_turns?, token_budget?, wall_clock_secs?, workspace?}`. Returns the loop's `thread` id. |
 | POST | `/v1/work/loop/preview` | Cost preview — returns effective tier caps, usage so far today, `would_be_denied`, and `denial_reason` without starting a loop. |
 | GET | `/v1/work/loop/{thread}` | Loop status for the given thread. |
 | POST | `/v1/work/loop/{thread}/cancel` | Cancel a running loop. Emits a `core.work.loop_cancel.v1` `DO` record; the reconciler propagates the cancel to the in-process loop. |
@@ -327,12 +327,29 @@ curl -X POST http://localhost:9100/v1/work/loop \
   -H "Content-Type: application/json" \
   -d '{
     "goal": "Summarise this week of dispatches",
-    "max_turns": 16,
-    "verification": "evaluator"
+    "max_turns": 16
   }'
 ```
 
-Returns the new thread id, the resolved tier, and an `effective_config` block carrying the wall-clock, token budget, and verification mode the loop will run under. Watch progress via the stream endpoint or query the thread directly.
+The response shape:
+
+```json
+{
+  "object": "work_loop",
+  "status": "started",
+  "thread": "th_...",
+  "tier": "operator",
+  "effective_config": {
+    "max_turns": 16,
+    "token_budget": null,
+    "wall_clock_secs": null,
+    "forbidden_tools": ["bash", "write_file"]
+  },
+  "watch": "/v1/threads/.../records"
+}
+```
+
+The thread id is the loop id (there is no separate `loop_id` field). `tier` is the actor's resolved tier. `effective_config` carries the resource ceilings the loop will run under — combining the tier's daily limits with any per-loop `task_budget` you sent. `watch` is the SSE stream URL for live progress.
 
 ### Cost preview before starting
 
@@ -343,7 +360,7 @@ curl -X POST http://localhost:9100/v1/work/loop/preview \
   -d '{"goal": "..."}'
 ```
 
-Returns the actor's effective tier (Trial / Paid / Team / Operator), the tier caps (`max_turns`, `wall_clock_secs`, `token_budget`, `daily_cost_cap_usd`, `daily_loop_cap`), usage so far today (`loop_count`, `cost_usd`), `forced_verification: bool`, `estimated_cost_usd`, and — if the request would exceed a cap — `would_be_denied: true` with `denial_reason` set to `WORK_DAILY_CAP_EXCEEDED` or `WORK_DAILY_COUNT_EXCEEDED`.
+Returns the actor's effective tier (Trial / Paid / Team / Operator), the tier caps (`max_turns`, `wall_clock_secs`, `token_budget`, `daily_cost_cap_usd`, `daily_loop_cap`), usage so far today (`loop_count`, `cost_usd`), `estimated_cost_usd`, the `tool_grant` shape (`default` and `requestable` tool sets), and — if the request would exceed a cap — `would_be_denied: true` with `denial_reason` set to `WORK_DAILY_CAP_EXCEEDED` or `WORK_DAILY_COUNT_EXCEEDED`.
 
 ### Watch live progress over SSE
 

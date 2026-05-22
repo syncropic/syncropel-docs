@@ -29,7 +29,7 @@ You can also start a loop without going through chat — `spl work-loop "..."` f
 
 ## What an agent can actually do
 
-Every agent has a **capability** — what tools it can call, what budget it has, what kind of judgement closes its loops. Capability is shaped by the actor's tier, not chosen at launch time:
+Every agent has a **capability** — what tools it can call, what budget it has. Capability is shaped by the actor's tier, not chosen at launch time:
 
 - The **granted** set is what the agent can call without asking — typically reading and writing records on threads.
 - The **requestable** set is what the agent can ask the operator to grant for a specific loop, through a structured decision request. The operator approves or declines; either way the request is a record.
@@ -43,7 +43,6 @@ Every action an agent takes is a record on the loop's thread. The thread carries
 
 - The original goal (a `core.work.loop.v1` record).
 - Each turn the agent took (`core.work.turn.v1`), with the tool calls and results that turn made.
-- Optionally, the planner's success criteria and the evaluator's verdict (in [verify mode](/docs/concepts/work-loop#verify-mode-and-the-evaluator-contract)).
 - A final outcome record (`core.work.loop_outcome.v1`).
 
 You don't have to read the records directly — the workspace surface renders them as a timeline. But the records are the source of truth, so anyone with access to the thread sees the same picture.
@@ -52,10 +51,12 @@ The outcome of a loop is one of:
 
 | Outcome | What it means |
 |---|---|
-| **completed** | The loop finished. If `success: true`, the evaluator agreed the goal was met; if `success: false`, the loop ran but did not meet the goal. |
+| **completed** | The loop finished — the agent ran to a turn with no tool calls. |
 | **blocked** | The agent halted because it could not proceed — typically because it lacks a tool, the goal is ambiguous, or it needs a decision from you. A paired `core.work.coercion.v1` record explains the reason. |
 | **cancelled** | Someone explicitly cancelled the loop while it was running. |
-| **timeout** | The loop hit its wall-clock or token budget before finishing. |
+| **max_turns** | The loop hit its turn ceiling before finishing. |
+| **budget_exhausted** | A token, USD, or wall-clock budget ran out — a `budget_kind` field names which one. |
+| **guardrail_halt** | The same tool call with the same arguments failed enough times in a row that the system stopped the loop to prevent thrashing. |
 | **failed** | The loop crashed unrecoverably — typically an infrastructure error, not an agent decision. |
 
 Blocked outcomes are the most common honest failure mode and the most worth understanding. The coercion reasons are:
@@ -75,18 +76,18 @@ A blocked loop is not a bad outcome — it is the agent being honest about what 
 
 The capability of agents today is deliberately narrow. The substrate gives agents the records-native primitives — read records, write records, query threads, delegate to a sub-agent, raise a decision request — and tier-shaped budgets. It does *not* yet give them broad host access (file system, shell, search) by default. The result is an agent that does focused, auditable work and stops cleanly when it cannot, rather than an agent that confidently produces noise on tasks outside its reach.
 
-Expanding the tool set is on the roadmap; the foundations the current model puts in place — every tool call is a record, every halt has a structured reason, every loop has a tier-bounded budget, every outcome is judged by an independent evaluator in verify mode — are what makes broader access safe to add later. The narrow-but-honest path is the deliberate first step.
+Expanding the tool set is on the roadmap; the foundations the current model puts in place — every tool call is a record, every halt has a structured reason, every loop has a tier-bounded budget — are what makes broader access safe to add later. The narrow-but-honest path is the deliberate first step.
 
 ## Trust and audit
 
 Because an agent is an actor, the records its loops emit accumulate trust against its DID, just like a person's records do. An agent that consistently produces approved work earns trust; one whose loops are routinely overridden by a human reviewer does not. Trust is domain-scoped, so an agent that is reliable at one kind of work and unreliable at another is reflected correctly.
 
-The audit trail is the loop's thread. Any reviewer with thread access can see the goal, every turn the agent took, every tool call it made, every result it got, the evaluator's verdict, and the final outcome. The thread is the source of truth — there is no separate "agent log" the agent could have written selectively.
+The audit trail is the loop's thread. Any reviewer with thread access can see the goal, every turn the agent took, every tool call it made, every result it got, and the final outcome. The thread is the source of truth — there is no separate "agent log" the agent could have written selectively.
 
 ## Where it fits
 
 - **[Actors](/docs/concepts/actors)** — the identity primitive every agent inherits.
-- **[Work loop](/docs/concepts/work-loop)** — the plan/act/check cycle agents run under, with the verify-mode contract and the tier-shaped guardrails.
+- **[Work loop](/docs/concepts/work-loop)** — the plan/act/check cycle agents run under, with the tier-shaped guardrails and structured outcomes.
 - **[Threads](/docs/concepts/threads)** — the coordination context a loop lives on.
-- **[Trust](/docs/concepts/trust)** — how the evaluator's verdict feeds the trust signal.
+- **[Trust](/docs/concepts/trust)** — how the records a loop emits feed the trust signal.
 - **[Scribe](/docs/get-started/scribe)** — the default conversational agent that hands off to a loop via `@agent`.
