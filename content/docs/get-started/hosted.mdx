@@ -5,7 +5,7 @@ description: Skip the install — sign up at syncropel.com and have a fully-port
 
 If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel instance for you. The instance is a full Syncropel runtime — the same binary, the same APIs, the same record store, the same federation surface as a self-hosted one. You can move freely between hosted and self-hosted at any time — `spl export` round-trips your data, and the same binary runs on both ends.
 
-This page covers the signup flow you'll see at syncropel.com/signup, what each step does, and what to do when the page hands you a bootstrap token.
+This page covers the signup flow you'll see at syncropel.com/sign-up, what each step does, and what to do when the page hands you a bootstrap token.
 
 ## Before you start
 
@@ -21,7 +21,7 @@ You do **not** need: a credit card (free tier exists), Docker, or a domain you c
 
 ### 1. Sign up
 
-Visit [syncropel.com/signup](https://syncropel.com/signup). Account creation is email-verified (with optional social login). After verification you're returned to the signup form.
+Visit [syncropel.com/sign-up](https://syncropel.com/sign-up). Account creation is email-verified (with optional social login). After verification you're returned to the signup form.
 
 ### 2. Pick a label
 
@@ -126,7 +126,7 @@ See [Service accounts and tokens](/docs/get-started/service-accounts) for the lo
 
 Both serve the same protocol. Pick by where you want the data and who manages uptime.
 
-| | Hosted (syncropel.com/signup) | Self-hosted (`spl serve`) |
+| | Hosted (syncropel.com/sign-up) | Self-hosted (`spl serve`) |
 |---|---|---|
 | Where the data lives | Per-customer hosted instance + persistent volume | Your `~/.syncro/hub.db` |
 | Who handles uptime | Syncropic | You |
