@@ -27,6 +27,7 @@ const mentalModel = [
   { title: 'Threads', href: '/docs/concepts/threads', desc: 'Coordinated workflows that fold to state' },
   { title: 'Actors', href: '/docs/concepts/actors', desc: 'Identity, trust profiles, persistent memory' },
   { title: 'Trust', href: '/docs/concepts/trust', desc: 'Wilson-LB evidence with the dial' },
+  { title: 'Patterns', href: '/docs/concepts/patterns', desc: 'Repeated success captured — replay or adapt at choice' },
 ];
 
 const build = [
@@ -58,6 +59,13 @@ const reference = [
   { title: 'FAQ', href: '/docs/reference/faq', desc: 'Vocabulary, hosted vs self-hosted, federation' },
 ];
 
+const community = [
+  { title: 'GitHub', href: 'https://github.com/syncropic/syncropel', desc: 'Source, releases, the project home' },
+  { title: 'Discussions', href: 'https://github.com/syncropic/syncropel/discussions', desc: 'Questions, ideas, show-and-tell' },
+  { title: 'Issues', href: 'https://github.com/syncropic/syncropel/issues', desc: 'Bug reports and feature requests' },
+  { title: 'Contributing', href: 'https://github.com/syncropic/syncropel/blob/main/CONTRIBUTING.md', desc: 'How to engage with the project' },
+];
+
 interface NavSection {
   readonly title: string;
   readonly tagline: string;
@@ -71,6 +79,7 @@ const NAV_SECTIONS: ReadonlyArray<NavSection> = [
   { title: 'Build with Syncropel', tagline: 'SDKs, AI clients, gateways, dev tools', items: build },
   { title: 'Operate in production', tagline: 'Day-2 ops, security, recovery', items: operate },
   { title: 'Reference', tagline: 'Look things up', items: reference },
+  { title: 'Open source & community', tagline: 'Participate, contribute, file bugs', items: community },
 ];
 
 function CardGrid({ items }: { items: ReadonlyArray<{ title: string; href: string; desc: string }> }) {
@@ -177,6 +186,18 @@ export default function HomePage() {
               &copy; 2026 Syncropic Inc. Public Benefit Corporation.
             </a>
             <div className="flex flex-wrap gap-4 text-[11px] text-fd-muted-foreground">
+              <a href="https://github.com/syncropic/syncropel" className="hover:text-fd-foreground transition-colors">
+                GitHub
+              </a>
+              <a href="https://github.com/syncropic/syncropel/blob/main/CONTRIBUTING.md" className="hover:text-fd-foreground transition-colors">
+                Contributing
+              </a>
+              <a href="https://github.com/syncropic/syncropel/blob/main/SECURITY.md" className="hover:text-fd-foreground transition-colors">
+                Security
+              </a>
+              <a href="https://github.com/syncropic/syncropel/blob/main/LICENSE" className="hover:text-fd-foreground transition-colors">
+                License
+              </a>
               <a href="https://syncropic.com" className="hover:text-fd-foreground transition-colors">
                 syncropic.com
               </a>

@@ -18,7 +18,9 @@ export function baseOptions(): BaseLayoutProps {
       transparentMode: 'none',
     },
     links: [
+      { text: 'Community', url: '/community' },
       { text: 'syncropel.com', url: 'https://syncropel.com', external: true },
     ],
+    githubUrl: 'https://github.com/syncropic/syncropel',
   };
 }

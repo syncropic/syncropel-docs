@@ -27,9 +27,11 @@
 # templates/ — 1 UNPUBLISH → guides
 /docs/templates/  /docs/guides/task-management/  301
 
-# concepts/ — 5 still UNPUBLISH; 2 restored (workspaces, federation) for v0.54
+# concepts/ — 4 still UNPUBLISH; patterns restored 2026-05-23 (existing
+# 129-line authored content unhidden so /docs/concepts/patterns serves
+# the page instead of redirecting to records); workspaces + federation
+# restored for v0.54
 /docs/concepts/catalog/      /docs/concepts/graph/    301
-/docs/concepts/patterns/     /docs/concepts/records/  301
 /docs/concepts/namespaces/   /docs/concepts/records/  301
 /docs/concepts/governance/   /docs/concepts/records/  301
 /docs/concepts/secrets/      /docs/concepts/records/  301

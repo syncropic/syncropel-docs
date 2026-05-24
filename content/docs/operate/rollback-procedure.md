@@ -59,7 +59,7 @@ The install script accepts a `?v=<version>` query parameter to pin a specific re
 curl -sSf "https://get.syncropic.com/spl?v=0.30.5" | sh
 ```
 
-Replace `0.30.5` with whichever release you want to roll back to. The release tags published on GitHub at `https://github.com/syncropic/syncropel-core/releases` are the authoritative list of valid versions.
+Replace `0.30.5` with whichever release you want to roll back to. The install script accepts any released version tag.
 
 Verify the new (older) binary is in place before restarting:
 
@@ -74,15 +74,7 @@ This is the critical question: **can the older daemon read records the newer dae
 
 The answer for in-progress releases is: **usually yes, occasionally no, and the release notes always say so.** The daemon's store schema has been backward-compatible across the v0.X.Y range (records persist as JSON-canonicalized blobs in SQLite; new body kinds and fields are additive). When a release introduces a non-backward-compatible change, the release notes will say so explicitly under a "Breaking changes" or "Migration required" heading.
 
-Check the release notes for the version you're rolling back to:
-
-```bash
-# Open the release page for the rollback target
-xdg-open "https://github.com/syncropic/syncropel-core/releases/tag/v0.30.5" \
-  || open "https://github.com/syncropic/syncropel-core/releases/tag/v0.30.5"
-```
-
-If the notes say nothing about a breaking schema change between the version you have and the version you're rolling back to, the store should be readable. If they do, follow the migration guide instead of just reverting the binary.
+Check the release notes for the version you're rolling back to before restarting the daemon. If the notes say nothing about a breaking schema change between the version you have and the version you're rolling back to, the store should be readable. If they do, follow the migration guide instead of just reverting the binary.
 
 ### Step 5 — start the older daemon
 
@@ -114,7 +106,7 @@ Compare against the snapshot you took in Step 1. Counts should match; trust scor
 The forensic snapshot from Step 1 is what makes the next release fix the regression. File at:
 
 ```text
-https://github.com/syncropic/syncropel-core/issues/new
+https://github.com/syncropic/syncropel/issues/new
 ```
 
 Include: version-before, version-rolled-back-to, the log tail, the symptom that triggered rollback, and reference the snapshot path (without uploading the actual `hub.db` — it contains your records).
@@ -197,4 +189,4 @@ On origin-desk WSL2 with a typical (small) `hub.db`, the procedure clocks in at 
 - [Operator runbook — in-place upgrades](./runbook.mdx#in-place-upgrades) — the forward path this procedure reverses
 - [Backup & restore drill](./backup-restore-drill.md) — what to do when the store itself is the problem
 - [Operator runbook — what can go wrong on upgrade](./runbook.mdx#what-can-go-wrong-and-how-to-recognize-it) — diagnostic decision tree
-- GitHub Releases: https://github.com/syncropic/syncropel-core/releases
+- Project home: https://github.com/syncropic/syncropel

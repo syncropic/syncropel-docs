@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, Copy, ExternalLinkIcon, MessageCircleIcon } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, Copy, ExternalLinkIcon, MessageCircleIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useCopyButton } from 'fumadocs-ui/utils/use-copy-button';
 import { buttonVariants } from 'fumadocs-ui/components/ui/button';
@@ -226,5 +226,37 @@ export function ViewOptions({
         ))}
       </PopoverContent>
     </Popover>
+  );
+}
+
+export function ReportProblemButton() {
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (typeof window === 'undefined') return;
+    const url = window.location.href;
+    const title = document.title?.replace(/ \| Syncropel.*$/, '') || 'Docs issue';
+    const body = `**Page or section** (URL or path):\n${url}\n\n**What's wrong, missing, or unclear**:\n\n\n**Suggested improvement** (optional):\n`;
+    const issueUrl = `https://github.com/syncropic/syncropel/issues/new?template=docs-issue.md&title=${encodeURIComponent(
+      `Docs: ${title}`,
+    )}&body=${encodeURIComponent(body)}`;
+    window.open(issueUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={cn(
+        buttonVariants({
+          color: 'secondary',
+          size: 'sm',
+          className: 'gap-2 [&_svg]:size-3.5 [&_svg]:text-fd-muted-foreground',
+        }),
+      )}
+      aria-label="Report a problem with this page"
+    >
+      <AlertCircle />
+      Report
+    </button>
   );
 }
