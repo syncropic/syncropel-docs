@@ -865,6 +865,138 @@ Response (`200`):
 | `403` | `DID_CLAIM_DENIED` | `X-Syncropel-Actor` is not in the SA's allowed-actors list |
 | `409` | `BOOTSTRAP_CLOSED` | Bootstrap endpoint called but namespace already has an SA |
 
+## Pair-share-invite (ADR-135)
+
+The substrate for adding either a new device of yours (guest holder) or a federated colleague (federated holder). Specification: `syncropel-spec/15-decisions/ADR-135-pair-share-invite-substrate.md`. Operator-facing guide: [Pair, share, invite](../guides/pair-share-invite). SDK surface: `client.invites.*` in the [TypeScript SDK guide](../guides/typescript-sdk#invites).
+
+| Method | Path | Scope | Description |
+|---|---|---|---|
+| GET | `/v1/scope_presets` | — (public) | Discover preset scope shapes (reader / contributor / admin) |
+| POST | `/v1/invites` | `admin` (always — even on `auth.required=false`) | Issue a new pair invite |
+| GET | `/v1/invites` | `admin` | List every invite this instance has issued + per-row folded state |
+| GET | `/v1/invites/{id}` | — (public) | Public fold-state preview consumed by the QR landing page |
+| POST | `/v1/invites/{id}/redeem` | — (public; holder credential in body) | Guest or federated holder mints SA + bearer |
+| POST | `/v1/invites/{id}/revoke` | `admin` | Idempotent revoke |
+| GET | `/v1/invites/audit` | `admin` (always) | Feed of `core.invite.event.v1` records from `th_audit_invites` |
+| POST | `/v1/invites/bulk-revoke` | `admin` (always) | Sweep every `expired` or `exhausted` invite in one call |
+| POST | `/v1/invites/sign-attestation` | bearer required | Holder home-instance signs an Ed25519 attestation for federated redeem |
+| GET | `/v1/invite-templates` | `admin` (always) | List saved invite templates (`core.invite_template.v1`) |
+| POST | `/v1/invite-templates` | `admin` (always) | Save a template |
+| POST | `/v1/tokens/{token_id}/rotate` | bearer of the token being rotated (self-only) | Slide bearer expiry forward |
+
+The `(always)` annotation on admin routes is load-bearing: even with the daemon's `auth.required = false` master switch enabled (auth-off mode for local dev), the operator routes refuse anonymous callers via a separate `always_admin_auth_route` gate. The auth-off switch covers data-plane endpoints; the admin gate is independent.
+
+### Issue a pair invite
+
+```bash
+curl -X POST http://localhost:9100/v1/invites \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ttl_seconds": 86400,
+    "max_uses": 1,
+    "scopes": ["records:read", "records:write"],
+    "accept_holder_types": ["guest"],
+    "device_label": "Alice phone",
+    "notes": "personal device — for travel"
+  }'
+```
+
+Response (`201`):
+
+```json
+{
+  "object": "invite",
+  "invite_id": "inv_a3f9...",
+  "record_id": "7a29...",
+  "issuer_did": "did:sync:user:dpwanjala",
+  "issuer_key_fp": "abc123...",
+  "issued_at": "2026-05-23T18:30:00Z",
+  "expires_at": "2026-05-24T18:30:00Z",
+  "max_uses": 1,
+  "uses_remaining": 1,
+  "redirect_url": "https://alice.syncropel.app/i/inv_a3f9...?sig=...",
+  "qr_payload": "https://alice.syncropel.app/i/inv_a3f9...?sig=..."
+}
+```
+
+The optional `scope_target` body field narrows the invite — `{"kind": "thread", "thread_id": "th_..."}` or `{"kind": "namespace", "namespace": "..."}` instead of the default `{"kind": "instance"}`.
+
+### Preview an invite (public)
+
+```bash
+curl https://alice.syncropel.app/v1/invites/inv_a3f9...
+```
+
+Returns folded state: `revoked`, `expired`, `uses_remaining`, `accept_holder_types`, `scopes`, and the issuer's signature for verification. No bearer required — this is what the QR landing page reads.
+
+### Redeem — guest holder
+
+```bash
+curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
+  -H "Content-Type: application/json" \
+  -d '{
+    "holder_type": "guest",
+    "holder_pubkey": "base64url-encoded-ed25519-pubkey",
+    "holder_label": "Alice phone"
+  }'
+```
+
+Response includes the new bearer (`bearer`), the actor DID the kernel minted for the holder (`actor_did`), the granted `scopes`, and the bearer's `expires_at`.
+
+### Redeem — federated holder
+
+```bash
+curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
+  -H "Content-Type: application/json" \
+  -d '{
+    "holder_type": "federated",
+    "holder_did": "did:sync:user:bob",
+    "holder_proof": "base64url-encoded-ed25519-signature",
+    "holder_proof_issued_at_ms": 1729900000000,
+    "signer_instance_did": "did:sync:instance:bob.syncropel.app"
+  }'
+```
+
+The kernel resolves Bob's DID document, verifies the Ed25519 signature against the `signer_instance_did`'s key, and rejects (with audit) on `bad_proof`, `key_unknown`, or `freshness_violation` (issued-at-ms outside the ±60s window).
+
+### Bulk revoke
+
+```bash
+curl -X POST http://localhost:9100/v1/invites/bulk-revoke \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"filter": "expired", "reason": "scheduled cleanup"}'
+```
+
+Response: `{"revoked_count": N, "invite_ids": [...], "filter": "expired"}`. Allowed `filter` values are `expired` and `exhausted`.
+
+### Rotate a bearer
+
+```bash
+curl -X POST http://localhost:9100/v1/tokens/$TOKEN_ID/rotate \
+  -H "Authorization: Bearer $CURRENT_BEARER"
+```
+
+Self-only — the kernel computes `sha256($CURRENT_BEARER)` and rejects with `ROTATE_NOT_SELF` if it doesn't match `$TOKEN_ID`. Response includes the new bearer + new `expires_at`. The previous bearer is invalidated.
+
+### Error codes
+
+| Code | Name | Meaning |
+|---|---|---|
+| `401` | `AUTH_REQUIRED` | Admin route called without a bearer (master `auth.required` switch is bypassed for admin routes) |
+| `403` | `SCOPE_FORBIDDEN` | Bearer present but lacks `admin` scope |
+| `403` | `CONSENT_DENIED` | Bearer scope OK but the consent grant for this thread/namespace is absent (defense-in-depth) |
+| `404` | `INVITE_NOT_FOUND` | Invite id doesn't exist or was never folded |
+| `410` | `INVITE_EXPIRED` | `expires_at` passed |
+| `410` | `INVITE_REVOKED` | Invite was revoked |
+| `410` | `INVITE_EXHAUSTED` | `uses_remaining` reached 0 |
+| `403` | `HOLDER_TYPE_MISMATCH` | `accept_holder_types` doesn't include the redeem's `holder_type` |
+| `403` | `BAD_PROOF` | Federated holder's Ed25519 signature failed verification |
+| `403` | `KEY_UNKNOWN` | `signer_instance_did` not resolvable |
+| `403` | `FRESHNESS_VIOLATION` | `holder_proof_issued_at_ms` outside the ±60s window |
+| `403` | `ROTATE_NOT_SELF` | Rotation attempted by a bearer different from the path's `token_id` |
+
 ## CORS
 
 All `/v1/*` + `/.well-known/*` + `/directory/*` endpoints include CORS headers (`tower-http::CorsLayer` with permissive defaults). The daemon at `localhost:9100` is reachable from web UI origins without proxy configuration.
