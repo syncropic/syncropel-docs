@@ -5,30 +5,90 @@ description: Cleanly start over with a fresh `~/.syncro/` directory, or fully re
 
 Two distinct operations.
 
-- **Reset** wipes `~/.syncro/` (identity, keys, records, token, config) but leaves the `spl` binary installed. Use this when you want a clean first-run experience without reinstalling.
+- **Reset** wipes `~/.syncro/` (identity, keys, records, token, config) but leaves the `spl` binary installed and `~/.syncro-data/` (your task content) untouched. Use this when you want a clean first-run experience without reinstalling.
 - **Uninstall** removes the `spl` binary itself. Use this when you're done with Syncropel on this machine.
 
 Automatic backups at `~/.local/share/syncropel/backups/hub.db.bak` are written outside `~/.syncro/`, so they survive **reset but not full disk cleanup**. The backup is destructive — every daemon start overwrites it. If you care about your records, copy them off-host before running either of the operations on this page.
 
-## Clean reset — wipe `~/.syncro/`
+## Clean reset — `spl reset`
 
-### Linux and macOS
+`spl reset` is the canonical way to wipe `~/.syncro/` back to a fresh state. It refuses to run while the daemon is up, prints a plan of what it will touch, prompts for confirmation, and creates a timestamped backup of `hub.db` before deleting anything.
 
 ```bash
-spl serve --stop            # stop the daemon first
-rm -rf ~/.syncro            # wipe state
+spl serve --stop            # stop the daemon first (reset refuses if it is running)
+spl reset                   # interactive: print plan, prompt y/N, back up hub.db, wipe
 spl init                    # regenerate identity and config
+spl serve --daemon          # start fresh
 ```
 
-After `spl init` you're back at the start of the onboarding flow — start the instance in dev mode (`spl serve --daemon --insecure-localhost`), bootstrap a service account (`spl service-account create --bootstrap`), save the token (`spl token save <bearer>`), and restart without `--insecure-localhost`.
+What `spl reset` deletes by default:
+
+| Path | Why |
+|---|---|
+| `hub.db` (+ `-wal`, `-shm`) | The records database — tasks, trust, dispatch history, routing rules |
+| `keys/` | Identity keypair — you get a new DID after `spl init` |
+| `secrets/` | Encrypted API keys + secret-backend store |
+| `config.toml` | Daemon configuration |
+| `logs/` | Daemon log files |
+| `run/` | PID file + Unix socket |
+| `token` | CLI bearer |
+
+What `spl reset` **never** deletes:
+
+| Path | Why |
+|---|---|
+| `~/.syncro-data/` | Task content files (Markdown) + alias mappings — your authored content, separate blast radius from `.syncro/` |
+| `~/.local/share/syncropel/backups/` | Automatic `hub.db` backups, plus the `hub.db.pre-reset.<iso8601>` snapshot this command creates |
+| OS keyring entries | If you have an identity stored in linux-secret-service / macOS Keychain / Windows DPAPI per [ADR-082](https://github.com/syncropic/syncropel/blob/main/syncropel-spec/15-decisions/ADR-082.md). `spl init` overwrites the entry on next start, so this is functionally idempotent |
+
+### Common flags
+
+```bash
+spl reset --dry-run         # print plan + exit. No prompt, no backup, no deletes.
+spl reset --json            # structured output for scripts and CI gates
+spl reset --force           # skip the y/N confirmation
+spl reset --keep-keys       # preserve identity (same DID after `spl init`)
+spl reset --keep-config     # preserve config.toml (API keys + routing rules survive)
+spl reset --keep-secrets    # preserve the secrets/ directory
+spl reset --wipe-task-data  # also delete ~/.syncro-data/ (requires extra confirmation)
+```
+
+`--dry-run` is useful as a CI gate or a "what would this delete" check before you commit:
+
+```bash
+spl reset --dry-run --json | jq '.plan[] | select(.action == "delete")'
+```
 
 ### Windows
 
 ```powershell
 spl serve --stop
+spl reset
+spl init
+spl serve --daemon
+```
+
+### Fallback — when `spl reset` itself can't run
+
+If the `spl` binary is broken (a corrupt upgrade, a `--insecure-localhost` daemon that refuses to stop, an orphaned PID file confusing the lifecycle), fall back to the manual procedure:
+
+```bash
+# Linux / macOS
+spl serve --stop || pkill -f "spl serve"
+rm -rf ~/.syncro
+spl init
+```
+
+```powershell
+# Windows
+spl serve --stop
 Remove-Item -Recurse -Force $env:USERPROFILE\.syncro
 spl init
 ```
+
+The manual `rm -rf` does NOT auto-back up `hub.db` first, so if there's anything you want to keep, copy it off-host before running this. The daemon-startup backup at `~/.local/share/syncropel/backups/hub.db.bak` is your last line of defense after the fact.
+
+After either path, you're back at the start of the onboarding flow. The `spl init` command prints the next steps — open the local front door at `http://127.0.0.1:9100/` or pair Studio at `https://syncropel.com/connect?url=http://127.0.0.1:9100`.
 
 ## Full uninstall
 
@@ -104,7 +164,9 @@ systemctl --user daemon-reload
 
 - The `spl` binary itself.
 - Any entries you added to your shell's `PATH`.
-- Backups at `~/.local/share/syncropel/backups/hub.db.bak`. (A reset does not touch this directory; only full uninstall does.)
+- `~/.syncro-data/` (task content + alias mappings) — the operator's authored content lives in a separate directory from `.syncro/` for exactly this reason. `spl reset` never touches it unless you pass `--wipe-task-data` and confirm the extra prompt. Manual `rm -rf ~/.syncro` doesn't touch it either.
+- Backups at `~/.local/share/syncropel/backups/`. The pre-reset snapshot `hub.db.pre-reset.<iso8601>` that `spl reset` writes lands here too, so reset is recoverable. Only full uninstall removes this directory.
+- OS keyring entries (if you use a keyring backend per ADR-082). `spl init` overwrites the entry on next start.
 
 ### What an uninstall leaves alone
 

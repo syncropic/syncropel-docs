@@ -72,6 +72,33 @@ spl serve --uninstall-service [--service-name <name>]
 
 On Linux and macOS these flags return a clear error and point at systemd / launchd. See the [operator runbook](/docs/operate/runbook) for the systemd unit template.
 
+## Reset
+
+```bash
+spl reset                   # interactive: print plan, prompt, back up hub.db, wipe
+spl reset --dry-run         # print plan + exit (no prompt, no backup, no deletes)
+spl reset --force           # skip the confirmation prompt
+spl reset --json            # structured output (composes with all flags)
+spl reset --keep-keys       # preserve identity (same DID after re-init)
+spl reset --keep-config     # preserve config.toml
+spl reset --keep-secrets    # preserve secrets/
+spl reset --wipe-task-data  # also delete ~/.syncro-data/ (extra confirmation)
+```
+
+Wipes `~/.syncro/` back to a fresh state. Refuses to run while the daemon is up — stop it first with `spl serve --stop`. Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601>` (outside `~/.syncro/` so the backup survives the reset) before deleting anything. Never touches `~/.syncro-data/` (task content + alias mappings) by default.
+
+| Flag | Description |
+|---|---|
+| `--dry-run` | Print the plan + exit cleanly. No prompt, no backup, no deletes. Scriptable; useful as a CI gate that asks "what would reset touch right now" |
+| `--force` | Skip both the main confirmation prompt and (when combined with `--wipe-task-data`) the extra task-data prompt |
+| `--keep-config` | Preserve `config.toml` so API keys, routing rules, and CORS settings survive the reset |
+| `--keep-keys` | Preserve `keys/` so the actor DID stays the same after `spl init` (use when rolling back a corrupted hub.db without re-establishing identity) |
+| `--keep-secrets` | Preserve `secrets/` (encrypted API keys + secret backend) |
+| `--wipe-task-data` | ALSO delete `~/.syncro-data/` — destructive, requires an additional `[y/N]` prompt unless paired with `--force` |
+| `--json` / `-o json` | Emit a `reset_outcome` JSON envelope with the plan, backup path, deleted/failed counts, and the OS-keyring caveat |
+
+The full reset/uninstall guide is at [Reset and Uninstall](/docs/get-started/reset-uninstall) — including the manual `rm -rf` fallback for when `spl` itself is broken and can't run `spl reset`.
+
 ## Records
 
 ```bash
