@@ -71,7 +71,7 @@ For a deeper read on bundle contents, see [Portability](/docs/guides/portability
 
 ## 3. Provision a hosted instance
 
-Open a browser and go to `https://syncropel.com/start`. Pick a label (this becomes your subdomain — e.g., `myteam.syncropel.com`) and confirm the plan tier.
+Open a browser and go to `https://syncropel.com/signup`. Pick a label (this becomes your subdomain — e.g., `myteam.syncropel.app` — customer instances live at `*.syncropel.app` per ADR-067 Amendment 1) and confirm the plan tier.
 
 Behind the scenes:
 1. The provisioning service reserves the label.
@@ -92,7 +92,7 @@ For provisioning failures (label collision, boot timeout, bootstrap token reject
 The first-run page gives you the three commands; here they are with placeholders:
 
 ```bash
-export SPL_SERVE_URL=https://myteam.syncropel.com
+export SPL_SERVE_URL=https://myteam.syncropel.app
 spl token save <your-bootstrap-token>
 spl status
 ```
@@ -100,7 +100,7 @@ spl status
 `spl status` should report the hosted instance's DID and a green health check. Your CLI now talks to the hosted instance by default for this shell. To make it permanent across shells:
 
 ```bash
-echo 'export SPL_SERVE_URL=https://myteam.syncropel.com' >> ~/.bashrc   # or ~/.zshrc
+echo 'export SPL_SERVE_URL=https://myteam.syncropel.app' >> ~/.bashrc   # or ~/.zshrc
 ```
 
 Or save the URL to your shell profile via `spl config path` and the operator runbook.
@@ -153,7 +153,7 @@ To strictly verify zero divergence, run the round-trip diff:
 spl thread records <some_thread_id> | sha256sum
 ```
 
-Run this against both your local instance (`SPL_SERVE_URL=http://localhost:9100 spl thread records ...`) and your hosted (`SPL_SERVE_URL=https://myteam.syncropel.com spl thread records ...`). The hashes should match — records are content-addressed, so any divergence means something corrupted in transit.
+Run this against both your local instance (`SPL_SERVE_URL=http://localhost:9100 spl thread records ...`) and your hosted (`SPL_SERVE_URL=https://myteam.syncropel.app spl thread records ...`). The hashes should match — records are content-addressed, so any divergence means something corrupted in transit.
 
 This round-trip-zero-divergence property is **release-gated**. If a Syncropel release breaks it, that release doesn't ship (per D49 portability gate). It's not aspirational; it's CI-verified on every tag.
 
@@ -162,7 +162,7 @@ This round-trip-zero-divergence property is **release-gated**. If a Syncropel re
 While your hosted instance is fresh, this is a good moment to add a second device — your phone, a second laptop, the office machine. From the **hosted** side:
 
 ```bash
-spl pair --device "iPhone" --url https://myteam.syncropel.com:9100 --scopes records:write
+spl pair --device "iPhone" --url https://myteam.syncropel.app --scopes records:write
 ```
 
 This emits a pairing record, generates a one-time code, and prints a deep-link / QR code. Open the link on the second device's Syncropel app (or paste the code into the app's "pair device" prompt). The two devices are now both authenticated against the same hosted instance, with their own bearer tokens (revocable independently).

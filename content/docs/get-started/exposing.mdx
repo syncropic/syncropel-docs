@@ -134,7 +134,7 @@ The setting is a runtime record — it takes effect immediately and survives dae
 
 Typical setups:
 
-- **`syncropel.com/local/dashboard` calling your daemon.** Add `https://syncropel.com`.
+- **`syncropel.com` calling your daemon.** Add `https://syncropel.com`.
 - **A private web app calling a shared team daemon.** Add the app's origin.
 - **Developer localhost (rare).** Add `http://localhost:<port>`.
 
@@ -152,7 +152,7 @@ Once the daemon is reachable on a stable URL, a federation peer can pair to it. 
 |---|---|
 | Phone on same home Wi-Fi | Bind to LAN IP, or use Tailscale |
 | CLI from a second personal machine | Tailscale |
-| Browser on `syncropel.com/local/dashboard` | Loopback daemon + CORS allowlist |
+| Browser on `syncropel.com` | Loopback daemon + CORS allowlist |
 | Federation peer on a cloud host | Reverse proxy with TLS or Cloudflare Tunnel |
 | Team-shared instance | Reverse proxy with TLS on a private network |
 | Single developer laptop | Loopback only — don't expose at all |

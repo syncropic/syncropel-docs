@@ -1,6 +1,6 @@
 ---
 title: Your first MCP integration
-description: Wire Claude Code (or any MCP-compatible AI client) to your spl daemon. Use a tool from the client; watch records appear in /local. The smallest end-to-end MCP loop.
+description: Wire Claude Code (or any MCP-compatible AI client) to your spl daemon. Use a tool from the client; watch records appear in Studio. The smallest end-to-end MCP loop.
 ---
 
 ## What you'll build
@@ -11,7 +11,7 @@ After this, you'll understand why Syncropel is described as a **first-class MCP 
 
 ## Before you start
 
-- `spl 0.33.0` or later (`spl --version`)
+- A recent `spl` build (`spl --version`; one-line install: `curl get.syncropic.com/spl | sh`)
 - A daemon running locally — `spl serve --daemon`. Hosted instances also work but require an extra step (the bearer token must reach the MCP client; covered below).
 - An MCP-compatible AI client. This tutorial walks Claude Code in detail; the same pattern applies to Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI, Claude Desktop, Codex, etc.
 - The `claude` binary on your PATH if you're using Claude Code (`claude --version`).
@@ -112,9 +112,9 @@ did:sync:agent:claude-code         INTEND    Try out the MCP integration
 
 The actor DID is the one Claude Code authenticated as — by default `did:sync:agent:claude-code`, but this is configurable via `claude mcp add ... --env SYNCROPEL_ACTOR=did:sync:agent:my-team-claude` if you run multiple workspaces under different identities.
 
-## 6. Watch records appear in /local in real time
+## 6. Watch records appear in Studio in real time
 
-Open Syncropel Studio at [`syncropel.com/local`](https://syncropel.com/local) (connected to your local daemon) — or for a hosted instance, `syncropel.com/connect?url=https://<label>.syncropel.app`. The thread appears at the top of the thread list within ~1 second of the MCP call (records broadcast on a SSE channel; Studio subscribes to it). This is what closes the loop visually — the tool call → the record → the surface, all the same primitive.
+Open Syncropel Studio at [`syncropel.com`](https://syncropel.com) (connected to your local daemon via the pair flow) — or pair it explicitly with `syncropel.com/connect?url=http://127.0.0.1:9100` — or for a hosted instance, `syncropel.com/connect?url=https://<label>.syncropel.app`. The thread appears at the top of the thread list within ~1 second of the MCP call (records broadcast on a SSE channel; Studio subscribes to it). This is what closes the loop visually — the tool call → the record → the surface, all the same primitive.
 
 You can also subscribe from the CLI:
 
@@ -175,5 +175,5 @@ This is the substrate's "any agent can plug in" promise made concrete: an AI cli
 | `/mcp` in Claude Code shows `syncropel` with `error` or `disabled` | Daemon isn't running, or `spl` isn't on the PATH that Claude Code subprocesses inherited (common on macOS with shell-init differences). | Confirm `spl status` works in a fresh shell. If it does but Claude Code still can't find it, pass an absolute path: `claude mcp remove syncropel && claude mcp add syncropel -- /usr/local/bin/spl mcp serve`. |
 | Tools list is empty | The daemon is on a non-default port and the MCP server defaulted to the wrong URL. | Pass an explicit URL via env: `claude mcp add syncropel --env SPL_SERVE_URL=http://127.0.0.1:9200 -- spl mcp serve`. |
 | MCP calls return `401 unauthorized` | Default-secure auth is enabled (the v0.16+ default) and no bearer is configured for the MCP subprocess. | Mint a service-account token: `spl service-account create --name "claude-code" --scopes records:write --with-token`, save the token: `spl token save <token>`, then re-launch Claude Code so the subprocess re-reads `~/.syncro/token`. |
-| MCP calls succeed but records don't appear in `/local` | The browser's connection state is pinned to a different daemon URL than the one MCP wrote to. | Open `/local/connection` (or the workspace switcher in the header) and verify the active daemon URL matches the daemon Claude Code wrote to. Switch instances if not. |
+| MCP calls succeed but records don't appear in Studio | The browser's connection state is pinned to a different daemon URL than the one MCP wrote to. | Open `/settings/connections` (or the workspace switcher in the header) and verify the active daemon URL matches the daemon Claude Code wrote to. Switch instances if not. |
 | CORS errors in browser console after MCP calls landed records | The web UI's origin isn't in the daemon's CORS allowlist. | Add it: `spl config cors-allow http://localhost:3000` (or whichever origin the UI runs on). The daemon hot-reloads on the next broadcast. |

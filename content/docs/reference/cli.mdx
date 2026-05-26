@@ -891,7 +891,7 @@ spl pair --device "<label>" --url "<remote_url>" [--scopes <csv>] [--namespace <
 
 Creates a dedicated service account, mints a token, and renders pairing payload three ways:
 
-1. **One-click URL** — first thing printed, of the form `https://syncropel.com/local/pair#<encoded-payload>`. Click it (or copy into a browser) to auto-pair without typing or scanning. The token rides in the URL fragment (after the `#`), which never reaches any server.
+1. **One-click URL** — first thing printed, of the form `https://syncropel.com/pair#<encoded-payload>`. Click it (or copy into a browser) to auto-pair without typing or scanning. The token rides in the URL fragment (after the `#`), which never reaches any server.
 2. **QR code** — for phones / camera-scan flows.
 3. **Plain-text payload** — for paste flows when QR scanning isn't an option.
 

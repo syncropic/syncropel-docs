@@ -1,9 +1,9 @@
 ---
 title: Troubleshooting connection issues
-description: The 10 connection-state failure modes the syncropel.com /local workspace can hit, with remediation per state and a common-error-code reference.
+description: The 10 connection-state failure modes the syncropel.com workspace can hit, with remediation per state and a common-error-code reference.
 ---
 
-When the `/local` workspace can't reach an instance, the connection is in
+When the Studio workspace can't reach an instance, the connection is in
 exactly one of ten states. Every state has a clear UI signal and a
 one-line fix. This page maps each state to its symptom and remedy so
 you can resolve issues without opening DevTools.
@@ -11,7 +11,7 @@ you can resolve issues without opening DevTools.
 ## Quick diagnose
 
 For a live snapshot of what the browser knows about its connection,
-visit [`/local/diagnose`](https://syncropel.com/local/diagnose). The
+visit [`/diagnose`](https://syncropel.com/diagnose). The
 page shows:
 
 - Current connection state + active credential
@@ -20,7 +20,7 @@ page shows:
 - Reset-pairing button (forgets the credential, redirects to re-pair)
 - A copy-paste JSON snapshot for support tickets
 
-The banner at the top of `/local` always links here ("diagnose").
+The banner at the top of the workspace always links here ("diagnose").
 
 ## Failure modes
 
@@ -46,9 +46,9 @@ browser has no stored credential for this instance's DID.
 
 **Fix (fastest)**: Run `spl pair --device browser-<name>`. The
 CLI's first line of output is now a single clickable URL of the form
-`https://syncropel.com/local/pair#<encoded-payload>`. Click it (or copy
+`https://syncropel.com/pair#<encoded-payload>`. Click it (or copy
 into your browser). The page decodes the link, verifies the token,
-stores the credential, and redirects you to `/local/tasks` — all
+stores the credential, and redirects you to `/tasks` — all
 without typing or scanning anything. The token rides in the URL fragment
 (after the `#`), which never reaches any server: it stays inside your
 browser.
@@ -66,7 +66,7 @@ expired-pairing screen.
 the instance's data was nuked since pairing (instance DID changed) or
 the token was revoked.
 
-**Fix**: Open `/local/diagnose` and click "Reset pairing". Then re-pair
+**Fix**: Open `/diagnose` and click "Reset pairing". Then re-pair
 with `spl pair --device browser-<name>` and click the printed URL.
 
 ### 4. Limited (scope insufficient) — partial_access
@@ -156,7 +156,7 @@ generic unreachable panel.
 `cors_blocked`, `daemon_too_old`, `daemon_error`, `token_insufficient`.
 These don't have dedicated Phase 1 surfaces yet.
 
-**Fix**: Open `/local/diagnose` → "Recent API errors" to see the
+**Fix**: Open `/diagnose` → "Recent API errors" to see the
 underlying `code` + `message` from the daemon. Most often it's
 either a stale daemon (`upgrade spl serve`), a missing CORS allow
 entry (`spl config auth-set-cors-origins ...`), or a network glitch.
@@ -180,7 +180,7 @@ copy-paste suggested fix per code.
 | Code | Meaning | Remediation |
 |---|---|---|
 | `AUTH_REQUIRED` | No bearer token sent | `spl pair --device browser-<name>` and retry |
-| `AUTH_INVALID` | Token rejected (expired, revoked, or instance changed) | Reset pairing on `/local/diagnose`, then re-pair |
+| `AUTH_INVALID` | Token rejected (expired, revoked, or instance changed) | Reset pairing on `/diagnose`, then re-pair |
 | `SCOPE_FORBIDDEN` | Token valid but missing required scope | Re-pair with `--scopes admin` (or narrower scope per use) |
 | `NOT_FOUND` | Endpoint not available on this daemon version | Upgrade the daemon or stop using this view |
 | `CORS` | Origin not on daemon's CORS allowlist | `spl config auth-set-cors-origins https://syncropel.com http://localhost:3000 && spl serve --stop && spl serve --daemon` |

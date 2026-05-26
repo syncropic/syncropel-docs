@@ -7,7 +7,7 @@ Your CLI talks to your instance via `~/.syncro/token`. Browsers and phones can't
 
 ## Why pairing exists
 
-A fresh browser pointed at `syncropel.com/local` has no way to authenticate to your local instance. It doesn't know what instance URL to hit, and even if it did, it has no token. Three ways to solve this:
+A fresh browser pointed at `syncropel.com` has no way to authenticate to your local instance. It doesn't know what instance URL to hit, and even if it did, it has no token. Three ways to solve this:
 
 1. **Paste the token manually.** Works, but painful — tokens are 40-plus characters and typing them on a phone keyboard is error-prone.
 2. **Share the CLI's token with the browser.** Bad — the CLI's token is usually `admin`-scoped and the browser doesn't need that.
@@ -37,14 +37,14 @@ The CLI prints all three in order of friction. Pick whichever is easiest for the
 **1. One-click URL — the fastest path.** First line of the output is a clickable URL of the form:
 
 ```text
-https://syncropel.com/local/pair#<encoded-payload>
+https://syncropel.com/pair#<encoded-payload>
 ```
 
-Click it (or copy it into the browser you want to pair). The page reads the encoded payload, verifies the token against your instance, stores the credential in the browser, and drops you on `/local/tasks` — no typing, no scanning, no copy/paste.
+Click it (or copy it into the browser you want to pair). The page reads the encoded payload, verifies the token against your instance, stores the credential in the browser, and drops you on `/tasks` — no typing, no scanning, no copy/paste.
 
-The token rides in the URL fragment (the part after `#`), which never reaches any server. After the credential is stored, the browser replaces the URL bar with `/local/tasks` so the token doesn't sit in browser history either.
+The token rides in the URL fragment (the part after `#`), which never reaches any server. After the credential is stored, the browser replaces the URL bar with `/tasks` so the token doesn't sit in browser history either.
 
-**2. QR code — for phones with a camera.** Underneath the URL, the CLI renders a QR code that encodes the same payload. Open `syncropel.com/local` on the phone, choose the QR tab, and point the camera at your terminal. Same end state: credential stored, dashboard loads.
+**2. QR code — for phones with a camera.** Underneath the URL, the CLI renders a QR code that encodes the same payload. Open `syncropel.com` on the phone, choose the QR tab, and point the camera at your terminal. Same end state: credential stored, dashboard loads.
 
 **3. Plain-text payload — for paste flows.** Below the QR is the raw `url` / `token` / `device` triple, ready to paste into any device that can't click a URL or scan a QR (a headless server, a script, a config file).
 
@@ -52,7 +52,7 @@ All three end at the same place: the device stores the URL and token in encrypte
 
 ### What the dashboard shows at each stage
 
-`syncropel.com/local` distinguishes a small set of connection states so you can tell at a glance what your instance wants from you:
+`syncropel.com` distinguishes a small set of connection states so you can tell at a glance what your instance wants from you:
 
 | State | Dot | What it means |
 |---|---|---|
@@ -67,7 +67,7 @@ For the full set of failure modes, see [Troubleshooting](/docs/get-started/troub
 
 ### On a phone or iPad
 
-`syncropel.com/local` on mobile no longer probes `localhost:9100` — phones can't reach an instance there, and the resulting browser-blocked error confused more than it helped. Mobile users now land on a welcome screen with three explicit paths:
+`syncropel.com` on mobile no longer probes `localhost:9100` — phones can't reach an instance there, and the resulting browser-blocked error confused more than it helped. Mobile users now land on a welcome screen with three explicit paths:
 
 | Action | When to use |
 |---|---|
