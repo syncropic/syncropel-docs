@@ -94,6 +94,40 @@ The manual `rm -rf` does NOT auto-back up `hub.db` first, so if there's anything
 
 After either path, you're back at the start of the onboarding flow. The `spl init` command prints the next steps — open the local front door at `http://127.0.0.1:9100/` or pair Studio at `https://syncropel.com/connect?url=http://127.0.0.1:9100`.
 
+### First boot after reset — bootstrap mode
+
+A fresh `spl init` creates no service accounts. Since v0.16, the daemon's default-secure auth refuses every `/v1/*` request until at least one service account exists, so the daemon comes up in **bootstrap mode** (per SKL-0452 — see [daemon page](/docs/get-started/daemon)). `spl doctor` will surface several `!` warnings right after a fresh init:
+
+```text
+! instance reachable        daemon up; rich diagnostics unavailable: API error (503): First run: no service accounts exist.
+! engine config thread      could not fetch th_engine_config state (permissions enforcement?)
+! migrations                ...503 First run: no service accounts exist...
+! expression cache          ...503 First run: no service accounts exist...
+```
+
+**These warnings are expected at this stage**, and they all clear once you mint the first service account. The canonical bootstrap sequence:
+
+```bash
+# 1. Restart the daemon in insecure-localhost so the bootstrap endpoint is reachable
+spl serve --stop
+spl serve --daemon --insecure-localhost
+
+# 2. Mint the first SA + save its token as your CLI bearer
+spl service-account create --bootstrap --scopes admin
+spl token save <bearer-token-from-step-2>
+
+# 3. Restart WITHOUT --insecure-localhost (default-secure mode)
+spl serve --stop
+spl serve --daemon
+
+# 4. Verify — warnings should clear
+spl doctor
+```
+
+If `spl doctor` then complains `config.toml has mode 0644 — recommended 0640`, run the suggested `chmod 640 ~/.syncro/config.toml`. (Known glitch: `spl init` should write 0640 directly; tracked for a follow-up.)
+
+The full bootstrap reference + alternate paths (paired-device bootstrap, hosted instances) are at [Service accounts and tokens](/docs/get-started/service-accounts).
+
 ## Full uninstall
 
 ### Linux
