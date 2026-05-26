@@ -15,7 +15,7 @@ You need:
 - A choice of instance label — a subdomain under `syncropel.app`, e.g. `alice.syncropel.app`. Lowercase letters, digits, and `-`. 3–32 characters. The label is yours for the lifetime of your account.
 - A way to save a one-time-displayed bootstrap token (a password manager is fine; a sticky note is not).
 
-You do **not** need: a credit card (free tier exists), Docker, or a domain you control.
+You do **not** need: Docker, or a domain you control. You **do** need: a credit card — provisioning starts a 30-day free trial (card on file, no charge during trial, cancel any time), then $25/month per instance. See [Pricing](/docs/get-started/pricing) for the full breakdown.
 
 ## The flow
 
@@ -58,15 +58,15 @@ This is the canonical bearer for your instance's first admin service account. Sa
 
 ### 5. Land on the dashboard
 
-After you click through, you're redirected to your instance's dashboard. The browser holds your bootstrap bearer; subsequent requests to `<label>.syncropel.app` are auto-authed. The dashboard's first-run banner explains the next 3–5 things you should do (mint a service account for CLI use, create your first thread, optionally pair a second device).
+After you click through, you're redirected into **Syncropel Studio** (`syncropel.com/connect?url=https://<label>.syncropel.app`), with the browser holding your bootstrap bearer so requests to your instance are auto-authed. Studio's first-run banner explains the next 3–5 things you should do (mint a service account for CLI use, create your first thread, optionally pair a second device). The bare `<label>.syncropel.app` URL is your instance's public landing page — an identity card, not where you work day-to-day.
 
 ## What you can do once you're in
 
 The same things any Syncropel user can do, with the same CLI and SDK surface as a self-hosted operator:
 
-- **Use the web UI** at `<label>.syncropel.app` — the workspace, threads, tasks, search.
-- **Connect the CLI** — see the next section, *Connect your CLI to the hosted instance*.
-- **Pair more devices** via `spl pair --device <label> --url https://<label>.syncropel.app` or the Settings → Connections page in the web UI.
+- **Use Syncropel Studio** at `syncropel.com/connect?url=https://<label>.syncropel.app` — workspace, threads, tasks, search. `<label>.syncropel.app` itself is the instance's public landing page ([customizable per-instance](/docs/operate/site)); Studio at syncropel.com is where you actually work.
+- **Use the CLI or SDKs** instead if you prefer to work programmatically against the API — see the next section, *Connect your CLI to the hosted instance*.
+- **Pair more devices** via `spl pair --device <label> --url https://<label>.syncropel.app` or the Settings → Connections page in Studio.
 - **Federate** with another Syncropel instance via `spl federation pair <peer-url>` — see the [federation pair guide](/docs/guides/federation-pair).
 - **Export everything** at any time via `spl export` — see [Portability](/docs/guides/portability).
 
@@ -132,7 +132,7 @@ Both serve the same protocol. Pick by where you want the data and who manages up
 | Who handles uptime | Syncropic | You |
 | Backup story | Operator-managed snapshots | You — see [Backup discipline](/docs/operate/runbook#backup-discipline) |
 | Federation | Yes — full peer | Yes — full peer |
-| Cost | Free tier; paid for scale | Whatever your machine costs |
+| Cost | 30-day free trial, then $25/mo per instance | Whatever your machine costs |
 | Lock-in | None — `spl export` round-trips | None — same binary |
 
 Hosted is the path of least friction; self-hosted is the path of zero dependence on syncropel.com. Both are first-class.
