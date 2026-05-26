@@ -15,23 +15,14 @@ Automatic backups at `~/.local/share/syncropel/backups/hub.db.bak` are written o
 `spl reset` is the canonical way to wipe `~/.syncro/` back to a fresh state. It refuses to run while the daemon is up, prints a plan of what it will touch, prompts for confirmation, and creates a timestamped backup of `hub.db` before deleting anything.
 
 ```bash
-spl serve --stop            # stop the daemon first (reset refuses if it is running)
-spl reset                   # interactive: print plan, prompt y/N, back up hub.db, wipe
-spl init                    # regenerate identity and config
-spl serve --daemon          # start fresh
+spl serve --stop                                # stop the daemon first
+systemctl --user stop spl-serve.service         # if you use a systemd unit (reset will refuse otherwise)
+spl reset                                       # interactive: print plan, prompt y/N, back up hub.db, wipe
+spl init                                        # regenerate identity and config (no --force needed)
+spl serve --daemon                              # start fresh
 ```
 
-What `spl reset` deletes by default:
-
-| Path | Why |
-|---|---|
-| `hub.db` (+ `-wal`, `-shm`) | The records database — tasks, trust, dispatch history, routing rules |
-| `keys/` | Identity keypair — you get a new DID after `spl init` |
-| `secrets/` | Encrypted API keys + secret-backend store |
-| `config.toml` | Daemon configuration |
-| `logs/` | Daemon log files |
-| `run/` | PID file + Unix socket |
-| `token` | CLI bearer |
+What `spl reset` deletes (v0.64.3 default behavior): **everything inside `~/.syncro/`**, then `~/.syncro/` itself. The command lists the directory at reset time and removes every entry that isn't explicitly preserved by a `--keep-*` flag — that catches state from past arcs (`vfs.db*`, `agent/`, `content/`, `serve.log`, `*.bak-prerename-*`, prompt `.md` files) without needing the reset command to know about every possible path.
 
 What `spl reset` **never** deletes:
 
@@ -40,6 +31,19 @@ What `spl reset` **never** deletes:
 | `~/.syncro-data/` | Task content files (Markdown) + alias mappings — your authored content, separate blast radius from `.syncro/` |
 | `~/.local/share/syncropel/backups/` | Automatic `hub.db` backups, plus the `hub.db.pre-reset.<iso8601>` snapshot this command creates |
 | OS keyring entries | If you have an identity stored in linux-secret-service / macOS Keychain / Windows DPAPI per [ADR-082](https://github.com/syncropic/syncropel/blob/main/syncropel-spec/15-decisions/ADR-082.md). `spl init` overwrites the entry on next start, so this is functionally idempotent |
+
+`~/.syncro/` itself is also removed when **no** `--keep-*` flag is passed — so the next `spl init` works without `--force`. With any `--keep-*` flag set, the home dir is left in place containing only the kept entries, and the next `spl init` needs `--force`.
+
+### How reset detects a running daemon
+
+`spl reset` refuses if any of these signals are positive:
+
+1. PID file at `~/.syncro/run/spl.pid` points at a live process.
+2. Unix socket at `~/.syncro/run/spl.sock` accepts a connection.
+3. (Default `~/.syncro/` home only) TCP `127.0.0.1:9100` accepts a connection.
+4. (Linux, default home only) `systemctl --user is-active spl-serve.service` returns `active`.
+
+Signals 3+4 are scoped to the default `~/.syncro/` home so multi-instance setups and tests using `SYNCROPEL_HOME=/some/other/path` aren't blocked by an unrelated daemon. If you use a systemd user unit to keep `spl serve` running, the command will tell you to stop the unit first — bringing the daemon down with just `kill` isn't enough because the unit will respawn it the moment state is deleted.
 
 ### Common flags
 

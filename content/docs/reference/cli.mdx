@@ -85,7 +85,11 @@ spl reset --keep-secrets    # preserve secrets/
 spl reset --wipe-task-data  # also delete ~/.syncro-data/ (extra confirmation)
 ```
 
-Wipes `~/.syncro/` back to a fresh state. Refuses to run while the daemon is up — stop it first with `spl serve --stop`. Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601>` (outside `~/.syncro/` so the backup survives the reset) before deleting anything. Never touches `~/.syncro-data/` (task content + alias mappings) by default.
+Wipes `~/.syncro/` back to a fresh state by listing the directory at runtime and deleting every entry not protected by a `--keep-*` flag. With no `--keep-*` flag the home dir itself is also removed, so the next `spl init` works without `--force`.
+
+Refuses if any of four signals indicate a daemon is running: PID file at `~/.syncro/run/spl.pid`, Unix socket connect, TCP `127.0.0.1:9100` connect, or `systemctl --user is-active spl-serve.service`. The TCP and systemd signals are scoped to the default `~/.syncro/` home so `SYNCROPEL_HOME=/some/other/path` invocations don't false-positive on unrelated daemons. If you use a systemd user unit, stop it (`systemctl --user stop spl-serve.service`) — `spl serve --stop` alone is insufficient because the unit respawns the daemon.
+
+Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601>` (outside `~/.syncro/` so the backup survives the reset) before deleting anything. Never touches `~/.syncro-data/` (task content + alias mappings) by default.
 
 | Flag | Description |
 |---|---|
