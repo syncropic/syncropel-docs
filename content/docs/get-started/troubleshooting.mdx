@@ -38,7 +38,13 @@ If that succeeds, the path resolution was the issue. On Linux and macOS the daem
 
 ### `auth.required is enabled but no service accounts exist`
 
-Fail-closed guard is doing its job. You haven't bootstrapped the first service account yet. Start the instance in `--insecure-localhost`, run `spl service-account create --bootstrap`, save the token via `spl token save <bearer>`, then restart without `--insecure-localhost`.
+As of **v0.65.0**, this is not an error on Linux/macOS — the local CLI authenticates over the Unix socket (filesystem-trust) and a zero-SA daemon is the canonical happy path. If you see this message anyway:
+
+- **On Windows**: the equivalent of Unix-socket trust (Named Pipes or loopback signed-challenge) ships in v0.65.1. Until then, mint a service account via [`spl pair --device local-windows --url http://127.0.0.1:9100 --scopes admin`](/docs/get-started/pairing) and save the printed token.
+- **You opted out of Unix-socket trust** (`[auth] unix_socket = false` in `config.toml`): you've explicitly chosen the bearer-only model — see [Service accounts](/docs/get-started/service-accounts) for the pair flow.
+- **You're on v0.64.x or older**: upgrade with `curl get.syncropic.com/spl | sh` to land the canonical first-run flow.
+
+The legacy "bootstrap dance" (`--insecure-localhost` → `spl service-account create --bootstrap` → `spl token save`) still works but is no longer required on the canonical first run.
 
 ### `address already in use`
 

@@ -119,11 +119,11 @@ PID:      12847
 Daemon started. Run 'spl status' to verify health.
 ```
 
-If the line `Auth: required (service accounts: 0)` appears and the daemon then exits with an `AUTH_NO_ACCOUNTS` error, you need to bootstrap your first service account. That is exactly the flow covered on the next page.
+As of **v0.65.0** the daemon comes up healthy with zero service accounts and the local CLI talks to it via the Unix socket — see the [first-run callout](/docs/get-started/first-run) and [Service accounts](/docs/get-started/service-accounts). The line `Auth: required (service accounts: 0)` is fine; rich `/v1/*` over TCP requires a bearer until you pair a device or mint an SA.
 
 ## See also
 
-- [Service accounts and tokens](/docs/get-started/service-accounts) — next page: bootstrap auth
+- [Service accounts and tokens](/docs/get-started/service-accounts) — delegation primitive (browser pair, paired phone, MCP, remote CLI)
 - [Keeping your instance running](/docs/operate/persist-instance) — make `spl serve` auto-start at login (systemd / launchd / Windows Service)
 - [Exposing your instance securely](/docs/get-started/exposing) — go beyond loopback
 - [Operator runbook](/docs/operate/runbook) — day-2 lifecycle, upgrades, recovery

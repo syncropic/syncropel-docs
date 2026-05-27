@@ -94,39 +94,23 @@ The manual `rm -rf` does NOT auto-back up `hub.db` first, so if there's anything
 
 After either path, you're back at the start of the onboarding flow. The `spl init` command prints the next steps — open the local front door at `http://127.0.0.1:9100/` or pair Studio at `https://syncropel.com/connect?url=http://127.0.0.1:9100`.
 
-### First boot after reset — bootstrap mode
+### First boot after reset (v0.65.0+)
 
-A fresh `spl init` creates no service accounts. Since v0.16, the daemon's default-secure auth refuses every `/v1/*` request until at least one service account exists, so the daemon comes up in **bootstrap mode** (per SKL-0452 — see [daemon page](/docs/get-started/daemon)). `spl doctor` will surface several `!` warnings right after a fresh init:
-
-```text
-! instance reachable        daemon up; rich diagnostics unavailable: API error (503): First run: no service accounts exist.
-! engine config thread      could not fetch th_engine_config state (permissions enforcement?)
-! migrations                ...503 First run: no service accounts exist...
-! expression cache          ...503 First run: no service accounts exist...
-```
-
-**These warnings are expected at this stage**, and they all clear once you mint the first service account. The canonical bootstrap sequence:
+As of v0.65.0 the canonical post-reset sequence is two commands and you're done:
 
 ```bash
-# 1. Restart the daemon in insecure-localhost so the bootstrap endpoint is reachable
-spl serve --stop
-spl serve --daemon --insecure-localhost
-
-# 2. Mint the first SA + save its token as your CLI bearer
-spl service-account create --bootstrap --scopes admin
-spl token save <bearer-token-from-step-2>
-
-# 3. Restart WITHOUT --insecure-localhost (default-secure mode)
-spl serve --stop
-spl serve --daemon
-
-# 4. Verify — warnings should clear
-spl doctor
+spl init           # generates identity + config (mode 0640)
+spl serve --daemon # daemon binds Unix socket + TCP loopback
+# Verify
+spl status   # daemon healthy
+spl doctor   # all green
 ```
 
-If `spl doctor` then complains `config.toml has mode 0644 — recommended 0640`, run the suggested `chmod 640 ~/.syncro/config.toml`. (Known glitch: `spl init` should write 0640 directly; tracked for a follow-up.)
+`spl task add "..."`, `spl thread list`, `spl status`, and every other CLI command works immediately — no service account, no bearer token, no `--insecure-localhost` dance. The local CLI authenticates via the Unix socket (`~/.syncro/run/spl.sock`, mode 0700 owned by your UID); filesystem permissions ARE the authentication.
 
-The full bootstrap reference + alternate paths (paired-device bootstrap, hosted instances) are at [Service accounts and tokens](/docs/get-started/service-accounts).
+You only need to mint a service account when **delegating** scoped access to a different principal — browser pair, paired phone, MCP client, remote CLI, federation peer. See [Service accounts and tokens](/docs/get-started/service-accounts).
+
+If you're on v0.64.x or older, the legacy `--insecure-localhost` + `service-account create --bootstrap` + `token save` + restart-secure dance still works. Upgrade to v0.65+ to skip it.
 
 ## Full uninstall
 

@@ -3,6 +3,18 @@ title: First Run — init, identity, keys
 description: What `spl init` creates, how to inspect your identity and config, and when to re-initialize. Covers the `~/.syncro/` directory tree and how identities work.
 ---
 
+<Callout type="info" title="v0.65.0 'Welcomed' — first-run is two commands (ADR-137)">
+On Linux/macOS the entire first run is:
+
+```bash
+spl init           # generates identity + config
+spl serve --daemon # starts daemon; binds Unix socket + TCP loopback
+# Done — spl task add, spl status, spl thread list etc. work immediately.
+```
+
+No service account, no bearer token, no `--insecure-localhost` dance. The local CLI authenticates via the Unix socket at `~/.syncro/run/spl.sock` — filesystem permissions (mode 0700, owned by your UID) ARE the authentication, exactly the trust model SSH, Docker, systemd-bus, and gnupg-agent use. See [Service accounts and tokens](/docs/get-started/service-accounts) for delegation cases (browser pair, paired phone, MCP, remote CLI, federation peer).
+</Callout>
+
 After `spl version` prints cleanly, run `spl init` once to create your local state directory.
 
 ## `spl init`
