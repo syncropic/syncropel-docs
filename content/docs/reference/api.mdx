@@ -5,12 +5,11 @@ description: HTTP endpoints for the Syncropel server.
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-<Callout type="info" title="v0.52: path + error code rename">
+<Callout type="info" title="Work-loop paths + error codes renamed">
 
-In **v0.52.0 "Foundational"** (2026-05-20), the work-loop HTTP routes
-moved from `/v1/agent/*` to `/v1/work/*`, and the corresponding error
-codes changed from `AGENT_LOOP_*` to `WORK_*` (for example,
-`AGENT_LOOP_NO_PROVIDER` → `WORK_NO_PROVIDER`).
+The work-loop HTTP routes moved from `/v1/agent/*` to `/v1/work/*`,
+and the corresponding error codes changed from `AGENT_LOOP_*` to
+`WORK_*` (for example, `AGENT_LOOP_NO_PROVIDER` → `WORK_NO_PROVIDER`).
 
 The old paths return `404` — clients hitting `/v1/agent/loop` or related
 URLs should switch to the new ones below.
@@ -865,9 +864,9 @@ Response (`200`):
 | `403` | `DID_CLAIM_DENIED` | `X-Syncropel-Actor` is not in the SA's allowed-actors list |
 | `409` | `BOOTSTRAP_CLOSED` | Bootstrap endpoint called but namespace already has an SA |
 
-## Pair-share-invite (ADR-135)
+## Pair-share-invite
 
-The substrate for adding either a new device of yours (guest holder) or a federated colleague (federated holder). Specification: `syncropel-spec/15-decisions/ADR-135-pair-share-invite-substrate.md`. Operator-facing guide: [Pair, share, invite](../guides/pair-share-invite). SDK surface: `client.invites.*` in the [TypeScript SDK guide](../guides/typescript-sdk#invites).
+The substrate for adding either a new device of yours (guest holder) or a federated colleague (federated holder). Operator-facing guide: [Pair, share, invite](../guides/pair-share-invite). SDK surface: `client.invites.*` in the [TypeScript SDK guide](../guides/typescript-sdk#invites).
 
 | Method | Path | Scope | Description |
 |---|---|---|---|

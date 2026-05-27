@@ -138,10 +138,9 @@ exits cleanly with a `cancelled` outcome.
 ### Self-hosted note
 
 `@agent` needs both an inference backend (same as ordinary Scribe
-replies) and the kernel's loop service, which is on by default in
-v0.49. To disable it instance-wide, set
-`agentic_loop_enabled: false` on the `core.engine.actor_adapter.v1`
-record for the chat actor.
+replies) and the kernel's loop service, which is on by default. To
+disable it instance-wide, set `agentic_loop_enabled: false` on the
+`core.engine.actor_adapter.v1` record for the chat actor.
 
 ## Troubleshooting — Scribe is silent
 

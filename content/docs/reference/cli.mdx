@@ -5,14 +5,13 @@ description: Complete reference for the spl command-line interface.
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-<Callout type="info" title="v0.52: command renamed">
+<Callout type="info" title="Command renamed: `spl agent-loop` → `spl work-loop`">
 
-In **v0.52.0 "Foundational"** (2026-05-20), the `spl agent-loop`
-command was renamed to **`spl work-loop`**. The behaviour is unchanged —
-only the name shifted, in keeping with the new framing of the primitive
-as a goal-structured *work loop* that any actor can drive.
+The `spl agent-loop` command was renamed to **`spl work-loop`** —
+behaviour unchanged, only the name shifted to reflect that any actor
+(human, AI, or system) can drive the same goal-structured loop.
 
-The old name returns "unknown subcommand" — scripts that called
+The old name returns "unknown subcommand"; scripts calling
 `spl agent-loop` need a one-line update.
 
 </Callout>
@@ -30,6 +29,12 @@ All commands support:
 ## Server
 
 ```bash
+# Short verbs (canonical for operator interactive use)
+spl start            # alias for `spl serve --daemon`
+spl stop             # alias for `spl serve --stop`
+spl restart          # alias for `spl serve --restart`
+
+# Full form (canonical for systemd, Docker, Fly, K8s, and other process supervisors)
 spl serve [--daemon] [--port 9100] [--memory] [--echo] [--store sqlite:///path]
 spl serve --stop
 spl serve --restart
@@ -39,6 +44,8 @@ spl serve --insecure-localhost
 spl status
 spl version
 ```
+
+`spl start` / `spl stop` / `spl restart` are convenience aliases over the daemon-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the daemon to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Fly Machines, Kubernetes pods.
 
 | Command | Description |
 |---|---|
@@ -725,7 +732,7 @@ Fan-out descriptors set `target` to one of:
 
 Custom strategies (e.g. trust-weighted selection).
 
-## Federation — Pair Lifecycle (canonical, v0.24+)
+## Federation — Pair Lifecycle (canonical)
 
 The `spl federation` verb is the canonical surface for federation pair management. One command establishes a pair; subsequent verbs manage its lifecycle. See the [federation pair guide](/docs/guides/federation-pair) for a walkthrough.
 
@@ -767,7 +774,7 @@ spl federation show <id>                         # ≡ spl federation pair show
 
 ## Federation — Pair Sync (legacy `spl fleet sync` surface)
 
-Pre-v0.24 surface for federation pair management. Still functional but **superseded by `spl federation`** above for new pairs. See the [federation guide](/docs/guides/federation) for legacy walkthrough.
+Legacy surface for federation pair management. Still functional but **superseded by `spl federation`** above for new pairs. See the [federation guide](/docs/guides/federation) for the legacy walkthrough.
 
 ```bash
 spl fleet sync add [--peer-url URL] <PEER_DID> <THREAD_ID>   # Create a pair

@@ -119,7 +119,7 @@ PID:      12847
 Daemon started. Run 'spl status' to verify health.
 ```
 
-As of **v0.65.0** the daemon comes up healthy with zero service accounts and the local CLI talks to it via the Unix socket — see the [first-run callout](/docs/get-started/first-run) and [Service accounts](/docs/get-started/service-accounts). The line `Auth: required (service accounts: 0)` is fine; rich `/v1/*` over TCP requires a bearer until you pair a device or mint an SA.
+The daemon comes up healthy with zero service accounts, and the local CLI talks to it via the Unix socket — see [First run](/docs/get-started/first-run) and [Service accounts](/docs/get-started/service-accounts). The line `Auth: required (service accounts: 0)` is fine; the rich HTTP surface over TCP requires a bearer token until you pair a device or mint a service account.
 
 ## See also
 

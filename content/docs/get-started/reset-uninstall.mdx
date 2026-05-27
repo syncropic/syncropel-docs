@@ -22,7 +22,7 @@ spl init                                        # regenerate identity and config
 spl serve --daemon                              # start fresh
 ```
 
-What `spl reset` deletes (v0.64.3 default behavior): **everything inside `~/.syncro/`**, then `~/.syncro/` itself. The command lists the directory at reset time and removes every entry that isn't explicitly preserved by a `--keep-*` flag — that catches state from past arcs (`vfs.db*`, `agent/`, `content/`, `serve.log`, `*.bak-prerename-*`, prompt `.md` files) without needing the reset command to know about every possible path.
+What `spl reset` deletes: **everything inside `~/.syncro/`**, then `~/.syncro/` itself. The command lists the directory at reset time and removes every entry that isn't explicitly preserved by a `--keep-*` flag — that catches accumulated state like `vfs.db*`, `agent/`, `content/`, `serve.log`, and any old backup files without needing the reset command to know about every possible path.
 
 What `spl reset` **never** deletes:
 
@@ -30,7 +30,7 @@ What `spl reset` **never** deletes:
 |---|---|
 | `~/.syncro-data/` | Task content files (Markdown) + alias mappings — your authored content, separate blast radius from `.syncro/` |
 | `~/.local/share/syncropel/backups/` | Automatic `hub.db` backups, plus the `hub.db.pre-reset.<iso8601>` snapshot this command creates |
-| OS keyring entries | If you have an identity stored in linux-secret-service / macOS Keychain / Windows DPAPI per [ADR-082](https://github.com/syncropic/syncropel/blob/main/syncropel-spec/15-decisions/ADR-082.md). `spl init` overwrites the entry on next start, so this is functionally idempotent |
+| OS keyring entries | If you have an identity stored in linux-secret-service / macOS Keychain / Windows DPAPI, those entries are not touched. `spl init` overwrites them on next start, so this is functionally idempotent |
 
 `~/.syncro/` itself is also removed when **no** `--keep-*` flag is passed — so the next `spl init` works without `--force`. With any `--keep-*` flag set, the home dir is left in place containing only the kept entries, and the next `spl init` needs `--force`.
 
@@ -94,23 +94,23 @@ The manual `rm -rf` does NOT auto-back up `hub.db` first, so if there's anything
 
 After either path, you're back at the start of the onboarding flow. The `spl init` command prints the next steps — open the local front door at `http://127.0.0.1:9100/` or pair Studio at `https://syncropel.com/connect?url=http://127.0.0.1:9100`.
 
-### First boot after reset (v0.65.0+)
+### First boot after reset
 
-As of v0.65.0 the canonical post-reset sequence is two commands and you're done:
+The canonical post-reset sequence is two commands:
 
 ```bash
-spl init           # generates identity + config (mode 0640)
-spl serve --daemon # daemon binds Unix socket + TCP loopback
+spl init       # generate identity + config
+spl start      # start the daemon (alias for `spl serve --daemon`)
 # Verify
 spl status   # daemon healthy
 spl doctor   # all green
 ```
 
-`spl task add "..."`, `spl thread list`, `spl status`, and every other CLI command works immediately — no service account, no bearer token, no `--insecure-localhost` dance. The local CLI authenticates via the Unix socket (`~/.syncro/run/spl.sock`, mode 0700 owned by your UID); filesystem permissions ARE the authentication.
+`spl task add "..."`, `spl thread list`, `spl status`, and every other CLI command works immediately — no service account, no bearer token, no `--insecure-localhost` step. The local CLI authenticates via the Unix socket at `~/.syncro/run/spl.sock` (mode 0700 owned by your user); filesystem permissions are the authentication.
 
-You only need to mint a service account when **delegating** scoped access to a different principal — browser pair, paired phone, MCP client, remote CLI, federation peer. See [Service accounts and tokens](/docs/get-started/service-accounts).
+You only need to mint a service account when **delegating** scoped access to a different principal — a browser pair, a paired phone, an MCP client, a remote CLI, or another federating instance. See [Service accounts and tokens](/docs/get-started/service-accounts).
 
-If you're on v0.64.x or older, the legacy `--insecure-localhost` + `service-account create --bootstrap` + `token save` + restart-secure dance still works. Upgrade to v0.65+ to skip it.
+On older daemons that don't support Unix-socket trust, the legacy `--insecure-localhost` + `service-account create --bootstrap` + `token save` + restart-secure flow still works — but upgrading (`curl get.syncropic.com/spl | sh`) skips it.
 
 ## Full uninstall
 
@@ -188,7 +188,7 @@ systemctl --user daemon-reload
 - Any entries you added to your shell's `PATH`.
 - `~/.syncro-data/` (task content + alias mappings) — the operator's authored content lives in a separate directory from `.syncro/` for exactly this reason. `spl reset` never touches it unless you pass `--wipe-task-data` and confirm the extra prompt. Manual `rm -rf ~/.syncro` doesn't touch it either.
 - Backups at `~/.local/share/syncropel/backups/`. The pre-reset snapshot `hub.db.pre-reset.<iso8601>` that `spl reset` writes lands here too, so reset is recoverable. Only full uninstall removes this directory.
-- OS keyring entries (if you use a keyring backend per ADR-082). `spl init` overwrites the entry on next start.
+- OS keyring entries (if you use a keyring backend). `spl init` overwrites the entry on next start.
 
 ### What an uninstall leaves alone
 

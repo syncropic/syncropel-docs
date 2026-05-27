@@ -3,16 +3,16 @@ title: First Run — init, identity, keys
 description: What `spl init` creates, how to inspect your identity and config, and when to re-initialize. Covers the `~/.syncro/` directory tree and how identities work.
 ---
 
-<Callout type="info" title="v0.65.0 'Welcomed' — first-run is two commands (ADR-137)">
-On Linux/macOS the entire first run is:
-
+<Callout type="info" title="First run on Linux/macOS is three short verbs">
 ```bash
-spl init           # generates identity + config
-spl serve --daemon # starts daemon; binds Unix socket + TCP loopback
-# Done — spl task add, spl status, spl thread list etc. work immediately.
+spl init           # generate identity + config
+spl start          # start the daemon (alias for `spl serve --daemon`)
+spl task add "..." # everything works immediately — no service account, no bearer
 ```
 
-No service account, no bearer token, no `--insecure-localhost` dance. The local CLI authenticates via the Unix socket at `~/.syncro/run/spl.sock` — filesystem permissions (mode 0700, owned by your UID) ARE the authentication, exactly the trust model SSH, Docker, systemd-bus, and gnupg-agent use. See [Service accounts and tokens](/docs/get-started/service-accounts) for delegation cases (browser pair, paired phone, MCP, remote CLI, federation peer).
+The local CLI talks to the daemon over a Unix socket at `~/.syncro/run/spl.sock`; filesystem permissions (the socket is mode 0700 owned by your user) are the authentication. Bearer tokens are still the right primitive for **delegating** scoped access — see [Service accounts and tokens](/docs/get-started/service-accounts) when you need to pair a browser, phone, MCP client, remote CLI, or another instance.
+
+`spl start` is an alias for `spl serve --daemon`. `spl stop` and `spl restart` are the matching shutdown / restart verbs. The full `spl serve` form stays the canonical foreground entry point used by systemd units, Docker containers, and other process supervisors.
 </Callout>
 
 After `spl version` prints cleanly, run `spl init` once to create your local state directory.

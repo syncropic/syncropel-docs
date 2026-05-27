@@ -10,7 +10,7 @@ description: How to add a phone or a colleague to a Syncropel instance — issue
 1. **A new device of yours** — a phone, a tablet, a fresh laptop. It joins as a _guest holder_ — the kernel mints a fresh service account + bearer for the device, the device stores the credential in browser IDB, and you can sign in from it anywhere.
 2. **A federated colleague** — someone who's already paired with their _own_ instance and wants access to yours. They join as a _federated holder_ — the kernel verifies an Ed25519 attestation signed by their home instance, then mints an instance-bound bearer scoped to whatever you granted.
 
-Both flows share one primitive: `core.invite.v1`. A single body kind, one record on the kernel's `th_invites` thread, one signed URL, two redeem paths. The complete substrate is specified in ADR-135 (`syncropel-spec/15-decisions/ADR-135-pair-share-invite-substrate.md`); this guide is operator-facing.
+Both flows share one primitive: `core.invite.v1`. A single body kind, one record on the kernel's `th_invites` thread, one signed URL, two redeem paths. This guide is operator-facing.
 
 ## Who this is for
 
@@ -92,7 +92,7 @@ Templates are stored as `core.invite_template.v1` records on `th_invite_template
 
 ## What the kernel guarantees
 
-ADR-135's threat model section spells out the guarantees in full. The load-bearing ones:
+The threat model spells out the guarantees in full. The load-bearing ones:
 
 - **Defense-in-depth**: every operator endpoint checks _both_ the bearer scope _and_ the consent grant. A bearer with `admin` scope but no `th_invites:write` grant cannot issue invites.
 - **Federated holder proofs are mandatory, never optional**: redeem requests with `holder_type: federated` MUST carry a valid Ed25519 attestation signed by the holder's home instance, with a fresh issued-at-ms. The kernel refuses (and audits) on `bad_proof`, `key_unknown`, or `freshness_violation`.
@@ -105,4 +105,4 @@ ADR-135's threat model section spells out the guarantees in full. The load-beari
 - [API reference](../reference/api) — every `/v1/invites/*` route, request/response shape, error codes.
 - [Body-kinds reference](../reference/body-kinds) — `core.invite.v1`, `core.invite.event.v1`, `core.invite_template.v1`, `core.api_token.activity.v1`.
 - [`@syncropel/sdk` `client.invites.*`](./typescript-sdk#invites) — typed SDK surface.
-- ADR-135 at `syncropel-spec/15-decisions/ADR-135-pair-share-invite-substrate.md` — design rationale, threat model, identity model, scope grammar, all seven design decisions.
+- The pair-share-invite specification in the protocol spec — design rationale, threat model, identity model, scope grammar, all seven design decisions.
