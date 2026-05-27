@@ -47,8 +47,8 @@ spl config relay set https://private-relay.example.com --for-pair did:sync:user:
 After configuration, restart `spl serve` — inbound receive tasks spawn at daemon startup.
 
 ```bash
-spl serve --stop
-spl serve --daemon
+spl stop
+spl start
 ```
 
 ### Inspect configured relays

@@ -3,7 +3,7 @@ title: Keeping Your Instance Running
 description: Make `spl serve` start automatically at login, restart after crashes, and survive reboots — systemd user unit on Linux, launchd plist on macOS, Windows Service on Windows.
 ---
 
-`spl serve --daemon` detaches from your terminal and runs in the
+`spl start` detaches from your terminal and runs in the
 background, but it doesn't survive a reboot or laptop sleep on its
 own. To keep your instance running across sessions you need a
 supervisor — the per-OS pattern is below.
@@ -34,7 +34,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/spl serve --foreground
+ExecStart=%h/.local/bin/spl serve
 Restart=on-failure
 RestartSec=5
 
@@ -152,7 +152,7 @@ cat ~/Library/LaunchAgents/com.syncropic.spl-serve.plist
 
 Same as Linux: pass `--foreground` so launchd is the supervisor and
 the binary does NOT detach. `KeepAlive { SuccessfulExit = false }`
-restarts on crash but not on a clean exit (e.g. `spl serve --stop`),
+restarts on crash but not on a clean exit (e.g. `spl stop`),
 so manual stops stay manual.
 
 ### 2. Load and start
@@ -204,7 +204,7 @@ sc.exe start SyncropelDaemon
 ## Common pitfalls
 
 **"My instance keeps stopping after exactly N seconds."**
-This usually means the supervisor is running `spl serve --daemon`
+This usually means the supervisor is running `spl start`
 (double-detach) instead of `spl serve --foreground`. The wrapper
 process exits cleanly after the detach, the supervisor sees a
 "successful exit", and depending on your `KeepAlive` / `Restart`

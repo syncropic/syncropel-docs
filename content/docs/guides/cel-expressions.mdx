@@ -399,9 +399,9 @@ spl config permissions-enable
 **Emergency unlock**: if you locked yourself out on an older version (or by other means — disabling the admin rule, dropping a deny rule, etc.), recovery is now one command instead of SQL surgery:
 
 ```bash
-spl serve --stop                  # the daemon caches config in memory
+spl stop                  # the daemon caches config in memory
 spl config permissions-unlock     # writes permissions_enabled=false directly to the store
-spl serve --daemon                # restart — enforcement is off
+spl start                # restart — enforcement is off
 ```
 
 `permissions-unlock` opens the SQLite store directly and appends a `permissions_enabled=false` LEARN record on `th_engine_config`, bypassing the HTTP middleware that would otherwise deny the request. It refuses to run if the daemon is still up (use `--force` to override the safety check). Only sqlite stores are supported — for `--memory` daemons, just restart.

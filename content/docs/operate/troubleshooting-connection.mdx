@@ -27,11 +27,11 @@ The banner at the top of the workspace always links here ("diagnose").
 ### 1. Instance offline
 
 **Symptom**: Banner says "Instance offline". The dashboard shows the
-offline panel with a `spl serve --daemon` hint.
+offline panel with a `spl start` hint.
 
 **Why**: `/health` is timing out or refused on every candidate URL.
 
-**Fix**: `spl serve --daemon` in your terminal. Verify with
+**Fix**: `spl start` in your terminal. Verify with
 `curl http://localhost:9100/health`. If the instance was running but
 stopped, `spl serve --status` will tell you whether the PID file is
 orphaned.
@@ -98,7 +98,7 @@ Or scope it more narrowly to the resources you actually need.
 from fetching `http://127.0.0.1` without an explicit ACK from the
 instance. Older daemon builds didn't ACK the PNA preflight.
 
-**Fix**: Upgrade the daemon: `curl -sSf https://get.syncropic.com/spl | sh && spl serve --stop && spl serve --daemon`. Or grant PNA permission
+**Fix**: Upgrade the daemon: `curl -sSf https://get.syncropic.com/spl | sh && spl stop && spl start`. Or grant PNA permission
 manually in `chrome://settings/content/insecureprivatenetwork`.
 
 ### 6. Multiple daemons reachable
@@ -183,7 +183,7 @@ copy-paste suggested fix per code.
 | `AUTH_INVALID` | Token rejected (expired, revoked, or instance changed) | Reset pairing on `/diagnose`, then re-pair |
 | `SCOPE_FORBIDDEN` | Token valid but missing required scope | Re-pair with `--scopes admin` (or narrower scope per use) |
 | `NOT_FOUND` | Endpoint not available on this daemon version | Upgrade the daemon or stop using this view |
-| `CORS` | Origin not on daemon's CORS allowlist | `spl config auth-set-cors-origins https://syncropel.com http://localhost:3000 && spl serve --stop && spl serve --daemon` |
+| `CORS` | Origin not on daemon's CORS allowlist | `spl config auth-set-cors-origins https://syncropel.com http://localhost:3000 && spl stop && spl start` |
 | `PNA` | Browser blocked the cross-origin → loopback fetch | Upgrade the daemon or grant PNA permission in browser |
 | `NETWORK` | Couldn't reach the daemon | `spl serve --status` and verify with `curl http://localhost:9100/health` |
 | `TIMEOUT` | Request timed out | Daemon under load or unreachable; retry; check `spl doctor` |

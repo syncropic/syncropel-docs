@@ -97,7 +97,7 @@ spl serve --foreground
 You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it as a daemon:
 
 ```bash
-spl serve --daemon
+spl start
 spl status
 ```
 
@@ -122,7 +122,7 @@ The hosted-instance flow is the same kernel as the self-hosted one — same bina
     Prov->>Prov: reserve label + generate bootstrap secret
     Prov->>K: create instance + volume<br/>(SPL_BOOTSTRAP_TOKEN injected)
     Prov-->>U: 202 Accepted (poll status)
-    K->>K: spl serve --daemon<br/>read SPL_BOOTSTRAP_TOKEN
+    K->>K: spl start<br/>read SPL_BOOTSTRAP_TOKEN
     K->>K: mint SA + token record<br/>(default namespace)
     K-->>Prov: /health 200
     U->>Site: poll provision status
@@ -147,7 +147,7 @@ The kernel reads `SPL_BOOTSTRAP_TOKEN` at startup, before the auth preflight. If
 ```bash
 SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 32)
 export SPL_BOOTSTRAP_TOKEN="$SECRET"
-spl serve --daemon
+spl start
 
 # Reconstruct the canonical bearer (defaults: env=prod, sa=sa-bootstrap-env)
 BEARER="spl_prod_sa-bootstrap-env_${SECRET}"
@@ -166,7 +166,7 @@ Validation rules: secret length 16–256 ASCII printable characters, no whitespa
 Restart the daemon with `--insecure-localhost`. It binds 127.0.0.1 only and disables auth. Mint an SA via the bootstrap endpoint:
 
 ```bash
-spl serve --stop
+spl stop
 spl serve --foreground --insecure-localhost &
 
 curl -fsS -X POST http://127.0.0.1:9100/v1/bootstrap/service-account \
@@ -175,8 +175,8 @@ curl -fsS -X POST http://127.0.0.1:9100/v1/bootstrap/service-account \
 # → 201 + bearer token; copy the token (it is shown once).
 
 spl token save "$BEARER"
-spl serve --stop
-spl serve --daemon
+spl stop
+spl start
 ```
 
 This is the path documented in [Authentication & Service Accounts](/docs/operate/keyring) and is fine for a single-user laptop. Avoid it on multi-tenant hosts: any local user can curl 127.0.0.1.
@@ -239,9 +239,9 @@ The daemon does not need to be stopped — SQLite's WAL makes this safe — but 
 ### Restore
 
 ```bash
-spl serve --stop
+spl stop
 cp ~/.local/share/syncropel/backups/<instance-key>/hub.db.bak ~/.syncro/hub.db
-spl serve --daemon
+spl start
 ```
 
 On startup, trust scores and engine config rebuild from `KNOW`/`DO` and `LEARN` records respectively. Task content files and alias mappings live in `~/.syncro-data/` and are unaffected by `hub.db` operations — they survive on their own.
@@ -306,7 +306,7 @@ spl drain status   # waits until in-flight = 0
 ### Stop the daemon gracefully
 
 ```bash
-spl serve --stop
+spl stop
 ```
 
 This sends `SIGTERM`. The daemon flushes the SQLite WAL, closes the socket, and removes its PID file. If `--stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).

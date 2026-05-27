@@ -43,7 +43,7 @@ Use the narrowest scope that covers the use case. A phone client emitting record
 
 ## 3. Quick-start: enabling auth on a remote host
 
-Assume you have `spl serve --daemon` running on `localhost:9100`, and you've exposed it to another device at `https://your-host.example.com:9100` (via reverse proxy, private network, or tunnel of your choice).
+Assume you have `spl start` running on `localhost:9100`, and you've exposed it to another device at `https://your-host.example.com:9100` (via reverse proxy, private network, or tunnel of your choice).
 
 ### 3.1 Bootstrap the first service account
 
@@ -77,8 +77,8 @@ spl learn \
 ### 3.3 Restart the daemon
 
 ```bash
-spl serve --stop
-spl serve --daemon
+spl stop
+spl start
 ```
 
 The daemon reloads `th_engine_config`, picks up the new setting, and starts enforcing.
@@ -175,8 +175,8 @@ Kills every token ever issued under the SA plus blocks any future tokens minted 
 If your token is lost, your laptop is offline from the server, or you locked yourself out of your own daemon:
 
 ```bash
-spl serve --stop
-spl serve --daemon --insecure-localhost
+spl stop
+spl start --insecure-localhost
 ```
 
 This starts the daemon force-bound to `127.0.0.1` only (no external reachability regardless of `--host`) with auth enforcement disabled. You regain `spl` CLI access for cleanup:
@@ -184,7 +184,7 @@ This starts the daemon force-bound to `127.0.0.1` only (no external reachability
 ```bash
 spl service-account list
 spl token rotate <sa_id>
-spl serve --stop && spl serve --daemon
+spl stop && spl start
 ```
 
 The daemon logs a WARN on every startup when `--insecure-localhost` is active. This is intentional — it should never be the default state.

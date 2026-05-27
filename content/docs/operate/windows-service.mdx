@@ -3,7 +3,7 @@ title: Windows Service
 description: Run `spl serve` as a Windows Service so the daemon starts at boot, survives logoff, and integrates with services.msc + the Event Log. Install, start, stop, uninstall, and troubleshooting.
 ---
 
-On Linux and macOS, `spl serve --daemon` already detaches from the
+On Linux and macOS, `spl start` already detaches from the
 terminal, writes a PID file, and survives shell close — a quick
 `systemd` or `launchd` unit on top is enough for boot-time autostart.
 
@@ -88,7 +88,7 @@ rather than an opaque Win32 error.
        │                                        │
        ├── registers control handler (Stop ─► graceful shutdown)
        ├── sets state Running
-       ├── runs the same foreground server as `spl serve --daemon`
+       ├── runs the same foreground server as `spl start`
        └── on Stop / system shutdown: drain, flush, exit
 ```
 
@@ -194,7 +194,7 @@ stop hangs past the 10-second wait.
 
 | Capability | Unix (`systemd` / `launchd`) | Windows Service |
 |---|---|---|
-| Detach from terminal | `spl serve --daemon` uses `setsid()` | `--install-service` + SCM owns process |
+| Detach from terminal | `spl start` uses `setsid()` | `--install-service` + SCM owns process |
 | Start at boot | systemd unit / launchd plist | `--install-service` sets `AutoStart` |
 | Survive logoff | yes (via systemd) | yes (SCM session 0) |
 | Graceful shutdown | `SIGTERM` | SCM `Stop` control ➜ Notify ➜ same path |

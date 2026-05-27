@@ -10,7 +10,7 @@ For a healthy-machine audit, prefer [`spl doctor`](/docs/operate/doctor) — it 
 ## "Failed to start spl serve" after install
 
 ```
-$ spl serve --daemon
+$ spl start
 Error: failed to start spl serve
 ```
 
@@ -31,7 +31,7 @@ The daemon could not open `hub.db` — either the path is wrong, the directory i
 Quick workaround: specify the store path explicitly.
 
 ```bash
-spl serve --daemon --store ~/.syncro/hub.db
+spl start --store ~/.syncro/hub.db
 ```
 
 If that succeeds, the path resolution was the issue. On Linux and macOS the daemon always uses `~/.syncro/hub.db` implicitly; the `--store` flag just makes it explicit. On Windows, run from a native PowerShell (not a WSL shell) to avoid 9P filesystem weirdness.
@@ -93,7 +93,7 @@ Rare but possible. Check for orphan processes:
 pgrep -af "spl serve"
 ```
 
-If a PID is listed but `spl serve --stop` can't find it, see stale PID file.
+If a PID is listed but `spl stop` can't find it, see stale PID file.
 
 ## Dashboard shows "connected" but no records
 
@@ -150,7 +150,7 @@ The output should include `%LOCALAPPDATA%\Programs\spl` (or the expanded path).
 
 ## Stale PID file
 
-`spl serve --stop` reports the daemon isn't running, but `spl status` or `curl http://127.0.0.1:9100/health` shows a daemon is clearly alive. The PID file has been orphaned.
+`spl stop` reports the daemon isn't running, but `spl status` or `curl http://127.0.0.1:9100/health` shows a daemon is clearly alive. The PID file has been orphaned.
 
 Recovery:
 
@@ -161,7 +161,7 @@ kill <pid>                        # graceful
 # if it doesn't exit within ~10 seconds:
 kill -9 <pid>                     # force
 rm ~/.syncro/run/spl.pid          # clear the stale file
-spl serve --daemon                # start fresh
+spl start                # start fresh
 ```
 
 ```powershell
@@ -169,7 +169,7 @@ spl serve --daemon                # start fresh
 Get-Process spl
 Stop-Process -Id <pid> -Force
 Remove-Item $env:USERPROFILE\.syncro\run\spl.pid -ErrorAction SilentlyContinue
-spl serve --daemon
+spl start
 ```
 
 `spl doctor` detects stale PID files and prints the exact recovery command.
@@ -187,15 +187,15 @@ rm -rf ~/.syncro
 
 # Re-initialize and re-bootstrap:
 spl init
-spl serve --daemon --insecure-localhost
+spl start --insecure-localhost
 spl service-account create --bootstrap \
   --name admin \
   --actors did:sync:user:$(whoami) \
   --scopes admin \
   --with-token
 spl token save spl_prod_sa_...
-spl serve --stop
-spl serve --daemon
+spl stop
+spl start
 ```
 
 Any records you had are gone. Automatic backups at `~/.local/share/syncropel/backups/hub.db.bak` may contain a recent snapshot — see [Operator runbook → Recovery](/docs/operate/runbook) for the full restore procedure.
@@ -207,11 +207,11 @@ If you ran `spl serve` from an elevated `cmd.exe` whose working directory was `C
 Fix: stop the daemon, move the file, point the daemon at the right location.
 
 ```powershell
-spl serve --stop
+spl stop
 Get-ChildItem C:\Windows\System32\hub.db -ErrorAction SilentlyContinue
 # If found:
 Move-Item C:\Windows\System32\hub.db $env:USERPROFILE\.syncro\hub.db
-spl serve --daemon --store $env:USERPROFILE\.syncro\hub.db
+spl start --store $env:USERPROFILE\.syncro\hub.db
 ```
 
 Always start `spl serve` from a working directory you control (your home directory is safe). Never run as Administrator unless you have a specific reason — the user-scope install does not need it.

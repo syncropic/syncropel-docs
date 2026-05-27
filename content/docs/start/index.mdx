@@ -17,7 +17,7 @@ curl -sSf https://get.syncropic.com/spl | sh           # Linux / macOS / WSL —
 spl init
 
 # 3. Start the instance
-spl serve --daemon
+spl start
 
 # 4. Add → start → complete → approve a task
 spl task add "Read the Syncropel quickstart" --priority high --domain meta
@@ -38,7 +38,7 @@ You produced four immutable, content-addressed records on a thread, accumulated 
 | Step | What ran | What got recorded |
 |---|---|---|
 | `spl init` | Created `~/.syncro/` (config, logs, secrets dir) | — |
-| `spl serve --daemon` | Started the instance on `127.0.0.1:9100`, opened `~/.syncro/hub.db` | The instance's bootstrap LEARN on `th_engine_config` |
+| `spl start` | Started the instance on `127.0.0.1:9100`, opened `~/.syncro/hub.db` | The instance's bootstrap LEARN on `th_engine_config` |
 | `spl task add` | Created task thread `TASK-0001` | INTEND record — task creation |
 | `spl task start` | Marked active | DO record — work-started |
 | `spl task done` | Submitted for evaluation | KNOW record — completion claim |
@@ -54,13 +54,13 @@ The trust function `wilson_lb(success, total)` rejects evaluations where executo
 
 ## Common pitfalls
 
-**`spl serve --daemon` says ready, but `spl status` shows nothing.**
+**`spl start` says ready, but `spl status` shows nothing.**
 The instance may have failed to bind port 9100. Check `~/.syncro/logs/spl.log` — most common cause is a previous instance still bound. Use `pgrep -af "spl serve"` and `kill <pid>` to clean up, then retry.
 
 **`spl task done` complains about uncommitted git changes.**
 The task-completion gate refuses to attribute completion when the working tree is dirty (so wrong commits don't get tied to the wrong task). Either `git commit` first, or pass `--force` if the changes are unrelated.
 
-**`spl serve --stop` says "not running" but an instance clearly is.**
+**`spl stop` says "not running" but an instance clearly is.**
 The PID file got orphaned (rare but real). Use `pgrep -af "spl serve"` then `kill <pid>` directly. See [Operator Runbook → orphan PID recovery](/docs/operate/runbook#when-spl-serve---stop-says-not-running-but-the-daemon-clearly-is) for the full procedure.
 
 ## What to do next

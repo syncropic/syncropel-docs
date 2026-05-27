@@ -15,11 +15,11 @@ Automatic backups at `~/.local/share/syncropel/backups/hub.db.bak` are written o
 `spl reset` is the canonical way to wipe `~/.syncro/` back to a fresh state. It refuses to run while the daemon is up, prints a plan of what it will touch, prompts for confirmation, and creates a timestamped backup of `hub.db` before deleting anything.
 
 ```bash
-spl serve --stop                                # stop the daemon first
+spl stop                                # stop the daemon first
 systemctl --user stop spl-serve.service         # if you use a systemd unit (reset will refuse otherwise)
 spl reset                                       # interactive: print plan, prompt y/N, back up hub.db, wipe
 spl init                                        # regenerate identity and config (no --force needed)
-spl serve --daemon                              # start fresh
+spl start                              # start fresh
 ```
 
 What `spl reset` deletes: **everything inside `~/.syncro/`**, then `~/.syncro/` itself. The command lists the directory at reset time and removes every entry that isn't explicitly preserved by a `--keep-*` flag — that catches accumulated state like `vfs.db*`, `agent/`, `content/`, `serve.log`, and any old backup files without needing the reset command to know about every possible path.
@@ -66,10 +66,10 @@ spl reset --dry-run --json | jq '.plan[] | select(.action == "delete")'
 ### Windows
 
 ```powershell
-spl serve --stop
+spl stop
 spl reset
 spl init
-spl serve --daemon
+spl start
 ```
 
 ### Fallback — when `spl reset` itself can't run
@@ -78,14 +78,14 @@ If the `spl` binary is broken (a corrupt upgrade, a `--insecure-localhost` daemo
 
 ```bash
 # Linux / macOS
-spl serve --stop || pkill -f "spl serve"
+spl stop || pkill -f "spl serve"
 rm -rf ~/.syncro
 spl init
 ```
 
 ```powershell
 # Windows
-spl serve --stop
+spl stop
 Remove-Item -Recurse -Force $env:USERPROFILE\.syncro
 spl init
 ```
@@ -100,7 +100,7 @@ The canonical post-reset sequence is two commands:
 
 ```bash
 spl init       # generate identity + config
-spl start      # start the daemon (alias for `spl serve --daemon`)
+spl start      # start the daemon in the background
 # Verify
 spl status   # daemon healthy
 spl doctor   # all green
@@ -117,7 +117,7 @@ On older daemons that don't support Unix-socket trust, the legacy `--insecure-lo
 ### Linux
 
 ```bash
-spl serve --stop                                   # graceful daemon shutdown
+spl stop                                   # graceful daemon shutdown
 rm ~/.local/bin/spl                                # remove the binary
 rm -rf ~/.syncro                                   # remove state
 rm -rf ~/.local/share/syncropel                    # remove backups
@@ -134,7 +134,7 @@ Edit by hand to remove.
 ### Windows
 
 ```powershell
-spl serve --stop
+spl stop
 Remove-Item "$env:LOCALAPPDATA\Programs\spl" -Recurse -Force
 Remove-Item $env:USERPROFILE\.syncro -Recurse -Force
 Remove-Item "$env:LOCALAPPDATA\syncropel" -Recurse -Force -ErrorAction SilentlyContinue
@@ -153,7 +153,7 @@ Close and reopen PowerShell for the `PATH` change to apply.
 ### macOS
 
 ```bash
-spl serve --stop
+spl stop
 rm ~/.local/bin/spl
 rm -rf ~/.syncro
 rm -rf ~/.local/share/syncropel
@@ -211,9 +211,9 @@ If you reset by mistake, the most recent daemon startup backup is at:
 Restore:
 
 ```bash
-spl serve --stop
+spl stop
 cp ~/.local/share/syncropel/backups/hub.db.bak ~/.syncro/hub.db
-spl serve --daemon
+spl start
 ```
 
 The identity in `config.toml` is independent of the records file, so a restored `hub.db` works with your current DID — as long as you haven't re-initialized to a new keypair in between. If you have, records will still restore but they'll be signed under the old key. See [Operator runbook → Recovery](/docs/operate/runbook) for the full procedure.

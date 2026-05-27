@@ -18,7 +18,7 @@ Spawn a clean test daemon on a non-default port and isolated home directory:
 ```bash
 export DRILL_HOME=/tmp/syncro-drill-$(date +%s)
 mkdir -p "$DRILL_HOME"
-SYNCROPEL_HOME="$DRILL_HOME" spl serve --daemon --port 9300
+SYNCROPEL_HOME="$DRILL_HOME" spl start --port 9300
 
 # Verify the test daemon is up + isolated from prod
 SYNCROPEL_HOME="$DRILL_HOME" spl status 2>&1 | head -3
@@ -49,8 +49,8 @@ Expected: `baseline: 3 records, last=<sha256>`.
 The daemon's startup hook copies `hub.db` to the backup directory **once on each restart**. To capture a fresh backup mid-run, restart the daemon:
 
 ```bash
-SYNCROPEL_HOME="$DRILL_HOME" spl serve --stop
-SYNCROPEL_HOME="$DRILL_HOME" spl serve --daemon --port 9300
+SYNCROPEL_HOME="$DRILL_HOME" spl stop
+SYNCROPEL_HOME="$DRILL_HOME" spl start --port 9300
 
 # Verify the backup file exists and has non-trivial size
 ls -lh "$HOME/.local/share/syncropel/backups/" | grep hub.db.bak
@@ -81,7 +81,7 @@ The `offsite` copy here simulates the off-host snapshot the runbook tells you to
 Stop the daemon and damage `hub.db`. The drill uses the simplest possible corruption — overwriting the SQLite header — so the daemon's startup path fails fast and visibly:
 
 ```bash
-SYNCROPEL_HOME="$DRILL_HOME" spl serve --stop
+SYNCROPEL_HOME="$DRILL_HOME" spl stop
 
 # Move the good store aside so we can inspect later if needed
 mv "$DRILL_HOME/hub.db" "$DRILL_HOME/hub.db.was-good.$(date +%s)"
@@ -90,7 +90,7 @@ mv "$DRILL_HOME/hub.db" "$DRILL_HOME/hub.db.was-good.$(date +%s)"
 dd if=/dev/zero of="$DRILL_HOME/hub.db" bs=4096 count=1 2>/dev/null
 
 # Confirm the daemon refuses to start cleanly
-SYNCROPEL_HOME="$DRILL_HOME" spl serve --daemon --port 9300 2>&1 | tail -5
+SYNCROPEL_HOME="$DRILL_HOME" spl start --port 9300 2>&1 | tail -5
 ```
 
 The daemon should fail to start with a SQLite-format error in the log. Verify:
@@ -112,7 +112,7 @@ rm -f "$DRILL_HOME/hub.db-wal" "$DRILL_HOME/hub.db-shm"
 cp "$DRILL_HOME/offsite/hub.db.drill.bak" "$DRILL_HOME/hub.db"
 
 # Restart
-SYNCROPEL_HOME="$DRILL_HOME" spl serve --daemon --port 9300
+SYNCROPEL_HOME="$DRILL_HOME" spl start --port 9300
 
 # Verify daemon up
 SYNCROPEL_HOME="$DRILL_HOME" spl status 2>&1 | head -3
@@ -148,7 +148,7 @@ If trust + rules look right and the record count matches, the restore is complet
 ## Phase 6 — clean up
 
 ```bash
-SYNCROPEL_HOME="$DRILL_HOME" spl serve --stop
+SYNCROPEL_HOME="$DRILL_HOME" spl stop
 rm -rf "$DRILL_HOME"
 ```
 

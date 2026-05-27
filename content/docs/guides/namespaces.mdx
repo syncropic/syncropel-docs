@@ -345,9 +345,9 @@ You'll still see them in `spl namespace list` (with status `deleted`) for audit 
 Use the emergency unlock command — see [Emergency Recovery](/docs/reference/cli#emergency-recovery):
 
 ```bash
-spl serve --stop
+spl stop
 spl config permissions-unlock
-spl serve --daemon
+spl start
 ```
 
 This writes a `permissions_enabled=false` LEARN record directly to the SQLite store, bypassing the HTTP middleware that would otherwise deny it.

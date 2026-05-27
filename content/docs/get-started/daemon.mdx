@@ -10,7 +10,7 @@ There are three ways to start it. Pick by situation.
 ## Dev mode — `--insecure-localhost`
 
 ```bash
-spl serve --daemon --insecure-localhost
+spl start --insecure-localhost
 ```
 
 Use this the very first time, and any time you're doing local development without paired external devices.
@@ -25,10 +25,10 @@ This mode is the escape hatch for the chicken-and-egg problem: if `auth.required
 
 **Never run this on a host you didn't boot yourself.** The guard against external reachability is strong, but the principle still holds: `--insecure-localhost` is for your laptop, not for anything shared.
 
-## Secure local mode — `spl serve --daemon`
+## Secure local mode — `spl start`
 
 ```bash
-spl serve --daemon
+spl start
 ```
 
 This is the default and what every long-running instance should use.
@@ -45,7 +45,7 @@ The instance stays bound to loopback, which means nothing outside the machine ca
 ## Exposed mode — `--host 0.0.0.0`
 
 ```bash
-spl serve --daemon --host 0.0.0.0
+spl start --host 0.0.0.0
 ```
 
 Binds to every interface on the machine. This is what you pass when the daemon is meant to be reached from outside — typically from a phone on the same private network, a federation peer, or a reverse proxy.
@@ -67,7 +67,7 @@ Reports version, PID, uptime, record count, store backend, and whether the daemo
 ### Stop
 
 ```bash
-spl serve --stop
+spl stop
 ```
 
 Sends `SIGTERM` to the daemon, waits for graceful shutdown, flushes the WAL, closes the socket, removes the PID file. If the daemon is unresponsive, the stop command falls back to `SIGKILL` after a grace period.
@@ -75,7 +75,7 @@ Sends `SIGTERM` to the daemon, waits for graceful shutdown, flushes the WAL, clo
 ### Restart
 
 ```bash
-spl serve --restart
+spl restart
 ```
 
 Stop, then start, preserving the same arguments the daemon was running with. Useful after a config file edit.
@@ -107,7 +107,7 @@ Logs rotate automatically at 10 MB per file, keeping the last 7 rotations.
 ## What a successful start looks like
 
 ```
-$ spl serve --daemon
+$ spl start
 Starting Syncropel kernel...
 Store:    sqlite:///home/you/.syncro/hub.db
 Backup:   ~/.local/share/syncropel/backups/hub.db.bak (written)

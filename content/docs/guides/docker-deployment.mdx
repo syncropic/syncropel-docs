@@ -114,7 +114,7 @@ API keys for any configured LLM provider (Anthropic, OpenAI, Google, etc.) are r
 ```bash
 docker exec spl mkdir -p /syncropel/secrets
 docker cp ~/.syncro/secrets/<provider>.key spl:/syncropel/secrets/<provider>.key
-docker exec spl spl serve --stop && docker restart spl
+docker exec spl spl stop && docker restart spl
 ```
 
 ## Multi-instance topology with docker-compose

@@ -123,7 +123,7 @@ Three common misconceptions worth heading off.
 
 A typical end-to-end flow:
 
-1. Alice runs `spl init` on her laptop. A `did:key` identity is generated. She starts `spl serve --daemon`.
+1. Alice runs `spl init` on her laptop. A `did:key` identity is generated. She starts `spl start`.
 2. Bob runs `spl init` on his workstation. Same thing — his daemon is up. Both have signed manifests at `/.well-known/syncropel`.
 3. Alice runs `spl federation pair https://bob.example/` — discovery + 3-roundtrip handshake + reciprocal token mint + persistent pair record on `th_federation_pairs`. Bob's side persists a mirror pair record automatically. The pair is bidirectional from this moment.
 4. (Optional) Alice narrows what she shares: `spl federation thread-allow <pair-id> th_shared_workspace`. Without an allowlist, all consent-permitted threads sync.

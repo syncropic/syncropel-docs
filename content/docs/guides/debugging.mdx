@@ -61,7 +61,7 @@ This is suitable for cron — wire `spl doctor --json` into your monitoring pipe
 
 **daemon reachable** — `GET /health` returns 200. If this fails, the daemon is not running OR not bound to localhost:9100 OR you're pointing `SPL_SERVE_URL` somewhere wrong.
 
-**pid file** — `~/.syncro/run/spl.pid` exists, points at a live process, and that process's `/proc/<pid>/cmdline` contains "spl serve". A WARN here means the daemon is responding but the PID file is missing — `spl serve --stop` will not be able to find it. See [Daemon orphan recovery](/docs/operate/runbook#daemon-orphan-recovery-skl-0202).
+**pid file** — `~/.syncro/run/spl.pid` exists, points at a live process, and that process's `/proc/<pid>/cmdline` contains "spl serve". A WARN here means the daemon is responding but the PID file is missing — `spl stop` will not be able to find it. See [Daemon orphan recovery](/docs/operate/runbook#daemon-orphan-recovery-skl-0202).
 
 **store has records** — the store is non-empty. A WARN means it's empty (fresh install or just-deleted hub.db). A FAIL means the store query itself errored.
 

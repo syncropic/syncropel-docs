@@ -36,13 +36,13 @@ ls -la ~/.local/share/syncropel/backups/
 
 ```bash
 # Stop the daemon
-spl serve --stop
+spl stop
 
 # Restore from backup
 cp ~/.local/share/syncropel/backups/hub.db.bak ~/.syncro/hub.db
 
 # Restart — trust and config rebuild automatically from records
-spl serve --daemon
+spl start
 
 # Verify
 spl status

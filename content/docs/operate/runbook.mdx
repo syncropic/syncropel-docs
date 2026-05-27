@@ -5,7 +5,7 @@ description: Day-2 operations for running Syncropel in production — daemon lif
 
 ## Audience
 
-This page is for the person on the other end of a `spl serve --daemon` that's actually serving real work. It's not for first-time installation (see [Quickstart](/docs/start)) or feature exploration (see [Guides](/docs/guides/task-management)). It assumes you have an instance running and you need to keep it healthy, recover when it isn't, and upgrade it without losing data.
+This page is for the person on the other end of a `spl start` that's actually serving real work. It's not for first-time installation (see [Quickstart](/docs/start)) or feature exploration (see [Guides](/docs/guides/task-management)). It assumes you have an instance running and you need to keep it healthy, recover when it isn't, and upgrade it without losing data.
 
 If you're reading this because something just broke, jump to [Recovery](#recovery-from-corruption-or-data-loss).
 
@@ -14,7 +14,7 @@ If you're reading this because something just broke, jump to [Recovery](#recover
 ### Starting the daemon
 
 ```bash
-spl serve --daemon
+spl start
 ```
 
 This forks a background process, writes a PID file to `~/.syncro/run/spl.pid`, opens the SQLite store at `~/.syncro/hub.db`, takes a startup backup (see [Backup discipline](#backup-discipline)), binds `127.0.0.1:9100`, and binds a Unix socket at `~/.syncro/run/spl.sock`.
@@ -31,12 +31,12 @@ Both should report `ok` with the current version and record count.
 ### Stopping the daemon
 
 ```bash
-spl serve --stop
+spl stop
 ```
 
 This reads `~/.syncro/run/spl.pid`, sends `SIGTERM` to the daemon process, and waits for graceful shutdown. The daemon flushes the SQLite WAL, closes the socket, removes the PID file, and exits.
 
-### When `spl serve --stop` says "not running" but the daemon clearly is
+### When `spl stop` says "not running" but the daemon clearly is
 
 This happens after long-running daemons lose their PID file (host reboot, WSL restart, or the file was clobbered by a runaway test). The daemon is still bound to port 9100 but `--stop` can't find it.
 
@@ -95,7 +95,7 @@ The instance key is one of:
 
 ### What the daemon does NOT do — and the trap to avoid
 
-**The startup backup is destructive.** Every `spl serve --daemon` invocation overwrites the backup file with a snapshot of the current `hub.db`, **even if the current `hub.db` is empty, corrupt, or wrong.**
+**The startup backup is destructive.** Every `spl start` invocation overwrites the backup file with a snapshot of the current `hub.db`, **even if the current `hub.db` is empty, corrupt, or wrong.**
 
 Concretely: if you delete `hub.db` and restart the daemon, the daemon comes up with an empty database, then on the next restart writes that empty database OVER your good backup. By the time you realize what happened, the backup is gone.
 
@@ -158,7 +158,7 @@ Recovery procedure:
 
 ```bash
 # 1. Stop the daemon (or kill any lingering process)
-spl serve --stop || pkill -f "spl serve"
+spl stop || pkill -f "spl serve"
 
 # 2. Move the corrupt store aside (don't delete — you may want it for forensics)
 mv ~/.syncro/hub.db ~/.syncro/hub.db.corrupt.$(date +%s)
@@ -170,7 +170,7 @@ mv ~/.syncro/hub.db-shm ~/.syncro/hub.db-shm.corrupt.$(date +%s) 2>/dev/null || 
 cp $HOME/backups/syncropel/hub.db.20260412-123000.bak ~/.syncro/hub.db
 
 # 4. Restart and verify
-spl serve --daemon
+spl start
 spl status
 ```
 
@@ -193,8 +193,8 @@ Same procedure as above, minus step 2. Restore from off-host backup, restart.
 These are derived state. They were correct the last time the daemon ran cleanly. To force a rebuild:
 
 ```bash
-spl serve --stop
-spl serve --daemon  # rebuild_from_store() runs on startup
+spl stop
+spl start  # rebuild_from_store() runs on startup
 spl trust           # verify rebuild
 spl config list-rules
 ```
@@ -211,9 +211,9 @@ spl thread records <thread-id-of-concern>       # specific thread
 You enabled `spl config permissions-enable` without an admin allow rule, and now `spl config permissions-disable` returns 403. This is prevented by a pre-flight check, but if you're on an older version or you disabled an admin rule by mistake:
 
 ```bash
-spl serve --stop                  # cached config in memory will shadow our write
+spl stop                  # cached config in memory will shadow our write
 spl config permissions-unlock     # writes permissions_enabled=false direct to store
-spl serve --daemon                # restart — enforcement is off
+spl start                # restart — enforcement is off
 ```
 
 See [CEL Expressions → Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the full lockout trap explanation.
@@ -227,7 +227,7 @@ See [CEL Expressions → Permission Enforcement](/docs/guides/cel-expressions#pe
 cp ~/.syncro/hub.db $HOME/backups/syncropel/hub.db.pre-upgrade.$(date +%s).bak
 
 # 2. Stop the daemon
-spl serve --stop
+spl stop
 
 # 3. Install the new binary (atomic mv via the install script)
 curl -sSf https://get.syncropic.com/spl | sh
@@ -236,7 +236,7 @@ curl -sSf https://get.syncropic.com/spl | sh
 spl version
 
 # 5. Restart
-spl serve --daemon
+spl start
 
 # 6. Verify health + record count match pre-upgrade
 spl status
@@ -264,7 +264,7 @@ Stale PID file. Delete it and start clean:
 
 ```bash
 rm -f ~/.syncro/run/spl.pid
-spl serve --daemon
+spl start
 ```
 
 ### `spl task done` returns "uncommitted changes"
@@ -524,7 +524,7 @@ To replace a dead coordinator:
 1. **Pick a surviving worker** to promote. Any worker can play the coordinator role — they differ only in config.
 2. **Stop the chosen worker cleanly**: `spl fleet stop --instance worker-a` (or send SIGTERM directly if `spl fleet` is unreachable).
 3. **Edit its config** at `~/.syncro-worker-a/config.toml`: remove the `[fleet] coordinator_url` line (so it no longer reports to an external coordinator), or leave it pointing at its own endpoint.
-4. **Restart**: `SYNCROPEL_HOME=~/.syncro-worker-a spl serve --daemon --port 9201`. The promoted instance now holds the registry.
+4. **Restart**: `SYNCROPEL_HOME=~/.syncro-worker-a spl start --port 9201`. The promoted instance now holds the registry.
 5. **Update remaining workers** to point their `[fleet] coordinator_url` at the new coordinator's endpoint. Restart each.
 6. **Verify**: `spl fleet list` against the new coordinator should show all workers live.
 

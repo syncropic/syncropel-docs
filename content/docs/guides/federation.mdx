@@ -48,12 +48,12 @@ For demonstration, let's run two daemons on the same machine using different `SY
 # Terminal 1: instance A
 export SYNCROPEL_HOME=/tmp/spl-a
 spl init --force
-spl serve --daemon --port 9200 --host 0.0.0.0
+spl start --port 9200 --host 0.0.0.0
 
 # Terminal 2: instance B
 export SYNCROPEL_HOME=/tmp/spl-b
 spl init --force
-spl serve --daemon --port 9250 --host 0.0.0.0
+spl start --port 9250 --host 0.0.0.0
 ```
 
 Pass `--host 0.0.0.0` when you want the daemon reachable from other machines or containers. The default `--host 127.0.0.1` only accepts loopback connections.
