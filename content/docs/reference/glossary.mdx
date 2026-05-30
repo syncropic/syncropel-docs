@@ -218,7 +218,7 @@ A machine-facing actor with a DID under `did:sync:system:sa_…`, created by `sp
 A one-way HTTP streaming protocol. Syncropel uses SSE on the proxy path (`/v1/proxy/messages` with `stream=true`) and the MCP transport (`/v1/mcp/sse`).
 
 **Snapshot**
-A JSONL (`.snap.jsonl`) file containing a thread's records plus a manifest. Used for backup, migration, and fleet bootstrap. Encoded by `syncropel-store::snapshot`; tamper-evident (manifest hash over sorted record IDs) and idempotent (content-addressed dedup on restore). See [Backup and restore](/docs/guides/backup-restore).
+A JSONL (`.snap.jsonl`) file containing a thread's records plus a manifest. Used for backup, migration, and fleet bootstrap. Encoded by the snapshot subsystem; tamper-evident (manifest hash over sorted record IDs) and idempotent (content-addressed dedup on restore). See [Backup and restore](/docs/guides/backup-restore).
 
 **Substrate**
 The current implementation backing an actor — which AI model, which adapter version, which tool binary. Changes occasionally. Distinct from the actor's DID, which is permanent.

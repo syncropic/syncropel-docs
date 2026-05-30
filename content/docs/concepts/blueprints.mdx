@@ -1,0 +1,50 @@
+---
+title: Blueprints
+description: A reusable recipe that seeds an instance or workspace with a starting set of records — so a fresh instance boots with real content instead of an empty log.
+---
+
+## Overview
+
+A **blueprint** is a packaged recipe for a starting point. Apply it to a fresh instance and you don't get a blank page — you get a populated one: a starter workspace, a set of threads, some seed configuration, ready to use on first boot.
+
+The need is simple. Everything in Syncropel is a [record](/docs/concepts/records), and an instance with no records is an empty log — technically correct and completely unhelpful to someone who just signed up. A blueprint closes that gap. It carries a bundle of seed records and lays them down when applied, so the very first thing a new user sees is a working example rather than a void to fill themselves.
+
+```
+blueprint  ─── applied to a fresh instance ──▶  seed records land in the log
+(a recipe)                                       ──▶ instance boots non-empty
+```
+
+## Why blueprints exist
+
+Two pressures motivate the primitive:
+
+- **Quick to value.** A new instance should demonstrate what the system does within seconds, not after an hour of manual setup. A starter-workspace blueprint means a fresh instance arrives with a real workspace already laid out — something to click into, edit, and learn from.
+- **Shareable setups.** A good arrangement of threads, a useful workspace layout, a sensible default configuration — these are worth capturing once and reusing. A blueprint turns "here's how I set mine up" into something you can hand to someone else and have them apply in one step. The same recipe produces the same starting point every time.
+
+## How a blueprint materializes
+
+A blueprint doesn't do anything magical at the storage layer — it works *with* the record model, not around it.
+
+When a blueprint is applied, it **lays down its seed records** into the instance's log. Each seed becomes an ordinary record, indistinguishable afterward from one a user wrote by hand: the same 8 fields, the same content addressing, the same audit trail. Once those seeds land, the usual machinery takes over — the [folds](/docs/concepts/records#state-is-a-fold) that derive live state replay the seed records just like any others, so the seeded workspace, threads, and configuration appear in exactly the surfaces they would if you'd created them yourself.
+
+A few consequences follow from materializing as plain records:
+
+- **Idempotent application.** Because records are content-addressed, applying the same blueprint twice doesn't duplicate anything — seeds that already exist are no-ops. A blueprint is safe to re-apply.
+- **Nothing special to undo.** Seeded records behave like any other record afterward. You edit, supersede, or archive them through the normal flows; the blueprint isn't a live link you have to detach from.
+- **Auditable origin.** The seed records are in the log like everything else, so you can always see what the blueprint put there and when.
+
+## Blueprints vs. workspaces
+
+A blueprint and a workspace are easy to confuse, but they sit at different moments:
+
+- A [workspace](/docs/concepts/workspaces) is the *thing you work in* — a live, rendered surface backed by records that change as you use it.
+- A blueprint is the *recipe that seeds one* — applied once at the start to put the initial records in place. After application, you interact with the workspace, not the blueprint.
+
+In short: the blueprint is the cookie cutter; the workspace is the cookie. The blueprint's job is finished the moment its seeds land.
+
+## What's next
+
+- **[Records](/docs/concepts/records)** — the unit a blueprint's seeds become, and the fold model that turns them into live state.
+- **[Workspaces](/docs/concepts/workspaces)** — the surface a starter blueprint commonly seeds.
+- **[Threads](/docs/concepts/threads)** — the coordination context seed records are organized into.
+- **[The engine](/docs/concepts/engine)** — how seeded records flow through the same loops as any other record.

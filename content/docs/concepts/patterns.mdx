@@ -9,6 +9,8 @@ When the same shape of work succeeds repeatedly, Syncropel records the shape as 
 
 The mental model is closer to a cache than to a model. A cache doesn't know what it stores; it knows what it's been asked for and what it returned. Patterns in Syncropel work the same way: they don't contain semantics, they contain *record chains with signatures*. The match is purely structural. The semantics come from the fold that projects the replayed chain into the current context.
 
+Like trust, the pattern library is itself a **fold over the record log** — not a separate store. The library of known patterns is derived by replaying the successful threads in the log, so it can always be rebuilt from those records and never drifts out of sync with what actually happened.
+
 ## The four levels of hash
 
 Every record carries implicit hash signatures at four levels of abstraction. L0 is the exact content; L3 is the essence of intent. Each level throws away more detail than the last, and each is matchable independently.
@@ -104,7 +106,7 @@ This lets a team's trusted patterns benefit other teams on paired instances with
 
 ## What's enforced today vs the spec
 
-Current implementation covers the matching cascade (L0-L3 hashing is in the algebra crate, the cascade runs in the routing path) and the crystallization criteria (C1-C4 live in `syncropel-trust/src/crystallization.rs`).
+Current implementation covers the matching cascade (L0-L3 hashing and the cascade run in the routing path) and the crystallization criteria — the C1-C4 criteria are part of the trust engine.
 
 Gaps tracked as follow-ups:
 

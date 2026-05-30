@@ -11,6 +11,18 @@ This separation isn't incidental. Coordination work spans timescales that range 
 
 The kernel itself is small — roughly 200 lines per loop, with the rest being data (records on `th_engine_config`, CEL expressions, CRUD over the store). Most of what looks like kernel "logic" is actually config. Change a routing rule, a trigger, a fold rule, a permission predicate — you emit a record, the engine reloads, the new behaviour takes effect on the next ingest. No restart, no redeploy.
 
+## Immutable log → folds → live state
+
+Before the four loops, hold one mental model: the engine has exactly one source of truth — the **immutable [record](/docs/concepts/records) log** — and everything else is *folded* from it.
+
+```
+   immutable record log   ──fold──▶   live state
+   (the only truth)                   (trust, patterns, task status,
+                                        config, calibration — all derived)
+```
+
+The engine doesn't keep trust scores, the pattern library, task status, routing config, or its own calibration in separate editable stores. Each of those is a **fold** — a pure replay of the relevant records that produces the current value on demand. Records only ever get appended; live state is recomputed from them. That is why a corrupted cache is never a crisis (replay rebuilds it), why two instances with the same records agree (the fold is deterministic), and why crash recovery is not a special path (it's just the normal startup fold). Keep this in mind as you read the loops below: the loops *append records and recompute folds* — they never mutate state in place.
+
 ## The four loops
 
 ### INGEST (microseconds)

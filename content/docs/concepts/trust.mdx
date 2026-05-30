@@ -11,6 +11,18 @@ The contrast is deliberate. Trust is **not** a policy ("Alice is approved for pr
 
 This is the foundation that lets Syncropel automate more work over time. As trust in an actor on a domain accumulates, their work becomes cheaper to dispatch, more of it can be pre-approved via routing rules, and proven patterns can be replayed without re-computation. Nothing moves faster than the evidence allows.
 
+## Trust is a fold, not a stored number
+
+A trust score is never written down and looked up. It is **computed** — folded — from the log of outcomes and verdicts every time it's asked for. The records (an actor's work, and the verdicts on that work) are the source of truth; the score is a derived view over them.
+
+This matters in practice:
+
+- **Restart rebuilds it.** Trust is not a database value that could drift out of sync with reality. On startup, the instance replays the verdict records and rebuilds every score from scratch. A corrupted or deleted score cache is fixed by recomputing — there is nothing to "repair".
+- **History is queryable.** Because the score is a function of the log, you can ask what it *was* on a past date by folding with a reference clock, the same way you'd inspect any other historical state.
+- **The number can't be tampered with directly.** You don't edit a trust score; you add a verdict record, and the fold reflects it. The only way to move trust is to produce evidence.
+
+The rest of this page describes what goes into that fold — the verdict records, the Wilson lower bound, decay — and how the score it produces feeds routing and the dial.
+
 ## Three dimensions
 
 Trust is a three-valued function:
@@ -46,6 +58,8 @@ Trust is produced at exactly one place: the evaluation gate. The flow:
 4. The next query of `trust(actor, domain)` returns the updated Wilson score.
 
 The approve/reject records are the observations. Nothing else generates trust evidence. Self-reported success, heuristic judgments, fold-derived "this looks like it worked" — none of these contribute. The rule is: **no verdict record, no trust delta**.
+
+The same gate governs [work loops](/docs/concepts/work-loop). A loop ends by emitting its own outcome record — but that self-narrated "done, succeeded" is explicitly *not* trust evidence. A loop cannot grade itself. Trust moves only when a different actor reviews the loop's outcome and records a verdict with `spl work-loop-review <thread> --accept` (or `--reject`). That external verdict is the observation; it folds into `trust(loop_actor, domain, evaluator)` exactly like a task approval does. The loop's outcome → an external verdict → the trust fold: that chain is the only path by which a loop earns standing.
 
 ## Independence is structural, not advisory
 
@@ -101,7 +115,7 @@ Current implementation covers the core trust loop end-to-end: verdict records pr
 
 Two pieces are partially implemented and tracked as follow-ups:
 
-- **CUSUM drift detection** is in the algebra crate (see `syncropel-trust/src/cusum.rs`) but the alert surface isn't wired to push notifications yet. The counters are observable at `GET /v1/governance/cusum-alerts`.
+- **CUSUM drift detection** runs in the trust engine but the alert surface isn't wired to push notifications yet. The counters are observable at `GET /v1/governance/cusum-alerts`.
 - **Crystallization of patterns from trusted actors** works — a pattern from an actor with trust ≥ 0.90 and 100+ observations crystallizes per the C1-C4 criteria — but the REPLAY path doesn't yet fully bypass the LLM for crystallized patterns in all 7 decision points; it short-circuits in routing but not yet in AITL.
 
 Both are bounded gaps. The trust layer is statistically honest and domain-scoped today; the full payoff (automatic replay everywhere) lands as the remaining consumers are wired.

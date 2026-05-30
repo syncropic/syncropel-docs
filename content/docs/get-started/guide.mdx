@@ -69,28 +69,29 @@ Changes take effect on the next message routed to the Guide.
 
 Nothing to configure. The Guide ships primed to the `general` persona; open a thread and ask it about your instance.
 
-## Configuring the Guide on a self-hosted instance
+## The Guide on a self-hosted instance
 
-A self-hosted instance you run with `spl serve` has the Guide too, but — like Scribe — it needs a language model to think with. There is no model bundled in the binary. Use either:
+A self-hosted instance you run with `spl serve` has the Guide too — and, like Scribe, **it works out of the box**. Your instance ships with managed model access built in, so the Guide can think and respond from the first conversational thread without you configuring anything.
 
-### Option A — `api.syncropic.com` (recommended)
+If you want to use your own account or a specific model instead, you can override that default:
 
-The managed inference gateway. Mint an API key, point your instance at it. See [api.syncropic.com](/docs/integrate/api-syncropic).
+### Default — managed model access (nothing to configure)
 
-### Option B — bring your own provider key
+Your instance already has managed model access. Open a conversational thread and address the Guide — it responds. This is the default, and most people never need to change it.
 
-Configure a provider + key in your instance's `[intelligence]` configuration. Supported providers: Anthropic, OpenAI, and a local Ollama runtime. See [First run](/docs/get-started/first-run).
+### Optional override — bring your own provider key
 
-Either way, once a backend is configured the Guide responds in any conversational thread you address to it.
+If you would rather your instance call a model under your own account, configure a provider + key in its `[intelligence]` configuration. Supported options include the major hosted model providers and a local Ollama runtime. See [First run](/docs/get-started/first-run).
+
+Either way, the Guide responds in any conversational thread you address to it.
 
 ## Troubleshooting — the Guide is silent
 
 If you send a message and nothing comes back, the checklist is the same as for Scribe:
 
-1. **Self-hosted with no inference backend configured.** Most common cause. Run `spl doctor` — it surfaces inference-configuration problems.
-2. **The backend is configured but rejecting calls.** Expired API key, exhausted quota, or wrong DID for the configured provider. Check your subscription and key.
-3. **The message landed on a non-conversational thread.** The Guide only answers on conversational threads.
-4. **Disabled instance-wide.** An operator can set `agentic_loop_enabled: false` on the Guide's `core.engine.actor_adapter.v1` record to disable `@agent` delegation only; the conversational surface still works.
+1. **A model override is configured but rejecting calls.** If you set your own provider key in `[intelligence]`, an expired or invalid key or an exhausted quota stops the Guide responding. Run `spl doctor` — it surfaces model-configuration problems — and check your key and subscription. (With the built-in managed model access and no override, this isn't a concern.)
+2. **The message landed on a non-conversational thread.** The Guide only answers on conversational threads.
+3. **Disabled instance-wide.** An operator can set `agentic_loop_enabled: false` on the Guide's `core.engine.actor_adapter.v1` record to disable `@agent` delegation only; the conversational surface still works.
 
 ## Audit trail
 

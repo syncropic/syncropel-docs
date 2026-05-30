@@ -34,7 +34,7 @@ spl start            # start the daemon in the background
 spl stop             # stop the running daemon
 spl restart          # stop + start
 
-# Full form (canonical for systemd, Docker, Fly, K8s, and other process supervisors)
+# Full form (canonical for systemd, Docker, K8s, managed cloud platforms, and other process supervisors)
 spl serve [--port 9100] [--memory] [--echo] [--store sqlite:///path]
 spl serve --daemon
 spl serve --stop
@@ -46,7 +46,7 @@ spl status
 spl version
 ```
 
-`spl start` / `spl stop` / `spl restart` are convenience aliases over the daemon-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the daemon to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Fly Machines, Kubernetes pods.
+`spl start` / `spl stop` / `spl restart` are convenience aliases over the daemon-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the daemon to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Kubernetes pods, and managed cloud platforms.
 
 | Command | Description |
 |---|---|
@@ -578,6 +578,37 @@ spl work-loop "Summarise this week's dispatches"
 # Daemon-run, verified, JSON output
 spl work-loop "Find every record tagged 'beta' and emit consent grants" \
   --remote --verify --json
+```
+
+## Review a work loop — `spl work-loop-review`
+
+Record an external verdict on a completed work loop. This is how a loop's outcome is judged: an actor with standing accepts or rejects what the loop produced, and that verdict folds into the loop actor's [trust](/docs/concepts/trust). A loop's own self-reported outcome never earns it trust — only this external verdict does, and it must come from a different actor than the one that ran the loop. See the [work loop concept page](/docs/concepts/work-loop#the-cognitive-loop-read-do-be-judged).
+
+```bash
+spl work-loop-review <THREAD> \
+  [--accept | --reject] \
+  [--domain <DOMAIN>] \
+  [--notes <TEXT>] \
+  [--token <BEARER>] \
+  [--json]
+```
+
+| Flag | Meaning |
+|---|---|
+| `<THREAD>` | The loop's thread id (`th_…`), or a unique prefix (positional, required). |
+| `--accept` | Accept the loop's outcome. This is the default if neither flag is given. |
+| `--reject` | Reject the loop's outcome. |
+| `--domain <DOMAIN>` | The work domain this verdict counts toward (e.g. `code`, `research`). Default: `general`. |
+| `--notes <TEXT>` | Review notes on an accept, or the reason on a reject. |
+| `--token <BEARER>` | Bearer token for daemon auth. Precedence: `--token` > `SPL_TOKEN` env > `~/.syncro/token`. |
+| `--json` | Emit machine-readable output. |
+
+```bash
+# Accept a loop's work, attributed to the "code" domain
+spl work-loop-review th_a1b2c3 --accept --domain code --notes "tests pass, change is clean"
+
+# Reject with a reason
+spl work-loop-review th_a1b2c3 --reject --domain code --notes "introduced a regression in the parser"
 ```
 
 ## Namespaces

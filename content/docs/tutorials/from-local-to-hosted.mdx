@@ -1,5 +1,5 @@
 ---
-title: From dogfood to ops
+title: From your laptop to a hosted instance
 description: Graduate from local-only to a hosted instance. Export your local hub, sign up at syncropel.com, import on the hosted side, repoint your CLI, verify identity continuity.
 ---
 
@@ -7,7 +7,7 @@ description: Graduate from local-only to a hosted instance. Export your local hu
 
 You've been running `spl start` on your laptop, accumulating records, threads, federation pairs, and trust observations. You want to graduate to a managed instance — same identity, same records, accessible from anywhere, no `--insecure-localhost` flags. This tutorial walks the round-trip migration: local export → hosted provision → hosted import → CLI repoint → verification.
 
-After this, you'll understand the **steward equivalence** doctrine: any Syncropel instance can become any other Syncropel instance. Hosted is a steward. Self-hosted is a steward. The migration mechanism is `spl export` / `spl import`, and round-trip identity preservation is a binding release-gate (per D49 in the [federation concept](/docs/concepts/federation)).
+After this, you'll understand the **steward equivalence** doctrine: any Syncropel instance can become any other Syncropel instance. Hosted is a steward. Self-hosted is a steward. The migration mechanism is `spl export` / `spl import`, and round-trip identity preservation is a binding portability release-gate (see the [federation concept](/docs/concepts/federation)).
 
 Allow ~30 minutes; most of it is provisioning + verification.
 
@@ -155,7 +155,7 @@ spl thread records <some_thread_id> | sha256sum
 
 Run this against both your local instance (`SPL_SERVE_URL=http://localhost:9100 spl thread records ...`) and your hosted (`SPL_SERVE_URL=https://myteam.syncropel.app spl thread records ...`). The hashes should match — records are content-addressed, so any divergence means something corrupted in transit.
 
-This round-trip-zero-divergence property is **release-gated**. If a Syncropel release breaks it, that release doesn't ship (per D49 portability gate). It's not aspirational; it's CI-verified on every tag.
+This round-trip-zero-divergence property is **release-gated**. If a Syncropel release breaks it, that release doesn't ship — it's a binding portability release-gate. It's not aspirational; it's CI-verified on every tag.
 
 ## 7. Pair a second device (optional)
 

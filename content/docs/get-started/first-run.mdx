@@ -12,7 +12,7 @@ spl task add "..." # everything works immediately — no service account, no bea
 
 The local CLI talks to the daemon over a Unix socket at `~/.syncro/run/spl.sock`; filesystem permissions (the socket is mode 0700 owned by your user) are the authentication. Bearer tokens are still the right primitive for **delegating** scoped access — see [Service accounts and tokens](/docs/get-started/service-accounts) when you need to pair a browser, phone, MCP client, remote CLI, or another instance.
 
-`spl start` / `spl stop` / `spl restart` are the convenience verbs for interactive operator use; the full `spl serve` form (foreground) is the canonical entry point used by systemd units, Docker containers, Fly Machines, Kubernetes pods, and other process supervisors.
+`spl start` / `spl stop` / `spl restart` are the convenience verbs for interactive operator use; the full `spl serve` form (foreground) is the canonical entry point used by systemd units, Docker containers, Kubernetes pods, managed cloud platforms, and other process supervisors.
 </Callout>
 
 After `spl version` prints cleanly, run `spl init` once to create your local state directory.
@@ -80,8 +80,20 @@ The default file is small — tens of lines. The blocks you'll see:
 
 - **`[identity]`** — the DID + keypair above.
 - **`[server]`** — bind address (`127.0.0.1`), port (`9100`), data dir, backup dir.
-- **`[intelligence]`** — which LLM provider is default (`anthropic`, `openai`, `ollama`), and the default model.
+- **`[intelligence]`** — an optional override for which language model your instance uses (and your own provider key, if you bring one). You usually do not need to touch this — see the note below.
 - **`[fleet]`** — advertised endpoint for fleet mode (not relevant for single-machine use).
+
+<Callout type="info" title="Your instance can already use a model out of the box">
+A fresh instance ships with **managed model access** built in. The
+conversational agent and work loops work immediately after `spl init` —
+you do **not** have to configure a provider or supply an API key just to
+get the assistant responding.
+
+Setting a provider key in `[intelligence]` is an **optional override**,
+for when you want to use your own account or a specific model instead of
+the built-in managed access. Until you do, your instance uses the managed
+model access automatically.
+</Callout>
 
 Editing `config.toml` by hand is supported. Changes take effect on the next instance start. For **runtime** config (routing rules, fold rules, permissions, embedding providers), use `spl config …` commands instead — those changes hot-reload without a restart.
 

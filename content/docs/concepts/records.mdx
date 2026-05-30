@@ -7,6 +7,8 @@ description: The 8-field immutable, content-addressed unit — the only primitiv
 
 A record is a single immutable fact. Syncropel writes nothing else. Task status, trust scores, routing rules, configuration, the output of a CI job, a comment on a design doc — all of it is records. When you understand the record, you understand what the system can and cannot do.
 
+The single load-bearing idea is this: **the record log is the source of truth, and everything else is folded from it.** Trust scores, proven patterns, workspace state, the engine's calibration — none of these are stored independently. They are all *derived* by replaying the records, the way a bank balance is derived from a ledger of transactions rather than kept as a separate editable number. The immutable log goes in; live state is folded out. That one move — `state = fold(records)` — is what makes the system auditable, rebuildable from scratch, and consistent across instances. The [State is a fold](#state-is-a-fold) section below develops it.
+
 The record has exactly 8 fields. Seven of them are hashed into the record's ID; one (`judged_by`) is not. The system never mutates a record after it lands — corrections, cancellations, and status changes all arrive as new records that reference the old ones.
 
 If you've written code against Git's commit model or CouchDB's document model, the shape will feel familiar: content-addressed, append-only, history-preserving. The difference is that Syncropel's record is *universal* — the same shape is used for code changes, task tracking, trust evidence, federation sync, and policy records. There's no second primitive to learn.

@@ -10,61 +10,21 @@
 /docs/get-started/windows/           /docs/get-started/install/      301
 /docs/get-started/linux-macos/       /docs/get-started/install/      301
 
-# tutorials/ — 12 UNPUBLISH → first-task
-/docs/tutorials/your-first-aitl-approval/         /docs/tutorials/first-task/  301
-/docs/tutorials/your-first-crystallized-pattern/  /docs/tutorials/first-task/  301
-/docs/tutorials/your-first-federation-pair/       /docs/tutorials/first-task/  301
-/docs/tutorials/your-first-mcp-integration/       /docs/tutorials/first-task/  301
-/docs/tutorials/code-review-pair/                 /docs/tutorials/first-task/  301
-/docs/tutorials/multi-namespace/                  /docs/tutorials/first-task/  301
-/docs/tutorials/first-fanout/                     /docs/tutorials/first-task/  301
-/docs/tutorials/parallel-dev/                     /docs/tutorials/first-task/  301
-/docs/tutorials/from-dogfood-to-ops/              /docs/tutorials/first-task/  301
-/docs/tutorials/first-sdk-integration/            /docs/tutorials/first-task/  301
-/docs/tutorials/first-iframe-extension/           /docs/tutorials/first-task/  301
-/docs/tutorials/first-react-component-consumer/   /docs/tutorials/first-task/  301
+# tutorials/ — restored to nav 2026-05-30; only the renamed slug keeps a
+# redirect (from-dogfood-to-ops → from-local-to-hosted).
+/docs/tutorials/from-dogfood-to-ops/  /docs/tutorials/from-local-to-hosted/  301
 
 # templates/ — 1 UNPUBLISH → guides
 /docs/templates/  /docs/guides/task-management/  301
 
-# concepts/ — 4 still UNPUBLISH; patterns restored 2026-05-23 (existing
-# 129-line authored content unhidden so /docs/concepts/patterns serves
-# the page instead of redirecting to records); workspaces + federation
-# restored for v0.54
+# concepts/ — all concept pages are now in nav (concepts/meta.json lists
+# all 17, incl. engine/namespaces/governance/secrets restored 2026-05-30,
+# so their old unpublish redirects are removed and the real pages serve).
+# Only the renamed catalog → graph redirect remains.
 /docs/concepts/catalog/      /docs/concepts/graph/    301
-/docs/concepts/namespaces/   /docs/concepts/records/  301
-/docs/concepts/governance/   /docs/concepts/records/  301
-/docs/concepts/secrets/      /docs/concepts/records/  301
-/docs/concepts/engine/       /docs/concepts/records/  301
 
-# guides/ — 26 UNPUBLISH → task-management (canonical guide)
-/docs/guides/routing-rules/        /docs/guides/task-management/  301
-/docs/guides/scheduled-triggers/   /docs/guides/task-management/  301
-/docs/guides/cel-expressions/      /docs/guides/task-management/  301
-/docs/guides/query/                /docs/guides/task-management/  301
-/docs/guides/federation-pair/      /docs/guides/task-management/  301
-/docs/guides/federation-invite/    /docs/guides/task-management/  301
-/docs/guides/federation/           /docs/guides/task-management/  301
-/docs/guides/async-federation/     /docs/guides/task-management/  301
-/docs/guides/consent/              /docs/guides/task-management/  301
-/docs/guides/portability/          /docs/guides/task-management/  301
-/docs/guides/actors-and-adapters/  /docs/guides/task-management/  301
-/docs/guides/agent-integration/    /docs/guides/task-management/  301
-/docs/guides/session-checkpoints/  /docs/guides/task-management/  301
-/docs/guides/dispatch-observability/             /docs/guides/task-management/  301
-/docs/guides/cookbook-dispatch-recovery/         /docs/guides/task-management/  301
-/docs/guides/cookbook-claude-session-correlation/  /docs/guides/task-management/  301
-/docs/guides/projections/          /docs/guides/task-management/  301
-/docs/guides/react-components/     /docs/guides/task-management/  301
-/docs/guides/extensions/           /docs/guides/task-management/  301
-/docs/guides/docker-deployment/    /docs/guides/task-management/  301
-/docs/guides/siem-integration/     /docs/guides/task-management/  301
-
-# guides/inference/ — 4 UNPUBLISH → task-management
-/docs/guides/inference/overview/              /docs/guides/task-management/  301
-/docs/guides/inference/query-anatomy/         /docs/guides/task-management/  301
-/docs/guides/inference/fold-functions/        /docs/guides/task-management/  301
-/docs/guides/inference/orchestration-patterns/  /docs/guides/task-management/  301
+# guides/ — all 22 guides pages + the inference subsection restored to nav
+# 2026-05-30; their unpublish redirects removed so the real pages serve.
 
 # cookbook/ — 11 UNPUBLISH (including section index) → guides
 /docs/cookbook/                                          /docs/guides/task-management/  301

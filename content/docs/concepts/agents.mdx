@@ -72,11 +72,18 @@ Blocked outcomes are the most common honest failure mode and the most worth unde
 
 A blocked loop is not a bad outcome — it is the agent being honest about what it could not do. The alternative — guessing — is worse.
 
-## Honest expectations
+## What an agent can do on your instance
 
-The capability of agents today is deliberately narrow. The substrate gives agents the records-native primitives — read records, write records, query threads, delegate to a sub-agent, raise a decision request — and tier-shaped budgets. It does *not* yet give them broad host access (file system, shell, search) by default. The result is an agent that does focused, auditable work and stops cleanly when it cannot, rather than an agent that confidently produces noise on tasks outside its reach.
+An agent running on your own instance can do real work, not just shuffle records. A loop has a **workspace tool set** — it can run commands, and read, write, and edit files — confined to a workspace directory you point it at. That is how an agent on your machine actually builds something: it edits files, runs a test, reads the output, and tries again, with every step landing as a record on the loop's thread.
 
-Expanding the tool set is on the roadmap; the foundations the current model puts in place — every tool call is a record, every halt has a structured reason, every loop has a tier-bounded budget — are what makes broader access safe to add later. The narrow-but-honest path is the deliberate first step.
+This power is gated by *who the agent runs as*. The host tool set — running shell commands and touching the filesystem — is reserved for the instance owner's own loops (the operator tier). It is enabled deliberately, not by default, and only when the owner has set up a workspace for the loop to work in. Loops on a shared, multi-tenant instance do **not** get a host shell; their world is the records and the workspace storage the instance gives them, never the underlying machine.
+
+So the honest summary is two-sided:
+
+- On **your own instance**, with a workspace configured, an agent does focused, real work — runs commands, reads and writes files — and every action it takes is an auditable record.
+- On a **shared instance**, agents are deliberately confined to records-native work and their own isolated storage. They never reach the host machine, because someone else's tenant is running on the same hardware.
+
+In both cases the same discipline holds: every tool call is a record, every halt has a structured reason, and every loop runs under a budget shaped by the actor's tier. An agent does work it can stand behind and stops cleanly when it cannot, rather than confidently producing noise on tasks outside its reach. See the [work loop](/docs/concepts/work-loop) for the full mechanics of the two run modes.
 
 ## Trust and audit
 

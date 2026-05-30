@@ -48,18 +48,18 @@ The daemon implements four cooperating loops over an immutable record log. Every
     end`}
 />
 
-The crate boundaries follow the same layering. Nothing above depends on anything below it; the kernel is portable along any of the dashed boundaries (algebra and trust are WASM-safe).
+The internal layers follow the same structure. Nothing above depends on anything below it; the kernel is portable along any of the dashed boundaries (Records / Algebra and Trust are portable to the browser).
 
 <Mermaid
-  caption="spl daemon crate dependency graph. Strict layering, no upward dependencies."
+  caption="spl daemon internal layering. Strict layering, no upward dependencies."
   chart={`flowchart TD
-    algebra["syncropel-algebra"]
-    trust["syncropel-trust"]
-    store["syncropel-store"]
-    ai["syncropel-ai"]
-    expr["syncropel-expr"]
-    engine["syncropel-engine"]
-    protocol["syncropel-protocol"]
+    algebra["Records / Algebra"]
+    trust["Trust"]
+    store["Store"]
+    ai["AI Providers"]
+    expr["Expressions"]
+    engine["Engine"]
+    protocol["API / Protocol"]
     spl["spl"]
 
     algebra --> trust

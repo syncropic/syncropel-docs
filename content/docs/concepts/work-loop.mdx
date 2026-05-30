@@ -9,6 +9,8 @@ A **work loop** is what you get when you stop treating "an actor doing goal-stru
 
 The actor doing the work can be an LLM agent, a human driving a UI, a workflow, or any other automation — the loop primitive is the same. Every turn it takes, every tool it calls, every result it gets, every halt reason, are all records on the loop's thread. You can subscribe to them, query against them, fold them, and audit them with the same tools you use for every other Syncropel record. There is no separate "agent log" to scrape.
 
+A loop is more than a one-shot task runner, though. It is a **cognitive loop**: it reads its own track record before it acts, does real work, and is judged by someone else when it finishes — and that external judgment is the only thing that moves its standing. The next section unpacks each of those three edges.
+
 ```
 loop opens on a new thread
   │
@@ -26,6 +28,33 @@ The loop runs in one of two modes:
 
 - **In-process** — the loop runs in the same process that started it (`spl work-loop "..."` does this by default). Workspace tools have direct host access — `bash`, file reads, file writes — confined to a workspace directory.
 - **Remote** — the loop runs on the daemon (`spl work-loop ... --remote`, or any `POST /v1/work/loop` call). Tools are substrate-native (no host shell); records land in the substrate and the thread is watchable from anywhere.
+
+## The cognitive loop: read, do, be judged
+
+A work loop is a citizen of the coordination protocol, not an island. It closes a full cycle around the record log:
+
+```
+       reads its own track record ┐
+                                  ▼
+   ┌────────────────────────────────────────────┐
+   │   loop runs: plan → act → check → outcome   │
+   └────────────────────────────────────────────┘
+                                  ▼
+       an external actor judges the outcome ┘
+                                  │
+                                  ▼
+       the verdict moves the loop's trust ──▶ next loop reads it
+```
+
+**It reads its own track record.** When a loop starts, it can see the [trust](/docs/concepts/trust) an actor has earned in the relevant domain — its history of work that was accepted versus rejected. A loop with a strong record is given a little more rope; a loop with a thin or poor record is held to a tighter line. The loop's caution is calibrated by evidence, not guesswork.
+
+**It does real work.** The middle is the plan/act/check cycle described below — turns, tool calls, results, all recorded.
+
+**It is judged by someone else.** This is the part that makes the loop honest. A loop's own outcome record — its self-reported "done, succeeded" — does **not** earn it any trust. A loop cannot give itself a passing grade. Trust moves only when a *different* actor with standing — a person, or a trusted reviewer — looks at what the loop produced and records a **verdict**: accept or reject, optionally with notes and a work domain. That verdict is itself a record, and it is what folds into the loop actor's trust.
+
+The cycle then closes: the verdict updates trust, and the *next* loop reads that updated trust when it decides how cautiously to proceed. A loop that consistently produces accepted work earns more latitude over time; one whose outcomes are routinely rejected does not — and it can never shortcut that by grading itself.
+
+You record a verdict with `spl work-loop-review <thread> --accept` (or `--reject`), the same way a completed task is approved or rejected at the [evaluation gate](/docs/concepts/trust#the-evaluation-gate). The separation is structural: the actor doing the work and the actor judging it must be different identities for the judgment to count toward trust.
 
 ## Why "records-native"
 
