@@ -53,7 +53,7 @@ For a guided diagnostic, see [Troubleshooting connection](/docs/operate/troubles
 
 Trust evidence is records (LEARN on actor's trust thread). To reset:
 1. Stop accumulating new evidence by pausing the relevant routing rules (`spl config disable-rule <name>`).
-2. Emit a `LEARN` on `th_trust_<actor>` with a `body.kind = "trust.reset.v1"` marker per the substrate change convention.
+2. Emit a `LEARN` on `th_trust_<actor>` with a `body.kind = "trust.reset.v1"` marker, following the standard record-change convention.
 3. The next trust query rebuilds from the post-reset evidence only.
 
 Resetting is rarely the right move — usually you want to *bias* trust by adding more evidence at the desired weight rather than discard accumulated history.

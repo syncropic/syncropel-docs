@@ -1,6 +1,6 @@
 ---
 title: Body kinds
-description: Schema reference for built-in `body.kind` values. Records you can subscribe to, query against, and project from — emitted by the kernel during dispatch, inference, and federation.
+description: Schema reference for built-in `body.kind` values. Records you can subscribe to, query against, and project from — emitted by the engine during dispatch, inference, and federation.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
@@ -36,14 +36,14 @@ What stays the same:
 What to update:
 
 - Clients emitting `core.agent.*` records need to switch to the new
-  names — the kernel rejects new emits of the old names.
+  names — the engine rejects new emits of the old names.
 
 See the [unified body-kinds list](#body-kinds) below for the v0.52
 shape.
 
 </Callout>
 
-`body.kind` is the body-convention discriminant — a string in scope.category.entity[.version] format that names the schema of `record.body`. Built-in kinds emitted by the kernel are documented here; user-extension kinds (anything outside the `core.*` and `syncropel.*` reserved scopes) follow the same grammar but live in their own registries.
+`body.kind` is the body-convention discriminant — a string in scope.category.entity[.version] format that names the schema of `record.body`. Built-in kinds emitted by the engine are documented here; user-extension kinds (anything outside the `core.*` and `syncropel.*` reserved scopes) follow the same grammar but live in their own registries.
 
 For the kind grammar itself (3 vs 4 segments, allowed characters, reserved scopes, version semantics), see the [body.kind manifest guide](/docs/guides/body-kind-manifest).
 
@@ -201,7 +201,7 @@ Every run of a work loop (`spl work-loop`, `POST /v1/work/loop`, or a chat-actor
 
 - **`core.work.loop.v1`** — the loop record itself. Carries goal, tier, ceilings (`max_turns`, `wall_clock_secs`, `token_budget`), and any per-loop `task_budget`.
 - **`core.work.turn.v1`** — one turn of the loop. Sequenced by `body.turn_index`; carries the prompt fold, model call summary, and per-turn cost.
-- **`core.work.tool_call.v1`** + **`core.work.tool_result.v1`** — every tool invocation and its result. The tool-call body is permission-checked through the kernel; the result body carries success or a structured failure code. Failure feedback is always returned to the agent as a tool result so the next turn can read it and self-correct.
+- **`core.work.tool_call.v1`** + **`core.work.tool_result.v1`** — every tool invocation and its result. The tool-call body is permission-checked through the engine; the result body carries success or a structured failure code. Failure feedback is always returned to the agent as a tool result so the next turn can read it and self-correct.
 - **`core.work.loop_outcome.v1`** — the terminal record. `body.outcome` is one of `completed`, `failed`, `cancelled`, `blocked`, `max_turns`, `budget_exhausted`, `guardrail_halt`, or `awaiting_actor` (paused). Non-terminal outcomes carry structured payloads — `budget_exhausted` includes `budget_kind`; `guardrail_halt` includes `tool`, `args_hash`, and `count`.
 
 ### Halts and signals
@@ -210,7 +210,7 @@ Every run of a work loop (`spl work-loop`, `POST /v1/work/loop`, or a chat-actor
 - **`core.work.guardrail.v1`** — emitted when a repeated-failure pattern is detected. `verdict: "block"` fires mid-loop when the next attempt at a thrashing signature gets a synthetic failure result returned to the agent (the loop continues — the agent gets to change strategy); `verdict: "halt"` fires when the loop terminates with a `guardrail_halt` outcome. Body carries `tool`, `args_hash`, `count`, and `threshold`.
 - **`core.work.compensation.v1`** — emitted when a loop violates a harness assumption (today: context-reset firings, where the model wraps up prematurely as it nears its context limit). The compensation record names the seam + the violated assumption + context. Operators can review per-actor anomalies via `GET /v1/work/compensation/review`.
 - **`core.work.decision_request.v1`** — pause for human approval. When a loop needs a decision, it raises one of these and pauses with an `awaiting_actor` outcome until you respond.
-- **`core.work.loop_cancel.v1`** — substrate-native cancel. A `DO` of this kind on the loop thread propagates through the reconciler to the in-process loop, which exits with a `cancelled` outcome.
+- **`core.work.loop_cancel.v1`** — built-in cancel. A `DO` of this kind on the loop thread propagates through the reconciler to the in-process loop, which exits with a `cancelled` outcome.
 
 ### Chat-actor delegation (v0.49)
 
@@ -220,7 +220,7 @@ When a Scribe or Guide chat-actor receives a message that opens with `@agent <go
 - **`core.work.delegation.v1`** — same shape, for the Guide actor.
 - **`core.actor.usage.v1`** — daily per-actor aggregate (loop count, input/output tokens, cost). Emitted by the usage aggregator; consumed by the cost-preview endpoint to surface "you've used $X.YZ of your $Z.WW daily cap."
 
-For the complete work-loop family (29 kinds total — including artifact, note, coercion, and the v0.39 scribe/guide call/response/error family) see [the body-kinds manifest](/docs/guides/body-kind-manifest) — the manifest is the canonical source, and stays byte-identical with the kernel registry.
+For the complete work-loop family (29 kinds total — including artifact, note, coercion, and the v0.39 scribe/guide call/response/error family) see [the body-kinds manifest](/docs/guides/body-kind-manifest) — the manifest is the canonical source, and stays byte-identical with the engine's registry.
 
 ## Other built-in kinds
 
@@ -232,7 +232,7 @@ Pointers to the rest of the kind surface — full schemas live in their own refe
 - **`core.consent.v1`** — cross-namespace consent grants for federation. See [Consent](/docs/guides/consent).
 - **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`** — CEL-driven engine config records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).
 - **`core.subscription.v1`** — Server-Sent-Events subscription manifests.
-- **`core.invite.v1`** — pair-share-invite envelope on `th_invites`. Fields: `invite_id`, `issuer_did`, `issuer_key_fp`, `scope_target` (`instance` / `thread:<id>` / `namespace:<ns>`), `scopes[]`, `ttl_seconds`, `max_uses`, `accept_holder_types[]` (`guest` / `federated` / `*`), `device_label?`, `notes?`, `signature`. See [Pair, share, invite](/docs/guides/pair-share-invite) and [API reference §Pair-share-invite](/docs/reference/api#pair-share-invite-adr-135).
+- **`core.invite.v1`** — pair-share-invite envelope on `th_invites`. Fields: `invite_id`, `issuer_did`, `issuer_key_fp`, `scope_target` (`instance` / `thread:<id>` / `namespace:<ns>`), `scopes[]`, `ttl_seconds`, `max_uses`, `accept_holder_types[]` (`guest` / `federated` / `*`), `device_label?`, `notes?`, `signature`. See [Pair, share, invite](/docs/guides/pair-share-invite) and the [API reference — pair, share, invite](/docs/reference/api#pair-share-invite-adr-135).
 - **`core.invite.event.v1`** — invite lifecycle events on `th_audit_invites` mirror. Discriminated by `event_kind`: `redeemed` (carries `holder_type`, `holder_did?`, `holder_pubkey?`, `bearer_token_id?`, `bearer_sa_id?`), `revoked` (carries `revoker_actor`, `revoker_reason?`), `exhausted` (auto-emitted when `uses_remaining` reaches 0), `refused` (carries `refusal_reason`: `expired` / `revoked` / `holder_type_mismatch` / `bad_proof` / `freshness_violation` / `key_unknown` / `consent_denied`).
 - **`core.invite_template.v1`** — operator's saved invite shapes on `th_invite_templates`. Fields: `template_id`, `label`, `ttl_seconds`, `max_uses`, `scopes[]`, `accept_holder_types[]`, `notes?`. Surfaces in `/settings/devices` template picker.
 - **`core.api_token.activity.v1`** — bearer last-use telemetry (v0.64 B2). Emitted by the token-index `mark_used` path on every request authenticated by the token, joined into invite list rows via `bearer_token_id`. Used by the **Last seen** column on the operator panel.

@@ -26,7 +26,7 @@ The server listens on port 9100 by default. All endpoints return JSON.
 
 ## Authentication
 
-When `auth.required = true` (the kernel default), every `/v1/*` endpoint requires a bearer token:
+When `auth.required = true` (the default), every `/v1/*` endpoint requires a bearer token:
 
 ```
 Authorization: Bearer spl_<env>_<sa_id>_<secret>
@@ -422,7 +422,7 @@ There is no dedicated `/v1/audit/*` endpoint family. The [`spl audit export`](/d
 
 This means `spl audit export` works against any Syncropel daemon without server-side changes. The trade-off is that it's O(n) over thread count — for very large stores you should pass `--thread <id>` to scope the query.
 
-A future server-side `/v1/audit/export?since=...&categories=...` endpoint is on the roadmap. It would push the filtering into SQL and return a single JSONL stream, removing the per-thread round trips.
+A server-side `/v1/audit/export?since=...&categories=...` endpoint is planned for a future release. It would push the filtering into SQL and return a single JSONL stream, removing the per-thread round trips. For now, use `spl audit export` (scoped with `--thread <id>` for large stores).
 
 For SIEM integration recipes (cron rotation, Splunk/Elastic/Loki pipelines, etc.) see the [SIEM Integration guide](/docs/guides/siem-integration).
 
@@ -866,7 +866,7 @@ Response (`200`):
 
 ## Pair-share-invite
 
-The substrate for adding either a new device of yours (guest holder) or a federated colleague (federated holder). Operator-facing guide: [Pair, share, invite](../guides/pair-share-invite). SDK surface: `client.invites.*` in the [TypeScript SDK guide](../guides/typescript-sdk#invites).
+The surface for adding either a new device of yours (guest holder) or a federated colleague (federated holder). Operator-facing guide: [Pair, share, invite](../guides/pair-share-invite). SDK surface: `client.invites.*` in the [TypeScript SDK guide](../guides/typescript-sdk#invites).
 
 | Method | Path | Scope | Description |
 |---|---|---|---|
@@ -941,7 +941,7 @@ curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
   }'
 ```
 
-Response includes the new bearer (`bearer`), the actor DID the kernel minted for the holder (`actor_did`), the granted `scopes`, and the bearer's `expires_at`.
+Response includes the new bearer (`bearer`), the actor DID Syncropel minted for the holder (`actor_did`), the granted `scopes`, and the bearer's `expires_at`.
 
 ### Redeem — federated holder
 
@@ -957,7 +957,7 @@ curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
   }'
 ```
 
-The kernel resolves Bob's DID document, verifies the Ed25519 signature against the `signer_instance_did`'s key, and rejects (with audit) on `bad_proof`, `key_unknown`, or `freshness_violation` (issued-at-ms outside the ±60s window).
+Syncropel resolves Bob's DID document, verifies the Ed25519 signature against the `signer_instance_did`'s key, and rejects (with audit) on `bad_proof`, `key_unknown`, or `freshness_violation` (issued-at-ms outside the ±60s window).
 
 ### Bulk revoke
 
@@ -977,7 +977,7 @@ curl -X POST http://localhost:9100/v1/tokens/$TOKEN_ID/rotate \
   -H "Authorization: Bearer $CURRENT_BEARER"
 ```
 
-Self-only — the kernel computes `sha256($CURRENT_BEARER)` and rejects with `ROTATE_NOT_SELF` if it doesn't match `$TOKEN_ID`. Response includes the new bearer + new `expires_at`. The previous bearer is invalidated.
+Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROTATE_NOT_SELF` if it doesn't match `$TOKEN_ID`. Response includes the new bearer + new `expires_at`. The previous bearer is invalidated.
 
 ### Error codes
 

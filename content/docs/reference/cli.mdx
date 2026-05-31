@@ -271,16 +271,16 @@ spl share receive <bundle-path> --from <sender-did> [--dry-run]
 | `share send --include-deps` | Walk parent edges recursively so cross-thread parent chains land in the same bundle. Bounded by `--depth` (default 8, hard cap 10K records) |
 | `share send --expires <duration>` | Time-bound the consent. Format: `7d`, `24h`, `45m`, `30s` |
 | `share send --out <path>` | Write the bundle to a specific path. Default: `<thread>.bundle.jsonl` |
-| `share receive <bundle> --from <did>` | Verify signatures and content hashes, replay records into the local kernel |
+| `share receive <bundle> --from <did>` | Verify signatures and content hashes, replay records into the local instance |
 | `share receive --dry-run` | Verify the bundle without ingesting (good for sanity-checking before replay) |
 
-The bundle format is just records. The receiver kernel ingests them through
+The bundle format is just records. The receiving instance ingests them through
 the same path it uses for any record. Tampering is detectable — re-hashing
 the seven-field record envelope catches any mutation.
 
 ## Secrets
 
-Operator-facing surface for managing credential handles. The substrate stores the handle + audit metadata; the value lives in your OS keychain (or the backend you reference). See [Secrets concepts](../concepts/secrets) for the four-layer enforcement design.
+Operator-facing surface for managing credential handles. Syncropel stores the handle + audit metadata; the value lives in your OS keychain (or the backend you reference). See [Secrets concepts](../concepts/secrets) for the four-layer enforcement design.
 
 ```bash
 spl secret set <handle>          # interactive — TTY echo disabled, or piped stdin
@@ -545,7 +545,7 @@ spl infer --query-file query.json --wait
 
 ## Work loop — `spl work-loop`
 
-Run a records-native work loop with workspace tools. The loop emits records onto its thread as it works (`core.work.turn.v1`, `core.work.tool_call.v1`, etc.); the kernel decides terminal success in `--verify` mode. See the [Work loop concept page](/docs/concepts/work-loop) for the full primitive.
+Run a records-native work loop with workspace tools. The loop emits records onto its thread as it works (`core.work.turn.v1`, `core.work.tool_call.v1`, etc.); the engine decides terminal success in `--verify` mode. See the [Work loop concept page](/docs/concepts/work-loop) for the full primitive.
 
 ```bash
 spl work-loop "<goal>" \
@@ -566,7 +566,7 @@ spl work-loop "<goal>" \
 | `--max-turns <N>` | Cap on loop turns. Default: 20. Tier ceilings may clamp this below the requested value. |
 | `--model <NAME>` | Inference model. Default: `claude-sonnet-4-6`. |
 | `--tools <CSV>` | Allowlist of tool names (comma-separated). Default: all available tools. |
-| `--remote` | Run the loop on the daemon (substrate-native tools, no host `bash`) instead of in-process. Records land in the substrate and the thread is watchable from anywhere. |
+| `--remote` | Run the loop on the daemon (built-in tools, no host `bash`) instead of in-process. Records land on the daemon and the thread is watchable from anywhere. |
 | `--verify` | Run under independent evaluation: a planner expands the goal into acceptance criteria, a separate evaluator judges the result, and the loop never self-asserts "done". Forced on for Trial-tier actors. |
 | `--token <BEARER>` | Bearer token for daemon auth. Precedence: `--token` > `SPL_TOKEN` env > `~/.syncro/token`. |
 | `--json` | Emit machine-readable progress instead of pretty text. |
@@ -613,7 +613,7 @@ spl work-loop-review th_a1b2c3 --reject --domain code --notes "introduced a regr
 
 ## Namespaces
 
-5-level hierarchy for tenancy, governance, and policy composition. See spec §08-governance/04.
+5-level hierarchy for tenancy, governance, and policy composition. See the [Namespaces concept page](/docs/concepts/namespaces).
 
 ```bash
 spl namespace create <id> [--description X] [--policy X]
@@ -731,7 +731,7 @@ spl task retry <parent-alias> --subtask <index> # Re-dispatch one failed child
 Each `--subtask` flag is a comma-separated list of `key=value` pairs. Supported keys:
 
 - **`goal`** (required) — the child subtask's INTEND goal, passed verbatim to the worker
-- **`target`** (required) — one of `worker-<alias>`, `specific:<full-did>`, `least-loaded-worker`, `round-robin` (see §"Routing strategies" below)
+- **`target`** (required) — one of `worker-<alias>`, `specific:<full-did>`, `least-loaded-worker`, `round-robin` (see "Routing strategies" below)
 - **`budget`** (optional) — advisory per-subtask USD budget
 - **`timeout`** (optional) — worker-side timeout in seconds, default 600
 - **`depends`** (optional) — plus-separated list of 0-based subtask indices this child depends on. `depends=0+1` means "wait for subtasks 0 and 1 to accept before spawning this one." The reconciler validates depends indices for cycles at parse time.

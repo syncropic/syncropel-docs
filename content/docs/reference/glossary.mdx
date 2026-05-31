@@ -15,7 +15,7 @@ One of 8 types that classify what a record represents: `INTEND`, `DO`, `KNOW`, `
 A bridge between the Syncropel engine and an external system. CLI adapters spawn subprocesses (any agent CLI binary — Claude Code, Codex CLI, OpenCode, Pi, etc. — plus `bash` and custom binaries). Proxy adapters make HTTP calls (Anthropic, OpenAI, and other providers; custom endpoints). An actor can be registered with an adapter so dispatches to the actor's DID route through the adapter.
 
 **AITL (Actor-in-the-Loop)**
-A request for a decision from an actor, typically a human or trusted agent. Expressed as a `KNOW` with `body.awaits: "actor_decision"`. Resolved by a `DO` with `body.fulfills` or `body.cancels`. Used by the kernel's intelligence path to surface proposals for approval before acting.
+A request for a decision from an actor, typically a human or trusted agent. Expressed as a `KNOW` with `body.awaits: "actor_decision"`. Resolved by a `DO` with `body.fulfills` or `body.cancels`. Used by the engine's intelligence path to surface proposals for approval before acting.
 
 **Approval**
 A `KNOW` record with `body.verdict: "accept"` from an independent evaluator. Creates trust evidence. See [Trust](/docs/concepts/trust).
@@ -26,7 +26,7 @@ A `KNOW` record with `body.verdict: "accept"` from an independent evaluator. Cre
 A random credential string minted by `spl service-account create` and presented in the `Authorization: Bearer <token>` HTTP header. The daemon resolves the token to a service account DID via the token map, then enforces namespace and permission rules as if the SA were the actor. See [Keyring](/docs/operate/keyring).
 
 **Body**
-The JSON payload field of a record (`record.body`). Opaque to the kernel; conventions are documented per topic. See [Record Format](/docs/reference/record-format).
+The JSON payload field of a record (`record.body`). Opaque to the engine; conventions are documented per topic. See [Record Format](/docs/reference/record-format).
 
 **Body Kind**
 A convention inside `body.kind` for integration records. Grammar: `scope.category.entity[.version]`. Enforced by the SDK at emit time. See [`body.kind` manifest](/docs/guides/body-kind-manifest).
@@ -40,7 +40,7 @@ The in-process pub/sub channel that publishes every ingested record to reconcile
 A deterministic JSON serialization with alphabetical keys, no whitespace, minimal number formatting. Any implementation produces identical bytes for identical input. Used for the hashing pre-image and for federation wire format. See [Record Format — canonical JSON](/docs/reference/record-format#canonical-json-encoding).
 
 **CEL (Common Expression Language)**
-The kernel's policy-and-query expression language. Authors triggers, routing, preconditions, fold rules, health checks, AITL rules, permissions. 7 evaluation contexts, each with its own bindings. See [CEL expressions](/docs/guides/cel-expressions).
+Syncropel's policy-and-query expression language. Authors triggers, routing, preconditions, fold rules, health checks, AITL rules, permissions. 7 evaluation contexts, each with its own bindings. See [CEL expressions](/docs/guides/cel-expressions).
 
 **Clock**
 A logical timestamp on each record, monotonically increasing per `(actor, thread)`. Non-negative i64. Starts at 0. Used for ordering records within a thread; not wall-clock time.
@@ -75,12 +75,12 @@ A continuous value in `[0, 1]` that maps trust and pattern match strength to cos
 The act of routing work to an actor for execution. `spl task dispatch` opens a dispatch thread, emits an `INTEND`, and registers an adapter to invoke the target. See [Routing rules](/docs/guides/routing-rules).
 
 **Domain**
-A category of work — `code`, `ops`, `data`, `research`, `shell`, `api`, `spec`, `agent`, `meta`, `browser`, `workflow`. Trust is scoped per-domain; an actor can be trusted in one and not another. Authors emit the domain; the kernel doesn't enforce a fixed list.
+A category of work — `code`, `ops`, `data`, `research`, `shell`, `api`, `spec`, `agent`, `meta`, `browser`, `workflow`. Trust is scoped per-domain; an actor can be trusted in one and not another. Authors emit the domain; the engine doesn't enforce a fixed list.
 
 ## E
 
 **Engine**
-The 4-loop kernel: INGEST (receive, hash, store, broadcast), RECONCILE (route and dispatch), TICK (periodic trust / drift work), CRON (maintenance). See [The Engine](/docs/concepts/engine).
+The 4-loop engine: INGEST (receive, hash, store, broadcast), RECONCILE (route and dispatch), TICK (periodic trust / drift work), CRON (maintenance). See [The Engine](/docs/concepts/engine).
 
 **Evaluation Gate**
 The requirement that completed work be reviewed by an independent evaluator (a different DID than the completer) before trust evidence is created. Structurally enforced — self-verdicts produce no trust. See [Trust — independence](/docs/concepts/trust#independence-is-structural-not-advisory).
@@ -106,17 +106,17 @@ The in-memory snapshot of freeze / emergency-stop LEARN records on `th_fleet_con
 Computing the current state by replaying all records on a thread: `state = fold(records)`. This is how status, trust, and configuration are derived — there is no separate state database. Every fold is a pure function.
 
 **Fold Rule**
-A CEL expression (stored as a `LEARN` on `th_engine_config`) that customises the task or thread status projection. Used to express deployment-specific status transitions without changing kernel code. See [CEL — fold_rule context](/docs/guides/cel-expressions).
+A CEL expression (stored as a `LEARN` on `th_engine_config`) that customises the task or thread status projection. Used to express deployment-specific status transitions without changing engine code. See [CEL — fold_rule context](/docs/guides/cel-expressions).
 
 ## G
 
 **Governance**
-The union of namespaces, permission rules, CEL policies, consent grants, kill switch, and audit export. The kernel's mechanism for enforcing "who can do what where". See [Namespaces](/docs/concepts/namespaces) and [SIEM integration](/docs/guides/siem-integration).
+The union of namespaces, permission rules, CEL policies, consent grants, kill switch, and audit export. Syncropel's mechanism for enforcing "who can do what where". See [Namespaces](/docs/concepts/namespaces) and [SIEM integration](/docs/guides/siem-integration).
 
 ## H
 
 **Hash Levels (L0 / L1 / L2 / L3)**
-Four hash-signature levels of a record, each throwing away more detail. L0 is exact content. L1 is structural (`dial + in + op + out + p`). L2 is flow (`in + out + p`). L3 is intent (`in + out`). L0 never crosses a namespace without consent (Foundation F8); L1–L3 can. Containment: `L0 ⟹ L1 ⟹ L2 ⟹ L3`. See [Patterns](/docs/concepts/patterns#the-four-levels-of-hash).
+Four hash-signature levels of a record, each throwing away more detail. L0 is exact content. L1 is structural (`dial + in + op + out + p`). L2 is flow (`in + out + p`). L3 is intent (`in + out`). L0 never crosses a namespace without consent; L1–L3 can. Containment: `L0 ⟹ L1 ⟹ L2 ⟹ L3`. See [Patterns](/docs/concepts/patterns#the-four-levels-of-hash).
 
 **Heartbeat**
 A `DO` record with `body.topic: "heartbeat"` emitted by each live instance on `th_instance_registry` at a configured interval (default 15 seconds). Carries instance DID, endpoint URL, version, uptime, active dispatch count, health status. The coordinator's fold treats the latest heartbeat per DID as authoritative and classifies instances as live / stale / archived.
@@ -133,7 +133,7 @@ A single `spl serve` daemon with its own `SYNCROPEL_HOME`, `hub.db`, port bindin
 The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local (single writer).
 
 **Intelligence**
-The kernel's reasoning actor — `did:sync:system:intelligence`. Runs when the routing cascade finds no match; proposes a routing rule via AITL rather than executing directly. Its proposals accumulate meta-trust from accepted/rejected outcomes.
+Syncropel's reasoning actor — `did:sync:system:intelligence`. Runs when the routing cascade finds no match; proposes a routing rule via AITL rather than executing directly. Its proposals accumulate meta-trust from accepted/rejected outcomes.
 
 ## J
 
@@ -162,7 +162,7 @@ See **Clock**.
 An actor's persistent context across sessions — LEARN records on the actor's memory thread projecting into preferences, learned corrections, project state, and references. Loaded by the agent CLI adapter at dispatch time via the agent's manual. See [Actors — memory](/docs/concepts/actors#memory-persistent-context-across-sessions).
 
 **Meta-Trust**
-The trust score of the kernel's intelligence actor itself, tracked separately from any specific domain. Accumulates from AITL proposals that get accepted vs rejected.
+The trust score of Syncropel's intelligence actor itself, tracked separately from any specific domain. Accumulates from AITL proposals that get accepted vs rejected.
 
 **Monotonic Narrowing**
 The rule that a child namespace can never claim capabilities its parent doesn't grant. Enforced at ingest by walking the ancestor chain and rejecting if any link is missing or non-Active. See [Namespaces — narrowing](/docs/concepts/namespaces#the-narrowing-rule).
@@ -204,7 +204,7 @@ The engine's dispatch loop. For each incoming record, runs the routing cascade a
 The fundamental unit — an 8-field immutable, content-addressed data structure. Records are never modified or deleted. See [Records](/docs/concepts/records).
 
 **Reserved Thread**
-A thread with a canonical ID baked into the kernel, used for bootstrap. `th_engine_config`, `th_actor_registry`, `th_namespace_registry`, `th_instance_registry`, `th_fleet_control`, `th_consent`.
+A thread with a canonical ID baked into the engine, used for bootstrap. `th_engine_config`, `th_actor_registry`, `th_namespace_registry`, `th_instance_registry`, `th_fleet_control`, `th_consent`.
 
 **Routing Rule**
 A CEL expression stored as a LEARN on `th_engine_config` with `body.topic: "routing_rule"`. Matches records and routes them to a target actor. Evaluated in priority order; first match wins. See [Routing rules](/docs/guides/routing-rules).

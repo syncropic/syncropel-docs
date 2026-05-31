@@ -4,7 +4,7 @@ description: A copy-paste-able vanilla HTML + JS snippet that embeds a Syncropel
 ---
 
 <Callout type="warn">
-**This snippet is security-sensitive.** It accepts messages from a sandboxed iframe and forwards record emits to a Syncropel daemon. Read the [Security expectations](#security-expectations) section before deploying. A bad origin check or weak capability gate gives an extension full kernel access.
+**This snippet is security-sensitive.** It accepts messages from a sandboxed iframe and forwards record emits to a Syncropel daemon. Read the [Security expectations](#security-expectations) section before deploying. A bad origin check or weak capability gate gives an extension full access to your instance.
 </Callout>
 
 ## Use this when
@@ -401,7 +401,7 @@ The validator drops envelopes more than five minutes off `Date.now()`. This blun
 
 ### Treat the extension as untrusted
 
-Even with all the above, treat every extension as untrusted code running with the user's authority. Your daemon's [permission CEL rules](/docs/guides/cel-expressions) should encode what records each user is allowed to write, and the daemon will reject requests that violate them. The iframe host is **not** the policy enforcement point — the kernel is.
+Even with all the above, treat every extension as untrusted code running with the user's authority. Your daemon's [permission CEL rules](/docs/guides/cel-expressions) should encode what records each user is allowed to write, and the daemon will reject requests that violate them. The iframe host is **not** the policy enforcement point — the daemon is.
 
 For more on iframe sandboxing, see the [OWASP Cheat Sheet on HTML5 Security](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing-cors-and-iframes).
 
