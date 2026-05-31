@@ -136,7 +136,7 @@ Edit two things in `host.html`:
    const EXT_URL = "http://localhost:5173/";
    ```
 
-2. Set the `DAEMON_URL` to your local Syncropel kernel:
+2. Set the `DAEMON_URL` to your local Syncropel daemon:
 
    ```javascript
    const DAEMON_URL = "http://localhost:9100";
@@ -166,7 +166,7 @@ Click **Emit a record** a couple of times. Each click shows a confirmation in th
 emitted 9f8e7d6c5b4a…
 ```
 
-In a separate terminal, watch the records flow into the kernel:
+In a separate terminal, watch the records flow into the daemon:
 
 ```bash
 spl thread records <th-from-host> -o json | jq '.data[] | {clock, act, body}'

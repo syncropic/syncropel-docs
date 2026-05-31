@@ -1,6 +1,6 @@
 ---
 title: Your First SDK Integration
-description: 15-minute walk from npm install to a working Node.js script that emits records, attaches canonical references, and queries them back. Zero magic — just the kernel speaking JSON over HTTP.
+description: 15-minute walk from npm install to a working Node.js script that emits records, attaches canonical references, and queries them back. Zero magic — just the engine speaking JSON over HTTP.
 ---
 
 <Callout type="info">
@@ -14,7 +14,7 @@ A 30-line Node.js script that:
 1. Opens a thread with an `INTEND` record describing a goal
 2. Records two `DO` actions on that thread
 3. Closes the thread with a `KNOW` record that fulfills the original intent
-4. Queries the thread back and prints what the kernel saw
+4. Queries the thread back and prints what the engine saw
 
 You'll then add canonical references, see how the same `body._refs` correlate across records, and verify everything from the CLI.
 
@@ -135,7 +135,7 @@ You'll see four records — `INTEND`, two `DO`s, then a `KNOW` with `fulfills` p
 { "clock": 1729000000003, "act": "KNOW",   "body": { "summary": "...", "fulfills": "9f8e7d6c...", ... } }
 ```
 
-That's the kernel: an immutable, content-addressed log of what your app intended, did, and concluded.
+That's the record log: an immutable, content-addressed history of what your app intended, did, and concluded.
 
 ## Section B — Canonical refs (5 minutes)
 
@@ -196,7 +196,7 @@ See the [TypeScript SDK guide](/docs/guides/typescript-sdk#canonical-references-
 
 ## Section C — Query back (5 minutes)
 
-Reading from the kernel uses the same client. Two methods:
+Reading back uses the same client. Two methods:
 
 | Method | Use when |
 |---|---|
@@ -241,7 +241,7 @@ thread has 4 records:
 2 actions on this thread
 ```
 
-The query is **fail-open**: if the daemon is unreachable or returns 5xx, you get an empty array, not a thrown exception. That's deliberate — your app keeps responding even when the kernel is degraded. The same property holds for `emit`: transport errors return `{ success: false, error }` instead of raising. Grammar errors (a malformed `body.kind`) still throw, because they are programmer mistakes the kernel can't fix.
+The query is **fail-open**: if the daemon is unreachable or returns 5xx, you get an empty array, not a thrown exception. That's deliberate — your app keeps responding even when the engine is degraded. The same property holds for `emit`: transport errors return `{ success: false, error }` instead of raising. Grammar errors (a malformed `body.kind`) still throw, because they are programmer mistakes the engine can't fix.
 
 ## What you have now
 

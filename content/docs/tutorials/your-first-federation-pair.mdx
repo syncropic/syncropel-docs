@@ -205,10 +205,10 @@ State is the fold over this thread. Pause/resume/revoke commands all emit record
 
 ## What just happened
 
-You exercised the substrate's **federation primitive** end-to-end:
+You exercised Syncropel's **federation primitive** end-to-end:
 
 1. **One command established the relationship.** `spl federation pair <url>` ran a 3-roundtrip handshake (manifest discovery → nonce-protected handshake → reciprocal SA mint), persisted signed pair records on both sides, and returned. No hand-edited config file. No copy-pasted bearer tokens.
-2. **Operator approval is structural, not bypassable.** Bob's daemon emitted an AITL record and refused to complete until an operator approved. The approval is itself a signed record on `th_aitl_decisions` — auditable forever. Auto-approval is opt-in via a CEL aitl_rule (see [federation pair guide § auto-approval](/docs/guides/federation-pair#auto-approval-via-cel)) for trusted contexts; default is manual.
+2. **Operator approval is structural, not bypassable.** Bob's daemon emitted an AITL record and refused to complete until an operator approved. The approval is itself a signed record on `th_aitl_decisions` — auditable forever. Auto-approval is opt-in via a CEL aitl_rule (see the [federation pair guide — auto-approval](/docs/guides/federation-pair#auto-approval-via-cel)) for trusted contexts; default is manual.
 3. **`spl sync` consults the pair store automatically.** The old antipattern (`spl sync ... --peer-token sk_...`) doesn't exist on this command. The pair record holds the credential; sync looks it up.
 4. **Records are content-addressed across stewards.** Alice's record id == bob's record id for the same record. There is no "alice-side id" and "bob-side id." This is what makes CRDT-style merge trivial: same id → same record, no conflicts possible.
 5. **The relationship is auditable + portable.** Pair lifecycle is records, not config. `spl export` from alice carries the pair record; importing to a new instance carries the relationship forward. URLs auto-refresh on first contact via DID resolution (see [portability guide](/docs/guides/portability#migrating-between-instances)).

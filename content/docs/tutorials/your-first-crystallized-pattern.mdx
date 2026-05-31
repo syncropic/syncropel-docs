@@ -1,6 +1,6 @@
 ---
 title: Your first crystallized pattern
-description: Do the same thing three times, watch the pattern detector form a hash chain, see the trust score evolve, and observe automatic routing kick in. The substrate's cost curve bends here.
+description: Do the same thing three times, watch the pattern detector form a hash chain, see the trust score evolve, and observe automatic routing kick in. Syncropel's cost curve bends here.
 ---
 
 ## What you'll see
@@ -76,7 +76,7 @@ Thread 1 and thread 3 should match at **L0** — same exact INTEND body, same DO
 
 ## 3. Read the pattern index directly
 
-Until `spl pattern list` ships, the pattern index is a substrate-shaped record query. Threads 1+3 are L0-identical; threads 1+2+3 are L1-equivalent. Inspect via the records HTTP API:
+Until `spl pattern list` ships, the pattern index is a plain record query. Threads 1+3 are L0-identical; threads 1+2+3 are L1-equivalent. Inspect via the records HTTP API:
 
 ```bash
 curl -s -H "Authorization: Bearer $(cat ~/.syncro/token)" \
@@ -110,7 +110,7 @@ Trust is one of the four [crystallization criteria](/docs/concepts/patterns#crys
 | **C3 Compression** | MDL compression vs. listing observations | meaningful |
 | **C4 Multi-source** | Distinct (actor, evaluator) pairs | ≥ 2 |
 
-This tutorial demonstrates the **observation phase**, not full crystallization. Three observations from one actor doesn't crystallize. But — and this is the point — the pattern is *queryable* and the *next similar record will match* even before crystallization. Replay short-circuits at L1 today (see [patterns concept § what's enforced](/docs/concepts/patterns#whats-enforced-today-vs-the-spec)).
+This tutorial demonstrates the **observation phase**, not full crystallization. Three observations from one actor doesn't crystallize. But — and this is the point — the pattern is *queryable* and the *next similar record will match* even before crystallization. Replay short-circuits at L1 today (see the [patterns concept — what's enforced today](/docs/concepts/patterns#whats-enforced-today-vs-the-spec)).
 
 ## 5. Trigger a fourth record and watch automatic match
 
@@ -129,7 +129,7 @@ spl thread records $THREAD4
 
 If routing has any rules that match the L1 signature of the closed pattern, you should see follow-on engine-emitted records — e.g., a DO with `body.dispatch_handled: true` and `body.replay_source: <pattern_id>`. Those engine-emitted records carry the pattern as evidence: state didn't come from new reasoning, it came from a structural-hash hit.
 
-If no rules exist yet for this shape, the kernel will treat the new INTEND like the unrouted record from [the AITL tutorial](./your-first-aitl-approval) — proposing a routing rule on `th_aitl`. The pattern is observable but no auto-routing happens until a rule covers the shape.
+If no rules exist yet for this shape, Syncropel will treat the new INTEND like the unrouted record from [the AITL tutorial](./your-first-aitl-approval) — proposing a routing rule on `th_aitl`. The pattern is observable but no auto-routing happens until a rule covers the shape.
 
 ## 6. Inspect the routing fold
 
@@ -143,15 +143,15 @@ Each entry is a LEARN record describing one rule. The fold-over-records *is* the
 
 ## What just happened
 
-You exercised the substrate's **pattern recognition primitive**:
+You exercised Syncropel's **pattern recognition primitive**:
 
 1. **Closed threads are pattern observations.** Every `--fulfills` KNOW closes a thread and emits hash signatures at L0, L1, L2, L3 into the pattern index. This is automatic and free; the index is just records.
 2. **Hash levels separate structure from content.** L0 hashes leak content (so they stay namespace-local per [F8](/docs/reference/glossary)). L1-L3 are structural and safe to federate. This is what enables cross-team pattern sharing without leaking sensitive bodies.
 3. **The cascade favors cheap replays.** When new work arrives, the engine matches L1 → L2 → L3 → semantic → CREATE. Each level is faster + cheaper than the next. Crystallized patterns short-circuit the whole cascade.
 4. **Trust gates promotion.** Three observations don't crystallize because C1 (trust ≥ 0.90) and C2 (observations ≥ 100) aren't met yet. Crystallization is what graduates a pattern from "observed" to "trusted enough to replay without re-checking."
-5. **De-crystallization is real.** If trust drops below 0.80 (per [§07 trust](/docs/concepts/trust)), the pattern un-crystallizes. The system self-corrects rather than replaying into a wall.
+5. **De-crystallization is real.** If trust drops below 0.80 (see the [trust concept](/docs/concepts/trust)), the pattern un-crystallizes. The system self-corrects rather than replaying into a wall.
 
-The economic claim: at steady state, ~85% of incoming work matches a crystallized pattern and replays at near-zero marginal cost. The remaining 15% (the EXPLORE/CREATE tail) is where operational LLM spend lives. As more patterns crystallize, that fraction shrinks. This is what makes the substrate viable at scale.
+The economic claim: at steady state, ~85% of incoming work matches a crystallized pattern and replays at near-zero marginal cost. The remaining 15% (the EXPLORE/CREATE tail) is where operational LLM spend lives. As more patterns crystallize, that fraction shrinks. This is what makes Syncropel viable at scale.
 
 ## Where to next
 

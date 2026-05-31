@@ -7,7 +7,7 @@ description: Wire Claude Code (or any MCP-compatible AI client) to your spl daem
 
 In about 30 minutes, you'll connect an AI client — Claude Code is the canonical example, but any [MCP](https://modelcontextprotocol.io/) client works the same way — to your local Syncropel daemon. You'll invoke a tool from the client, watch a record land in your daemon's record log, and inspect it via `spl thread list`.
 
-After this, you'll understand why Syncropel is described as a **first-class MCP target**: every action an AI client takes against your substrate is a record on a thread, signed by the actor that did it. The audit trail is complete by construction — no separate logging, no "did the agent really call this tool?" question.
+After this, you'll understand why Syncropel is described as a **first-class MCP target**: every action an AI client takes is recorded on a thread, signed by the actor that did it. The audit trail is complete by construction — no separate logging, no "did the agent really call this tool?" question.
 
 ## Before you start
 
@@ -89,7 +89,7 @@ Claude Code will (in order):
 2. Call `mcp__syncropel__thread_list`.
 3. Call `mcp__syncropel__thread_show` on the new thread id.
 
-After the model finishes, you'll see in Claude Code's UI which tools fired and what they returned. Each call **happened against your local daemon**, signed by an actor DID, and is now part of the substrate.
+After the model finishes, you'll see in Claude Code's UI which tools fired and what they returned. Each call **happened against your local daemon**, signed by an actor DID, and is now part of your record log.
 
 ## 5. Verify records landed in the daemon
 
@@ -146,24 +146,24 @@ For an audit-grade view of every MCP call:
 spl thread records th_audit_records --filter "body.actor.startsWith('did:sync:agent:claude')"
 ```
 
-The audit thread `th_audit_records` carries a metadata record per emission. There is no separate "MCP call log" — the substrate already has it.
+The audit thread `th_audit_records` carries a metadata record per emission. There is no separate "MCP call log" — Syncropel already has it.
 
 ## What just happened
 
-You exercised the substrate's **MCP primitive** end-to-end:
+You exercised Syncropel's **MCP integration** end-to-end:
 
-1. **The substrate is a first-class MCP target.** `spl mcp serve` is a tool-providing server that any MCP-compatible client can subprocess. No middleware, no proxy, no custom integration layer — just the substrate exposing its native verbs (intend/do/know/learn + thread queries) as MCP tools.
-2. **Tool calls are records.** Every MCP invocation is a record on a thread, signed by the agent's DID. There is no "did the agent really call this?" question — the substrate's [structural completeness invariant](/docs/concepts/governance) means anything that didn't produce a record didn't happen.
+1. **Syncropel is a first-class MCP target.** `spl mcp serve` is a tool-providing server that any MCP-compatible client can subprocess. No middleware, no proxy, no custom integration layer — just Syncropel exposing its native verbs (intend/do/know/learn + thread queries) as MCP tools.
+2. **Tool calls are records.** Every MCP invocation is a record on a thread, signed by the agent's DID. There is no "did the agent really call this?" question — Syncropel's [structural completeness invariant](/docs/concepts/governance) means anything that didn't produce a record didn't happen.
 3. **Identity follows the agent across surfaces.** The same actor DID an agent uses via MCP is the actor DID it uses via SDK calls, via `spl` CLI, via the HTTP API. One identity, all surfaces.
-4. **Audit is structural.** `th_audit_records` is just records on a reserved thread. The audit trail and the operational data live in the same substrate; you can't have one without the other.
+4. **Audit is structural.** `th_audit_records` is just records on a reserved thread. The audit trail and the operational data live in the same record log; you can't have one without the other.
 5. **Capability discovery is automatic.** The MCP `tools/list` response is generated from the daemon's verb registry, so adding a new verb adds a new MCP tool with no extra wiring.
 
-This is the substrate's "any agent can plug in" promise made concrete: an AI client doesn't need to know what Syncropel *is*; it just sees a few well-shaped tools and uses them, and the substrate captures the causal trail.
+This is Syncropel's "any agent can plug in" promise made concrete: an AI client doesn't need to know what Syncropel *is*; it just sees a few well-shaped tools and uses them, and Syncropel captures the causal trail.
 
 ## Where to next
 
 - [AI Clients — three integration patterns](/docs/integrate/ai-clients) — the full nine-client setup matrix with per-OS config paths and edge cases (Zed gotcha, OpenCode top-level key, Cline globalStorage path).
-- [Programmatic agents](/docs/integrate/programmatic-agents) — for agents that write code: the `@syncropel/sdk` (npm) and `syncropel` (PyPI) clients give a typed surface to the same substrate.
+- [Programmatic agents](/docs/integrate/programmatic-agents) — for agents that write code: the `@syncropel/sdk` (npm) and `syncropel` (PyPI) clients give a typed surface to the same record log.
 - [Records concept](/docs/concepts/records) — the 8-field immutable unit. Every MCP call produces one.
 - [Governance concept](/docs/concepts/governance) — why audit, permission, and AITL are all the same primitive (records on reserved threads).
 - [Service accounts and tokens](/docs/get-started/service-accounts) — when you want a long-lived non-human bearer for an agent (instead of relying on the bootstrap token on a hosted instance).
