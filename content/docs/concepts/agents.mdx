@@ -91,9 +91,18 @@ Because an agent is an actor, the records its loops emit accumulate trust agains
 
 The audit trail is the loop's thread. Any reviewer with thread access can see the goal, every turn the agent took, every tool call it made, every result it got, and the final outcome. The thread is the source of truth — there is no separate "agent log" the agent could have written selectively.
 
+## Beyond language models
+
+An agent drives its work loop with a language model — that is what makes it an *agent* specifically. But a language model is not the only kind of automated participant Syncropel coordinates. A scheduling solver, a classifier that tags incoming records, a validator that checks data against rules — none of these is a language model, yet each does real work and returns a result.
+
+Syncropel treats all of them the way it treats an agent: as an [actor](/docs/concepts/actors) with a DID, a [trust](/docs/concepts/trust) profile, and an audit trail of records. What a participant *is* on the inside — a language model, a mathematical solver, a trained classifier, an ensemble of several — does not change how it joins a thread or how it earns trust. It produces records, stays auditable, and is accountable to review, just like everyone else. Syncropel routes each kind of work to the participant with the strongest track record at it.
+
+The broader family of automated participants is covered on the [helpers](/docs/concepts/helpers) page. An agent is the language-model member of that family; helpers are the rest.
+
 ## Where it fits
 
 - **[Actors](/docs/concepts/actors)** — the identity primitive every agent inherits.
+- **[Helpers](/docs/concepts/helpers)** — the broader family of automated participants; an agent is the language-model member.
 - **[Work loop](/docs/concepts/work-loop)** — the plan/act/check cycle agents run under, with the tier-shaped guardrails and structured outcomes.
 - **[Threads](/docs/concepts/threads)** — the coordination context a loop lives on.
 - **[Trust](/docs/concepts/trust)** — how the records a loop emits feed the trust signal.
