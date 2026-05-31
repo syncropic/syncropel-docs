@@ -53,7 +53,7 @@ A pair carries:
 - `tokens` — reciprocal bearer tokens minted during handshake (each side holds the other's; bound to peer DID)
 - `cursors` — per-thread sync position (one per thread the pair syncs)
 
-State machine transitions are themselves records. Pause emits an update record; revoke emits a terminal revoke record. Operator-facing audit lives on a sibling thread `th_audit_federation_pairs` so subscribing to lifecycle events is cheap and decoupled from the substrate fold.
+State machine transitions are themselves records. Pause emits an update record; revoke emits a terminal revoke record. Operator-facing audit lives on a sibling thread `th_audit_federation_pairs` so subscribing to lifecycle events is cheap and decoupled from the main pair-state computation.
 
 Establishing a pair is a single command: **`spl federation pair <peer-url>`**. Behind the scenes it discovers the peer manifest, runs a 3-roundtrip nonce-protected handshake, mints reciprocal service accounts + bearer tokens (90-day TTL with auto-renew at 83 days), and persists the genesis record on both sides. `spl sync` then consults the pair store automatically — no manual token plumbing.
 
@@ -133,9 +133,9 @@ A typical end-to-end flow:
 
 The whole flow is about a minute of setup. Once a pair exists, propagation is automatic, continuous, and bidirectional.
 
-## What's enforced today vs the spec
+## What's enforced today
 
-The federation substrate covers pair creation, signature verification, consent filtering, discovery (mDNS, DNS-based federation manifests, and `did:web` + `did:sync` actor identity), async relay for offline peers, and the pull loop with classified error codes. That's enough for "run two daemons, pair them, share a thread" as a real workflow.
+Federation covers pair creation, signature verification, consent filtering, discovery (mDNS, DNS-based federation manifests, and `did:web` + `did:sync` actor identity), async relay for offline peers, and the pull loop with classified error codes. That's enough for "run two daemons, pair them, share a thread" as a real workflow.
 
 One piece is designed but not yet shipped:
 

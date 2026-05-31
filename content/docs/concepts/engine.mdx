@@ -1,6 +1,6 @@
 ---
 title: The Engine
-description: Four loops at four timescales — from sub-millisecond record ingest through minute-level drift detection to daily maintenance. This is the kernel that turns records into action, action into evidence, and evidence into learning.
+description: Four loops at four timescales — from sub-millisecond record ingest through minute-level drift detection to daily maintenance. This is the engine that turns records into action, action into evidence, and evidence into learning.
 ---
 
 ## Overview
@@ -9,7 +9,7 @@ The Syncropel engine is not a monolithic processor. It's four loops, each runnin
 
 This separation isn't incidental. Coordination work spans timescales that range over seven orders of magnitude — an INGEST decision takes under 100µs, a daily pattern-crystallization sweep takes hours. Trying to handle all of it in one loop either slows the fast path to match the slow one, or loses the slow work in the fast one's noise. Four loops running independently on their natural tempos avoids both.
 
-The kernel itself is small — roughly 200 lines per loop, with the rest being data (records on `th_engine_config`, CEL expressions, CRUD over the store). Most of what looks like kernel "logic" is actually config. Change a routing rule, a trigger, a fold rule, a permission predicate — you emit a record, the engine reloads, the new behaviour takes effect on the next ingest. No restart, no redeploy.
+The engine itself is small — roughly 200 lines per loop, with the rest being data (records on `th_engine_config`, CEL expressions, CRUD over the store). Most of what looks like engine "logic" is actually config. Change a routing rule, a trigger, a fold rule, a permission predicate — you emit a record, the engine reloads, the new behaviour takes effect on the next ingest. No restart, no redeploy.
 
 ## Immutable log → folds → live state
 
@@ -52,7 +52,7 @@ RECONCILE:  for each broadcast record:
               match_rules → intelligence (if unmatched) → execute → ingest results
 ```
 
-The reconciler is a fixed-point runner. It keeps running until every record either matches a rule or is explicitly left for human review. Rules are checked in priority order; intelligence (the kernel's reasoning path) only runs when no rule matches.
+The reconciler is a fixed-point runner. It keeps running until every record either matches a rule or is explicitly left for human review. Rules are checked in priority order; intelligence (the engine's reasoning path) only runs when no rule matches.
 
 Most records don't trigger reconcile work — system records skip it entirely to avoid cascades, already-handled records (`body.dispatch_handled: true`) skip it, AITL responses (records with `body.fulfills` or `body.cancels`) skip it. What *does* trigger reconcile is typically a user record or a triggered record that asks for something.
 
@@ -128,7 +128,7 @@ The cascade falls forward. When step 2 misses, step 3 runs; when 3 misses, step 
 
 The engine gets better as records accumulate, by design:
 
-- **Intelligence decisions become AITL proposals.** The kernel's reasoning doesn't silently execute — it proposes a routing rule and asks an operator to approve. Approved proposals become rules.
+- **Intelligence decisions become AITL proposals.** The engine's reasoning doesn't silently execute — it proposes a routing rule and asks an operator to approve. Approved proposals become rules.
 - **Rules that work repeatedly become patterns.** Every successful dispatch via a rule is evidence that the rule's shape is a pattern worth crystallizing.
 - **Patterns that meet C1-C4 crystallize into REPLAY.** Once crystallized, the same shape of work no longer needs rule matching — it replays the outcome directly.
 - **Meta-trust tracks the reasoning path.** The `intelligence` actor itself has a trust profile. Proposals it makes that get approved contribute to its trust; rejected ones detract.

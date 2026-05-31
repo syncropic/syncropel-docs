@@ -71,7 +71,7 @@ You can re-activate an archived namespace by running `spl namespace create` agai
 
 ## The narrowing rule
 
-The single most important property of namespaces: **a child can never claim capabilities its parent doesn't grant.** This is checked at every record ingest. The kernel walks the ancestor chain from the record's claimed namespace up to DEFAULT, and rejects the record if any link is missing or non-Active.
+The single most important property of namespaces: **a child can never claim capabilities its parent doesn't grant.** This is checked at every record ingest. The engine walks the ancestor chain from the record's claimed namespace up to DEFAULT, and rejects the record if any link is missing or non-Active.
 
 ```
 Record claims:   acme-corp/payments/staging/job-42
@@ -107,7 +107,7 @@ Three concrete reasons the spec mandates this shape:
 
 **1. Predictable cleanup.** When a customer leaves or a project ends, you archive the ORG-level namespace and you're done. Every JOB, ENV, and PROJECT record under it stops accepting writes. You never have to walk the descendant tree by hand or write cleanup queries against the database.
 
-**2. Tenancy without forking the kernel.** The same daemon serves multiple orgs without cross-contamination. An attacker who somehow obtains an ORG-level credential for `acme-corp` cannot inject records claiming `bigcorp` as their namespace — the registry doesn't have a `bigcorp` ancestor for them to pass through.
+**2. Tenancy without forking the engine.** The same daemon serves multiple orgs without cross-contamination. An attacker who somehow obtains an ORG-level credential for `acme-corp` cannot inject records claiming `bigcorp` as their namespace — the registry doesn't have a `bigcorp` ancestor for them to pass through.
 
 **3. Policy composition is closed.** When (in a future release) namespaces also carry policy YAML, the resolved policy at any level is the *intersection* of every ancestor's policy. There is no way to add capability by going deeper. This makes audit feasible — you can answer "what could a job-42 dispatch ever do?" by looking at the chain of policies, no need to chase implicit grants.
 
@@ -123,7 +123,7 @@ The implicit `default` namespace is always there, always Active, and never goes 
 
 The current implementation covers the **existence layer** of the narrowing guarantee: every record's claimed namespace and every ancestor must be Active in the registry. This is enforced at the HTTP boundary by the daemon's `validate_namespace_for_ingest` check.
 
-Two pieces from the spec §08-governance/04 are not yet implemented and are tracked as follow-up tasks:
+Two pieces of the namespace model are not yet implemented and are tracked as follow-up tasks:
 
 - **Policy composition** — the YAML policy language with `dial`, `primitives`, `max_effects`, etc. and the intersect-on-allow / union-on-deny composition rules. Today, the `policy` field on a namespace entry is opaque text. The narrowing check only validates existence + status, not capability subsets.
 - **Store-level isolation** — the spec mandates that backends partition records by namespace at the storage layer for hard isolation. Today, records are tagged but not indexed by namespace, and read queries return records from all namespaces a caller has access to.
@@ -134,5 +134,4 @@ Both are bounded follow-ups, not show-stoppers. The HTTP-boundary enforcement is
 
 - **Use it now**: see [`spl namespace`](/docs/reference/cli#namespaces-v0100) in the CLI reference for the create/list/show/archive/delete commands.
 - **Author CEL rules scoped to namespaces**: the `current_namespace()` function and `record.body.namespace` field are both available in every CEL context. See [CEL Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now).
-- **Read the spec**: §08-governance/04 Namespaces is the normative source.
 - **Walk through the worked example**: see the [Namespaces guide](/docs/guides/namespaces) for a full setup from `spl namespace create` to a working multi-environment deployment.

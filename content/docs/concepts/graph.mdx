@@ -10,8 +10,8 @@ queries travel. The Graph is that pattern — not a product, not a server,
 not a place you log in to.
 
 This matters because it constrains the design. The Graph is not a hub
-and not the canonical source of truth. The substrate — the records
-themselves — is canonical. The Graph is one *view over* the substrate:
+and not the canonical source of truth. The records themselves are
+canonical. The Graph is one *view over* those records:
 the connectivity between instances and the discovery that connectivity
 makes possible.
 
@@ -35,13 +35,13 @@ can run one for its field. Pluralism is structural.
 The shape is clearest drawn in negative space.
 
 - **Not a hub.** A hub centralizes — it owns the data and clients depend
-  on it being up. A Graph node publishes records *to* the substrate. If
+  on it being up. A Graph node publishes records *to* the network. If
   a node goes dark, the records it published are still in every instance
   that fetched them — still content-addressed, still verifiable. A node
   is a *cache that warmed*, not a *system that owns*.
 - **Not a gatekeeper.** A node publishes what its operator curates. It
   does not approve, deny, or rank what is published elsewhere. The
-  substrate routes by identity: if a peer publishes a workspace, your
+  network routes by identity: if a peer publishes a workspace, your
   instance fetches it from *that peer*, not through any central node.
 - **Not a marketplace.** No payments, no ratings, no leaderboards, no
   recommendation algorithm. A node's curation means only "this node's
@@ -78,7 +78,7 @@ lands once it arrives.
 
 ## Why a discovery layer at all
 
-A substrate of records is correct and complete, and unhelpful for the
+A log of records is correct and complete, and unhelpful for the
 question "which of all possible workspaces should I install?" Discovery
 is the missing ingredient, and discovery is irreducibly opinionated —
 someone has to choose what a node recommends, and be accountable for it.
@@ -86,7 +86,7 @@ someone has to choose what a node recommends, and be accountable for it.
 The Graph gives that opinion a shape without giving it power. An opinion
 is a record on a node, signed by its operator, addressable, replicable.
 Disagreeing with a node's curation means subscribing to a different node
-— not forking the substrate. Opinion at the edges, mechanism at the
+— not forking the network. Opinion at the edges, mechanism at the
 core.
 
 ## What's next
