@@ -148,7 +148,7 @@ The guardrail is shape-aware — it does not count one-shot transient errors, on
 
 ## Compensation records — when an assumption is violated
 
-Sometimes a loop violates an assumption the system made about it — for example, the loop wraps up prematurely as it nears its context limit. The engine emits a `core.work.compensation.v1` record naming the seam, the assumption, and the context.
+Sometimes a loop violates an assumption the system made about it — for example, the loop wraps up prematurely as it nears its context limit. The engine emits a `core.work.compensation.v1` record naming the boundary it crossed, the assumption, and the context.
 
 Compensation records are observable to operators. The review endpoints (`GET /v1/work/compensation/review`, `/review/top`) aggregate per-actor anomalies against the fleet median — actors whose loops compensate at well above the fleet rate are surfaced. This is how the system notices when a previously-trustworthy actor's loops start misbehaving.
 
@@ -165,7 +165,7 @@ Two things change when delegation happens:
 
 Delegation is auto-classified — Scribe sees a message that opens with `@agent` and starts a loop. The classifier is heuristic (verbs like "build", "audit", "find every…"); it can be tightened with an explicit `@agent` opening.
 
-See [Agents](/docs/concepts/agents) for the user-facing view of this seam — what the launch surface shows, what the capability is, what the outcomes mean.
+See [Agents](/docs/concepts/agents) for the user-facing view of this handoff — what the launch surface shows, what the capability is, what the outcomes mean.
 
 ## How to start a loop
 

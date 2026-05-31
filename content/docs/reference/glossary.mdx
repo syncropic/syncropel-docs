@@ -221,7 +221,7 @@ A one-way HTTP streaming protocol. Syncropel uses SSE on the proxy path (`/v1/pr
 A JSONL (`.snap.jsonl`) file containing a thread's records plus a manifest. Used for backup, migration, and fleet bootstrap. Encoded by the snapshot subsystem; tamper-evident (manifest hash over sorted record IDs) and idempotent (content-addressed dedup on restore). See [Backup and restore](/docs/guides/backup-restore).
 
 **Substrate**
-The current implementation backing an actor — which AI model, which adapter version, which tool binary. Changes occasionally. Distinct from the actor's DID, which is permanent.
+The shared, append-only layer of immutable records that every actor reads from and writes to — the common ground all coordination flows through. An actor's DID is permanent; what *powers* that actor (which AI model, which adapter, which tool) can change over time and is the actor's **adapter**, not the substrate. (Earlier docs used "substrate" loosely for the implementation behind an actor; that sense is now the adapter.)
 
 ## T
 

@@ -23,7 +23,7 @@ The most common way to start an agent is from a conversation. In any thread, ope
 @agent count the open tasks in this workspace and tell me how many are blocked
 ```
 
-When you send the message, the chat-actor (typically [Scribe](/docs/get-started/scribe)) hands control to a new work loop **running as you, not as Scribe** — your DID, your tier, your permissions. Scribe steps aside for the duration. Two records open the seam: a `core.user.message.v1` that carries your message, and a `core.work.delegation.v1` that opens the loop. When the loop ends, an outcome record closes it.
+When you send the message, the chat-actor (typically [Scribe](/docs/get-started/scribe)) hands control to a new work loop **running as you, not as Scribe** — your DID, your tier, your permissions. Scribe steps aside for the duration. Two records open the handoff: a `core.user.message.v1` that carries your message, and a `core.work.delegation.v1` that opens the loop. When the loop ends, an outcome record closes it.
 
 You can also start a loop without going through chat — `spl work-loop "..."` from the CLI, or a direct `POST /v1/work/loop`. The [work-loop concept page](/docs/concepts/work-loop) documents the full surface. The `@agent` flow is the conversational entry; everything else is the same primitive.
 
