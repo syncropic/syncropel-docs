@@ -9,12 +9,12 @@ This page is for the operator standing up an `spl serve` instance for real work 
 
 If something is broken right now, jump to [Recovery](/docs/operate/runbook#recovery-from-corruption-or-data-loss) on the runbook page. The lifecycle below assumes you're starting clean.
 
-## How the kernel actually runs
+## How the engine actually runs
 
 The daemon implements four cooperating loops over an immutable record log. Every operational decision below — when to back up, how to read a probe, what to drain before stopping — makes more sense once the loops are visible.
 
 <Mermaid
-  caption="The four kernel loops. State is fold(records); none of the loops mutate anything outside the record log."
+  caption="The four engine loops. State is computed from records; none of the loops mutate anything outside the record log."
   chart={`flowchart LR
     Client["HTTP / CLI client"] --> Ingest
 
@@ -48,7 +48,7 @@ The daemon implements four cooperating loops over an immutable record log. Every
     end`}
 />
 
-The internal layers follow the same structure. Nothing above depends on anything below it; the kernel is portable along any of the dashed boundaries (Records / Algebra and Trust are portable to the browser).
+The internal layers follow the same structure. Nothing above depends on anything below it; the engine is portable along any of the dashed boundaries (Records / Algebra and Trust are portable to the browser).
 
 <Mermaid
   caption="spl daemon internal layering. Strict layering, no upward dependencies."
@@ -105,10 +105,10 @@ For a daemon that survives reboots, see [Keeping Your Instance Running](/docs/op
 
 ### Hosted (Syncropic-provisioned)
 
-The hosted-instance flow is the same kernel as the self-hosted one — same binary, same record store, same APIs — running on Syncropic's managed platform. Customers don't manage the kernel directly; the provisioning service stands the instance up from a signed-in session and an edge auth layer brokers requests to the right per-customer instance.
+The hosted-instance flow is the same engine as the self-hosted one — same binary, same record store, same APIs — running on Syncropic's managed platform. Customers don't manage the engine directly; the provisioning service stands the instance up from a signed-in session and an edge auth layer brokers requests to the right per-customer instance.
 
 <Mermaid
-  caption="Self-service hosted instance provisioning. Same kernel, different boot ritual."
+  caption="Self-service hosted instance provisioning. Same engine, different boot ritual."
   chart={`sequenceDiagram
     autonumber
     participant U as Customer browser
@@ -134,7 +134,7 @@ The hosted-instance flow is the same kernel as the self-hosted one — same bina
     Auth-->>U: 200`}
 />
 
-You don't operate this stack as a self-hoster — but the same kernel boot path runs underneath, so every recovery recipe in this page works on a hosted instance once you have shell access.
+You don't operate this stack as a self-hoster — but the same engine boot path runs underneath, so every recovery recipe in this page works on a hosted instance once you have shell access.
 
 ## 2. First-run bootstrap
 
@@ -142,7 +142,7 @@ A fresh database has zero service accounts. The auth middleware rejects every un
 
 ### Path A — environment-variable bootstrap (preferred)
 
-The kernel reads `SPL_BOOTSTRAP_TOKEN` at startup, before the auth preflight. If the variable is set and the default namespace has zero service accounts, the kernel programmatically mints an SA and a paired API token whose secret portion is the env-var value. The matching bearer is `spl_<env>_<sa>_<secret>`.
+The engine reads `SPL_BOOTSTRAP_TOKEN` at startup, before the auth preflight. If the variable is set and the default namespace has zero service accounts, the engine programmatically mints an SA and a paired API token whose secret portion is the env-var value. The matching bearer is `spl_<env>_<sa>_<secret>`.
 
 ```bash
 SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 32)
@@ -187,7 +187,7 @@ Sign in at syncropel.com, click Provision. The provisioner mints the bootstrap s
 
 ## 3. Auth posture for production
 
-Once bootstrapped, treat `auth.required = true` as load-bearing. It is the kernel default and every shipping route enforces it (including the federation surface). Specifics live in [Authentication & Service Accounts](/docs/operate/keyring); the operational rules are:
+Once bootstrapped, treat `auth.required = true` as load-bearing. It is the default and every shipping route enforces it (including the federation surface). Specifics live in [Authentication & Service Accounts](/docs/operate/keyring); the operational rules are:
 
 - One service account per tool/agent/integration. Closed scope per SA — `records:read,records:write` for an emitter, `admin` only when minting tokens or setting policy.
 - Tokens carry a snapshot of the SA's scopes at issuance time. Live-edit the SA's scopes for new tokens; revoke + re-mint the existing token only when scopes shrink.

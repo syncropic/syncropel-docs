@@ -129,7 +129,7 @@ Downstream systems that route on `body.approved` will skip executing the waiver.
 
 `obligation_resolution: "validation_error"` means: if any responses carry conflicting modifiers (one with `body.fulfills: "..."`, another with `body.cancels: "..."`), the executor halts with `obligation_conflict` instead of silently picking one. For compliance work you want a halt, not a silent resolution.
 
-Set it to `last_writer_wins` (the default) when conflicts are rare and you're okay with the substrate picking; set it to `fulfills_wins` when you've modelled your flow such that any fulfillment should preempt cancellation.
+Set it to `last_writer_wins` (the default) when conflicts are rare and you're okay with Syncropel picking; set it to `fulfills_wins` when you've modelled your flow such that any fulfillment should preempt cancellation.
 
 ## The trade-off
 

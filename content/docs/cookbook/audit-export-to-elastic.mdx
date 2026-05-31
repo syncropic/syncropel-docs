@@ -64,10 +64,10 @@ spl audit export --since 65m --categories aitl,governance
 
 **`--since` is wall-clock, not per-record.** Records ingested in a brief burst and then quiet for an hour can straddle the window boundary. The 5-minute overlap (`--since 65m` on an hourly cron) gives the SIEM's dedupe (by record ID) a chance to drop duplicates. Every record's ID is stable and in the export — dedupe is safe.
 
-**Permission-rule denials are currently tracing events, not records.** They appear in the daemon log but don't (yet) land in the record log. So `spl audit export` picks them up only if your SIEM pipeline is also tailing the daemon log. This gap is tracked — making denials first-class audit records is a polish task on the roadmap.
+**Permission-rule denials are currently tracing events, not records.** They appear in the daemon log but don't (yet) land in the record log. So `spl audit export` picks them up only if your SIEM pipeline is also tailing the daemon log. Making denials first-class audit records is planned for a future release; for now, tail the daemon log alongside the export.
 
 ## See also
 
 - **[SIEM integration guide](/docs/guides/siem-integration)** — full pipeline shapes for Elastic, Splunk, Datadog, and generic webhooks.
 - **[CLI reference — audit export](/docs/reference/cli#audit)** — every flag the command takes.
-- **[Governance](/docs/reference/glossary#g)** — what the kernel considers security-relevant.
+- **[Governance](/docs/reference/glossary#g)** — what Syncropel considers security-relevant.

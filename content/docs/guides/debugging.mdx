@@ -67,7 +67,7 @@ This is suitable for cron — wire `spl doctor --json` into your monitoring pipe
 
 **store path agreement** — the daemon's reported store URL matches what the config file says it should be. A WARN here means either the daemon was started with an explicit `--store` override, or two daemons are running against different stores and you're talking to the wrong one.
 
-**intelligence** — the kernel intelligence agent's enabled state and model. Disabled is fine if you didn't set up an API key; if you did and this says disabled, your key isn't being read.
+**intelligence** — the engine's intelligence agent's enabled state and model. Disabled is fine if you didn't set up an API key; if you did and this says disabled, your key isn't being read.
 
 **engine config thread** — `th_engine_config` has at least one record. A WARN means config_loader had nothing to load — your routing rules / fold rules / permission rules / health checks are all empty.
 
@@ -278,7 +278,7 @@ The `show` output marks each ancestor with `✓` (Active) or `✗` (Archived/Del
 
 A few things still require log reading or direct database inspection:
 
-- **Trust score derivation traces** — `spl trust` shows current scores, but not the per-record evidence chain that produced them. Filing `spl debug trust <actor> <domain>` is on the roadmap.
+- **Trust score derivation traces** — `spl trust` shows current scores, but not the per-record evidence chain that produced them. A `spl debug trust <actor> <domain>` command is planned for a future release; for now, read the verdict records on the actor's trust thread directly.
 - **Dispatch internals** — when a dispatch fails, you see the failure in the task thread, but not the adapter-side timings, retries, or sub-thread tool calls. Pull these from the daemon log filtered by `target=syncropel_engine::dispatch`.
 - **Performance regressions** — the expression cache stats are exposed by doctor, but per-rule evaluation timings live only in the log.
 

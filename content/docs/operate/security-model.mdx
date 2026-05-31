@@ -13,7 +13,7 @@ description: What spl serve protects against (default-secure auth + filesystem p
 - `~/.syncro/hub.db` is an **unencrypted SQLite** carrying every record. Bearer-token plaintext is NOT stored — only `sha256(secret)` for validation.
 - **Excluded from auto-backup**: `~/.local/share/syncropel/backups/hub.db.bak` does NOT include the keys/ or secrets/ dirs.
 - **What you must do**: exclude `~/.syncro/keys/` and `~/.syncro/secrets/` from cloud-sync (Dropbox, iCloud, OneDrive, rsync, dotfiles repos). On hosted instances: rely on the platform's secret manager rather than mounting `~/.syncro/`.
-- **What's coming**: OS-keyring integration (macOS Keychain, Linux Secret Service, Windows Credential Manager) is on the roadmap. Until it ships, file-permission discipline is the only at-rest defense.
+- **What's coming**: OS-keyring integration (macOS Keychain, Linux Secret Service, Windows Credential Manager) is planned for a future release. Until it ships, file-permission discipline is the only at-rest defense.
 
 ## What's stored where
 

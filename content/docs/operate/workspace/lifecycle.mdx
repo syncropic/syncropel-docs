@@ -75,7 +75,7 @@ Every workspace body carries a `lifecycle` field with one of three values:
 | `published` | Ready for use — the normal state. | Yes | Yes |
 | `archived` | Retired — kept for history, not for new use. | No | Existing subscriptions keep working |
 
-Lifecycle is not kernel state — it is just a field on the record. Moving a
+Lifecycle is not separate engine state — it is just a field on the record. Moving a
 workspace between states means emitting a new record with a different
 `lifecycle` value. The **latest record by clock for a given slug** is the
 authoritative state.

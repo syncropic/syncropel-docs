@@ -224,7 +224,7 @@ Records get embeddings at **ingest time**, before the response to `POST /v1/reco
 
 This means **every new record is searchable immediately**. There's no background indexer; there's no latency between ingest and searchability.
 
-Records that existed _before_ you configured a provider do **not** get back-filled automatically. To embed existing records, the easiest path today is re-ingest from a backup (see [Backup & recovery](/docs/guides/backup-restore)). A dedicated `spl embed backfill` command is on the roadmap.
+Records that existed _before_ you configured a provider do **not** get back-filled automatically. To embed existing records, the easiest path today is re-ingest from a backup (see [Backup & recovery](/docs/guides/backup-restore)). A dedicated `spl embed backfill` command is planned for a future release.
 
 ## Providers
 

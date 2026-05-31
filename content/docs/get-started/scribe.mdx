@@ -73,7 +73,7 @@ instance's inference backend.
 
 If you would rather call a model provider directly, configure a provider
 and key in your instance's `[intelligence]` configuration (the same
-mechanism that powers the kernel's other LLM-backed features — see
+mechanism that powers Syncropel's other LLM-backed features — see
 [First run](/docs/get-started/first-run)). Supported providers include
 Anthropic, OpenAI, and a local Ollama runtime.
 
@@ -95,8 +95,8 @@ to a real work loop. Two things change:
    identity, your permissions, and your tier — Scribe steps aside
    for the duration. Records the loop emits are signed by your
    actor DID.
-2. **The kernel decides when the loop is done — not the loop
-   itself.** A kernel-issued Evaluator independently checks the
+2. **The engine decides when the loop is done — not the loop
+   itself.** An engine-issued Evaluator independently checks the
    work against success criteria it derived from your goal. The
    loop cannot self-certify success.
 
@@ -120,7 +120,7 @@ tier sets ceilings on the loop:
 The Trial tier always verifies — the Evaluator pair is forced on
 — because a loop that can self-certify on a free tier is the wrong
 default. Paid and above can opt in to verify mode (e.g. for
-high-stakes goals where you want the kernel to grade the result).
+high-stakes goals where you want the engine to grade the result).
 
 If a goal needs more than your tier allows — too many turns, too
 much time, too much money — the loop denies the request up front
@@ -138,7 +138,7 @@ exits cleanly with a `cancelled` outcome.
 ### Self-hosted note
 
 `@agent` needs both an inference backend (same as ordinary Scribe
-replies) and the kernel's loop service, which is on by default. To
+replies) and the engine's loop service, which is on by default. To
 disable it instance-wide, set `agentic_loop_enabled: false` on the
 `core.engine.actor_adapter.v1` record for the chat actor.
 

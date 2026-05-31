@@ -181,7 +181,7 @@ The script verifies:
 
 When you're ready to put a docker deployment in front of real traffic:
 
-- **Reverse proxy with TLS**: terminate HTTPS at nginx/caddy/traefik in front of the container. The image only speaks HTTP on port 9100 by design — TLS is a deployment concern, not a kernel concern.
+- **Reverse proxy with TLS**: terminate HTTPS at nginx/caddy/traefik in front of the container. The image only speaks HTTP on port 9100 by design — TLS is a deployment concern, not an engine concern.
 - **Backup the volume**: schedule periodic `docker run --rm -v spl-home:/data alpine tar -czf - /data` snapshots. Restore by extracting back into a new volume before starting the container.
 - **Read-only root filesystem**: the binary doesn't write outside `/syncropel`, so you can run with `--read-only` and a writable tmpfs:
   ```bash
@@ -200,7 +200,7 @@ docker run --rm -v spl-home:/syncropel alpine chown -R 10001:10001 /syncropel
 ```
 
 **Healthcheck stays `(unhealthy)`.**
-The kernel may be slow to bind on first run while it creates the SQLite WAL. Wait 30 seconds and re-check. If it's still unhealthy, run the binary in the foreground to see the error:
+The engine may be slow to bind on first run while it creates the SQLite WAL. Wait 30 seconds and re-check. If it's still unhealthy, run the binary in the foreground to see the error:
 
 ```bash
 docker run --rm -v spl-home:/syncropel syncropic/spl:dev serve --port 9100 --host 0.0.0.0

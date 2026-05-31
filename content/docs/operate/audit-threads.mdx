@@ -108,7 +108,7 @@ for thread in th_audit_consent th_audit_federation_pairs th_audit_impersonation 
 done
 ```
 
-A future SDK affordance (`client.audit.subscribe()`) is under consideration to collapse this into a single subscription. Track the SDK roadmap for ETA.
+A single-call SDK affordance (`client.audit.subscribe()`) is planned for a future release to collapse this into one subscription. For now, poll the audit threads with the loop above.
 
 ## Compliance posture notes
 

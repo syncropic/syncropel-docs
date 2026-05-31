@@ -5,7 +5,7 @@ description: Pair two Syncropel daemons so they can sync threads, exchange recor
 
 ## Audience
 
-This page is for the operator running two (or more) Syncropel daemons that need to talk to each other. Single-instance operators don't need pairs — pairs exist specifically to bridge separate kernels under separate identities, with consent and credentials negotiated explicitly.
+This page is for the operator running two (or more) Syncropel daemons that need to talk to each other. Single-instance operators don't need pairs — pairs exist specifically to bridge separate instances under separate identities, with consent and credentials negotiated explicitly.
 
 If you only run `spl serve` on one machine, skip this page. If you run two and they need to share threads, read on.
 
@@ -15,7 +15,7 @@ A pair is the right primitive when:
 
 - **You have two laptops** and want one set of threads visible from both, with edits flowing in either direction.
 - **You're bridging a hosted instance and a local one** — say, `<label>.syncropel.app` for the agent stack and a laptop daemon for capture-and-emit.
-- **You're sharing a workspace across collaborators** — each collaborator has their own kernel, their own identity, their own trust ledger; pairs let consented threads cross the boundary.
+- **You're sharing a workspace across collaborators** — each collaborator has their own instance, their own identity, their own trust ledger; pairs let consented threads cross the boundary.
 - **You're running a fleet** of mostly-identical instances behind the same operator and want intra-fleet sync without re-running the discovery dance every time.
 
 A pair is **not** the right primitive for:
@@ -26,7 +26,7 @@ A pair is **not** the right primitive for:
 
 ## The handshake, conceptually
 
-Pair establishment is a one-shot CLI handshake that exchanges DIDs, signs a manifest, and mints federation-scoped bearer tokens reciprocally. The substrate is a record on `th_federation_pairs`; the wire is the existing federation transport (HTTP + signed manifest at `/.well-known/syncropel`).
+Pair establishment is a one-shot CLI handshake that exchanges DIDs, signs a manifest, and mints federation-scoped bearer tokens reciprocally. The stored state is a record on `th_federation_pairs`; the wire is the existing federation transport (HTTP + signed manifest at `/.well-known/syncropel`).
 
 <Mermaid
   caption="Pair handshake. Federation transport + federated identity + the pair primitive composed end-to-end."

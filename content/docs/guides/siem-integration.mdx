@@ -11,7 +11,7 @@ If you just want to look at what would be exported without setting up a pipeline
 
 ## What gets exported
 
-`spl audit export` emits JSON Lines (one record per line) for security-relevant records from the kernel's record log. Categories:
+`spl audit export` emits JSON Lines (one record per line) for security-relevant records from the engine's record log. Categories:
 
 | Category | What it captures | Example records |
 |---|---|---|
@@ -49,9 +49,9 @@ Top-level `category` makes filtering trivial in any SIEM. The full record is nes
 
 ## What's NOT exported (read this first)
 
-**HTTP middleware permission denials are not records today.** They're `tracing::warn!` events in the daemon log (`~/.syncro/logs/spl.log`) with a structured `PERMISSION DENIED` message. To get a complete security view in your SIEM, pipe the daemon log alongside `spl audit export`. Promoting denials to first-class audit records is on the roadmap; for now, the two streams are complementary.
+**HTTP middleware permission denials are not records today.** They're `tracing::warn!` events in the daemon log (`~/.syncro/logs/spl.log`) with a structured `PERMISSION DENIED` message. To get a complete security view in your SIEM, pipe the daemon log alongside `spl audit export`. Promoting denials to first-class audit records is planned for a future release; for now, the two streams are complementary.
 
-The other pre-existing limitation: `spl audit export` enumerates threads client-side and fetches records per thread. For stores with thousands of threads this becomes slow. Pass `--thread <id>` to scope when you can. A server-side `/v1/audit/export` endpoint that pushes filtering into SQL is on the roadmap.
+The other pre-existing limitation: `spl audit export` enumerates threads client-side and fetches records per thread. For stores with thousands of threads this becomes slow. Pass `--thread <id>` to scope when you can. A server-side `/v1/audit/export` endpoint that pushes filtering into SQL is planned for a future release.
 
 ## Cron pipeline pattern
 

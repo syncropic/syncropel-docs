@@ -129,12 +129,15 @@ spl discover                # without --peer-url
 #        to fetch a specific peer's manifest directly.
 ```
 
-This is deliberate honesty rather than a bug. The directory model needs design choices (who can register, how are entries signed, what the governance model is) that are part of the broader federation discovery work on the roadmap. Until that lands, direct-URL discovery is the supported path.
+This is deliberate honesty rather than a bug. The directory model needs design choices (who can register, how are entries signed, what the governance model is) that are part of broader federation discovery work planned for a future release. Until that lands, direct-URL discovery is the supported path.
 
-When directory lookup ships, the CLI call becomes:
+When directory lookup ships, the CLI call will look like the following.
+
+<Callout type="info">
+**Planned, not yet available.** The directory aggregation shown below is a planned capability, not something you can run today. For now, use direct-URL discovery with `--peer-url`.
+</Callout>
 
 ```bash
-# Future shape — not yet implemented.
 spl discover --capability music.catalog.track
 # → list of peers from the directory matching that capability
 ```

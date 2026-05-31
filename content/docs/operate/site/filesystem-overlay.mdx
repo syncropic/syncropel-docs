@@ -7,7 +7,7 @@ Tier 3 is the filesystem-overlay layer of [the instance site](/docs/operate/site
 The renderer reads three optional locations under `~/.syncro/site/` on
 each request, with a 5-second LRU cache at the process level. You can
 override the accent palette, add a custom `<head>` fragment, and serve
-operator-supplied assets — all without modifying the kernel or
+operator-supplied assets — all without modifying the engine or
 republishing records.
 
 Use Tier 3 when you need:
@@ -120,12 +120,12 @@ Example `head.html`:
 <link rel="alternate" type="application/atom+xml" title="Atom feed" href="/feed.atom">
 ```
 
-These flow into the response between the kernel-emitted `<meta>` tags
+These flow into the response between the engine-emitted `<meta>` tags
 and the closing `</head>`.
 
 ## `assets/` — operator-supplied files at `/site/local/<name>`
 
-Anything under `~/.syncro/site/assets/` is served by the kernel at
+Anything under `~/.syncro/site/assets/` is served by the engine at
 `/site/local/<name>` — same origin as the landing page, no auth
 required, content-type negotiated from the file extension.
 
@@ -157,7 +157,7 @@ prevent the asset itself from initiating any sub-requests.
 Asset responses carry `Cache-Control: public, max-age=3600`. To
 invalidate browser caches after replacing an asset, rename it (logo.png
 → logo-v2.png) or append a query string in your `theme.css` / `head.html`
-references (`/site/local/logo.png?v=2`). The kernel does not version
+references (`/site/local/logo.png?v=2`). The engine does not version
 operator-supplied assets — that's the operator's responsibility.
 
 ## Reload semantics

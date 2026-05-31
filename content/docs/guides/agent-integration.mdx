@@ -19,7 +19,7 @@ Any CLI-based agent that reads a prompt and produces output can integrate. Examp
 | Pi | `pi` | CLI adapter |
 | Custom agents | Any binary | CLI adapter with configurable flags |
 
-The integration shape is the same: register an actor, bind a CLI adapter, point it at the binary. The kernel doesn't care which agent — it just spawns the subprocess and parses the output stream.
+The integration shape is the same: register an actor, bind a CLI adapter, point it at the binary. The engine doesn't care which agent — it just spawns the subprocess and parses the output stream.
 
 ## Register an Agent
 

@@ -5,7 +5,7 @@ description: Install, configure, monitor, and troubleshoot a Syncropel async-fed
 
 ## Audience
 
-This guide is for operators running a relay for their own organization, a small community, or an infrastructure provider serving multiple tenants. It assumes you've read the [async federation guide](/docs/guides/async-federation) and understand what the relay is (a dumb store-and-forward mailbox) and what it isn't (an identity provider, a consensus layer, a trust substrate).
+This guide is for operators running a relay for their own organization, a small community, or an infrastructure provider serving multiple tenants. It assumes you've read the [async federation guide](/docs/guides/async-federation) and understand what the relay is (a dumb store-and-forward mailbox) and what it isn't (an identity provider, a consensus layer, a trust authority).
 
 If you're a user configuring a client to use a relay that already exists, you don't need this page — use `spl config relay set <url>`.
 
@@ -243,7 +243,7 @@ Root-cause action: if 507s are chronic for a particular receiver, that receiver 
 
 **Expected behavior with the in-memory queue.** The in-memory queue doesn't persist across restarts. Senders retain outbound envelopes locally (default 7 days) and redeliver on their next federation sweep. No data is lost at the system level — only the in-flight window between deposit and receive is reset.
 
-To eliminate this, wait for the SQLite-backed durable queue (on the roadmap).
+A SQLite-backed durable queue that eliminates this is planned for a future release. For now, rely on sender-side retention and redelivery (described above) to cover the in-flight window.
 
 ### High cardinality on `relay_deposits_total`
 
@@ -255,7 +255,7 @@ If you have many distinct sender DIDs, the `{from_did, to_did}` label pair can p
 
 ## Backup and restore
 
-The in-memory queue has no durable state to back up. A persistent SQLite backend is on the roadmap; when that ships:
+The in-memory queue has no durable state to back up. A persistent SQLite backend is planned for a future release; when that ships:
 
 - Snapshot with `sqlite3 <path> ".backup <dest>"` — online-safe.
 - Restore by stopping the relay, copying the backup file into place, and starting again.

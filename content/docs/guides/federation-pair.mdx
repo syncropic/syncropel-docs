@@ -195,7 +195,7 @@ Every state transition is recorded on `th_audit_federation_pairs`. Subscribe to 
 spl thread records th_audit_federation_pairs -o json | jq '.[] | {when: .body.timestamp, peer: .body.peer_did, transition: .body.transition}'
 ```
 
-Audit records are separate from the substrate records on `th_federation_pairs` — substrate records drive the fold; audit records are for humans.
+Audit records are separate from the pair-state records on `th_federation_pairs` — the pair-state records drive the computed state; audit records are for humans.
 
 ## Troubleshooting
 

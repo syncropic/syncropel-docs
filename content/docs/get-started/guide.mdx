@@ -36,22 +36,22 @@ Each new message on the same thread folds into the next response, so multi-turn 
 Like Scribe, the Guide can delegate to a real work loop when you open a message with `@agent <goal>`. The same rules apply:
 
 - The loop runs as **you** (under your DID, your tier, your permissions) — not as the Guide.
-- The kernel's Evaluator decides terminal success — the loop never self-asserts "done".
+- The engine's Evaluator decides terminal success — the loop never self-asserts "done".
 - Trial-tier actors always run in `verify` mode; Paid and above can opt in.
 
 A `core.work.delegation.v1` record opens the delegation; the loop's outcome closes it. See [Work loops](/docs/concepts/work-loop) for the full primitive.
 
 ## The three personas
 
-The Guide ships with three kernel-vetted personas — each is a different conversational stance, useful for different audiences:
+The Guide ships with three built-in personas — each is a different conversational stance, useful for different audiences:
 
 | Persona | Best for |
 |---|---|
 | `general` | First-time users finding their way around — emitting records, opening threads, browsing what's there. |
-| `research_assistant` | Folks using the instance as a substrate for ongoing research — knowing what's been collected, what's been folded, what's still open. |
+| `research_assistant` | Folks using the instance as a workspace for ongoing research — knowing what's been collected, what's been summarized, what's still open. |
 | `task_coordinator` | Folks running task-management workflows on the instance — knowing what's queued, what's in flight, what's blocked. |
 
-The persona is configured at the instance level: a [blueprint](/docs/concepts/workspaces) emits a `core.guide.priming.v1` record that picks the persona by name. The persona text itself is **kernel-authored** — a blueprint contributes the choice, not the words. This keeps the Guide's surface predictable across instances.
+The persona is configured at the instance level: a [blueprint](/docs/concepts/workspaces) emits a `core.guide.priming.v1` record that picks the persona by name. The persona text itself is **built in** — a blueprint contributes the choice, not the words. This keeps the Guide's surface predictable across instances.
 
 To switch persona on your own instance:
 

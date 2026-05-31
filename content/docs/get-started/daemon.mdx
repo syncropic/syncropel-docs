@@ -3,7 +3,7 @@ title: Starting Your Instance
 description: The three modes `spl serve` runs in — dev, secure local, and exposed — and how to manage your instance's lifecycle. Start, stop, restart, inspect, tail logs.
 ---
 
-`spl serve` is your Syncropel instance. It runs in the background, owns `~/.syncro/hub.db`, binds an HTTP port for the API, binds a Unix socket (Linux and macOS) for the local CLI, and runs the four kernel loops (ingest, reconcile, tick, cron).
+`spl serve` is your Syncropel instance. It runs in the background, owns `~/.syncro/hub.db`, binds an HTTP port for the API, binds a Unix socket (Linux and macOS) for the local CLI, and runs the four engine loops (ingest, reconcile, tick, cron).
 
 There are three ways to start it. Pick by situation.
 

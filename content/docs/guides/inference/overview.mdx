@@ -1,21 +1,21 @@
 ---
 title: Inference Overview
-description: The mental model behind infer.query.v1 — query the substrate like you would a model, but over a heterogeneous pool of LLMs, patterns, systems, and humans with pluggable fold and soft-ranking relevance.
+description: The mental model behind infer.query.v1 — query Syncropel like you would a model, but over a heterogeneous pool of LLMs, patterns, systems, and humans with pluggable fold and soft-ranking relevance.
 ---
 
 ## Overview
 
 Syncropel introduces **inference as a first-class record**. Any record with `body.kind: "infer.query.v1"` becomes a query — the engine routes it to a pool of responders, collects their answers, folds them into a single result, and commits the result as a KNOW record on the query's thread.
 
-You already know the substrate as a coordination medium. Records flow in, the engine folds threads, trust accumulates, tasks resolve. Inference re-uses that substrate. Nothing new gets added — queries are just INTEND records with a specific shape, responders are actors or system adapters you already register, fold is declarative, and the answer is just another KNOW record that other records can cite as a parent.
+You already know Syncropel as a coordination medium. Records flow in, the engine combines threads, trust accumulates, tasks resolve. Inference re-uses that same machinery. Nothing new gets added — queries are just INTEND records with a specific shape, responders are actors or system adapters you already register, fold is declarative, and the answer is just another KNOW record that other records can cite as a parent.
 
 If you've used a chat model, you have a mental model for querying one model at a time. Inference generalises that to **many responders of different kinds** — LLMs, patterns, system adapters, and human actors — in a single query, with a declarative rule for how their answers combine.
 
 ## Why queries are records
 
-The 8-field record shape (`parents`, `thread`, `actor`, `act`, `body`, `clock`, `data_type`, `judged_by`) is the only thing the substrate ingests. That applies to inference too.
+The 8-field record shape (`parents`, `thread`, `actor`, `act`, `body`, `clock`, `data_type`, `judged_by`) is the only thing Syncropel ingests. That applies to inference too.
 
-A query is an INTEND record whose `body` follows the `infer.query.v1` schema. The executor listens for that body kind via an INGEST-time event trigger, runs the pipeline (responder filter → relevance-score → dispatch CALLs → await DOs → fold → validate → commit KNOW), and the answer lands as a new KNOW record on the same thread. No new HTTP endpoint. No orchestration daemon. The substrate does the work because the substrate already knows how to do this work.
+A query is an INTEND record whose `body` follows the `infer.query.v1` schema. The executor listens for that body kind via an INGEST-time event trigger, runs the pipeline (responder filter → relevance-score → dispatch CALLs → await DOs → fold → validate → commit KNOW), and the answer lands as a new KNOW record on the same thread. No new HTTP endpoint. No orchestration daemon. Syncropel does the work because it already knows how to do this work.
 
 This has practical consequences:
 
@@ -95,7 +95,7 @@ Inference is declarative: you write what you want, the engine picks the particip
 
 - **It doesn't make the responders faster.** If you pool 3 LLMs at 5s each, you pay at least 5s (plus engine overhead). Fold is cheap; the bottleneck is the slowest responder that counts toward your `min_quorum`.
 - **It doesn't magically aggregate open-ended text.** `consensus` keyed on canonical-JSON assumes bodies are structured. For long-form prose, use `best_of` with trust or `ensemble_weighted` with a custom weight expression.
-- **It doesn't replace your evaluation loop.** The fold is the aggregation; the trust substrate is what tells you which responders to weight. You still need KNOW records with verdicts to feed the trust model.
+- **It doesn't replace your evaluation loop.** The fold is the aggregation; the trust model is what tells you which responders to weight. You still need KNOW records with verdicts to feed the trust model.
 
 ## See also
 

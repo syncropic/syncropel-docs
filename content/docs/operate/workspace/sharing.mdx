@@ -1,6 +1,6 @@
 ---
 title: Sharing a thread for bug repro
-description: spl share bundles a thread (with consent) into a single command a recipient can replay against their own kernel. Substrate-native, signature-verified, time-bounded.
+description: spl share bundles a thread (with consent) into a single command a recipient can replay against their own instance. Built in, signature-verified, time-bounded.
 ---
 
 `spl share <thread>` is the canonical "send me your repro" workflow.
@@ -8,7 +8,7 @@ It bundles every record in a thread (and optionally its causal
 ancestors) into a portable file, emits a `core.consent.v1` record
 authorizing a specific recipient to read those records, and prints a
 single command the recipient runs to replay everything against their
-own kernel.
+own instance.
 
 It's the right tool for:
 
@@ -32,7 +32,7 @@ spl share th_a48c... --to did:sync:dev:alice
 What happens:
 
 1. The CLI fetches every record in `th_a48c...` from your local
-   kernel.
+   instance.
 2. It emits a `core.consent.v1` record signed by your DID, granting
    `did:sync:dev:alice` `records.read` on the bundle.
 3. It writes the records as a portable archive (one canonical-JSON
@@ -108,7 +108,7 @@ What happens:
 3. It checks the consent hasn't expired.
 4. It validates each record's signature against the actor DIDs in the
    bundle.
-5. It replays the records into Alice's kernel — by default into an
+5. It replays the records into Alice's instance — by default into an
    ephemeral in-memory store so prod data isn't touched.
 6. It prints a summary:
 
@@ -119,14 +119,14 @@ What happens:
 
 Alice can now poke at the thread with the same Studio + CLI tooling
 she'd use for her own data. When she's done, she stops the ephemeral
-kernel and the bundle is gone.
+instance and the bundle is gone.
 
 For long-lived investigations, use `--persist` to import into Alice's
 default store instead of an ephemeral one. The records carry their
 original actor DIDs, so they don't pollute Alice's audit trail with
 phantom authorship — they're clearly marked as replayed.
 
-## Why a substrate-native flow
+## Why a records-native flow
 
 `spl share` doesn't introduce any new wire format. It's built from
 existing record kinds:

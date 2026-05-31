@@ -5,7 +5,7 @@ description: Every Syncropel instance serves a landing page at GET / — a bespo
 
 Every Syncropel instance serves a landing page at `GET /` — the first
 thing a visitor sees when they hit `<your-instance>.syncropel.com` or
-`alice.syncropel.app`. That page is rendered by the kernel itself,
+`alice.syncropel.app`. That page is rendered by the engine itself,
 server-side, from data the instance already has.
 
 The default landing page is a bespoke L0 identity card: the instance
@@ -23,7 +23,7 @@ floor.
 **Tier 1 — the L0 identity card (always on)**: the floor. A real instance
 serves a real-looking page from the moment it boots, with no setup. The
 glyph, the typography, the structural rhythm — these come from the
-kernel and cannot be removed. They are what makes one Syncropel instance
+engine and cannot be removed. They are what makes one Syncropel instance
 visibly the same network as every other one.
 
 **Tier 2 — record-driven content overrides**: publish a `core.site.v1`
@@ -39,7 +39,7 @@ and a small allowlist of `<head>` content at known paths on the host
 filesystem, and the renderer picks them up on each request. This is the
 WordPress-theme-style escape hatch for operators who want full control:
 load a custom font, add an Open Graph image, override the accent palette
-across both light and dark themes. The kernel enforces strict allowlists
+across both light and dark themes. The engine enforces strict allowlists
 on what shapes of content can land in `<head>` — no inline scripts, no
 arbitrary HTML — so the L0 floor remains intact even with overlays
 applied.
@@ -67,7 +67,7 @@ render_site(card, content, overlay) → HTML
   process level.
 
 Anything operator-supplied flows through the same renderer; the L0 card
-shape is always the substrate. Operators add and override, never replace
+shape is always the foundation. Operators add and override, never replace
 the structural design.
 
 ## When to use which tier
