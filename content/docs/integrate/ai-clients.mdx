@@ -298,7 +298,7 @@ Recent analysis of coding agents (Claude Code, Cursor agent mode) shows they use
 
 ## Pattern 3 — Programmatic Agents (for agents that write code)
 
-For agents that accomplish tasks by writing code — any code-execution-capable LLM, Cloudflare Workers agents, custom harnesses with sandboxed execution. The agent writes a short program using `@syncropel/sdk` (TypeScript) or `syncropel` (Python) that does multi-step work entirely in the sandbox. Only the final result flows back to context.
+For agents that accomplish tasks by writing code — any code-execution-capable LLM, serverless-platform agents, custom harnesses with sandboxed execution. The agent writes a short program using `@syncropel/sdk` (TypeScript) or `syncropel` (Python) that does multi-step work entirely in the sandbox. Only the final result flows back to context.
 
 ### Why this pattern
 
@@ -308,7 +308,7 @@ See the [Programmatic Agents guide](/docs/integrate/programmatic-agents) for wor
 
 ### When to choose this pattern
 
-- Your agent harness supports code execution (any code-execution-capable LLM, Cloudflare Workers, custom Python/Node sandbox)
+- Your agent harness supports code execution (any code-execution-capable LLM, a serverless platform, a custom Python/Node sandbox)
 - Your workflow has >10 coordinated operations per session
 - You want the SDK's fail-open transport semantics (emits never crash the agent on transient network errors)
 - You care about token efficiency at scale

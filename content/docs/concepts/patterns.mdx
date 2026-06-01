@@ -22,7 +22,7 @@ Every record carries implicit hash signatures at four levels of abstraction. L0 
 | **L2 Flow** | `in + out + p` — the value-shape (types and structure). | Different operations that take the same input shape and produce the same output shape. | Different input or output types. |
 | **L3 Intent** | `in + out` — the input-output boundary. | Radically different implementations that cross the same boundary. | Different boundary contracts. |
 
-L0 never leaves its namespace of origin without explicit consent — this is [F8](/docs/reference/glossary), the namespace isolation invariant. L1 through L3 are structural and safe to share across namespaces, which is what makes cross-namespace pattern replay viable without leaking content.
+L0 never leaves its namespace of origin without explicit consent — the [namespace-isolation rule](/docs/reference/glossary), where exact-match hashes never cross a namespace boundary without consent. L1 through L3 are structural and safe to share across namespaces, which is what makes cross-namespace pattern replay viable without leaking content.
 
 The hash containment property holds: `L0 ⟹ L1 ⟹ L2 ⟹ L3`. If two records match at L0, they match at every higher level. The reverse is not true; two records matching at L3 may differ at L2.
 

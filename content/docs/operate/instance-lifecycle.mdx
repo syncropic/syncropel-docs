@@ -115,7 +115,7 @@ The hosted-instance flow is the same engine as the self-hosted one — same bina
     participant Site as syncropel.com
     participant Prov as provisioning service
     participant Auth as edge auth proxy
-    participant K as spl kernel<br/>(hosted instance)
+    participant K as spl daemon<br/>(hosted instance)
 
     U->>Site: sign in
     Site->>Prov: POST /provision<br/>(signed-in session, label)

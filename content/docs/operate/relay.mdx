@@ -147,7 +147,7 @@ This is intentionally coarse — production operators should wait for D8 or run 
 
 ### Rate limits
 
-The relay does not enforce per-sender or per-receiver rate limits at the application layer. Use a reverse proxy (nginx `limit_req_zone`, Cloudflare, or an API gateway) until native limits land.
+The relay does not enforce per-sender or per-receiver rate limits at the application layer. Use a reverse proxy (nginx `limit_req_zone`, a CDN, or an API gateway) until native limits land.
 
 ## Monitoring
 
