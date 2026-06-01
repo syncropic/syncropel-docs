@@ -180,7 +180,9 @@ function OSPanel({ cmd, osLabel }: { cmd: OSCommand; osLabel: string }) {
         </div>
       </div>
       <p className="text-[12px] leading-relaxed text-fd-muted-foreground">
-        Single binary, ~10 MB. No Docker, no separate runtime. Data lives at{' '}
+        Single binary — no Docker, no separate runtime. Once it&rsquo;s running,{' '}
+        <code className="rounded bg-fd-secondary px-1 py-0.5 font-mono text-[11px]">spl task add</code>{' '}
+        works immediately: no token, no login — the local socket is the trust boundary. Data lives at{' '}
         <code className="rounded bg-fd-secondary px-1 py-0.5 font-mono text-[11px]">~/.syncro/hub.db</code>.
       </p>
       <div className="flex flex-wrap items-center gap-3 pt-1">
