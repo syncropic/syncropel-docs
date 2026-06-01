@@ -90,6 +90,9 @@ A `LEARN` on `th_engine_config` with `body.topic: "event_trigger"`. Fires when a
 
 ## F
 
+**Faculty**
+A deployable unit of intelligence, addressed by *what it does* rather than *what it's made of*. A language model, a deterministic solver, a classifier, an external service, or a script can all serve the same Faculty — each takes work in and emits a result record, is judged by an independent evaluator, and accumulates trust from those verdicts. Deployed as a manifest via `spl faculty deploy`. See [Faculties](/docs/concepts/faculty).
+
 **Fan-out**
 A parent `INTEND` that declares `body.subtasks` as a list of child descriptors and `body.join` as a predicate. The engine spawns one child `INTEND` per descriptor, dispatches each to a target worker instance via the instance registry, and emits the parent `KNOW` when the CEL join predicate is satisfied.
 
@@ -157,6 +160,9 @@ One of 4 coordination act types. Records an insight or persistent decision — a
 See **Clock**.
 
 ## M
+
+**Marketplace (Calibrated)**
+The mechanism that routes a piece of work to the highest-trust [Faculty](/docs/concepts/faculty) that declared it can handle that kind of work — ranked purely on earned trust in the domain, blind to mechanism. A cold-start floor keeps unproven candidates from displacing proven ones, and ties favor the incumbent. See [The Calibrated Marketplace](/docs/concepts/marketplace).
 
 **Memory**
 An actor's persistent context across sessions — LEARN records on the actor's memory thread projecting into preferences, learned corrections, project state, and references. Loaded by the agent CLI adapter at dispatch time via the agent's manual. See [Actors — memory](/docs/concepts/actors#memory-persistent-context-across-sessions).
