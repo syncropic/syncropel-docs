@@ -1,0 +1,61 @@
+---
+title: Insights & Observability
+description: Use `spl insights` to surface proactive observations the system computes from its own activity log — trust drift detection and lingering open work — so problems find you before you go looking.
+---
+
+## Overview
+
+Your instance is constantly computing derived views over its own record log: trust scores, task state, calibration signals. Most of the time you ask for those views explicitly — `spl trust`, `spl task list`, `spl status`. **`spl insights`** flips that around. It surfaces the observations the system *already noticed* on its own, so the things worth your attention come to you instead of waiting to be queried.
+
+```bash
+spl insights
+```
+
+```
+Insights:
+  ⚠ Trust drift: did:sync:agent:dev in 'code' — a shift in recent verdicts
+    was detected after 302 observation(s); review recent reviews.
+```
+
+If nothing needs attention, `spl insights` says so — no noise.
+
+## What it surfaces
+
+Insights are folded from the same record log everything else derives from. Two kinds today:
+
+### Trust drift
+
+The [trust](/docs/concepts/trust) machinery watches each actor's stream of verdicts for a *change in pattern* — a run of acceptances that turns into a run of rejections, or vice versa. When it detects a statistically meaningful shift, it raises a drift signal naming the actor and domain.
+
+A drift signal is a prompt to look, not a verdict. An agent whose recent work in `code` started getting rejected might be hitting a class of task it's weak at, working against a moved target, or running on a changed underlying model. The signal tells you *where* to look; the [trust page](/docs/concepts/trust) explains how the scoring works.
+
+### Lingering open work
+
+Insights also flags open work that's been sitting — threads and tasks that opened but never closed, well past the point where you'd expect them to. This is the same signal that feeds [task triage](/docs/guides/task-suggestions#spl-task-triage--find-what-to-close), surfaced proactively: work that's quietly stalled, so you can re-engage, reassign, or close it.
+
+## When to run it
+
+`spl insights` is cheap and read-only — run it whenever you want a pulse on what's drifting:
+
+- **At the start of a session**, alongside `spl status`, to see if anything moved while you were away.
+- **After a burst of agent work**, to catch trust drift early rather than discovering it three rejections later.
+- **Periodically**, the same way you'd glance at task triage — to keep stalled work and reputation shifts from accumulating silently.
+
+## How it relates to `spl status`
+
+The two are complementary:
+
+| Command | Answers | Character |
+|---|---|---|
+| `spl status` | "Is the system healthy right now?" | A snapshot: uptime, record and thread counts, engine counters, recent activity. Plus, best-effort, the top task suggestions. |
+| `spl insights` | "What has the system noticed that I should look at?" | A focused list of *observations* — drift and lingering work — distilled from the log. |
+
+`spl status` is the dashboard; `spl insights` is the alert feed. Status tells you the instance is up and how much it's done. Insights tells you *which corner of that activity deserves a second look*. Run both at the start of a session: status for the health check, insights for the watch-outs.
+
+Insights pairs naturally with [`spl task suggest`](/docs/guides/task-suggestions) — insights tells you what's drifting, suggest tells you what to do about it.
+
+## What's next
+
+- **[Task suggestions & triage](/docs/guides/task-suggestions)** — turn the backlog into a next-move shortlist and a close-list.
+- **[Trust](/docs/concepts/trust)** — how drift detection and verdict scoring work.
+- **[CLI reference](/docs/reference/cli)** — full command surface, including `spl status`.

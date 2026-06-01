@@ -1,0 +1,102 @@
+---
+title: Faculties
+description: A Faculty is a deployable unit of intelligence addressed by what it does, not what it's made of. An LLM, a solver, a classifier, or a script can all fulfill the same Faculty — and the system routes work to whichever has earned the most trust at the task.
+---
+
+## Overview
+
+A **Faculty** is a deployable unit of intelligence: something that can take in a piece of work and produce a result. The defining idea is that a Faculty is addressed by *what it does*, not by *what it's made of*. A large language model, a deterministic solver, a classifier, an external HTTP service, or a plain script can all serve the same Faculty. From the system's point of view they are interchangeable — each one is just a participant that takes work in and emits a result record.
+
+This is what we mean by **mechanism independence**. Syncropel is not "an LLM platform with solver support bolted on." It folds a solver into its work exactly as it folds a language model: both receive work through the same path, both produce ordinary records, both are judged by an independent evaluator, and both accumulate [trust](/docs/concepts/trust) from those verdicts. There is no privileged mechanism.
+
+## Why mechanism independence matters
+
+Most systems hard-code a mechanism. "Summarize this" *means* "call the LLM." "Solve this" *means* "run the solver." The mechanism is baked into the code, so swapping it out is a rewrite.
+
+Syncropel inverts that. Work is addressed to a *capability* — the kind of result you want — and any Faculty that declares it can do that kind of work is a candidate. The practical payoff:
+
+- **Reliability is measured, not assumed.** You don't decide up front that the LLM is the right tool for a task. You deploy candidates, let them do real work, let independent evaluators grade the outcomes, and the one that earns the most trust at that task is the one that gets the work. The choice is grounded in outcomes, not in a developer's guess.
+- **You can mix mechanisms freely.** A cheap deterministic solver can handle the cases it's good at while a language model handles the open-ended ones — and the system routes between them on evidence, not on a brittle `if` statement.
+- **Swapping is deployment, not a code change.** Replacing one mechanism with a better one is deploying a new Faculty manifest. Nothing in the calling path changes.
+
+A worked example: a deliberately-weak greedy heuristic and an exact optimization solver can both declare they handle the same problem kind. They compete. Independent verdicts on their results diverge their trust scores — the exact solver earns standing, the weak heuristic doesn't — and the system starts routing that problem to the solver that actually produces the right answer. No mechanism-specific logic decided that; the evidence did. This is the [calibrated marketplace](/docs/concepts/marketplace).
+
+## What a Faculty looks like
+
+A Faculty is deployed as a manifest — a small record describing how to reach the mechanism and what it does. The key fields:
+
+| Field | What it declares |
+|---|---|
+| **actor** | The DID the Faculty runs as. Its results are attributed to this identity, and trust accrues to it. |
+| **mechanism** | What it's made of: `llm`, `solver`, `search`, `model`, `perceptor`, `external_process`, `human`, `cel`, or `composite`. The system treats them all the same way. |
+| **transport** | How work reaches it: `proxy_http` (an HTTP service) or `local_binary` (a process the server spawns — operator-trusted only). |
+| **seam** | Where it plugs in: `inference` (it reasons / produces results), `effect` (it acts on the world), or `both`. |
+| **intent kind** | The kind of work it serves — the capability it advertises. |
+| **declared kinds** | The result kinds it's allowed to emit. |
+| **lifecycle** | `standing`, `default_on`, `on_demand`, or `ephemeral`. |
+
+The mechanism field is descriptive metadata, not a code branch. The routing and trust machinery never reads it to decide what to do — that's the whole point.
+
+## Managing Faculties with `spl faculty`
+
+### Deploy
+
+Deploying a Faculty publishes its manifest. Your instance validates it and registers it live — no restart.
+
+```bash
+# An LLM-backed Faculty (the common case; these fields are the defaults)
+spl faculty deploy did:sync:agent:writer \
+  --mechanism llm \
+  --transport proxy_http \
+  --endpoint https://api.example.com/v1/chat/completions \
+  --model your-model-name \
+  --auth-ref secret://my_api_key \
+  --prompt-ref embedded:writer.v1 \
+  --intent-kind core.user.message.v1
+
+# A non-LLM solver reached over HTTP — note: no model/prompt needed
+spl faculty deploy did:sync:agent:optimizer \
+  --mechanism solver \
+  --transport proxy_http \
+  --endpoint https://solver.example.com/solve \
+  --auth-ref secret://solver_key \
+  --intent-kind acme.problem.lp.v1 \
+  --declares-kind acme.solution.lp.v1
+```
+
+The `<DID>` accepts a `name` shorthand that expands to `did:sync:agent:<name>`. Secrets are referenced by handle (`secret://...`), never pasted inline.
+
+### List, show, retire
+
+```bash
+# Every deployed Faculty (latest manifest per actor)
+spl faculty list
+# ACTOR                  MECHANISM   TRANSPORT    SEAM       ENABLED
+# did:sync:agent:scribe  llm         proxy_http   inference  true
+
+# One Faculty's manifest in full
+spl faculty show did:sync:agent:scribe
+
+# Retire a Faculty — unregisters it live
+spl faculty retire did:sync:agent:optimizer
+```
+
+Retiring emits a disabled manifest; the Faculty stops receiving work immediately. Because everything is a record, the history of what was deployed when stays in the log — retirement doesn't erase it.
+
+## The citizenship contract
+
+A Faculty isn't trusted just because it was deployed. It earns standing by being a good citizen of the coordination protocol, on the same terms as every other participant:
+
+- **Grounded** — its results are real records attributed to its own DID, not anonymous output.
+- **Legible** — anyone with access to the thread can read what it produced and why.
+- **Accountable** — an *independent* evaluator judges its work; it can never grade itself. (See the evaluation gate in [Trust](/docs/concepts/trust).)
+- **Bounded** — it runs under a budget and a capability, and it can only emit the result kinds it declared.
+
+A fresh Faculty starts with no trust and earns it the same way anyone does: produce results, get judged, accumulate evidence. A brand-new candidate can't displace a proven one until it has earned the standing.
+
+## What's next
+
+- **[The calibrated marketplace](/docs/concepts/marketplace)** — how the system routes between competing Faculties on trust alone.
+- **[Trust](/docs/concepts/trust)** — the evidence-based scoring that decides which Faculty gets the work.
+- **[Agents](/docs/concepts/agents)** — the most familiar Faculty: an actor driving a work loop with a language model.
+- **[CLI reference](/docs/reference/cli)** — the full `spl faculty` command surface.

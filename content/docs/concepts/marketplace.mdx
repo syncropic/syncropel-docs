@@ -1,0 +1,47 @@
+---
+title: The Calibrated Marketplace
+description: When several Faculties can do the same kind of work, the system routes to the one with the highest earned trust — measured purely on outcomes, blind to mechanism. Reliability is bought with evidence, not declared.
+---
+
+## Overview
+
+When more than one [Faculty](/docs/concepts/faculty) can handle the same kind of work, something has to decide which one actually gets it. Syncropel decides on **earned trust**: it routes the work to the candidate with the highest [trust](/docs/concepts/trust) for that domain, and it measures trust purely on outcomes that independent evaluators judged. We call this the **calibrated marketplace**.
+
+"Calibrated" is the load-bearing word. This is not a popularity contest, a price auction, or a hand-tuned preference list. The only currency is verified results. A Faculty that consistently produces work that independent evaluators accept rises; one whose work gets rejected falls. The marketplace is a measurement, continuously refreshed.
+
+## Mechanism-blind by construction
+
+The marketplace never inspects what a Faculty is *made of*. When several candidates declare they can do a kind of work, the system ranks them by their trust in the relevant domain and dispatches the best one — reading nothing but the trust scores. A deterministic solver, a language model, and a script are ranked on exactly the same axis.
+
+This matters because it means a non-LLM mechanism competes on equal footing. There's no built-in assumption that "the smart thing to do is call the model." If a cheap exact solver produces better-judged results than a language model on a class of problems, the marketplace routes that class to the solver — not because anyone coded that preference, but because the evidence put the solver on top.
+
+Concretely: deploy two Faculties that both declare the same problem kind — say an exact optimization solver and a deliberately-weak greedy heuristic. Let them do real work. Independent verdicts grade their results. The solver's outcomes are accepted, the heuristic's are rejected, and their trust diverges. Now route a *fresh, unaddressed* problem of that kind, naming no specific Faculty: the system gathers every candidate that declared the capability, ranks them by trust, and sends it to the solver. The right answer wins because reliability was measured, not assumed.
+
+## How a winner is chosen
+
+When a piece of work could go to multiple Faculties, the marketplace:
+
+1. **Gathers candidates by declared capability.** Every Faculty that advertises it can handle this kind of work is in the running — the system discovers competitors from what they *declare they do*, not from a curated list.
+2. **Ranks by domain trust.** Each candidate is scored by its earned trust in the work's domain (the Wilson lower bound — see [Trust](/docs/concepts/trust)). The mechanism is never read.
+3. **Dispatches the best.** The highest-trust candidate gets the work.
+
+Two disciplines keep this honest:
+
+- **Cold-start floor.** A candidate with no verdicts scores effectively zero. A brand-new Faculty cannot leapfrog a proven one just by existing — it has to earn its standing first.
+- **Ties favor the incumbent.** When scores tie, the existing primary keeps the work. A fresh challenger displaces a proven Faculty only by actually scoring higher on the evidence.
+
+## Why this is the economic payoff, not just a routing trick
+
+The marketplace is the mechanism by which Syncropel gets cheaper and more reliable over time *without anyone tuning it*. As evidence accumulates:
+
+- Work gravitates to whichever mechanism is genuinely best at it — often a cheaper, more deterministic one than a language model.
+- Proven Faculties get more of the work, which produces more evidence, which sharpens the ranking further.
+- New mechanisms can be introduced safely: deploy them as candidates, let them prove themselves on real work, and they only take over where they actually win.
+
+Nothing moves faster than the evidence allows. A mechanism that's been great historically but starts producing worse-judged results drifts down as its [trust decays](/docs/concepts/trust#decay) and recent verdicts pull it lower — and the marketplace quietly reroutes to a better candidate.
+
+## What's next
+
+- **[Faculties](/docs/concepts/faculty)** — the deployable units the marketplace routes between, and the `spl faculty` commands to deploy them.
+- **[Trust](/docs/concepts/trust)** — the evidence-based scoring that ranks candidates.
+- **[Routing rules](/docs/guides/routing-rules)** — how explicit routing and the trust-based marketplace fit together.

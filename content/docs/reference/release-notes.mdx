@@ -1,0 +1,60 @@
+---
+title: Release Notes
+description: A plain-language summary of recent Syncropel releases — intelligent task tooling, mechanism-independent intelligence, and a friction-free local start. Newest first.
+---
+
+## Overview
+
+This page summarizes recent releases in plain language — what changed and why it matters for using Syncropel day to day. For the exhaustive, version-by-version technical record, see the changelog in the source repository.
+
+---
+
+## Intelligent task tooling
+
+The system now turns its own activity log into proactive help.
+
+- **`spl task suggest`** ranks your open tasks by relevance to what you've been working on and tells you what to pick up next. It understands the *meaning* of your recent work (run `spl embed --loop` to enable that), and falls back to a priority-and-recency ranking when the backlog hasn't been embedded yet.
+- **`spl task triage`** finds stale open tasks that newer or completed work has likely superseded, pairs each one with its probable replacement, and hands you a reviewable close-list. It never closes anything itself — you decide.
+- **`spl insights`** surfaces observations the system noticed on its own: shifts in an actor's recent review outcomes (trust drift) and open work that's been lingering. Run it alongside `spl status` to catch problems before you go looking.
+
+See [Task suggestions & triage](/docs/guides/task-suggestions) and [Insights & observability](/docs/guides/insights-observability).
+
+---
+
+## Mechanism-independent intelligence — Faculties and the marketplace
+
+Intelligence in Syncropel is no longer assumed to mean "call a language model." A **Faculty** is a deployable unit of intelligence addressed by *what it does*, not *what it's made of* — an LLM, a deterministic solver, a classifier, an external service, or a script can all serve the same capability. Deploy and manage them with `spl faculty deploy / list / show / retire`.
+
+When several Faculties can do the same kind of work, the **calibrated marketplace** routes the work to whichever has earned the most trust at it — measured purely on independently-judged outcomes, blind to mechanism. A non-LLM solver competes on equal footing with a language model, and a fresh candidate has to earn its standing before it can displace a proven one. This was proven end to end: an exact solver and a deliberately-weak heuristic competed for the same capability, their trust diverged on real verdicts, and the system routed new work to the one that actually produced the right answers.
+
+See [Faculties](/docs/concepts/faculty) and [The calibrated marketplace](/docs/concepts/marketplace).
+
+---
+
+## Intelligence out of the box
+
+Fresh instances now come with a working intelligence path configured automatically — there's no manual provider setup before the conversational agent and work loops can run. The instance is recognized as a metered, audited participant against the shared gateway, governed by its own permission model.
+
+---
+
+## A friction-free local start
+
+Getting a local instance running is three short verbs, with no credential to manage:
+
+```bash
+spl init    # generate your identity + config
+spl start   # start the instance in the background
+spl task add "Try out Syncropel"   # works immediately — no token needed
+```
+
+The local CLI talks to the instance over a private socket on your machine; filesystem permissions are the authentication, so there's nothing to paste. Bearer tokens are still the right tool when you want to *delegate* scoped access — pairing a browser, a phone, an MCP client, or a remote CLI — but they're no longer in the way of just trying things locally.
+
+See [First run](/docs/get-started/first-run).
+
+---
+
+## What's next
+
+- **[Get started](/docs/get-started)** — install and run your first instance.
+- **[Concepts](/docs/concepts/records)** — the ideas behind the protocol.
+- **[CLI reference](/docs/reference/cli)** — the full command surface.

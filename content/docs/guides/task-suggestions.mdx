@@ -1,0 +1,124 @@
+---
+title: Task Suggestions & Triage
+description: Use `spl task suggest` to get a relevance-ranked "what to work on next", and `spl task triage` to surface stale tasks that newer work has likely superseded — as a reviewable close-list.
+---
+
+## Overview
+
+A backlog accumulates faster than you close it. Two commands turn that backlog into something you can act on:
+
+- **`spl task suggest`** answers "what should I work on next?" — a relevance-ranked shortlist drawn from your recent activity.
+- **`spl task triage`** answers "what can I close?" — stale open tasks that newer or completed work has probably superseded, presented as a list you review before closing.
+
+Both read directly from your task records, so they always reflect the live state of the backlog. Neither one *acts* — they surface candidates and leave the decision to you.
+
+## `spl task suggest` — what to work on next
+
+The suggester ranks open tasks by relevance. Its best mode is semantic: it understands what you've been working on lately and finds tasks related to that trajectory. When the backlog hasn't been embedded for semantic search yet, it falls back to a priority-and-recency ranking so the command is always useful.
+
+```bash
+spl task suggest
+```
+
+```
+Suggested next (priority+recency):
+  context: improve API rate limiting and quota handling
+
+  TASK-0142      [critical] Harden the rate limiter under burst load
+  TASK-0098      [high    ] Add per-tenant quota accounting
+  TASK-0231      [high    ] Surface quota usage in the dashboard
+  TASK-0205      [high    ] Backfill quota metrics for existing tenants
+  TASK-0260      [high    ] Document the quota model for operators
+
+  tip: ranked by priority — run `spl embed --loop` to enable semantic suggestions across your backlog
+```
+
+The `context:` line shows what the ranking is anchored to — by default, the gist of your recent work.
+
+### Useful options
+
+| Flag | What it does |
+|---|---|
+| `--query "<text>"` | Rank against this text instead of your recent activity — "what's relevant to *this*?" |
+| `--thread <id>` | Use a specific thread's trajectory as the relevance context. |
+| `-n, --limit <N>` | How many suggestions to show (default 5). |
+
+```bash
+# "I'm about to pick up auth work — what's relevant?"
+spl task suggest --query "authentication and session management" -n 8
+
+# "What should I do next on this thread?"
+spl task suggest --thread th_abc123
+```
+
+### Turning on semantic ranking
+
+Semantic suggestions are far sharper than the priority fallback because they match on *meaning*, not just metadata. To enable them across your backlog, build the embeddings:
+
+```bash
+spl embed --loop
+```
+
+Once the corpus is embedded, `spl task suggest` ranks by semantic relevance to your trajectory and the `tip:` line disappears.
+
+## `spl task triage` — find what to close
+
+Over time, tasks get superseded: a newer task covers the same ground, or the work landed under a different item, but the old task is still sitting open. Triage finds those.
+
+```bash
+spl task triage
+```
+
+```
+Backlog triage: 38 stale candidate(s); scanned 30.
+
+Likely superseded — review for closure:
+  TASK-0061      Prototype the old export format
+     ↳ superseded by TASK-0190 [approved] 0.71  Ship the v2 export pipeline
+
+Stale, no clear superseder — review individually:
+  TASK-0044      Investigate flaky integration test
+  TASK-0077      Spike: alternative storage backend
+  TASK-0112      Draft the migration runbook
+
+Review, then close with `spl task cancel <id>` or `spl task done <id>`.
+```
+
+Triage splits candidates into two buckets:
+
+- **Likely superseded** — each stale task is paired with a *superseder*: a newer or already-completed task that looks like it covers the same work, with a similarity score. These are the safe-to-close candidates.
+- **Stale, no clear superseder** — old open tasks with no obvious replacement. These need an individual judgment: still relevant, or quietly dead?
+
+Triage never closes anything. It hands you a reviewable list; you decide with `spl task cancel <id>` (dropped) or `spl task done <id>` (actually finished).
+
+### Useful options
+
+| Flag | What it does |
+|---|---|
+| `--stale-days <N>` | Only consider tasks older than N days as candidates. |
+| `-n, --limit <N>` | Max candidates to scan (default 30) — bounds how much work the per-candidate search does. |
+
+```bash
+# Only triage tasks that have been sitting for over a month
+spl task triage --stale-days 30 -n 50
+```
+
+Triage relies on semantic similarity to find superseders, so it works best once you've run `spl embed --loop`. Without embeddings it can still flag stale candidates but won't pair them with superseders.
+
+## When to use each
+
+| You want to… | Use |
+|---|---|
+| Decide what to pick up next | `spl task suggest` |
+| Focus on a specific topic before starting | `spl task suggest --query "..."` |
+| Clean up an overgrown backlog | `spl task triage` |
+| Confirm a task is dead before closing it | `spl task triage`, then `spl task cancel` |
+
+A good rhythm: `spl task suggest` at the start of a work session to choose your next move, and `spl task triage` periodically (weekly, or whenever the list feels heavy) to keep the backlog honest. Both pair naturally with [`spl insights`](/docs/guides/insights-observability), which surfaces proactive observations about open work and trust drift.
+
+## What's next
+
+- **[Insights & observability](/docs/guides/insights-observability)** — proactive observations the system folds from its own activity.
+- **[Task management](/docs/guides/task-management)** — the full task lifecycle the suggester and triage read from.
+- **[Search](/docs/guides/search)** — the semantic search that powers relevance ranking.
+- **[CLI reference](/docs/reference/cli)** — full command surface.
