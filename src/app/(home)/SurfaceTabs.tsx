@@ -84,9 +84,13 @@ function CliPanel() {
         <div className="p-3 font-mono text-[12px] leading-[1.8]">
           <p>
             <span className="select-none text-fd-muted-foreground">$ </span>
-            <span className="text-fd-foreground">spl task add &quot;Fix checkout timeout&quot; --domain code</span>
+            <span className="text-fd-foreground">spl task add &quot;Fix checkout timeout&quot; --alias TASK-0042 --domain code</span>
           </p>
-          <p className="text-fd-muted-foreground">✓ TASK-0042 created · thread th_a4f1…</p>
+          <p className="text-fd-muted-foreground">◇ Task created: Fix checkout timeout · TASK-0042</p>
+          <p>
+            <span className="select-none text-fd-muted-foreground">$ </span>
+            <span className="text-fd-foreground">spl task start TASK-0042</span>
+          </p>
           <p>
             <span className="select-none text-fd-muted-foreground">$ </span>
             <span className="text-fd-foreground">spl task done TASK-0042 --summary &quot;Pool 10 → 50&quot;</span>
