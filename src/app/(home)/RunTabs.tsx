@@ -17,19 +17,19 @@ const OS_COMMANDS: Record<Exclude<TabId, 'hosted'>, OSCommand> = {
   linux: {
     promptPrefix: '$',
     install: 'curl -sSf https://get.syncropic.com/spl | sh',
-    start: 'spl init && spl serve --daemon',
+    start: 'spl init && spl start',
     ready: '✓ Ready at http://127.0.0.1:9100',
   },
   macos: {
     promptPrefix: '$',
     install: 'curl -sSf https://get.syncropic.com/spl | sh',
-    start: 'spl init && spl serve --daemon',
+    start: 'spl init && spl start',
     ready: '✓ Ready at http://127.0.0.1:9100',
   },
   windows: {
     promptPrefix: 'PS>',
     install: 'irm https://get.syncropic.com/spl.ps1 | iex',
-    start: 'spl init; spl serve --daemon',
+    start: 'spl init; spl start',
     ready: '✓ Ready at http://127.0.0.1:9100',
   },
 };
