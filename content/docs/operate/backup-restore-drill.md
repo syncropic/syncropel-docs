@@ -175,9 +175,9 @@ If your production `hub.db` is in the multi-GB range (long-running instance with
 The drill exercises the **records + config** path. It does NOT exercise:
 
 - **Identity restore** — `~/.syncro/keys/` and `~/.syncro/secrets/` are NOT in the auto-backup. If you lose the keys dir without your own off-host backup of it, you cannot recover the instance's DID. Federation pairs would need to be re-established under a new DID. Back up `keys/` + `secrets/` separately, to a different vault than `hub.db` (per [Security model](./security-model.mdx)).
-- **Task content files** — `~/.syncro-data/tasks/SKL-XXXX.md` and `~/.syncro-data/aliases.toml` are referenced by path during dispatch but are NOT in the records auto-backup. The runbook's snapshot example tars them separately; do the same in your production backup script.
+- **Task content files** — `~/.syncro-data/tasks/<task-id>.md` and `~/.syncro-data/aliases.toml` are referenced by path during dispatch but are NOT in the records auto-backup. The runbook's snapshot example tars them separately; do the same in your production backup script.
 - **Federation pair re-establishment** — if you restore from a backup that pre-dates a peer pair, the peer's records are in your store but the local pair record may be stale. `spl federation pair --refresh` (where supported) or re-running `spl federation pair <peer-url>` resolves this.
-- **In-flight dispatches** — anything mid-flight when the daemon crashed is lost. Re-dispatch from the SKL ID after restore.
+- **In-flight dispatches** — anything mid-flight when the daemon crashed is lost. Re-dispatch from the task ID after restore.
 
 For the full breadth of what's protected vs what operator must mitigate, read [Security model — threat model summary](./security-model.mdx#threat-model-summary).
 
