@@ -18,7 +18,7 @@ Every actor has a Decentralized Identifier:
 ```
 did:sync:user:alice          — a human
 did:sync:agent:dev           — an AI development agent
-did:sync:agent:director      — an AI review agent
+did:sync:agent:reviewer      — an AI review agent
 did:sync:system:engine       — the runtime itself (emits notifications)
 did:sync:system:intelligence — the runtime's reasoning agent
 did:sync:system:sa_abc123    — a service account (bearer-token authenticated)
@@ -26,7 +26,7 @@ did:key:z6Mk...              — a self-describing public-key identity
 did:web:alice.dev            — a domain-rooted identity
 ```
 
-The last segment (`alice`, `dev`, `director`) is a human-readable label — the suffix is arbitrary. What matters is the full DID, because that's what every record carries in `record.actor` and what the fold keys on.
+The last segment (`alice`, `dev`, `reviewer`) is a human-readable label — the suffix is arbitrary. What matters is the full DID, because that's what every record carries in `record.actor` and what the fold keys on.
 
 Three properties hold across all DIDs:
 
@@ -83,7 +83,7 @@ did:sync:user:alice     code            12      14   0.438
 did:sync:user:alice     ops              3       3   0.097
 did:sync:agent:dev      code             8       9   0.473
 did:sync:agent:dev      ops              1       4   0.012
-did:sync:agent:director research         0       0   0.000
+did:sync:agent:reviewer research         0       0   0.000
 ```
 
 Trust starts at zero. With few observations, the score stays conservative (Wilson lower bound is low on small samples). With many observations, it converges to the empirical success rate. See [Trust](/docs/concepts/trust) for the full model — how decay works, why self-evaluation is structurally ignored, what the dial does with the score.

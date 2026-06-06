@@ -60,13 +60,13 @@ for r in json.load(sys.stdin)['data']:
 
 ### 2. Locate the agent-side log
 
-The on-disk location depends on which agent CLI ran. For **Claude Code**, sessions are typically under `~/.claude/projects/<slug>/sessions/<session_id>.jsonl`. Try the slug first:
+The on-disk location depends on which agent CLI ran. For **Claude Code**, sessions are typically under `~/.claude/projects/<slug>/<session_id>.jsonl`. Try the slug first:
 
 ```bash
-SLUG=home-you-projects-myproject
+SLUG=-home-you-projects-myproject
 SID=a3f29c4e-0b1d-4f8a-9e21-5b7c8d1e4f2a
 
-ls ~/.claude/projects/$SLUG/sessions/$SID.jsonl
+ls ~/.claude/projects/$SLUG/$SID.jsonl
 ```
 
 If that misses (the slug algorithm may differ between versions, or you're on a different agent CLI), fall back to a find:
@@ -85,7 +85,7 @@ For Claude Code's session format, the file is newline-delimited JSON, one entry 
 
 ```bash
 jq -c '{type, name: (.tool_use.name // .tool_result.tool_use_id), success: (.tool_result.is_error | not // null)}' \
-    ~/.claude/projects/$SLUG/sessions/$SID.jsonl
+    ~/.claude/projects/$SLUG/$SID.jsonl
 ```
 
 The entries have more detail than the Syncropel-side `CALL` / `KNOW` records — specifically, the full `tool_use.input` JSON and the full `tool_result.content` string (Syncropel stores both but may truncate long outputs for projection).

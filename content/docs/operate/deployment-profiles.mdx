@@ -1,0 +1,120 @@
+---
+title: Deployment Profiles
+description: A fresh self-hosted instance now starts blank — it stores and folds records but reacts to nothing until you deliberately deploy something. Choose between the blank and assistant profiles with SPL_PROFILE, understand what each seeds, and why existing and hosted instances are unaffected.
+---
+
+## Audience
+
+This page is for the operator deciding what a fresh `spl serve` instance
+should do on its very first boot. It explains the two **deployment
+profiles**, how to choose between them, and why upgrading an existing
+instance changes nothing.
+
+If you just want a conversational instance that answers when you type,
+you want the **assistant** profile — and on a Syncropic-hosted instance
+you already have it. Read on only if you are self-hosting and want to
+control what your instance reacts to.
+
+## What a profile is
+
+A Syncropel instance is, at its core, a substrate: it accepts records,
+stores them immutably, and computes state by folding them. That much is
+always true and never optional.
+
+What *varies* is whether the instance also **reacts** to records — whether
+it has a conversational agent that answers your messages, an intelligence
+agent that proposes routing when nothing matches, and a default rule that
+turns intents into work. Reactivity is a property of what you have
+**deployed** onto the substrate, not a fixed opinion baked into the
+kernel.
+
+A **deployment profile** is the choice of what gets seeded the first time
+an instance boots. There are two:
+
+| Profile | What it seeds on first boot |
+|---|---|
+| `blank` | **Nothing reactive.** The substrate stores and folds records. It does not answer messages, propose routing, or auto-route intents. It reacts to nothing until you deliberately deploy a capability onto it. |
+| `assistant` | **The conversational defaults.** A conversational agent (Scribe) that replies on a thread, an intelligence agent that proposes routing when no rule matches, and a default rule that routes intents to work. |
+
+A blank instance is a true blank slate. You can pair it, query it, fold
+it, federate it, and store work on it — but it will sit quietly and
+answer nothing until you give it something to do.
+
+## How the profile is chosen
+
+The profile is resolved at boot from one input, with a sensible default:
+
+1. **The `SPL_PROFILE` environment variable**, if set, wins. Valid values
+   are `blank` and `assistant`.
+2. **Otherwise the default depends on where the instance runs.** A
+   self-hosted instance defaults to **`blank`**. A Syncropic-hosted
+   instance defaults to **`assistant`**, so the hosted product behaves
+   exactly as it always has.
+
+To run a self-hosted instance with the conversational defaults, set the
+variable before starting the daemon:
+
+```bash
+SPL_PROFILE=assistant spl serve --daemon
+```
+
+To force a blank instance explicitly (useful in scripts, demos, or CI
+where you want a deterministic, non-reacting substrate):
+
+```bash
+SPL_PROFILE=blank spl serve --daemon
+```
+
+With no variable set, `spl serve` on your own machine starts **blank**.
+
+## When to choose which
+
+Choose **`assistant`** when you want the out-of-the-box conversational
+experience: open a thread, type, and get a reply. This is the right
+choice for most people who self-host to get the same thing the hosted
+product gives them. Note that the assistant profile only *seeds* the
+agent — it still needs a language model configured before it can actually
+respond. See [Talking to Scribe](/docs/get-started/scribe) for wiring a
+model on a self-hosted instance.
+
+Choose **`blank`** when you want the substrate and nothing else:
+
+- You are using the instance purely as a record store, a federation peer,
+  or a backup target — and an agent answering your messages would be
+  noise.
+- You want a deterministic, reaction-free instance for tests, demos, or
+  seeding scripted data without auto-responses landing on your threads.
+- You intend to deploy your own capabilities deliberately, and you want
+  to start from a clean substrate rather than removing defaults you did
+  not ask for.
+
+## Existing instances are unaffected
+
+Seeding is idempotent. The profile only governs what gets seeded the
+**first** time an instance boots onto a fresh database. An instance that
+already deployed the assistant defaults keeps them when you upgrade —
+the profile does not remove anything, and there is no migration to run.
+
+In practice:
+
+- **Upgrading a self-hosted instance** that already runs the
+  conversational agent: it keeps running it. The new `blank` default
+  applies to *new, empty* instances only, not to yours.
+- **Hosted instances**: unchanged. They run the assistant profile and
+  always have.
+- **A brand-new self-hosted instance**: starts blank unless you set
+  `SPL_PROFILE=assistant`.
+
+If you want to add the assistant capabilities to an instance that started
+blank, set `SPL_PROFILE=assistant` and restart — idempotent seeding will
+deploy the missing defaults without disturbing the records already there.
+
+## See also
+
+- [Talking to Scribe](/docs/get-started/scribe) — the conversational
+  agent the assistant profile seeds, and how to give it a model on a
+  self-hosted instance.
+- [Starting Your Instance](/docs/get-started/daemon) — the run modes
+  `spl serve` supports.
+- [Instance Lifecycle](/docs/operate/instance-lifecycle) — the end-to-end
+  recipe from provisioning to teardown.

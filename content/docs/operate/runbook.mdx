@@ -400,10 +400,10 @@ The original worker's `dispatch_complete` left the task in `failed` status. Reop
 ```bash
 spl task reopen <task-id> --reason "salvaged in-session after worker SIGKILL"
 SPL_ACTOR=did:sync:agent:dev      spl task done    <task-id> --summary "..." --domain code
-SPL_ACTOR=did:sync:agent:director spl task approve <task-id> --domain code --notes "..."
+SPL_ACTOR=did:sync:agent:reviewer spl task approve <task-id> --domain code --notes "..."
 ```
 
-Reference the salvage commit hash + workspace gate result in the director's `--notes` so trust evidence accumulates correctly.
+Reference the salvage commit hash + workspace gate result in the reviewer's `--notes` so trust evidence accumulates correctly.
 
 ### Step 8 — Clean up the worktree
 

@@ -95,7 +95,7 @@ Then approve + merge as usual:
 
 ```bash
 cd /home/you/projects/myproject
-SPL_ACTOR=did:sync:agent:director spl task approve TASK-0042 --merge
+SPL_ACTOR=did:sync:agent:reviewer spl task approve TASK-0042 --merge
 ```
 
 The approval creates a KNOW verdict record (with `judged_by` != the executor, per the self-eval-prevention gate), then merges the worktree branch back to main.

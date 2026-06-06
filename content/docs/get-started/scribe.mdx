@@ -80,6 +80,17 @@ Anthropic, OpenAI, and a local Ollama runtime.
 Either way, once a backend is configured, Scribe responds in any thread
 you open — no further wiring.
 
+<Callout type="info">
+A fresh self-hosted instance now starts on the **blank** deployment
+profile, which seeds no conversational agent at all — so configuring a
+model is not enough on its own. To get Scribe on a self-hosted instance,
+start it with the **assistant** profile (`SPL_PROFILE=assistant spl serve
+--daemon`). Hosted instances already run the assistant profile, and an
+instance that already had Scribe keeps it across upgrades. See
+[Deployment Profiles](/docs/operate/deployment-profiles) for the full
+picture.
+</Callout>
+
 ## Delegating multi-step work — `@agent <goal>`
 
 Scribe is good at conversation. For multi-step work — "audit my

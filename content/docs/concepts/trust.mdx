@@ -39,9 +39,9 @@ So a single actor can have many trust entries:
 
 ```
 trust(did:sync:agent:dev, code, did:sync:user:alice)      = 0.82  ← 47 reviews
-trust(did:sync:agent:dev, code, did:sync:agent:director)      = 0.76  ← 31 reviews
+trust(did:sync:agent:dev, code, did:sync:agent:reviewer)      = 0.76  ← 31 reviews
 trust(did:sync:agent:dev, ops,  did:sync:user:alice)      = 0.05  ← 2 reviews
-trust(did:sync:agent:director, research, did:sync:user:alice) = 0.64
+trust(did:sync:agent:reviewer, research, did:sync:user:alice) = 0.64
 ```
 
 The agent is strongly trusted in `code` by two independent evaluators; weakly trusted in `ops` because only two reviews exist; and its review trust is tracked separately from its execution trust.
@@ -65,9 +65,9 @@ The same gate governs [work loops](/docs/concepts/work-loop). A loop ends by emi
 
 The evaluator must be a different DID than the executor. If Alice approves her own work, the record is accepted into the log (Syncropel doesn't reject it), but the trust computation structurally discards self-verdicts. No trust is earned from self-approval.
 
-This has teeth in day-to-day use: the dev agent that closes a task cannot approve its own work. Its evidence is its claim of completion; the evidence that produces trust comes from the director agent or the human reviewing the PR.
+This has teeth in day-to-day use: the dev agent that closes a task cannot approve its own work. Its evidence is its claim of completion; the evidence that produces trust comes from the reviewer agent or the human reviewing the PR.
 
-For agent-to-agent review (`did:sync:agent:dev` reviewed by `did:sync:agent:director`), independence holds trivially — two different DIDs, two separate trust chains. The evaluator's trust itself accumulates independently, which is why `trust(did:sync:agent:director, review)` is a legitimate score you can query.
+For agent-to-agent review (`did:sync:agent:dev` reviewed by `did:sync:agent:reviewer`), independence holds trivially — two different DIDs, two separate trust chains. The evaluator's trust itself accumulates independently, which is why `trust(did:sync:agent:reviewer, review)` is a legitimate score you can query.
 
 ## The Wilson lower bound
 

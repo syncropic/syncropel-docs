@@ -16,7 +16,7 @@ One scheduled trigger. Dispatches your review agent at 09:00 with the goal "prod
 spl config add-trigger \
   --name "daily-digest-0900" \
   --schedule "0 9 * * *" \
-  --target "did:sync:agent:director" \
+  --target "did:sync:agent:reviewer" \
   --goal "Summarise yesterday's closed tasks, dispatch costs, and alerts. Emit a KNOW on th_daily_digest with body.topic=daily_digest." \
   --budget 0.50 \
   --timeout 600 \

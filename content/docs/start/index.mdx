@@ -23,7 +23,7 @@ spl start
 spl task add "Read the Syncropel quickstart" --priority high --domain meta
 spl task start TASK-0001
 spl task done TASK-0001 --summary "Read it. Set up local Syncropel." --domain meta
-SPL_ACTOR=did:sync:agent:director spl task approve TASK-0001 --domain meta --notes "Quickstart complete"
+SPL_ACTOR=did:sync:agent:reviewer spl task approve TASK-0001 --domain meta --notes "Quickstart complete"
 
 # 5. See your first trust evidence
 spl trust
@@ -42,13 +42,13 @@ You produced four immutable, content-addressed records on a thread, accumulated 
 | `spl task add` | Created task thread `TASK-0001` | INTEND record — task creation |
 | `spl task start` | Marked active | DO record — work-started |
 | `spl task done` | Submitted for evaluation | KNOW record — completion claim |
-| `spl task approve` | Director-actor evaluated and accepted | KNOW record — verdict; trust evidence accumulates |
+| `spl task approve` | Reviewer-actor evaluated and accepted | KNOW record — verdict; trust evidence accumulates |
 
 `spl thread records TASK-0001` shows all four; `spl trust` shows the evidence the verdict produced.
 
 ## Why a separate actor for `approve`?
 
-Syncropel's trust model gates self-evaluation: a record's evaluator must be a different actor than its emitter. The `SPL_ACTOR=did:sync:agent:director` shown above is a built-in director actor that ships with `spl init`. For solo work it's the canonical evaluator; for team work, real reviewers approve their teammates' work.
+Syncropel's trust model gates self-evaluation: a record's evaluator must be a different actor than its emitter. The `SPL_ACTOR=did:sync:agent:reviewer` shown above is just an example evaluator actor — any DID different from the emitter works. For solo work, a dedicated reviewer actor is the canonical evaluator; for team work, real reviewers approve their teammates' work.
 
 The trust function `wilson_lb(success, total)` rejects evaluations where executor == evaluator with the CUSUM detector. Trying to self-approve raises an explicit error message; the env-var workaround above is the documented single-user pattern.
 

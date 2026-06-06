@@ -75,7 +75,7 @@ The workers are persistent — their state roots at `~/.syncro-worker-{a,b}` sur
 
 ## Part 2 — Create a fan-out candidate
 
-On the coordinator, look at your task backlog for something parallelizable. For this tutorial we'll use a synthetic task, but in real work you'd pick an actual multi-subtask task from your director's proposals.
+On the coordinator, look at your task backlog for something parallelizable. For this tutorial we'll use a synthetic task, but in real work you'd pick an actual multi-subtask task from your backlog.
 
 Create a practice task you'll fan out:
 
@@ -284,7 +284,7 @@ The task is now in `review` or `done` state (depending on your evaluation gate c
 spl fleet stop --workers
 ```
 
-This sends SIGTERM to both worker daemons. Each emits a final heartbeat with `health: "draining"` before exiting. The coordinator stays running for overnight director proposals (the common case at end-of-day).
+This sends SIGTERM to both worker daemons. Each emits a final heartbeat with `health: "draining"` before exiting. The coordinator stays running for overnight scheduled work (the common case at end-of-day).
 
 If you want to stop everything including the coordinator:
 
