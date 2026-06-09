@@ -1,0 +1,53 @@
+---
+title: Your instances
+description: One identity can own several Syncropel instances — each a full runtime with its own stable URL, all owned by you. This page explains the ownership model, instance URLs, the free tier, and how to reach each one.
+---
+
+A Syncropel **instance** is a complete runtime — its own records, threads, files, and API. You are not limited to one. A single identity can own **several instances**, and they're all yours: each has a stable address, and your identity is the permanent owner of every one.
+
+## One identity, several instances
+
+When you sign in, the instances you own are tied to your identity — not to a device or a browser. Sign in anywhere and the same set of instances is yours. This is the same portable identity described in [Your identity & recovery](/docs/get-started/identity): it follows you, and so does everything it owns.
+
+Why own more than one? Common reasons:
+
+- **Separate contexts** — a personal instance and a work instance, kept fully isolated.
+- **Separate projects** — one instance per initiative, each with its own content and history.
+- **A throwaway** — a scratch instance to try something without touching your main one.
+
+## Each instance has a stable URL
+
+Every hosted instance is reachable at its own permanent address:
+
+```
+https://<label>.syncropel.app
+```
+
+The `<label>` is chosen when the instance is created and **never changes** — you can bookmark it, share it, or point a client at it, and it resolves the same way today and a year from now. (Foundational Syncropel services live under `syncropel.com`; your instances live under `syncropel.app`.)
+
+That stability is a guarantee, not a convenience: an instance's address and its ownership are fixed for the life of the instance. Nothing you build on it ever needs to move.
+
+## The free tier
+
+A signed-in identity can create a small fixed number of **free** instances (the default is a handful; the exact cap is set by the service). Each one is a real, full runtime — the free tier is about *how many*, not a reduced version of the product. Creating, owning, and counting instances is built in from day one, so if paid tiers arrive later they simply raise the cap on something that already works — nothing about your existing instances changes.
+
+## Reaching and connecting to your instances
+
+- **On the web**, sign in and open an instance to work in it directly.
+- **From the `spl` command line**, point it at an instance's URL to query, file content, or run commands against it — see [Connecting the CLI](/docs/get-started/pairing).
+- **Across devices**, because your identity is portable, the same instances are available wherever you sign in.
+
+<Callout>
+Switching fluidly between your instances inside the web app — a single picker that flips the whole workspace from one to the next — is being rolled out. The ownership model, the URLs, and reaching each instance directly all work today; the in-app switcher is the convenience layer on top.
+</Callout>
+
+## Isolation — your instances are yours
+
+Instances are isolated from each other and from everyone else's. Another person signing in sees **none** of your instances or their content, and one instance's credential never grants access to another. Ownership is the boundary, and it's enforced, not assumed.
+
+## In short
+
+- One portable identity owns **many** instances.
+- Each has a **permanent URL** (`<label>.syncropel.app`) you can bookmark and share.
+- The **free tier** sets how many; each is a full runtime.
+- They're **isolated** — yours are yours, and no one else can reach them.

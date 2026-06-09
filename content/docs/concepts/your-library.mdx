@@ -1,0 +1,45 @@
+---
+title: Your library
+description: Everything you keep in a Syncropel instance — documents, data, images, any file — is a content-addressed, queryable library, not a folder tree. This page is the mental model that ties files, records, versioning, and the API together.
+---
+
+Everything you keep in a Syncropel instance forms a **library**: an addressable, typed, queryable collection of things you've made — not a folder tree you navigate by remembering where you put something. This page is the mental model; the detailed how-tos are linked throughout.
+
+## A file is a typed record pointing at content
+
+In most systems a file is bytes at a path, and the path *is* its identity. Syncropel splits those apart:
+
+- The **bytes** are stored content-addressed — identified by their content, so identical content is stored once and a reference to it is stable forever.
+- A **record** points at those bytes and carries the meaning: its type, its name, who made it, when.
+
+So a file is a typed record that references content. You still see familiar names and folders in the interface — but underneath, identity is the content and the record, not a mutable path. This is why a thing you file is retrievable and renderable unchanged no matter what features ship later.
+
+You can keep **any content type** — a markdown document, a structured data record, an image, a PDF, an arbitrary binary. See [Files](/docs/concepts/files) for the model and [Files in Studio](/docs/guides/files-in-studio) for the day-to-day UI.
+
+## Versioning is free — history is the thread
+
+Records are immutable. "Editing" a file doesn't overwrite it; it files a new version, and the old one still exists. The **history of a thing is its thread** — the ordered trail of versions and changes — rather than a separate version-list bolted on. You get an audit trail and the ability to look back without doing anything special: it's how the substrate works, not a feature you enable.
+
+## Organize by meaning, not by hierarchy
+
+Because the library is queryable, you organize by **what things are and how they relate** — types, threads, metadata — and ask for what you want, rather than navigating to where you filed it. A folder-style *view* can sit on top of that for familiarity, but the hierarchy is a lens, never the underlying identity.
+
+## "Made by you"
+
+When you create or upload something, the library records that **you** made it. Your own files read as yours; things produced on your behalf by an assistant are attributed to that work. Provenance is part of the record, so "who made this" is always answerable.
+
+## Reaching your library programmatically
+
+Everything in the UI is available through the instance API and the SDKs, so an app or script can file, read, list, and manage content directly:
+
+- **TypeScript / JavaScript** — the `client.data` surface in the [SDK data plane guide](/docs/guides/sdk-data-plane).
+- **Python** — the same `client.data` surface in the Python SDK.
+
+These give you create / read / list / delete plus safe concurrent edits (write-only-if-unchanged), so a tool never silently clobbers a file someone else just changed.
+
+## In short
+
+- Your library is **content-addressed and queryable**, not a path tree.
+- A file is a **typed record pointing at content**; any content type is welcome.
+- **Versioning is free** — records are immutable, history is the thread.
+- Everything is reachable through the **API and SDKs**, with safe concurrent edits.
