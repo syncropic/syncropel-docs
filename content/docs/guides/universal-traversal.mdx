@@ -1,0 +1,70 @@
+---
+title: Universal traversal — your reach
+description: See everything you reach across all your instances as one continuous view, ask graph questions about the people and threads connected to you, and understand how shared threads appear with exactly the access that was granted.
+---
+
+You can run more than one Syncropel instance — a laptop, a hosted instance, a work instance — and you can pair with other people. **Universal traversal** is the read model that ties all of that together: it lets you see *everything you reach* as one continuous view, instead of logging into each instance separately.
+
+## Everything you reach
+
+Your **reach** is the union of:
+
+- **Your own instances** — every instance that belongs to *you*.
+- **What others have shared with you** — threads other people have granted you access to.
+
+Across your *own* instances there are no walls: because they're all you, you see full detail everywhere — a thread you started on your laptop and one on your hosted instance sit side by side in one timeline. This is **own-fleet collapse**: your fleet of instances collapses into a single "you."
+
+Most read endpoints accept a `root` parameter to choose the scope:
+
+- default (no `root`) — just this instance.
+- `root=⊤` — your whole reach (all your instances + what's shared with you). The `⊤` symbol (read "top") means "everything."
+
+```bash
+# Your home digest across everything you reach
+curl "http://localhost:9100/v1/folds/rollup?root=⊤"
+```
+
+The digest is **origin-tagged** — each item says which instance it came from — and **partition-honest**: if one of your instances is unreachable, the response says so rather than silently dropping its activity.
+
+## Asking the graph questions
+
+Your reach is a graph: people, the threads they participate in, and the records that connect them. Graph queries let you ask about that structure:
+
+| Question | Query |
+|---|---|
+| How am I connected to this person? | `op=path&from=…&to=…` |
+| What threads do we both touch? | `op=shared_context&a=…&b=…` |
+| Who and what is near this thread? | `op=neighborhood&node=…&k=2` |
+| Who's most connected in my reach? | `op=centrality` |
+
+```bash
+curl "http://localhost:9100/v1/graph/query?op=shared_context&a=did:sync:user:alice&b=did:sync:user:bob&root=⊤"
+```
+
+A path can stitch *through* people you share context with — so "how do I reach Dana?" can answer "through Bob, in the thread you both joined."
+
+## One trust score per person
+
+Someone might reach you from several instances (their laptop, their hosted instance) — but they're one person. **Principal trust** unifies their track record into a single score, rather than scattering it across the instances they happened to use:
+
+```bash
+curl "http://localhost:9100/v1/folds/principal_trust?root=⊤"
+```
+
+You get one trust score per *person* in your reach, computed over everything they've done everywhere you can see — not one score per device.
+
+## How shared threads appear
+
+When someone shares a thread with you, universal traversal shows it with **exactly the access they granted** — no more, no less:
+
+- **Granted** — you see the thread at the level they shared it.
+- **Sealed** — a thread shared at a summary level shows its shape and a summary, but the full contents stay sealed until granted.
+- **Omitted** — a thread they *didn't* share doesn't appear at all. It isn't listed as "hidden"; from your side it simply isn't there, so its existence never leaks.
+
+This is the same [consent](/docs/concepts/federation) model that governs all federation — universal traversal just applies it consistently across your whole reach. You always see your own content in full; other people's content appears only at the level they chose.
+
+## What's next
+
+- [The Graph](/docs/concepts/graph) — how instances form a network you can discover across.
+- [Federation](/docs/concepts/federation) — pairing, consent, and what crosses between instances.
+- [Trust](/docs/concepts/trust) — how the scores behind principal trust are computed.

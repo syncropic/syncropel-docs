@@ -129,7 +129,7 @@ A typical end-to-end flow:
 4. (Optional) Alice narrows what she shares: `spl federation thread-allow <pair-id> th_shared_workspace`. Without an allowlist, all consent-permitted threads sync.
 5. Alice emits a record: `spl intend --thread th_shared_workspace "review the design"`.
 6. Within ~5 seconds Bob's instance has pulled it, signature-verified it, run consent + thread filters, and ingested it into his local store. Alice's side pulls Bob's emissions on the same cadence.
-7. If Alice and Bob are in different namespaces, the consent filter runs. If there's no matching grant, nothing propagates. If there's a grant with L0, records arrive intact. If the grant excludes L0, records arrive with `{"redacted": true}` bodies.
+7. If Alice and Bob are in different namespaces, the consent filter runs. If there's no matching grant, nothing propagates. If there's a grant with L0, records arrive intact. If the grant excludes L0, records arrive **projected to the granted hash level** — their structure and flow without the exact contents — rather than a redaction stub. A thread that was never granted doesn't appear at all (its existence never leaks).
 
 The whole flow is about a minute of setup. Once a pair exists, propagation is automatic, continuous, and bidirectional.
 
@@ -146,6 +146,7 @@ What's enforced today is the strict default: no consent, no crossing. An operato
 ## What's next
 
 - **[The Graph](./graph)** — the federation pattern: how instances discover each other and the workspaces they publish
+- **[Universal traversal](/docs/guides/universal-traversal)** — see everything you reach across your instances as one view; how shared threads appear with exactly the granted access
 - **[Federation pair guide](/docs/guides/federation-pair)** — hands-on `spl federation pair` walkthrough with two local daemons
 - **[Consent management](/docs/guides/consent)** — the full consent grant flow for cross-namespace sharing
 - **[Records](./records), [Threads](./threads), [Actors](./actors)** — the primitives federation composes over

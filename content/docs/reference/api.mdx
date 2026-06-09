@@ -274,6 +274,85 @@ Projection formats:
 | `tui` | Turn-based view for terminal display |
 | `messages` | Chat-style message format |
 
+## Data plane (files & blobs)
+
+The data plane is a per-namespace virtual filesystem. The control surface (`/v1/data/*`) manages paths and metadata; the byte surface (`/v1/blobs/*`) moves content. The TypeScript SDK wraps all of this as [`client.data.*`](/docs/guides/sdk-data-plane).
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/data/list?path=` | List a directory |
+| GET | `/v1/data/stat?path=` | Node metadata (size, hash, content type, pin state, provenance) |
+| GET | `/v1/data/materials?q=&limit=` | Search materials (metadata, no bytes) |
+| GET | `/v1/data/node?path=` | Resolve one material node |
+| POST | `/v1/data/mkdir` | Create a directory (`{ path }`) |
+| POST | `/v1/data/mv` | Move/rename (`{ from, to }`) |
+| POST | `/v1/data/rm` | Remove (`{ path, recursive? }`) |
+| POST | `/v1/data/write/init` | Begin a write (`{ path, size_bytes, content_type?, precondition? }`) → `{ upload_id, chunk_size }` |
+| PUT | `/v1/blobs/upload/:upload_id` | Upload a chunk (body = bytes, header `Content-Range: bytes <start>-<end>/<total>`) |
+| POST | `/v1/data/write/complete` | Commit the write (`{ upload_id }`) → `{ content_hash, size_bytes }` |
+| POST | `/v1/data/read-url` | Resolve a path to a blob URL (`{ path }`) → `{ blob_url, expires_in, via }` |
+| GET | `/v1/blobs/:hash` | Fetch content bytes by hash |
+| POST | `/v1/data/publish` | Promote a file to a durable artifact (`{ path, storage_class? }`) |
+| GET | `/v1/data/usage` | Namespace storage usage + quota |
+| GET | `/v1/data/capabilities` | Data-plane limits (chunk size, version) |
+| GET | `/v1/data/provenance` | Clock-ordered "made by" feed |
+
+### Writing a file
+
+A write is three steps: initiate, upload (chunked), commit. Pass `precondition.expected_hash` for optimistic concurrency — a string for compare-and-swap, `null` for create-only; omit it for last-writer-wins. A mismatch returns `409` with `{ expected_hash, current_hash }`.
+
+```bash
+# 1. initiate
+curl -X POST http://localhost:9100/v1/data/write/init \
+  -H "content-type: application/json" \
+  -d '{"path":"/files/notes.md","size_bytes":12,"content_type":"text/markdown"}'
+# → { "ok": true, "upload_id": "up_...", "chunk_size": 8388608 }
+
+# 2. upload the bytes
+curl -X PUT http://localhost:9100/v1/blobs/upload/up_... \
+  -H "content-range: bytes 0-11/12" --data-binary "# hello mom"
+
+# 3. commit
+curl -X POST http://localhost:9100/v1/data/write/complete \
+  -H "content-type: application/json" -d '{"upload_id":"up_..."}'
+# → { "ok": true, "content_hash": "9565f5...", "size_bytes": 12 }
+```
+
+## Folds
+
+A fold is a derived view computed from records — the turn timeline, thread state, trust, and more. One endpoint resolves any fold; the kernel dispatches by name.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/folds/:name` | Resolve a global fold (e.g. `trust`, `task_list`) |
+| GET | `/v1/folds/:name/:key` | Resolve a per-thread fold (key = thread id; e.g. `turn`, `thread_state`) |
+| GET | `/v1/folds/frame/:thread` | The renderable frame for a thread |
+| GET | `/v1/folds/rollup` | A digest across everything you reach (pass `?root=⊤` for your whole reach) |
+| GET | `/v1/folds/principal_trust` | Trust per person, unified across their instances (`?root=⊤`) |
+
+```bash
+curl "http://localhost:9100/v1/folds/turn/th_abc123..."
+# → { "fold_name": "turn", "cache_key": "th_abc123...", "watermark": 42, "value": [ ... ] }
+```
+
+Each response carries a `watermark` (`max(records.sequence)` the value covers) so a client can cache and refetch only when it moves.
+
+## Graph
+
+Graph queries traverse the substrate as a graph of people, threads, and the records that connect them. Pass `?root=⊤` to query across everything you reach (see [Universal traversal](/docs/guides/universal-traversal)).
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/graph/query?op=path&from=&to=` | Shortest path between two nodes |
+| GET | `/v1/graph/query?op=shared_context&a=&b=` | Threads two people share |
+| GET | `/v1/graph/query?op=neighborhood&node=&k=` | The k-hop neighborhood of a node |
+| GET | `/v1/graph/query?op=centrality` | Most-connected nodes in reach |
+| GET | `/v1/graph/facets` | The facets (kinds, people, threads) you can see |
+
+```bash
+curl "http://localhost:9100/v1/graph/query?op=shared_context&a=did:sync:user:alice&b=did:sync:user:bob"
+```
+
 ## Trust
 
 | Method | Path | Description |
