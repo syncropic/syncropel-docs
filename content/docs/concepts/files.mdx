@@ -84,9 +84,22 @@ There are two ways to work with the filesystem:
   rename. Edits autosave as you type, with a manual save shortcut and an
   always-visible Save button. The [Files in your instance
   guide](/docs/guides/files-in-studio) walks through it end to end.
+- **The SDK** — read and write files from your own code with `client.data.*`
+  in the [TypeScript SDK](/docs/guides/typescript-sdk): write (with safe
+  compare-and-swap edits), read, list, publish, and search. The [Files & blobs
+  guide](/docs/guides/sdk-data-plane) is the full walkthrough.
 
-Both reach the same files. Anything you upload from the terminal is there in
-the Files tab, and vice versa.
+All three reach the same files. Anything you upload from the terminal is there in
+the Files tab and through the SDK, and vice versa.
+
+## Made by you
+
+Every file remembers **who made it and when**. A file you create — from the
+terminal, the Files tab, or the SDK — reads as *yours*, not as something
+"adopted" from elsewhere. That authorship travels with the file: when you look
+at it later, or hand your instance to a teammate, the record of who produced it
+is right there. Files brought in from a connected drive or another instance
+carry *their* origin instead, so it's always clear where something came from.
 
 ## Privacy
 
@@ -105,5 +118,7 @@ rest of the instance; see [Authentication](/docs/get-started/pairing).
   find.
 - [CLI reference: Files](/docs/reference/cli#files) — the complete `spl fs`
   command list.
+- [Files & blobs (SDK)](/docs/guides/sdk-data-plane) — read and write the
+  filesystem from your own code with `client.data.*`.
 - [Threads](/docs/concepts/threads) — the conversations and tasks the
   `/threads` area draws its files from.

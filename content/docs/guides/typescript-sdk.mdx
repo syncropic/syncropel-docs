@@ -41,9 +41,11 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 
 - **Universal runtime** — Node, Deno, Bun, Cloudflare Workers, browsers. Uses platform `fetch`.
 - **Async client** — `emit`, `query`, `queryThread`, `intend`, `fulfill`, plus reserved-kind helpers
+- **Files & blobs** — `client.data.*` reads and writes the data plane (see [Files & blobs](/docs/guides/sdk-data-plane))
+- **Folds & live threads** — `client.folds.resolve()` reads any kernel fold; `client.threads.watch()` streams a thread live
 - **Grammar enforcement** — `body.kind` validated client-side before any network call
 - **Canonical references** — 11 built-in constructors for cross-publisher correlation
-- **Fail-open transport** — every emit returns a result; transport errors never raise
+- **Fail-open reads, surfaced errors** — record reads fail open (a flaky daemon never crashes your UI); malformed requests and data-plane writes raise so a dropped write is never mistaken for success
 - **Identity-aware** — records carry the configured DID
 - **`MockKernel`** — in-memory fake at `@syncropel/sdk/testing` for adapter unit tests
 - **Companion types** — pair with [`@syncropel/projections`](/docs/guides/projections) when you're working with rendered document schemas
@@ -76,6 +78,54 @@ new Client({
   fetch?: typeof fetch,           // custom transport (use for testing)
 });
 ```
+
+### Namespaces
+
+Beyond the flat emit/query methods, the rest of the surface is grouped into namespaces on the client:
+
+| Namespace | What it covers |
+|---|---|
+| `client.records` | `.create(opts)` (emit alias), `.get(id)`, `.richQuery({ filter, sort?, limit? })` — server-side filtered query. |
+| `client.threads` | `.list()`, `.records(id)`, `.state(id)`, `.project(id, format)`, and `.watch(id)` — a live `AsyncIterable` of thread events (see below). |
+| `client.folds` | `.resolve<V>(name, cacheKey?)` reads any kernel fold through one typed method; `.watermark(name, key)` checks liveness without recomputing. |
+| `client.data` | Files & blobs — write (with compare-and-swap), read, list, stat, publish, materials. See [Files & blobs](/docs/guides/sdk-data-plane). |
+| `client.namespaces` | `.list()`, `.create({ id, description?, policy? })`. |
+| `client.federation` | `.peers()`, `.pair(peer)`, `.sync(thread, peer?)`, `.discoverPeers()`, `.mergeResults()`. |
+| `client.invites` | issue / list / preview / redeem / revoke / audit invitations. |
+| `client.graph` | `.query({ start, edges?, depth?, filter? })` — graph queries over the substrate. |
+| `client.expr` | `.eval({ expression, context, record? })` — evaluate a CEL expression server-side. |
+| `client.aitl` | `.pending()`, `.decide(id, { decision, reason? })` — actor-in-the-loop proposals. |
+
+### Reading folds
+
+A fold is a derived view computed from a thread's (or the whole substrate's) records — the turn timeline, thread state, trust, and more. Read any of them through one method:
+
+```typescript
+// per-thread fold: pass the thread id as the cache key
+const turns = await client.folds.resolve("turn", threadId);
+render(turns.value);
+
+// global fold: omit the cache key
+const trust = await client.folds.resolve("trust");
+
+// liveness check — has the fold moved since you last read it?
+const wm = await client.folds.watermark("turn", threadId);
+```
+
+`resolve` fails open to an empty fold (`watermark: -1`, `value: null`) on a transport error.
+
+### Live thread streaming
+
+`client.threads.watch()` returns an `AsyncIterable` over a thread's live events — auto-reconnecting with resume-from-clock, falling back to polling after repeated disconnects, cancellable via `AbortSignal`:
+
+```typescript
+for await (const event of client.threads.watch(threadId)) {
+  if (event.type === "record") render(event.record);
+  // also: "scribe.delta", "connected", "disconnected"
+}
+```
+
+Prefer `watch()` for new code; the older callback-based `client.subscribe(thread, cb)` remains for compatibility.
 
 ### Identity
 
@@ -268,6 +318,35 @@ Unlike `client.emit()`, `client.infer()` **fails hard**:
 
 Catch timeouts explicitly if you want the thread id preserved for manual polling.
 
+## Error model
+
+The SDK distinguishes two failure modes:
+
+- **Fail-open** — record reads (`query`, `queryThread`, `richQuery`, `health`, `folds.resolve`) return an empty result on a *transient* failure (a briefly-unavailable daemon, a `5xx`, an auth blip), so a UI never crashes on backend trouble.
+- **Surfaced (thrown)** — a *programmer error* or a write that must not be lost throws, so it can't be mistaken for an empty result:
+
+| Error | Thrown when |
+|---|---|
+| `SyncropelKindError` | `body.kind` violates the grammar — raised before any network call. |
+| `SyncropelQueryError` | A read is rejected as **malformed** (HTTP 4xx) — e.g. a bad filter or sort. Carries `.detail`. |
+| `SyncropelDataError` | A `client.data.*` operation fails — a quota, a permission denial, or a compare-and-swap conflict (`.isConflict`). |
+
+```typescript
+import { SyncropelQueryError } from "@syncropel/sdk";
+
+try {
+  const { records } = await client.richQuery({ filter: { thread }, sort: { clock: -1 } });
+} catch (e) {
+  if (e instanceof SyncropelQueryError) {
+    // the request was malformed (4xx) — fix the filter/sort, don't treat as "empty"
+  }
+}
+```
+
+<Callout type="warn">
+**Migrating from 0.7.x:** `richQuery` / `query` / `queryThread` used to swallow a malformed `4xx` into an empty result. As of 0.8.0 they throw `SyncropelQueryError` instead. Valid queries are unaffected; wrap any call that might send a malformed filter/sort in a `try/catch`. The canonical fix for the most common case is the object sort form `{ clock: -1 }` (not a string).
+</Callout>
+
 ## Testing without a daemon
 
 Use `MockKernel` to write unit tests against the SDK interface without running `spl serve`:
@@ -321,6 +400,7 @@ export default {
 
 ## What's next
 
+- [Files & blobs](/docs/guides/sdk-data-plane) — read and write the data plane with `client.data.*`
 - [Records concept](/docs/concepts/records) — the 8-field envelope and why it's content-addressed
 - [Threads concept](/docs/concepts/threads) — how records group into workflows
 - [Projections SDK](/docs/guides/projections) — schema + validators for rendered documents you emit or consume

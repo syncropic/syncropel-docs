@@ -1,0 +1,171 @@
+---
+title: Files & blobs (data plane)
+description: Read and write files programmatically with the TypeScript SDK — the three-step write with compare-and-swap, streaming reads, directory operations, publishing durable artifacts, and material search.
+---
+
+Records are the coordination layer — small, immutable, content-addressed. **Files are the data plane**: arbitrary bytes (documents, images, datasets, build outputs) that live in a per-namespace virtual filesystem and are addressed by path. The TypeScript SDK exposes the whole data plane under `client.data` (available in `@syncropel/sdk` 0.8.0+).
+
+```typescript
+import { Client, Identity } from "@syncropel/sdk";
+
+const client = new Client({
+  endpoint: "https://your-instance.syncropel.app",
+  identity: Identity.static("did:example:my-app"),
+  apiKey: process.env.SYNCROPEL_TOKEN,
+});
+
+// Write a file, read it back.
+const { contentHash } = await client.data.write({
+  path: "/files/notes.md",
+  data: "# Meeting notes\n\n- ship the data-plane guide",
+  contentType: "text/markdown",
+});
+const text = await client.data.readText("/files/notes.md");
+```
+
+## How writing differs from emitting
+
+There's one important contract difference from the record methods (`emit`, `query`): **the data plane surfaces errors instead of failing open.** A record `emit` returns `{ success: false }` on transport trouble so a UI never crashes; but a *write* that hits a quota, a conflict, or a malformed path **throws** — a dropped write must never look like a success. The data plane raises `SyncropelDataError`, which you catch and handle.
+
+## Writing a file
+
+`client.data.write` performs the full three-step write — initiate, upload (chunked for large files), commit — in one call, and returns the stored content hash.
+
+```typescript
+const result = await client.data.write({
+  path: "/files/report.pdf",
+  data: pdfBytes,                  // Uint8Array | ArrayBuffer | string
+  contentType: "application/pdf",  // optional; inferred from the path otherwise
+});
+// result.contentHash — SHA-256 of the stored bytes
+// result.sizeBytes   — bytes written
+```
+
+`data` accepts a `string` (encoded UTF-8), a `Uint8Array`, or an `ArrayBuffer`. Large files are uploaded in chunks automatically; you don't manage the upload session.
+
+### Safe edits with compare-and-swap
+
+To avoid silently clobbering a concurrent change (another tab, or an agent writing the same file), pass `expectedHash`:
+
+```typescript
+// 1. Read the current file + remember its hash.
+const { contentHash } = await client.data.stat("/files/notes.md");
+
+// 2. Write only if the file is still what we read.
+try {
+  await client.data.write({
+    path: "/files/notes.md",
+    data: edited,
+    expectedHash: contentHash,   // compare-and-swap
+  });
+} catch (e) {
+  if (e instanceof SyncropelDataError && e.isConflict) {
+    // Someone wrote first. e.currentHash is the file's actual hash now —
+    // reload, re-apply the edit, and retry.
+  }
+}
+```
+
+`expectedHash` has three modes:
+
+| Value | Behaviour |
+|---|---|
+| *omitted* | Last-writer-wins — unconditional overwrite. |
+| a hash string | **Compare-and-swap** — write only if the path's current hash matches. |
+| `null` | **Create-only** — fail if the path already exists. |
+
+On a conflict the write throws `SyncropelDataError` with `isConflict === true`, `expectedHash` (what you asserted), and `currentHash` (the file's real hash) — everything you need to drive a reload-or-overwrite prompt.
+
+## Reading
+
+```typescript
+const bytes = await client.data.read("/files/report.pdf");   // Uint8Array
+const text  = await client.data.readText("/files/notes.md"); // UTF-8 string
+
+// Or resolve a short-lived URL (e.g. to hand to an <img> or a download):
+const { blobUrl, expiresIn } = await client.data.readUrl("/files/cover.png");
+```
+
+## Directory operations
+
+```typescript
+const { entries, cursor } = await client.data.list("/files", { limit: 100 });
+for (const e of entries) {
+  console.log(e.kind, e.path, e.size_bytes);
+}
+
+const info = await client.data.stat("/files/notes.md");
+// info.kind, sizeBytes, contentHash, mtime, contentType, pinState, provenance
+
+await client.data.mkdir("/files/reports");
+await client.data.mv("/files/notes.md", "/files/reports/notes.md");
+await client.data.rm("/files/reports", { recursive: true });
+```
+
+`stat` returns `provenance` — who created the file and when (see [Provenance](#provenance-made-by-you) below). It's `null` for files with no recorded author.
+
+## Publishing durable artifacts
+
+A file under `/files` is mutable working storage. **Publishing** promotes a file to a content-addressed, durable artifact (an immutable snapshot you can reference by hash):
+
+```typescript
+const { contentHash, pinState } = await client.data.publish("/files/report.pdf");
+// The artifact is now pinned + content-addressed; the original /files path stays editable.
+```
+
+## Finding materials
+
+`materials` is a typed, byte-free view over your files — ideal for a picker or a search box (it returns metadata, not content):
+
+```typescript
+const hits = await client.data.materials({ q: "budget", limit: 20 });
+// resolve a single node's metadata without fetching bytes:
+const node = await client.data.node("/files/reports/q3.md");
+```
+
+## Provenance ("made by you")
+
+Every file records **who made it and when**. A file you create through the SDK or the API reads as authored by you — not "adopted" from somewhere. `stat().provenance` carries it:
+
+```typescript
+const { provenance } = await client.data.stat("/files/notes.md");
+// provenance: { actor, work_thread, goal_summary, clock, content_hash } | null
+```
+
+For a feed across many files (a "recently made by" view), use `client.data.provenance()`.
+
+## Quota & capabilities
+
+```typescript
+const { used, quota } = await client.data.usage();          // bytes
+const caps = await client.data.capabilities();              // limits, chunk size, version
+```
+
+## Error handling
+
+```typescript
+import { SyncropelDataError } from "@syncropel/sdk";
+
+try {
+  await client.data.write({ path: "/files/x", data, expectedHash });
+} catch (e) {
+  if (e instanceof SyncropelDataError) {
+    // e.status  — HTTP status (e.g. 409, 403, 507)
+    // e.code    — kernel error code (e.g. "precondition_failed", "quota_exceeded")
+    // e.detail  — human-readable detail
+    // e.isConflict — true for a compare-and-swap / create-only conflict (409)
+    // e.expectedHash / e.currentHash — set on a conflict
+  }
+}
+```
+
+Reads (`read`, `list`, `stat`, …) throw the same `SyncropelDataError` on a real error — a missing file or a permission denial surfaces, it doesn't silently return empty.
+
+## Types
+
+`@syncropel/sdk` exports the data-plane types: `WriteOptions`, `WriteResult`, `ListResult`, `ListEntry`, `StatResult`, `MaterialProvenance`, `ReadUrlResult`, `PublishResult`, `UsageResult`, and `SyncropelDataError`.
+
+## What's next
+
+- [TypeScript SDK](/docs/guides/typescript-sdk) — records, threads, folds, and the rest of the client surface.
+- [Files](/docs/concepts/files) — the conceptual model behind the virtual filesystem.
