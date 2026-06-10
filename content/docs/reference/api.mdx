@@ -62,6 +62,16 @@ For the full model — scopes, token format, rotation, federation composition �
 | POST | `/v1/records/search` | Semantic search — rank records by cosine similarity to an embedded query |
 | POST | `/v1/records/embed` | Backfill embeddings for records that don't yet have one under the active provider |
 
+## Find
+
+Blended text search — file names, file contents, and conversations in one ranked result set. No embedding provider required. See the [Find guide](/docs/guides/find) for hit shapes and examples.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/find?q=X` | Blended search. Params: `limit` (≤100), `types` (`material`\|`thread`), `explain`, `prefix` (type-ahead — last word matches as a prefix) |
+| GET | `/v1/search/stats` | Index health: coverage, pending items, last indexing failure |
+| POST | `/v1/search/rebuild` | Drop + incrementally re-index. Body: `{"scope": "materials" \| "threads" \| "all"}` |
+
 ### Ingest a Record
 
 ```bash
@@ -552,7 +562,7 @@ Response (elided):
     "algebra_version": "v1",
     "hashed_fields": ["parents", "thread", "actor", "act", "body", "clock", "data_type"]
   },
-  "mcp_tools": ["create_thread", "emit_record", "read_thread", "trust_query", "fold_thread", "dispatch", "fan_out"],
+  "mcp_tools": ["find", "create_thread", "emit_record", "read_thread", "trust_query", "fold_thread", "dispatch", "fan_out"],
   "transports": { "...": "..." },
   "semantic_search": { "...": "..." },
   "store_backends": ["sqlite", "memory"],

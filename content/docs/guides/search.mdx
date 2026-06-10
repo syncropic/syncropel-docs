@@ -5,7 +5,7 @@ description: Free-text search over the record log. Embeds the query through a co
 
 ## Overview
 
-Semantic search answers the question _"give me records that mean something like X"_, where X is free-text and "means like" is cosine similarity in an embedding space. It complements [Query](./query): query is the right tool when you know the shape of what you want (`body.kind`, `body.priority`, exact thread); search is the right tool when you only know the _idea_ and want records nearby that idea regardless of surface form.
+Semantic search answers the question _"give me records that mean something like X"_, where X is free-text and "means like" is cosine similarity in an embedding space. It complements two siblings: [Find](./find) is the right tool when you know words that actually appear in the thing (names, phrases, identifiers — and it needs no setup); [Query](./query) is the right tool when you know the shape of what you want (`body.kind`, `body.priority`, exact thread). Semantic search is the right tool when you only know the _idea_ and want records nearby that idea regardless of surface form.
 
 Three entry points:
 
@@ -13,7 +13,7 @@ Three entry points:
 - **HTTP**: `POST /v1/records/search` with a JSON body
 - **SDK**: `client.search({ query })` (TypeScript) or `await client.search(query)` (Python)
 
-All three talk to the same embedding provider — configured once per daemon, used by every search. The **Ollama** provider (local, zero-cost) ships today; additional hosted providers land in later releases.
+All three talk to the same embedding provider — configured once per daemon, used by every search. The **Ollama** provider (local, zero-cost) ships today; additional hosted providers land in later releases. If you just need text search and don't want to configure a provider, use [Find](./find) — it works everywhere with zero setup.
 
 ## Prerequisites — configure an embedding provider
 

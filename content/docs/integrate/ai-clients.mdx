@@ -211,10 +211,11 @@ codex mcp add syncropel -- spl mcp serve
 
 `spl mcp setup-codex` shells out to exactly that command.
 
-### The 7 tools
+### The 8 tools
 
 Every MCP client sees the same tool surface:
 
+- `find` — blended text search over file names, file contents, and conversations (see the [Find guide](/docs/guides/find))
 - `create_thread` — create a new thread with an INTEND record
 - `emit_record` — emit a record (INTEND, DO, KNOW, or LEARN act)
 - `read_thread` — read records from a thread (most recent first)
@@ -223,7 +224,7 @@ Every MCP client sees the same tool surface:
 - `dispatch` — dispatch work to an actor via adapter routing
 - `fan_out` — fan-out work to multiple actors with a join predicate
 
-All 7 tools are available on both stdio and HTTP transports today. The HTTP dispatch path stays leaner than `POST /v1/dispatch` directly (no budget admission layer, no lifecycle-event emission); clients that need the full production dispatch semantics should hit `POST /v1/dispatch` directly, not via MCP.
+All 8 tools are available on both stdio and HTTP transports today. The HTTP dispatch path stays leaner than `POST /v1/dispatch` directly (no budget admission layer, no lifecycle-event emission); clients that need the full production dispatch semantics should hit `POST /v1/dispatch` directly, not via MCP.
 
 ### Remote MCP over HTTP
 

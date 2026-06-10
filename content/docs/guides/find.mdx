@@ -1,0 +1,155 @@
+---
+title: Find
+description: Search everything on your instance — file names, file contents, and conversations — from one query. No setup, no AI provider required, works the same on hosted and self-hosted instances.
+---
+
+## Overview
+
+Find answers the question _"where is that thing?"_ across everything your
+instance holds:
+
+- **Names** — files matched by name or path
+- **Content** — the full text inside your files
+- **Conversations** — messages in your threads, so "the chat where we
+  discussed the launch budget" is one query away even if nothing was ever
+  saved as a file
+
+Results are blended and ranked together: an exact filename match ranks
+first, then the strongest content and conversation matches. Each hit
+carries a **snippet** with the matched ranges, so you can see *why*
+something matched before opening it.
+
+Find needs **no configuration** — it works out of the box on every
+instance, including hosted ones. It complements two other tools:
+
+| Tool | When to use it |
+|---|---|
+| **Find** | You know words that appear in the thing — a name, a phrase, an identifier |
+| [Query](./query) | You know the *shape* of what you want — a kind, a field value, a thread |
+| [Semantic Search](./search) | You know the *idea* but not the words — requires an embedding provider |
+
+## Searching
+
+From the CLI:
+
+```bash
+spl find "quarterly budget"
+```
+
+```
+  /files/lib/budget-notes.md  (name+content)
+      planning notes  the quarterly budget plan needs revising
+  th_a1b2c3…  (conversation: Planning the spring release)
+      let us discuss the launch budget for spring
+```
+
+Over HTTP:
+
+```bash
+curl "$BASE/v1/find?q=quarterly+budget" -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "hits": [
+    {
+      "type": "material",
+      "node": { "name": "budget-notes.md", "path": "/files/lib/budget-notes.md", "...": "..." },
+      "snippet": { "text": "the quarterly budget plan needs revising", "offsets": [[14, 20]] },
+      "why": ["name", "content"]
+    },
+    {
+      "type": "thread",
+      "thread": "th_a1b2c3…",
+      "gist": "Planning the spring release",
+      "snippet": { "text": "let us discuss the launch budget for spring", "offsets": [[26, 32]] },
+      "participants": ["did:sync:user:you"]
+    }
+  ],
+  "planes_served": ["names", "content", "threads"],
+  "planes_degraded": []
+}
+```
+
+Two hit types come back:
+
+- **`material`** — a file. `node` is the same shape the library returns,
+  so anything that renders a file can render a hit. `why` tells you
+  whether the name, the content, or both matched.
+- **`thread`** — a conversation, identified once per thread no matter how
+  many messages matched, with the snippet drawn from the best-matching
+  message.
+
+Snippets are plain text plus `offsets` — byte ranges of the matched words
+inside `text`. Render highlights from the offsets; the text never contains
+markup.
+
+### Parameters
+
+| Param | Default | What it does |
+|---|---|---|
+| `q` | — | The search text. Special characters are safe — they're treated as plain text, never as query operators |
+| `limit` | 20 | Max hits (up to 100) |
+| `types` | both | `material` or `thread` to filter hit types |
+| `prefix` | false | Type-ahead mode: the last word matches as a prefix, so `quart` finds "quarterly" as you type |
+| `explain` | false | Adds a per-hit breakdown of which planes matched and how the rank was computed |
+
+### What gets searched
+
+File content is indexed for **text-like files**: plain text, Markdown,
+code, CSV, JSON, YAML, and similar. **PDFs and images are not searched
+yet** — they still match by file name. Conversations are indexed from the
+messages you and your assistant exchange.
+
+The index follows your content live:
+
+- A saved file is findable within seconds.
+- A **deleted or renamed** file disappears from results immediately.
+- An **edited** file is findable by its new content only — the old
+  version's text is never returned as a hit.
+
+### Honest results, always
+
+Find never silently fails. The response lists which planes were searched
+(`planes_served`) and which, if any, had a problem (`planes_degraded`) —
+one plane having an issue never breaks the rest of your results.
+
+## For agents
+
+AI clients connected over [MCP](/docs/integrate/ai-clients) get the same
+capability as a `find` tool, so an assistant can locate a file or a past
+conversation before acting on it:
+
+```json
+{ "name": "find", "arguments": { "q": "deploy checklist", "limit": 5 } }
+```
+
+## Index health and rebuild
+
+The index maintains itself — content is indexed as you save, and a
+background sweep heals any gaps. Two operator surfaces exist for the rare
+cases where you want to look under the hood:
+
+```bash
+spl find --stats        # coverage, pending items, last indexing failure
+spl find --rebuild      # drop and rebuild the indexes (incremental, safe to run live)
+```
+
+```bash
+curl "$BASE/v1/search/stats" -H "Authorization: Bearer $TOKEN"
+curl -X POST "$BASE/v1/search/rebuild" -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"scope": "all"}'
+```
+
+A rebuild re-indexes in small batches in the background — it never blocks
+the instance, and `--stats` shows it converging.
+
+## Limits
+
+- Searches are rate-limited per actor (a small burst, then steady state)
+  with at most two concurrent searches each — type-ahead UIs should
+  debounce.
+- Results are top-k (≤100). For exhaustive listings, use
+  [Query](./query) or the library's browse surfaces.
+- Word-based matching works best for languages with space-separated
+  words; CJK text currently matches on whole phrases.

@@ -127,6 +127,18 @@ spl learn "insight" [--thread ID]
 | `know` | KNOW record | Record an observation |
 | `learn` | LEARN record | Record an insight or decision |
 
+## Find
+
+Blended text search over file names, file contents, and conversations — ranked together, with snippets. No embedding provider needed; see the [Find guide](/docs/guides/find).
+
+```bash
+spl find "quarterly budget"                       # blended search
+spl find "budget" --types material --limit 5      # files only
+spl find "budget" --explain --json                # rank breakdown, raw JSON
+spl find --stats                                  # index coverage / lag / failures
+spl find --rebuild --scope all                    # drop + re-index (incremental, safe live)
+```
+
 ## Search
 
 Semantic search over the record log. Embeds the query through a configured provider and returns the top K records ranked by cosine similarity. See the [semantic search guide](/docs/guides/search) for setup and patterns.
