@@ -1,15 +1,14 @@
 ---
 title: Pricing & billing
-description: Self-host is free. Hosted instances run $25/month, with a 30-day trial. Managed inference (api.syncropic.com) bills as overage on a fair-pricing model.
+description: Self-host is free, forever. Hosted instances are free too — up to three per account, no credit card. Paid plans for higher limits are planned.
 ---
 
 ## TL;DR
 
 - **Self-host**: free, forever. Run `spl serve` on your laptop or your own server. No subscription, no usage limits, no telemetry.
-- **Hosted instance**: **$25 / month**, per instance. Includes a fully-managed `<label>.syncropel.app` running on the platform's infrastructure, with backups, TLS, and auto-recovery.
-- **30-day trial**: every new hosted instance gets 30 days free. Card on file required to provision (so the transition to paid is automatic), but no charge during trial.
-- **Managed inference (api.syncropic.com)**: optional. If you use it, your subscription includes inline credit; overage rolls into your monthly invoice.
-- **Cancellation**: anytime, from your account portal. 7-day grace period during which the instance keeps running at half rate.
+- **Hosted instance**: **free** — up to **three instances per account**, no credit card required. Each is a fully-managed `<label>.syncropel.app` with TLS, edge ingress, and a persistent record store.
+- **Paid plans**: planned, for higher limits (more instances, more storage, always-on guarantees). The free tier doesn't require one and won't be pulled out from under you.
+- **Managed inference (api.syncropic.com)**: optional, usage-billed. See [api.syncropic.com](/docs/integrate/api-syncropic) for the per-model price list.
 
 You can move freely between self-host and hosted using `spl export` / `spl import` — your data is portable by design.
 
@@ -22,81 +21,35 @@ You run `spl serve` on hardware you control. Syncropic gets no money, no telemet
 - Records, threads, audit logs live in `~/.syncro/hub.db` on your machine
 - Federation works peer-to-peer; no Syncropic-operated server in the path
 - Provider keys (Anthropic, OpenAI, Google) are yours; you bill those directly
-- Updates via `curl https://get.syncropic.com/spl | sh` — single binary, ~10 MB
+- Updates via `curl https://get.syncropic.com/spl | sh` — single binary
 - Open source — the spec, the runtime, and every SDK
 
-This is how most developers and small teams use Syncropel. The hosted tier is for customers who want zero ops.
+### Hosted (free — up to 3 instances)
 
-### Hosted ($25 / month / instance)
-
-Provision a `<label>.syncropel.app` instance via [syncropel.com/sign-up](https://syncropel.com/sign-up). What's included:
+Provision a `<label>.syncropel.app` instance by signing in at [syncropel.com](https://syncropel.com). What's included:
 
 | Included | Notes |
 |---|---|
-| Always-on hosted instance running `spl serve` | Auto-restart on crash; rolling updates from upstream |
+| Hosted instance running `spl serve` | Auto-restart on crash; rolling updates from upstream |
 | `<label>.syncropel.app` URL with TLS | Wildcard cert managed for you |
-| Daily backups + 30-day retention | Restore via support request |
-| Bootstrap admin service account | Pair your CLI to it from anywhere in 60 seconds |
+| Persistent record store | Your records survive sleeps, restarts, and updates |
 | Edge ingress with auth proxy | DDoS protection, geographic edge, HTTP/3 |
-| Storage up to 50 GB on hub.db | Records + indexes; raw blobs go to your own object storage if needed |
-| **$5 of api.syncropic.com inference credit** | Resets monthly; overage billed as line-item |
+| Up to three instances per account | A fourth provision is refused with a clear message — delete one and retry |
 
-What's not included on $25/month:
+How the free tier stays free:
 
-- More than 50 GB of records (contact for high-volume tier)
-- More than 60 req/min sustained against the inference gateway (contact for higher rate cap)
-- SLA — best-effort 99.5% target, no financial credits at this price point
+- **Instances sleep when idle** and wake automatically on the first request. Mid-wake visits see a brief "waking up" page that retries itself; you land in your workspace seconds later.
+- **The three-instance cap** bounds what any one account consumes.
+
+No card, no trial countdown, no surprise conversion. If you delete an instance, its label returns to the reservation pool after a grace period.
+
+### Paid plans (planned)
+
+Higher limits — more instances, more storage, always-on instances that never sleep — will be a paid plan. If you already hold a subscription from the earlier paid-first signup, it continues to cover your instances; lapsed subscriptions simply fall back to the free tier for new provisions. Billing questions: your [account portal](https://syncropel.com/account) or support.
 
 ### Managed inference (api.syncropic.com)
 
-If you use the [managed inference gateway](/docs/integrate/api-syncropic), it bills against your subscription:
-
-- Each subscription includes **$5 / month of credit** (covers thousands of low-cost-class messages, hundreds of mid-class, dozens of frontier-class — see the per-model price list on the [api.syncropic.com page](/docs/integrate/api-syncropic#available-models))
-- Overage rolls into your monthly invoice at the prices listed on the api.syncropic.com page
-- No surprise charges — there's a hard cap of $50 / month per instance; calls beyond that return `402 quota_exceeded` and you decide whether to raise the cap
-
-You see your live usage at [syncropel.com/account/usage](https://syncropel.com/account/usage). Every call also emits a record on your `th_audit_api_usage` thread, so reconciliation is a record query.
-
-## How billing works
-
-### Trial period
-
-When you provision your first hosted instance, a 30-day trial starts immediately:
-
-- Card on file required at provision time
-- No charge during trial
-- Instance is fully functional throughout
-- 7 days before trial ends, an email reminder
-- At day 30, your card is charged $25 for the next month
-
-You can cancel any time during trial — no charge, instance is kept available for 7 days as a grace period, then suspended.
-
-### Monthly billing
-
-After trial:
-
-1. Day 1 of each month: $25 charged for the month ahead, per instance
-2. Inference overage from the prior month bills as a line item on the same invoice
-3. Failed payment → 7-day grace period (instance keeps running at half rate cap), then suspended until card is updated
-4. After 30 days suspended: instance is decommissioned and data deleted (advance email warning at day 14)
-
-### Cancellation
-
-- Self-service: visit [syncropel.com/account/billing](https://syncropel.com/account/billing) and click Cancel
-- Effective at end of current billing period
-- 7-day grace period after period ends — instance keeps running so you can export
-- Final invoice for any inference overage from that period
-- Full data export via `spl export`
-
-No questions asked, no retention call.
-
-### Refunds
-
-- Trial: nothing to refund (no charge)
-- First month after trial: full refund within 7 days if you're unhappy
-- Subsequent months: pro-rated refund for unused days if cancellation is for our reason (extended outage, breaking change without migration path, etc.)
-
-The full refund policy is at [syncropel.com/refunds](https://syncropel.com/refunds).
+The [managed inference gateway](/docs/integrate/api-syncropic) is optional and usage-billed at the prices listed on its page. Every call also emits a record on your `th_audit_api_usage` thread, so reconciliation is a record query. You can always bring your own provider keys instead — self-hosted and hosted instances both accept them.
 
 ## Self-host ↔ hosted: moving between
 
@@ -121,10 +74,10 @@ Federation pairs need to be re-established post-import (different DID), but reco
 
 ### Hosted → self-host
 
-You're moving off hosted (canceling, sovereignty preference, cost):
+You're moving off hosted (sovereignty preference, or you just want it on your own metal):
 
 ```bash
-# 1. Export your hosted instance (run before canceling)
+# 1. Export your hosted instance
 SPL_INSTANCE_URL=https://<label>.syncropel.app \
   spl export --output ~/migrate.tar.gz
 
@@ -135,31 +88,30 @@ curl https://get.syncropic.com/spl | sh
 spl start
 spl import ~/migrate.tar.gz
 
-# 4. Cancel the hosted subscription at your leisure
+# 4. Delete the hosted instance from your account page at your leisure
 ```
 
-You'll lose the `<label>.syncropel.app` URL (returns to the reservation pool 30 days after instance suspension). Federation peers will need to re-pair against your new local DID.
+If you delete the hosted instance, its `<label>.syncropel.app` URL returns to the reservation pool after a grace period. Federation peers will need to re-pair against your new local DID.
 
 ## Self-host vs. hosted: which fits
 
-|  | Self-host (free) | Hosted ($25/mo) |
+|  | Self-host (free) | Hosted (free) |
 |---|---|---|
-| Cost | Free + hardware | $25/mo + inference overage |
+| Cost | Free + hardware | Free, up to 3 instances |
 | Ops | Yours (updates, backups, TLS) | Ours |
-| Always-on | Only when your machine is on | Yes |
+| Always-on | Only when your machine is on | Sleeps when idle, wakes on request |
 | URL | `localhost:9100` (or however you expose it) | `<label>.syncropel.app` |
 | Provider keys | Yours (per-provider billing) | Yours OR via api.syncropic.com gateway |
-| Backups | Manual (your snapshot procedure) | Daily, 30-day retention |
+| Backups | Manual (your snapshot procedure) | Operator-managed |
 | Federation | Peer-to-peer | Same — federation is identical between modes |
-| Auth | Tokens you mint | Same + admin service account from provisioning |
-| Best for | Developers, single-user, sovereignty preference | Teams, customers wanting zero ops, "just works" UX |
+| Auth | Tokens you mint | Same + your syncropel.com identity owns the instance |
+| Best for | Sovereignty preference, your own hardware | Zero ops, work from any device, "just works" UX |
 
-Most users start hosted (zero-friction onboarding), validate the workflow over a month, then make a deliberate decision about whether sovereignty + free outweighs zero-ops + $25.
+Start wherever friction is lowest — moving later is one export away.
 
 ## See also
 
-- [Hosted signup walkthrough](./hosted) — provisioning flow, what to expect during the 60-90s wait
+- [Hosted signup walkthrough](./hosted) — provisioning flow, what to expect during the 60-120s wait
 - [Install spl on your machine](./install) — for self-host or for pairing with a hosted instance
 - [api.syncropic.com](/docs/integrate/api-syncropic) — managed inference gateway details
-- [Account portal](https://syncropel.com/account) — billing, API keys, usage, instances
-- [Refund policy](https://syncropel.com/refunds) — full text
+- [Account portal](https://syncropel.com/account) — instances, usage, account

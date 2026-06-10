@@ -16,7 +16,7 @@ Allow ~30 minutes; most of it is provisioning + verification.
 - `spl 0.33.0` or later (`spl --version`)
 - A local daemon with some real-feeling state — at least a few threads, a few records, ideally one federation pair. If you're starting fresh, do [Your first thread](./first-thread) first to populate something to migrate.
 - A browser to sign up at `syncropel.com`.
-- ~$0 budget for the first 30 days — every new hosted instance gets a 30-day free trial, then $25/mo (see the [hosted plan](/docs/get-started/hosted)).
+- $0 budget — hosted instances are free, up to three per account (see the [hosted plan](/docs/get-started/hosted)).
 
 This tutorial assumes you'll run the migration *now* in a single session. If you want to migrate later (or rehearse the migration without committing), the steps work just as well — `spl import` is idempotent, so you can re-run.
 
@@ -76,20 +76,18 @@ Open a browser and go to `https://syncropel.com/signup`. Pick a label (this beco
 Behind the scenes:
 1. The provisioning service reserves the label.
 2. A hosted instance boots running the same `spl serve` binary you have locally, on a per-customer persistent volume.
-3. The bootstrap bearer token is minted, stored in a one-shot link, and you're redirected to your instance's first-run page.
+3. You land in your workspace, already connected — your syncropel.com identity owns the instance.
 
-The first-run page surfaces:
+The ready screen surfaces:
 - Your hosted URL (`<label>.syncropel.app`)
-- The bootstrap bearer token (single-use display — copy it now)
-- Three commands to "Connect the CLI"
+- A CLI access option that mints a device token (copy it if you work from a terminal)
+- The commands to "Connect the CLI"
 
-Copy the bootstrap token to your clipboard. The first-run page is the only place it's shown in plaintext.
-
-For provisioning failures (label collision, boot timeout, bootstrap token rejection), see [hosted onboarding § when provisioning fails](/docs/get-started/hosted#when-provisioning-fails).
+For provisioning failures (label collision, instance limit, boot timeout), see [hosted onboarding § when provisioning fails](/docs/get-started/hosted#when-provisioning-fails).
 
 ## 4. Connect your CLI to the hosted instance
 
-The first-run page gives you the three commands; here they are with placeholders:
+The ready screen gives you the commands; here they are with placeholders:
 
 ```bash
 export SPL_SERVE_URL=https://myteam.syncropel.app
@@ -217,5 +215,5 @@ This is what makes hosted Syncropel a strictly different deal from most SaaS: th
 | `spl import` reports `import refused: local store has N records; pass --force-overwrite to import anyway` | The hosted instance already has records (someone or something started using it before the import). | Check `spl thread list` on the hosted side. If those records are throwaway (first-run banner ack, etc.), it's safe to pass `--force-overwrite`. If unexpected, investigate before clobbering. |
 | `bundle malformed: signature verification failed` | The bundle was tampered with, corrupted in transit, or was produced by an incompatible version. | Re-export from the source. If the issue persists, check `spl version` on both sides — major version skew can cause manifest schema mismatches. |
 | Federation pair shows stale URL after import | Expected — the pair was originally configured with the local URL. | The URL refreshes on first sync attempt via DID resolution. If the peer is unreachable at the cached URL AND the peer DID can't be resolved, run `spl federation refresh <peer-did>` manually. |
-| `spl status` after token save returns `401` | The bootstrap token has already been used or has expired (default TTL is 1 hour for safety). | Sign back into the hosted instance's first-run page in your browser — there's a "regenerate bootstrap token" link. Or mint a fresh service account: `spl service-account create --bootstrap --with-token` (run from a paired device). |
+| `spl status` after token save returns `401` | The device token has expired or was revoked. | Open your instance in Studio and mint a fresh device token from Settings → Connections, then `spl token save` it. |
 | Hosted DID doesn't match local DID after import | The bundle was exported with `--no-identity`, so the hosted instance generated its own fresh DID. | Re-export with identity included (the default): `spl export --out ~/migration.tar.zst`. The `--no-identity` flag is for *introspection-only* bundles that aren't meant to be importable. |

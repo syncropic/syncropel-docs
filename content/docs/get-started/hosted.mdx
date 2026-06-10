@@ -1,27 +1,28 @@
 ---
 title: Hosted instance signup
-description: Skip the install — sign up at syncropel.com and have a fully-portable Syncropel instance running in under a minute. Self-hosted and hosted are first-class equals; this page walks through the hosted onboarding path end-to-end.
+description: Skip the install — sign in at syncropel.com and have a fully-portable Syncropel instance running in about a minute, free. Self-hosted and hosted are first-class equals; this page walks through the hosted onboarding path end-to-end.
 ---
 
 If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel instance for you. The instance is a full Syncropel runtime — the same binary, the same APIs, the same record store, the same federation surface as a self-hosted one. You can move freely between hosted and self-hosted at any time — `spl export` round-trips your data, and the same binary runs on both ends.
 
-This page covers the signup flow you'll see at syncropel.com/sign-up, what each step does, and what to do when the page hands you a bootstrap token.
+Hosted instances are **free** — no credit card, no trial clock. Every account can run up to **three instances** at no charge. Paid plans for higher limits are planned; nothing about the free tier requires one.
+
+This page covers the signup flow you'll see at syncropel.com, what each step does, and how to connect the CLI afterwards.
 
 ## Before you start
 
 You need:
 
-- An email address that can receive verification mail.
+- An email address that can receive verification mail (or a social login).
 - A choice of instance label — a subdomain under `syncropel.app`, e.g. `alice.syncropel.app`. Lowercase letters, digits, and `-`. 3–32 characters. The label is yours for the lifetime of your account.
-- A way to save a one-time-displayed bootstrap token (a password manager is fine; a sticky note is not).
 
-You do **not** need: Docker, or a domain you control. You **do** need: a credit card — provisioning starts a 30-day free trial (card on file, no charge during trial, cancel any time), then $25/month per instance. See [Pricing](/docs/get-started/pricing) for the full breakdown.
+You do **not** need: a credit card, Docker, or a domain you control.
 
 ## The flow
 
-### 1. Sign up
+### 1. Sign in
 
-Visit [syncropel.com/sign-up](https://syncropel.com/sign-up). Account creation is email-verified (with optional social login). After verification you're returned to the signup form.
+Visit [syncropel.com](https://syncropel.com) and sign in. Account creation is email-verified, with optional social login. Your account is the identity that owns every instance you create — sign in from any device and your instances follow you.
 
 ### 2. Pick a label
 
@@ -37,35 +38,37 @@ Submitting the form starts the provisioning sequence and streams progress live. 
 |---|---|---|
 | `reserve` | Label reserved against the global registry; a fresh `instance_id` minted. | < 1s |
 | `app_create` | Your instance is created on the hosted platform. | 1-2s |
-| `volume_create` | Per-customer persistent volume allocated for `~/.syncro/hub.db`. | 1-2s |
+| `volume_create` | Per-customer persistent volume allocated for your record store. | 1-2s |
 | `dns` | `<label>.syncropel.app` routed to your new instance. | 5-15s |
-| `image_build` / `deploy` | Instance boots from the current `spl serve` release image with a one-shot bootstrap token wired in. | 20-40s |
-| `bootstrap` | Instance reads the bootstrap token, mints the admin service account, ready for auth. | 1-2s |
+| `image_build` / `deploy` | Instance boots from the current `spl serve` release image. | 20-40s |
+| `bootstrap` | Instance initializes its first admin credential, ready for auth. | 1-2s |
 | `dns_propagate` | The new DNS record propagates. | up to ~30s |
-| `ready` | Instance is reachable; bootstrap token shown to you. | — |
+| `ready` | Instance is reachable. | — |
 
-Total time to `ready` is typically 60–120 seconds. The form streams progress; if any phase fails, the page surfaces a structured error envelope and gives you a retry path.
+Total time to `ready` is typically 60–120 seconds. The form streams progress; if any phase fails, the page surfaces a structured error and gives you a retry path.
 
-### 4. Save the bootstrap token
+### 4. Land in your workspace
 
-When provisioning finishes, the page displays your bootstrap token **once**. It looks like:
+When provisioning finishes you land in **Syncropel Studio**, already connected to your new instance — no token juggling. Your browser session carries your identity, and the instance recognizes you as its owner. The ready screen also offers a CLI pairing option if you work from a terminal (see below).
 
-```
-spl_prod_sa-bootstrap-env_a4f1b8c2e7d39406b18fa92e0d1c5e3b_8f4a26e1c5d83b7290f6e1c4
-```
+The bare `<label>.syncropel.app` URL is your instance's public landing page — an identity card, not where you work day-to-day.
 
-This is the canonical bearer for your instance's first admin service account. Save it somewhere durable. If you lose it before pairing a permanent credential, you'll need to revoke and re-bootstrap (recoverable, but not zero-friction).
+### Your instances, from any device
 
-### 5. Land on the dashboard
+[syncropel.com/account/instances](https://syncropel.com/account/instances) lists every instance your account owns — status, connect, and lifecycle actions. Sign in on a new device and the same list is there; one click connects Studio to any of them.
 
-After you click through, you're redirected into **Syncropel Studio** (`syncropel.com/connect?url=https://<label>.syncropel.app`), with the browser holding your bootstrap bearer so requests to your instance are auto-authed. Studio's first-run banner explains the next 3–5 things you should do (mint a service account for CLI use, create your first thread, optionally pair a second device). The bare `<label>.syncropel.app` URL is your instance's public landing page — an identity card, not where you work day-to-day.
+Want another instance for a separate project? Provision again — up to three per account on the free tier. A fourth attempt is refused with a clear message; delete one you no longer need and retry.
+
+### Instances sleep when idle
+
+Free instances suspend automatically when idle and wake on the first request. If you hit your instance mid-wake you'll see a brief "waking up" page that retries automatically — you land in your workspace a few seconds later. Nothing is lost while an instance sleeps; the record store persists.
 
 ## What you can do once you're in
 
 The same things any Syncropel user can do, with the same CLI and SDK surface as a self-hosted operator:
 
-- **Use Syncropel Studio** at `syncropel.com/connect?url=https://<label>.syncropel.app` — workspace, threads, tasks, search. `<label>.syncropel.app` itself is the instance's public landing page ([customizable per-instance](/docs/operate/site)); Studio at syncropel.com is where you actually work.
-- **Use the CLI or SDKs** instead if you prefer to work programmatically against the API — see the next section, *Connect your CLI to the hosted instance*.
+- **Use Syncropel Studio** — workspace, threads, tasks, search. `<label>.syncropel.app` itself is the instance's public landing page ([customizable per-instance](/docs/operate/site)); Studio at syncropel.com is where you actually work.
+- **Use the CLI or SDKs** instead if you prefer to work programmatically against the API — see the next section.
 - **Pair more devices** via `spl pair --device <label> --url https://<label>.syncropel.app` or the Settings → Connections page in Studio.
 - **Federate** with another Syncropel instance via `spl federation pair <peer-url>` — see the [federation pair guide](/docs/guides/federation-pair).
 - **Export everything** at any time via `spl export` — see [Portability](/docs/guides/portability).
@@ -85,8 +88,9 @@ curl -sSf https://get.syncropic.com/spl | sh           # Linux / WSL — Windows
 # 2. Point the CLI at your hosted instance
 export SPL_SERVE_URL=https://<label>.syncropel.app
 
-# 3. Save the bootstrap token shown on signup
-spl token save spl_prod_sa-bootstrap-env_...
+# 3. Pair this machine — Studio's Connect button (or the ready screen's
+#    CLI option) gives you a device token; save it:
+spl token save <token>
 ```
 
 `spl token save` writes the bearer to `~/.syncro/token` with `0600` permissions. After save, every subsequent `spl` invocation reads the file and attaches `Authorization: Bearer <token>` to every outbound request — no flag plumbing required.
@@ -106,19 +110,19 @@ spl task add "First task on hosted" --priority normal --domain meta
 spl task list
 ```
 
-`spl status` prints which URL it resolved and whether the bearer authenticates. `spl thread list` and `spl task list` should return your account's view (empty if you haven't emitted anything yet — the bootstrap LEARN on `th_engine_config` is namespaced separately).
+`spl status` prints which URL it resolved and whether the bearer authenticates. `spl thread list` and `spl task list` should return your account's view (empty if you haven't emitted anything yet).
 
-If you get a `401`, re-paste the token (`spl token save <bearer>`) and verify `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, check `<label>.syncropel.app/health` directly in a browser — the hosted instance may still be cold-booting on first request after a long idle.
+If you get a `401`, re-pair and re-save the token (`spl token save <bearer>`) and verify `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, check `<label>.syncropel.app/health` directly in a browser — the instance may be waking from idle; give it a few seconds.
 
-### Mint a permanent CLI bearer (recommended)
+### Device-specific tokens (recommended)
 
-The bootstrap token is fine for the first few minutes, but it's broad-scoped and ties your CLI to "the bootstrap account" rather than to "this device." Mint a device-specific service account instead:
+Mint a service account per device so each one can be revoked independently:
 
 ```bash
 spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.app --scopes admin
 ```
 
-`spl pair` prints a one-click URL, a QR code, and a plain-text payload — pick whichever fits. For the CLI on the same machine, the simplest path is to copy the printed token and run `spl token save <new-token>` to overwrite the bootstrap bearer. Now your device is paired with a token you can revoke independently if the laptop is ever lost.
+`spl pair` prints a one-click URL, a QR code, and a plain-text payload — pick whichever fits. For the CLI on the same machine, the simplest path is to copy the printed token and run `spl token save <new-token>`. Now your device is paired with a token you can revoke independently if the laptop is ever lost.
 
 See [Service accounts and tokens](/docs/get-started/service-accounts) for the long-form version, including scope narrowing and rotation.
 
@@ -126,13 +130,13 @@ See [Service accounts and tokens](/docs/get-started/service-accounts) for the lo
 
 Both serve the same protocol. Pick by where you want the data and who manages uptime.
 
-| | Hosted (syncropel.com/sign-up) | Self-hosted (`spl serve`) |
+| | Hosted (syncropel.com) | Self-hosted (`spl serve`) |
 |---|---|---|
 | Where the data lives | Per-customer hosted instance + persistent volume | Your `~/.syncro/hub.db` |
 | Who handles uptime | Syncropic | You |
 | Backup story | Operator-managed snapshots | You — see [Backup discipline](/docs/operate/runbook#backup-discipline) |
 | Federation | Yes — full peer | Yes — full peer |
-| Cost | 30-day free trial, then $25/mo per instance | Whatever your machine costs |
+| Cost | Free (up to 3 instances) | Whatever your machine costs |
 | Lock-in | None — `spl export` round-trips | None — same binary |
 
 Hosted is the path of least friction; self-hosted is the path of zero dependence on syncropel.com. Both are first-class.
@@ -142,10 +146,10 @@ Hosted is the path of least friction; self-hosted is the path of zero dependence
 Most provisioning failures fall into one of three buckets:
 
 - **Label collision.** Someone reserved that label first. Pick another.
+- **Instance limit reached.** The free tier covers three instances per account. The error names your current count and the fix: delete an instance you no longer need, then retry.
 - **Boot timeout.** Your instance took longer than the provisioning deadline. The page suggests waiting 30–60s and retrying — the underlying instance may already be live.
-- **Bootstrap token rejection.** The instance booted but the auth handshake hit a state issue. Uncommon — if it happens, the diagnostic page links to a fresh provision retry.
 
-For all three, the signup page surfaces a structured error envelope — no log scraping. If retries don't help, the diagnostics on the page contain everything support needs.
+For all of these, the signup page surfaces a structured error — no log scraping. If retries don't help, the diagnostics on the page contain everything support needs.
 
 ## What's next
 
