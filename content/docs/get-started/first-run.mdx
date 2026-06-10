@@ -111,15 +111,21 @@ If you want a fully clean state (new identity and new data), see [Reset and unin
 
 ## Identity types
 
-### Ephemeral `did:key` (the default)
+### This machine's own identity (the default)
 
-What `spl init` creates. The private key lives on this one machine. If you move to another machine, that machine gets its own identity and your records won't be attributable to a single person across both hosts. This is the right default for a single-machine installation and for most users.
+What `spl init` creates: an identity whose private key lives on this one machine. If you set up another machine the same way, it gets its own, separate identity. This is the right default for a single-machine installation.
 
-### Portable identities
+Note this is different from **signing in** on the web or to a hosted instance: there, your content is owned by your sign-in identity, which is the same on every device. See [Your identity & recovery](/docs/get-started/identity) for how that works.
 
-For users who want a single DID across multiple devices, `spl identity upgrade` migrates the ephemeral `did:key` to a portable format backed by a shared signing key. The upgrade is reversible — `spl identity revert` rolls it back.
+### One identity across your machines
 
-Portability is optional. You can run Syncropel for years without upgrading.
+For machines you maintain yourself, **master identity mode** gives every device the same root identity — each machine's key is derived from one root you hold, and a 24-word recovery phrase can rebuild it anywhere. Start a fresh install with:
+
+```bash
+spl init --master
+```
+
+There is also `spl identity upgrade` for migrating an existing identity to a portable format. Either way, portability is optional — you can run Syncropel for years on a single machine without it.
 
 ## Permissions
 

@@ -11,6 +11,8 @@ This page explains what your identity is, how it stays the same across devices, 
 
 When you sign in — on the web at syncropel.com or by connecting `spl` on a machine you maintain — you get the same identity every time. Signing in on a brand-new device gives you back the *same* identity, with the *same* content, automatically. There's no per-device setup and nothing to copy between machines for everyday use.
 
+**Lost a device? Just sign in again.** Your content is owned by your sign-in identity, not by any machine. A stolen laptop or a reinstalled phone costs you nothing: sign in on the next device and everything you own is there. You don't need a recovery phrase for this — everyday continuity rides entirely on being able to sign in.
+
 You can see your current identity any time:
 
 ```bash
@@ -26,6 +28,10 @@ You can have more than one way to sign in — for example an email address and a
 ## Your recovery phrase
 
 Everyday access rides on signing in. But your identity also has a deeper, self-owned layer: a **recovery phrase** — a sequence of 24 ordinary words that *is* your identity at its root. With it, you can rebuild your identity from scratch on any device, with no dependence on any sign-in provider.
+
+<Callout type="info">
+The recovery phrase lives on instances running **master identity mode**. Hosted instances are adopting it progressively; on a machine you maintain yourself, start with `spl init --master` (or set `SPL_IDENTITY_MODE=master` before init). On an instance not yet in master mode, the commands below report that they aren't available — your everyday sign-in continuity (above) is unaffected.
+</Callout>
 
 Reveal your recovery phrase like this:
 
@@ -69,7 +75,7 @@ Recovery is deterministic: the same phrase always rebuilds the same identity, on
 
 ## What to do right now
 
-1. Run `spl identity backup --i-understand` and write the 24 words down offline.
+1. If your instance runs master identity mode, run `spl identity backup --i-understand` and write the 24 words down offline.
 2. Store them somewhere you'll still have in a year — not just on the device you're using now.
 3. Optionally split them into shares (`--shamir`) and keep the pieces in different places.
 

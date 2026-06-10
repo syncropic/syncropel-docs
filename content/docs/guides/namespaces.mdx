@@ -256,6 +256,32 @@ spl config permissions-enable
 
 The pre-flight check verifies that `permissions-disable` will still work after enforcement is on. If it doesn't, you get a clear refusal with the exact `add-permission-rule` command needed.
 
+## Who can read a namespace
+
+Each namespace has a read-visibility setting that controls who can see its records. There are three levels:
+
+- **Signed-in readers** (the default): anyone holding a valid credential for the instance can read the namespace. If you never touch the setting, this is what you have — closed to the open internet, open within the instance.
+- **Private**: only callers explicitly granted access to that namespace can read it. Use this for a namespace that even other authorized users of the same instance shouldn't see.
+- **Public**: anyone on the internet can read the namespace's records, no sign-in required. This is for deliberate showcases — a public dashboard, a published dataset.
+
+Making a namespace public is a deliberate act, so it requires an explicit acknowledgment in the same policy record:
+
+```json
+{
+  "topic": "namespace_policy",
+  "namespace": "showcase",
+  "read_visibility": "public",
+  "acknowledge_public": true
+}
+```
+
+Without `acknowledge_public: true`, the write is rejected with `NAMESPACE_PUBLIC_NOT_ACKNOWLEDGED` — that error is the guard working, not a bug. It exists because one mistyped policy would otherwise serve every record in the namespace to anonymous readers.
+
+Two habits keep this honest:
+
+- **`spl doctor` lists every public namespace** on the instance, so an accidental (or forgotten) showcase is visible at a glance.
+- When a public showcase has served its purpose, re-emit the policy with `read_visibility: "authenticated"` to close it again.
+
 ## Lifecycle: archive, delete, undo
 
 ### Archive when work pauses
