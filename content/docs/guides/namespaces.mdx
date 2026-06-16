@@ -373,7 +373,7 @@ Use the emergency unlock command — see [Emergency Recovery](/docs/reference/cl
 ```bash
 spl stop
 spl config permissions-unlock
-spl start
+spl serve
 ```
 
 This writes a `permissions_enabled=false` LEARN record directly to the SQLite store, bypassing the HTTP middleware that would otherwise deny it.

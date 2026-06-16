@@ -12,7 +12,7 @@ After this, you'll understand why Syncropel is described as a **first-class MCP 
 ## Before you start
 
 - A recent `spl` build (`spl --version`; one-line install: `curl get.syncropic.com/spl | sh`)
-- A daemon running locally — `spl start`. Hosted instances also work but require an extra step (the bearer token must reach the MCP client; covered below).
+- A daemon running locally — `spl serve`. Hosted instances also work but require an extra step (the bearer token must reach the MCP client; covered below).
 - An MCP-compatible AI client. This tutorial walks Claude Code in detail; the same pattern applies to Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI, Claude Desktop, Codex, etc.
 - The `claude` binary on your PATH if you're using Claude Code (`claude --version`).
 
@@ -34,7 +34,7 @@ You can sanity-check the server by piping a list-tools call yourself:
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | spl mcp serve | head -c 500
 ```
 
-You should see a JSON response listing tools — `intend`, `do`, `know`, `learn`, `thread_list`, `thread_show`, etc. If the call hangs, the daemon isn't running — start it with `spl start` and retry.
+You should see a JSON response listing tools — `intend`, `do`, `know`, `learn`, `thread_list`, `thread_show`, etc. If the call hangs, the daemon isn't running — start it with `spl serve` and retry.
 
 ## 2. Configure Claude Code
 

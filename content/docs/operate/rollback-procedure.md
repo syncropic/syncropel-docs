@@ -79,7 +79,7 @@ Check the release notes for the version you're rolling back to before restarting
 ### Step 5 — start the older daemon
 
 ```bash
-spl start
+spl serve
 
 # Verify it came up cleanly
 spl status
@@ -136,7 +136,7 @@ curl -sSf "https://get.syncropic.com/spl" | sh
 spl version
 
 # Phase 2 — emit a test record
-SYNCROPEL_HOME="$DRILL_HOME" spl start --port 9301
+SYNCROPEL_HOME="$DRILL_HOME" spl serve --port 9301
 SYNCROPEL_HOME="$DRILL_HOME" spl know "rollback-drill-record" --thread th_rollback_drill
 PRE_COUNT=$(SYNCROPEL_HOME="$DRILL_HOME" spl thread records th_rollback_drill -o json | jq 'length')
 echo "pre-rollback: $PRE_COUNT records"
@@ -148,7 +148,7 @@ spl version
 # expected: spl 0.30.5
 
 # Phase 4 — start the older daemon, verify state
-SYNCROPEL_HOME="$DRILL_HOME" spl start --port 9301
+SYNCROPEL_HOME="$DRILL_HOME" spl serve --port 9301
 SYNCROPEL_HOME="$DRILL_HOME" spl status
 POST_COUNT=$(SYNCROPEL_HOME="$DRILL_HOME" spl thread records th_rollback_drill -o json | jq 'length')
 echo "post-rollback: $POST_COUNT records"
@@ -160,7 +160,7 @@ echo "post-rollback: $POST_COUNT records"
 # Phase 5 — restore latest, verify forward path also works
 SYNCROPEL_HOME="$DRILL_HOME" spl stop
 curl -sSf "https://get.syncropic.com/spl" | sh
-SYNCROPEL_HOME="$DRILL_HOME" spl start --port 9301
+SYNCROPEL_HOME="$DRILL_HOME" spl serve --port 9301
 SYNCROPEL_HOME="$DRILL_HOME" spl status
 
 # Cleanup

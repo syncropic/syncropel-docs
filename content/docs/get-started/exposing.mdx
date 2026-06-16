@@ -3,7 +3,7 @@ title: Exposing the Daemon Securely
 description: Make `spl serve` reachable from other machines without putting an unauthenticated SQLite-backed HTTP server on the public internet. Tailscale, reverse proxy with TLS, CORS, and what never to do.
 ---
 
-By default `spl start` binds `127.0.0.1` and is unreachable from anywhere else on your network. You'll want to change that when:
+By default `spl serve` binds `127.0.0.1` and is unreachable from anywhere else on your network. You'll want to change that when:
 
 - You're pairing a phone that lives on the same home network.
 - You're running a federation peer that needs to sync with another host.
@@ -24,7 +24,7 @@ tailscale ip -4
 
 # Bind the daemon to that address
 spl stop
-spl start --host 100.x.y.z
+spl serve --host 100.x.y.z
 ```
 
 Devices on the same tailnet reach the daemon at `http://100.x.y.z:9100`. That becomes the `--url` you pass to `spl pair`.
@@ -38,7 +38,7 @@ A reverse proxy — Caddy, nginx, Traefik, or Cloudflare Tunnel — terminates T
 Keep the daemon bound to loopback:
 
 ```bash
-spl start                                 # stays on 127.0.0.1:9100
+spl serve                                 # stays on 127.0.0.1:9100
 ```
 
 ### Caddy example
@@ -109,7 +109,7 @@ Same hardening flags apply (`strict_actor_header`, `strict_impersonation_enforce
 
 ```bash
 # NEVER
-spl start --host 0.0.0.0
+spl serve --host 0.0.0.0
 ```
 
 On a cloud VM, `--host 0.0.0.0` exposes the daemon on port 9100 to the entire internet. Even with auth on, you are one config mistake away from a token leak that compromises the whole record store. Even with perfect auth hygiene, you're paying every bot on the internet to probe your daemon's surface.

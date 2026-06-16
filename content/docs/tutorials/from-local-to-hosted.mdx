@@ -5,7 +5,7 @@ description: Graduate from local-only to a hosted instance. Export your local hu
 
 ## What you'll build
 
-You've been running `spl start` on your laptop, accumulating records, threads, federation pairs, and trust observations. You want to graduate to a managed instance — same identity, same records, accessible from anywhere, no `--insecure-localhost` flags. This tutorial walks the round-trip migration: local export → hosted provision → hosted import → CLI repoint → verification.
+You've been running `spl serve` on your laptop, accumulating records, threads, federation pairs, and trust observations. You want to graduate to a managed instance — same identity, same records, accessible from anywhere, no `--insecure-localhost` flags. This tutorial walks the round-trip migration: local export → hosted provision → hosted import → CLI repoint → verification.
 
 After this, you'll understand the **steward equivalence** doctrine: any Syncropel instance can become any other Syncropel instance. Hosted is a steward. Self-hosted is a steward. The migration mechanism is `spl export` / `spl import`, and round-trip identity preservation is a binding portability release-gate (see the [federation concept](/docs/concepts/federation)).
 
@@ -185,7 +185,7 @@ mv ~/.syncro ~/.syncro.archived-$(date +%Y%m%d)
 **Don't `rm -rf ~/.syncro`** unless you're certain the hosted instance has all your records and you've verified at least one independent copy of the bundle (`~/migration.tar.zst`) exists. The bundle on its own is sufficient to rebuild your instance — but only if it's actually somewhere safe.
 </Callout>
 
-If you ever want to re-spawn local from scratch and re-import the bundle, the migration runs in reverse without ceremony — `spl start` to boot fresh, `spl import ~/migration.tar.zst` to populate, done. Steward equivalence cuts both directions.
+If you ever want to re-spawn local from scratch and re-import the bundle, the migration runs in reverse without ceremony — `spl serve` to boot fresh, `spl import ~/migration.tar.zst` to populate, done. Steward equivalence cuts both directions.
 
 ## What just happened
 

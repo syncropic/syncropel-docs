@@ -10,7 +10,7 @@ There are three ways to start it. Pick by situation.
 ## Dev mode — `--insecure-localhost`
 
 ```bash
-spl start --insecure-localhost
+spl serve --insecure-localhost
 ```
 
 Use this the very first time, and any time you're doing local development without paired external devices.
@@ -25,10 +25,10 @@ This mode is the escape hatch for the chicken-and-egg problem: if `auth.required
 
 **Never run this on a host you didn't boot yourself.** The guard against external reachability is strong, but the principle still holds: `--insecure-localhost` is for your laptop, not for anything shared.
 
-## Secure local mode — `spl start`
+## Secure local mode — `spl serve`
 
 ```bash
-spl start
+spl serve
 ```
 
 This is the default and what every long-running instance should use.
@@ -45,7 +45,7 @@ The instance stays bound to loopback, which means nothing outside the machine ca
 ## Exposed mode — `--host 0.0.0.0`
 
 ```bash
-spl start --host 0.0.0.0
+spl serve --host 0.0.0.0
 ```
 
 Binds to every interface on the machine. This is what you pass when the daemon is meant to be reached from outside — typically from a phone on the same private network, a federation peer, or a reverse proxy.
@@ -107,7 +107,7 @@ Logs rotate automatically at 10 MB per file, keeping the last 7 rotations.
 ## What a successful start looks like
 
 ```
-$ spl start
+$ spl serve
 Starting Syncropel kernel...
 Store:    sqlite:///home/you/.syncro/hub.db
 Backup:   ~/.local/share/syncropel/backups/hub.db.bak (written)

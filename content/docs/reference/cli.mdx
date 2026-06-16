@@ -30,7 +30,7 @@ All commands support:
 
 ```bash
 # Short verbs (canonical for operator interactive use)
-spl start            # start the daemon in the background
+spl serve            # start the daemon in the background
 spl stop             # stop the running daemon
 spl restart          # stop + start
 
@@ -46,7 +46,7 @@ spl status
 spl version
 ```
 
-`spl start` / `spl stop` / `spl restart` are convenience aliases over the daemon-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the daemon to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Kubernetes pods, and managed cloud platforms.
+`spl serve` / `spl stop` / `spl restart` are convenience aliases over the daemon-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the daemon to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Kubernetes pods, and managed cloud platforms.
 
 | Command | Description |
 |---|---|

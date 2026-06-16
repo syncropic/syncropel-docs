@@ -401,7 +401,7 @@ spl config permissions-enable
 ```bash
 spl stop                  # the daemon caches config in memory
 spl config permissions-unlock     # writes permissions_enabled=false directly to the store
-spl start                # restart — enforcement is off
+spl serve                # restart — enforcement is off
 ```
 
 `permissions-unlock` opens the SQLite store directly and appends a `permissions_enabled=false` LEARN record on `th_engine_config`, bypassing the HTTP middleware that would otherwise deny the request. It refuses to run if the daemon is still up (use `--force` to override the safety check). Only sqlite stores are supported — for `--memory` daemons, just restart.

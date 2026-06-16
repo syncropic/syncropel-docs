@@ -29,7 +29,7 @@ This section takes you from "I just heard about Syncropel" to "I have a secure i
 
 ## What "Syncropel" means on your machine
 
-`spl` is a single binary. Once installed, it is both the CLI (`spl task list`, `spl intend …`) and the server (`spl start`). They communicate over a local Unix socket on Linux and macOS, and over TCP on Windows. The server persists everything it knows to `~/.syncro/hub.db`, a SQLite file.
+`spl` is a single binary. Once installed, it is both the CLI (`spl task list`, `spl intend …`) and the server (`spl serve`). They communicate over a local Unix socket on Linux and macOS, and over TCP on Windows. The server persists everything it knows to `~/.syncro/hub.db`, a SQLite file.
 
 That's the whole system. No Docker required, no separate language runtime, no external database. The pages in this section are about getting that one binary installed correctly and pointing it at a well-formed `~/.syncro/` directory.
 

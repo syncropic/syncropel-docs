@@ -47,7 +47,7 @@ The identity keypair is per-daemon, content-addressed via `did:key`. Rotating th
 
 ### Bootstrap discipline
 
-`spl start` writes `hub.db` to `~/.local/share/syncropel/backups/hub.db.bak` automatically on every startup. This backup deliberately does **NOT** include `~/.syncro/keys/` or `~/.syncro/secrets/` so a `cp` of the backup (e.g., to a different host for inspection) doesn't accidentally include identity material.
+`spl serve` writes `hub.db` to `~/.local/share/syncropel/backups/hub.db.bak` automatically on every startup. This backup deliberately does **NOT** include `~/.syncro/keys/` or `~/.syncro/secrets/` so a `cp` of the backup (e.g., to a different host for inspection) doesn't accidentally include identity material.
 
 ## What's NOT protected (operator must mitigate)
 
@@ -81,7 +81,7 @@ sudo tmutil addexclusion ~/.syncro/secrets
 
 # Dropbox / iCloud / OneDrive — install spl OUTSIDE the sync root,
 # or use a non-default data dir:
-SYNCROPEL_HOME=/var/lib/syncropel spl start
+SYNCROPEL_HOME=/var/lib/syncropel spl serve
 ```
 
 ### Accidental commit to a dotfiles repo

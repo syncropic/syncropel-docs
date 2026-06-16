@@ -5,7 +5,7 @@ description: Day-2 operations for running Syncropel in production — daemon lif
 
 ## Audience
 
-This page is for the person on the other end of a `spl start` that's actually serving real work. It's not for first-time installation (see [Quickstart](/docs/start)) or feature exploration (see [Guides](/docs/guides/task-management)). It assumes you have an instance running and you need to keep it healthy, recover when it isn't, and upgrade it without losing data.
+This page is for the person on the other end of a `spl serve` that's actually serving real work. It's not for first-time installation (see [Quickstart](/docs/start)) or feature exploration (see [Guides](/docs/guides/task-management)). It assumes you have an instance running and you need to keep it healthy, recover when it isn't, and upgrade it without losing data.
 
 If you're reading this because something just broke, jump to [Recovery](#recovery-from-corruption-or-data-loss).
 
@@ -14,7 +14,7 @@ If you're reading this because something just broke, jump to [Recovery](#recover
 ### Starting the daemon
 
 ```bash
-spl start
+spl serve
 ```
 
 This forks a background process, writes a PID file to `~/.syncro/run/spl.pid`, opens the SQLite store at `~/.syncro/hub.db`, takes a startup backup (see [Backup discipline](#backup-discipline)), binds `127.0.0.1:9100`, and binds a Unix socket at `~/.syncro/run/spl.sock`.
@@ -95,7 +95,7 @@ The instance key is one of:
 
 ### What the daemon does NOT do — and the trap to avoid
 
-**The startup backup is destructive.** Every `spl start` invocation overwrites the backup file with a snapshot of the current `hub.db`, **even if the current `hub.db` is empty, corrupt, or wrong.**
+**The startup backup is destructive.** Every `spl serve` invocation overwrites the backup file with a snapshot of the current `hub.db`, **even if the current `hub.db` is empty, corrupt, or wrong.**
 
 Concretely: if you delete `hub.db` and restart the daemon, the daemon comes up with an empty database, then on the next restart writes that empty database OVER your good backup. By the time you realize what happened, the backup is gone.
 
@@ -170,7 +170,7 @@ mv ~/.syncro/hub.db-shm ~/.syncro/hub.db-shm.corrupt.$(date +%s) 2>/dev/null || 
 cp $HOME/backups/syncropel/hub.db.20260412-123000.bak ~/.syncro/hub.db
 
 # 4. Restart and verify
-spl start
+spl serve
 spl status
 ```
 
@@ -194,7 +194,7 @@ These are derived state. They were correct the last time the daemon ran cleanly.
 
 ```bash
 spl stop
-spl start  # rebuild_from_store() runs on startup
+spl serve  # rebuild_from_store() runs on startup
 spl trust           # verify rebuild
 spl config list-rules
 ```
@@ -213,7 +213,7 @@ You enabled `spl config permissions-enable` without an admin allow rule, and now
 ```bash
 spl stop                  # cached config in memory will shadow our write
 spl config permissions-unlock     # writes permissions_enabled=false direct to store
-spl start                # restart — enforcement is off
+spl serve                # restart — enforcement is off
 ```
 
 See [CEL Expressions → Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the full lockout trap explanation.
@@ -236,7 +236,7 @@ curl -sSf https://get.syncropic.com/spl | sh
 spl version
 
 # 5. Restart
-spl start
+spl serve
 
 # 6. Verify health + record count match pre-upgrade
 spl status
@@ -264,7 +264,7 @@ Stale PID file. Delete it and start clean:
 
 ```bash
 rm -f ~/.syncro/run/spl.pid
-spl start
+spl serve
 ```
 
 ### `spl task done` returns "uncommitted changes"
@@ -524,7 +524,7 @@ To replace a dead coordinator:
 1. **Pick a surviving worker** to promote. Any worker can play the coordinator role — they differ only in config.
 2. **Stop the chosen worker cleanly**: `spl fleet stop --instance worker-a` (or send SIGTERM directly if `spl fleet` is unreachable).
 3. **Edit its config** at `~/.syncro-worker-a/config.toml`: remove the `[fleet] coordinator_url` line (so it no longer reports to an external coordinator), or leave it pointing at its own endpoint.
-4. **Restart**: `SYNCROPEL_HOME=~/.syncro-worker-a spl start --port 9201`. The promoted instance now holds the registry.
+4. **Restart**: `SYNCROPEL_HOME=~/.syncro-worker-a spl serve --port 9201`. The promoted instance now holds the registry.
 5. **Update remaining workers** to point their `[fleet] coordinator_url` at the new coordinator's endpoint. Restart each.
 6. **Verify**: `spl fleet list` against the new coordinator should show all workers live.
 

@@ -14,7 +14,7 @@ By the end of this tutorial you'll have:
 - Archived an environment and watched the cascade prevent new writes
 - Used `spl debug replay` to inspect records in a specific namespace
 
-You'll need: a running `spl start` (the [Quickstart](/docs/start) covers this), and `curl`. About 15 minutes.
+You'll need: a running `spl serve` (the [Quickstart](/docs/start) covers this), and `curl`. About 15 minutes.
 
 If you skipped the [Namespaces concept](/docs/concepts/namespaces) page, read the first three sections first — they explain the WHY this tutorial demonstrates.
 
@@ -24,7 +24,7 @@ If you skipped the [Namespaces concept](/docs/concepts/namespaces) page, read th
 spl doctor
 ```
 
-You should see 7 PASS checks. If `daemon reachable` fails, run `spl start` first.
+You should see 7 PASS checks. If `daemon reachable` fails, run `spl serve` first.
 
 ```bash
 spl namespace list

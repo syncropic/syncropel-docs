@@ -18,7 +18,7 @@ What the script does:
 3. Verifies the SHA-256 checksum.
 4. Atomically moves the binary to `$INSTALL_DIR` (default `~/.local/bin/spl`).
 5. Adds `~/.local/bin` to your `PATH` by appending an `export` line to your shell's rc file (`~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`).
-6. Prints the next-step hints (`spl init`, `spl start`).
+6. Prints the next-step hints (`spl init`, `spl serve`).
 
 If `~/.local/bin` was already on your `PATH`, step 5 is skipped. If the script can't detect your shell, it prints the line for you to add manually.
 

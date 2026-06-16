@@ -17,7 +17,7 @@ curl -sSf https://get.syncropic.com/spl | sh           # Linux / macOS / WSL —
 spl init
 
 # 3. Start the instance
-spl start
+spl serve
 
 # 4. Add → start → complete → approve a task
 spl task add "Read the Syncropel quickstart" --priority high --domain meta
@@ -38,7 +38,7 @@ You produced four immutable, content-addressed records on a thread, accumulated 
 | Step | What ran | What got recorded |
 |---|---|---|
 | `spl init` | Created `~/.syncro/` (config, logs, secrets dir) | — |
-| `spl start` | Started the instance on `127.0.0.1:9100`, opened `~/.syncro/hub.db` | The instance's bootstrap LEARN on `th_engine_config` |
+| `spl serve` | Started the instance on `127.0.0.1:9100`, opened `~/.syncro/hub.db` | The instance's bootstrap LEARN on `th_engine_config` |
 | `spl task add` | Created task thread `TASK-0001` | INTEND record — task creation |
 | `spl task start` | Marked active | DO record — work-started |
 | `spl task done` | Submitted for evaluation | KNOW record — completion claim |
@@ -54,7 +54,7 @@ The trust function `wilson_lb(success, total)` rejects evaluations where executo
 
 ## Common pitfalls
 
-**`spl start` says ready, but `spl status` shows nothing.**
+**`spl serve` says ready, but `spl status` shows nothing.**
 The instance may have failed to bind port 9100. Check `~/.syncro/logs/spl.log` — most common cause is a previous instance still bound. Use `pgrep -af "spl serve"` and `kill <pid>` to clean up, then retry.
 
 **`spl task done` complains about uncommitted git changes.**

@@ -3,7 +3,7 @@ title: Linux and macOS Notes
 description: Platform-specific guidance for Linux and macOS — systemd user units, launchd, PATH setup, and where logs live.
 ---
 
-On Linux and macOS, `spl start` already forks, detaches from the terminal, writes a PID file, and survives shell close. That's enough for interactive use. For boot-time autostart, install a systemd user unit (Linux) or use launchd (macOS). Both paths are covered here.
+On Linux and macOS, `spl serve` already forks, detaches from the terminal, writes a PID file, and survives shell close. That's enough for interactive use. For boot-time autostart, install a systemd user unit (Linux) or use launchd (macOS). Both paths are covered here.
 
 ## systemd user unit (Linux)
 
@@ -62,7 +62,7 @@ On distros without systemd (Alpine, many embedded or minimal images), start the 
 ```bash
 # ~/.bashrc, ~/.zshrc, or equivalent
 if ! pgrep -f "spl serve" > /dev/null; then
-  spl start
+  spl serve
 fi
 ```
 
@@ -71,7 +71,7 @@ Or add a cron `@reboot` entry:
 ```bash
 crontab -e
 # then add:
-@reboot ~/.local/bin/spl start
+@reboot ~/.local/bin/spl serve
 ```
 
 ## launchd (macOS)

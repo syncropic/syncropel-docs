@@ -6,13 +6,13 @@ description: What `spl init` creates, how to inspect your identity and config, a
 <Callout type="info" title="First run on Linux/macOS is three short verbs">
 ```bash
 spl init           # generate identity + config
-spl start          # start the daemon in the background
+spl serve          # start the daemon in the background
 spl task add "..." # everything works immediately — no service account, no bearer
 ```
 
 The local CLI talks to the daemon over a Unix socket at `~/.syncro/run/spl.sock`; filesystem permissions (the socket is mode 0700 owned by your user) are the authentication. Bearer tokens are still the right primitive for **delegating** scoped access — see [Service accounts and tokens](/docs/get-started/service-accounts) when you need to pair a browser, phone, MCP client, remote CLI, or another instance.
 
-`spl start` / `spl stop` / `spl restart` are the convenience verbs for interactive operator use; the full `spl serve` form (foreground) is the canonical entry point used by systemd units, Docker containers, Kubernetes pods, managed cloud platforms, and other process supervisors.
+`spl serve` / `spl stop` / `spl restart` are the convenience verbs for interactive operator use; the full `spl serve` form (foreground) is the canonical entry point used by systemd units, Docker containers, Kubernetes pods, managed cloud platforms, and other process supervisors.
 </Callout>
 
 After `spl version` prints cleanly, run `spl init` once to create your local state directory.
