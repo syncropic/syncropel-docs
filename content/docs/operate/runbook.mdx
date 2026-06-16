@@ -1,6 +1,6 @@
 ---
 title: Operator Runbook
-description: Day-2 operations for running Syncropel in production — daemon lifecycle, recovery from corruption, backup discipline, in-place upgrades, and how to recognize the failure modes you're about to hit.
+description: Day-2 operations for running Syncropel in production — instance lifecycle, recovery from corruption, backup discipline, in-place upgrades, and how to recognize the failure modes you're about to hit.
 ---
 
 ## Audience
@@ -9,9 +9,9 @@ This page is for the person on the other end of a `spl serve` that's actually se
 
 If you're reading this because something just broke, jump to [Recovery](#recovery-from-corruption-or-data-loss).
 
-## Daemon lifecycle
+## Instance lifecycle
 
-### Starting the daemon
+### Starting the instance
 
 ```bash
 spl serve
@@ -28,17 +28,17 @@ curl -fsS http://localhost:9100/health
 
 Both should report `ok` with the current version and record count.
 
-### Stopping the daemon
+### Stopping the instance
 
 ```bash
 spl stop
 ```
 
-This reads `~/.syncro/run/spl.pid`, sends `SIGTERM` to the daemon process, and waits for graceful shutdown. The daemon flushes the SQLite WAL, closes the socket, removes the PID file, and exits.
+This reads `~/.syncro/run/spl.pid`, sends `SIGTERM` to the instance process, and waits for graceful shutdown. The instance flushes the SQLite WAL, closes the socket, removes the PID file, and exits.
 
-### When `spl stop` says "not running" but the daemon clearly is
+### When `spl stop` says "not running" but the instance clearly is
 
-This happens after long-running daemons lose their PID file (host reboot, WSL restart, or the file was clobbered by a runaway test). The daemon is still bound to port 9100 but `--stop` can't find it.
+This happens after long-running instances lose their PID file (host reboot, WSL restart, or the file was clobbered by a runaway test). The instance is still bound to port 9100 but `--stop` can't find it.
 
 Recovery:
 
@@ -55,7 +55,7 @@ ss -tlnp 2>/dev/null | grep 9100
 
 Then restart cleanly.,
 
-### Reading daemon logs
+### Reading instance logs
 
 Logs live at `~/.syncro/logs/spl.log` (JSON-line format). Tail them:
 
@@ -83,9 +83,9 @@ grep "PERMISSION DENIED" ~/.syncro/logs/spl.log
 
 > **CRITICAL — read this section twice.** Syncropel's backup mechanism is a safety net, not a backup system. It will fail to save you if you don't supplement it with off-host copies. The recovery drill at `tests/drills/recovery.sh` exposed exactly this failure mode.
 
-### What the daemon does for you
+### What the instance does for you
 
-On every startup, `spl serve` checks if `~/.syncro/hub.db` exists. If it does, the daemon copies it to `~/.local/share/syncropel/backups/<instance-key>/hub.db.bak`. The backup directory is **outside** `~/.syncro/` so `rm -rf ~/.syncro/` doesn't kill it.
+On every startup, `spl serve` checks if `~/.syncro/hub.db` exists. If it does, the instance copies it to `~/.local/share/syncropel/backups/<instance-key>/hub.db.bak`. The backup directory is **outside** `~/.syncro/` so `rm -rf ~/.syncro/` doesn't kill it.
 
 The instance key is one of:
 
@@ -93,17 +93,17 @@ The instance key is one of:
 2. `home-<short-hash>` if `SYNCROPEL_HOME` is set but no DID exists yet.
 3. The default single path `~/.local/share/syncropel/backups/hub.db.bak` for the default instance.
 
-### What the daemon does NOT do — and the trap to avoid
+### What the instance does NOT do — and the trap to avoid
 
 **The startup backup is destructive.** Every `spl serve` invocation overwrites the backup file with a snapshot of the current `hub.db`, **even if the current `hub.db` is empty, corrupt, or wrong.**
 
-Concretely: if you delete `hub.db` and restart the daemon, the daemon comes up with an empty database, then on the next restart writes that empty database OVER your good backup. By the time you realize what happened, the backup is gone.
+Concretely: if you delete `hub.db` and restart the instance, the instance comes up with an empty database, then on the next restart writes that empty database OVER your good backup. By the time you realize what happened, the backup is gone.
 
 The recovery drill (`bash tests/drills/recovery.sh`) demonstrates this: it captures the backup file off-host immediately after creation, then deliberately wipes the volume and restores from the off-host copy. **You should do the same in production.**
 
 ### What you should do instead
 
-Schedule a periodic off-host backup of BOTH `~/.local/share/syncropel/backups/<instance-key>/hub.db.bak` (records, trust, config) AND `~/.syncro-data/` (task content files and alias map). The daemon auto-backs up only the former; the latter is referenced by path during dispatch but not auto-snapshotted.
+Schedule a periodic off-host backup of BOTH `~/.local/share/syncropel/backups/<instance-key>/hub.db.bak` (records, trust, config) AND `~/.syncro-data/` (task content files and alias map). The instance auto-backs up only the former; the latter is referenced by path during dispatch but not auto-snapshotted.
 
 ```bash
 # Daily snapshot to a directory you trust
@@ -150,14 +150,14 @@ The record log IS the truth. Everything else is a fold over it. As long as `hub.
 
 ## Recovery from corruption or data loss
 
-### Symptom: daemon won't start, panics on first ingest
+### Symptom: instance won't start, panics on first ingest
 
 Likely cause: SQLite store is corrupt. Read the panic message in `~/.syncro/logs/spl.log` for the exact error.
 
 Recovery procedure:
 
 ```bash
-# 1. Stop the daemon (or kill any lingering process)
+# 1. Stop the instance (or kill any lingering process)
 spl stop || pkill -f "spl serve"
 
 # 2. Move the corrupt store aside (don't delete — you may want it for forensics)
@@ -165,7 +165,7 @@ mv ~/.syncro/hub.db ~/.syncro/hub.db.corrupt.$(date +%s)
 mv ~/.syncro/hub.db-wal ~/.syncro/hub.db-wal.corrupt.$(date +%s) 2>/dev/null || true
 mv ~/.syncro/hub.db-shm ~/.syncro/hub.db-shm.corrupt.$(date +%s) 2>/dev/null || true
 
-# 3. Restore from your OFF-HOST backup (NOT the daemon's auto-backup,
+# 3. Restore from your OFF-HOST backup (NOT the instance's auto-backup,
 #    which may have been overwritten — see "Backup discipline" above)
 cp $HOME/backups/syncropel/hub.db.20260412-123000.bak ~/.syncro/hub.db
 
@@ -174,7 +174,7 @@ spl serve
 spl status
 ```
 
-If you don't have an off-host backup, the daemon's auto-backup MAY still be intact:
+If you don't have an off-host backup, the instance's auto-backup MAY still be intact:
 
 ```bash
 ls -la ~/.local/share/syncropel/backups/
@@ -182,7 +182,7 @@ ls -la ~/.local/share/syncropel/backups/
 cp ~/.local/share/syncropel/backups/<instance-key>/hub.db.bak ~/.syncro/hub.db
 ```
 
-But **only do this if the daemon hasn't already started and overwritten the backup**. If the corrupt daemon already ran, the auto-backup is now a snapshot of the corrupt state.
+But **only do this if the instance hasn't already started and overwritten the backup**. If the corrupt instance already ran, the auto-backup is now a snapshot of the corrupt state.
 
 ### Symptom: hub.db deleted by accident
 
@@ -190,7 +190,7 @@ Same procedure as above, minus step 2. Restore from off-host backup, restart.
 
 ### Symptom: trust scores wrong, routing rules missing
 
-These are derived state. They were correct the last time the daemon ran cleanly. To force a rebuild:
+These are derived state. They were correct the last time the instance ran cleanly. To force a rebuild:
 
 ```bash
 spl stop
@@ -226,7 +226,7 @@ See [CEL Expressions → Permission Enforcement](/docs/guides/cel-expressions#pe
 # 1. Snapshot first. Always.
 cp ~/.syncro/hub.db $HOME/backups/syncropel/hub.db.pre-upgrade.$(date +%s).bak
 
-# 2. Stop the daemon
+# 2. Stop the instance
 spl stop
 
 # 3. Install the new binary (atomic mv via the install script)
@@ -242,21 +242,21 @@ spl serve
 spl status
 ```
 
-The Syncropel engine's SQLite schema has been backward-compatible across 0.8.x → 0.9.x. The startup path runs `CREATE TABLE IF NOT EXISTS` for any new tables; existing data is untouched. If a future release requires a non-backward-compatible migration, the release notes will say so explicitly and the daemon will refuse to start until you run the migration.
+The Syncropel engine's SQLite schema has been backward-compatible across 0.8.x → 0.9.x. The startup path runs `CREATE TABLE IF NOT EXISTS` for any new tables; existing data is untouched. If a future release requires a non-backward-compatible migration, the release notes will say so explicitly and the instance will refuse to start until you run the migration.
 
-The upgrade drill (`bash tests/drills/upgrade.sh`) verifies the data-preservation property end-to-end on every release: 5 user records + 1 routing rule + 1 permission rule are all confirmed intact across daemon stop → container swap → daemon start on the same volume. If you're maintaining a fork or shipping a custom build, run this drill before you cut a release.
+The upgrade drill (`bash tests/drills/upgrade.sh`) verifies the data-preservation property end-to-end on every release: 5 user records + 1 routing rule + 1 permission rule are all confirmed intact across instance stop → container swap → instance start on the same volume. If you're maintaining a fork or shipping a custom build, run this drill before you cut a release.
 
 ### What can go wrong, and how to recognize it
 
 - **Binary download fails partway**: the install script downloads to a temp file and atomically `mv`s into place. A failed download leaves the old binary intact. You'll see the old version on `spl version`.
-- **Daemon won't start on the new binary**: a panic or graceful refusal. Read the log. Roll back by reinstalling the previous version (`curl -sSf https://get.syncropic.com/spl?v=0.9.1 | sh`) and restarting.
-- **Records present but trust scores empty**: the new daemon rebuilt trust from records on startup. Wait a moment for `rebuild_from_store()` to complete; check `spl trust` again.
+- **Instance won't start on the new binary**: a panic or graceful refusal. Read the log. Roll back by reinstalling the previous version (`curl -sSf https://get.syncropic.com/spl?v=0.9.1 | sh`) and restarting.
+- **Records present but trust scores empty**: the new instance rebuilt trust from records on startup. Wait a moment for `rebuild_from_store()` to complete; check `spl trust` again.
 
 ## Common issues and fixes
 
 ### "Address already in use" on `spl serve`
 
-Another daemon is already bound to port 9100. Either you have a stale `spl serve` running (use `pgrep -af "spl serve"` then `kill`), or another process took the port. Find it with `ss -tlnp | grep 9100`.
+Another instance is already bound to port 9100. Either you have a stale `spl serve` running (use `pgrep -af "spl serve"` then `kill`), or another process took the port. Find it with `ss -tlnp | grep 9100`.
 
 ### `~/.syncro/run/spl.pid` exists but no process
 
@@ -271,7 +271,7 @@ spl serve
 
 The task completion gate refuses to mark a task complete when the working tree has uncommitted changes — it's protecting against attributing wrong commits to the task. Either commit your work first, or use `--force` if you're sure (e.g. for triage of pre-existing tasks).
 
-### Health check returning non-200 even though the daemon is up
+### Health check returning non-200 even though the instance is up
 
 The HEALTHCHECK in the docker image hits `/health`. If you're behind a reverse proxy, make sure the proxy isn't injecting auth that breaks the request. The `/health` endpoint is exempt from permission enforcement specifically so liveness probes work.
 
@@ -281,7 +281,7 @@ The 4-loop engine holds working state in memory for active threads. If you're se
 
 ## Dispatch under memory pressure: read the warn log
 
-When you dispatch a worker — `spl task dispatch <SKL>`, `spl run <goal>`, or any other path that spawns a subprocess — the daemon emits one of three log lines at spawn:
+When you dispatch a worker — `spl task dispatch <SKL>`, `spl run <goal>`, or any other path that spawns a subprocess — the instance emits one of three log lines at spawn:
 
 ```
 DEBUG dispatch pre-flight: host memory healthy avail_gb=8.1
@@ -424,7 +424,7 @@ The task branch persists post-merge; that's fine, it's part of the git history.
 ## Multi-instance fleet operations
 
 <Callout type="info">
-This section covers multi-instance deployments. If you're running a single daemon, skip it.
+This section covers multi-instance deployments. If you're running a single instance, skip it.
 </Callout>
 
 A "fleet" is two or more `spl` instances that coordinate via the instance registry. One instance is the **coordinator** (holds the registry thread, receives heartbeats, processes fan-out barriers). The others are **workers** (execute dispatched work, report heartbeats, POST completion records back to the coordinator). Any instance can play either role; the distinction is config, not code.

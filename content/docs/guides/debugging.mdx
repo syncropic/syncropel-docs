@@ -1,18 +1,18 @@
 ---
 title: Debugging Syncropel
-description: When something isn't doing what you expect — daemon won't respond, a task is stuck in the wrong status, a record didn't route — this is the order to reach for tools.
+description: When something isn't doing what you expect — instance won't respond, a task is stuck in the wrong status, a record didn't route — this is the order to reach for tools.
 ---
 
 ## When to use this guide
 
-You're staring at output you don't understand. A `spl status` returned something wrong, a task is in a status you didn't expect, a record didn't trigger the routing rule you thought it would, or the daemon isn't responding at all. Before you start grepping logs, work through these tools in order.
+You're staring at output you don't understand. A `spl status` returned something wrong, a task is in a status you didn't expect, a record didn't trigger the routing rule you thought it would, or the instance isn't responding at all. Before you start grepping logs, work through these tools in order.
 
 The four debugging commands (`spl doctor`, `spl debug replay`, `spl debug thread-diff`, `spl audit export`) cover ~95% of the failure modes you'll hit operating Syncropel. Each one is read-only — none of them mutate state, so you can use them freely without worrying about making things worse.
 
 ## Order of operations
 
 ```
-1. spl doctor            ─── is the daemon even healthy?
+1. spl doctor            ─── is the instance even healthy?
         ↓
 2. spl status / spl task list  ─── what's the current state?
         ↓
@@ -22,14 +22,14 @@ The four debugging commands (`spl doctor`, `spl debug replay`, `spl debug thread
         ↓
 5. spl audit export      ─── what security-relevant events fired recently?
         ↓
-6. tail ~/.syncro/logs/spl.log  ─── last resort: read raw daemon output
+6. tail ~/.syncro/logs/spl.log  ─── last resort: read raw instance output
 ```
 
 Don't jump to step 6 until you've exhausted 1-5. The reason: structured tools tell you "what is broken" much faster than logs tell you "what happened in order".
 
-## Step 1: `spl doctor` — is the daemon healthy?
+## Step 1: `spl doctor` — is the instance healthy?
 
-If you don't know whether the problem is in the daemon or your understanding of the daemon, run `spl doctor` first. It executes 7 read-only checks and prints PASS/WARN/FAIL with a short reason for each:
+If you don't know whether the problem is in the instance or your understanding of the instance, run `spl doctor` first. It executes 7 read-only checks and prints PASS/WARN/FAIL with a short reason for each:
 
 ```bash
 spl doctor
@@ -38,10 +38,10 @@ spl doctor
 ```
 spl doctor
 
-  ✓ daemon reachable          <version> on sqlite:///home/you/.syncro/hub.db
+  ✓ instance reachable          <version> on sqlite:///home/you/.syncro/hub.db
   ✓ pid file                  /home/you/.syncro/run/spl.pid → live spl serve (pid 264247)
   ✓ store has records         4690 records across 232 threads
-  ✓ store path agreement      daemon reports sqlite:///home/you/.syncro/hub.db
+  ✓ store path agreement      instance reports sqlite:///home/you/.syncro/hub.db
   ✓ intelligence              enabled, model=claude-haiku-4-5-20251001
   ✓ engine config thread      th_engine_config has 254 records
   ✓ expression cache          hit_rate=0.0% size=0/1024 avg_compile=0μs (cache cold — no CEL evaluated yet)
@@ -59,19 +59,19 @@ This is suitable for cron — wire `spl doctor --json` into your monitoring pipe
 
 ### What each check actually means
 
-**daemon reachable** — `GET /health` returns 200. If this fails, the daemon is not running OR not bound to localhost:9100 OR you're pointing `SPL_SERVE_URL` somewhere wrong.
+**instance reachable** — `GET /health` returns 200. If this fails, the instance is not running OR not bound to localhost:9100 OR you're pointing `SPL_SERVE_URL` somewhere wrong.
 
-**pid file** — `~/.syncro/run/spl.pid` exists, points at a live process, and that process's `/proc/<pid>/cmdline` contains "spl serve". A WARN here means the daemon is responding but the PID file is missing — `spl stop` will not be able to find it. See [recovering an orphaned daemon](/docs/operate/runbook#when-spl-stop-says-not-running-but-the-daemon-clearly-is).
+**pid file** — `~/.syncro/run/spl.pid` exists, points at a live process, and that process's `/proc/<pid>/cmdline` contains "spl serve". A WARN here means the instance is responding but the PID file is missing — `spl stop` will not be able to find it. See [recovering an orphaned instance](/docs/operate/runbook#when-spl-stop-says-not-running-but-the-instance-clearly-is).
 
 **store has records** — the store is non-empty. A WARN means it's empty (fresh install or just-deleted hub.db). A FAIL means the store query itself errored.
 
-**store path agreement** — the daemon's reported store URL matches what the config file says it should be. A WARN here means either the daemon was started with an explicit `--store` override, or two daemons are running against different stores and you're talking to the wrong one.
+**store path agreement** — the instance's reported store URL matches what the config file says it should be. A WARN here means either the instance was started with an explicit `--store` override, or two instances are running against different stores and you're talking to the wrong one.
 
 **intelligence** — the engine's intelligence agent's enabled state and model. Disabled is fine if you didn't set up an API key; if you did and this says disabled, your key isn't being read.
 
 **engine config thread** — `th_engine_config` has at least one record. A WARN means config_loader had nothing to load — your routing rules / fold rules / permission rules / health checks are all empty.
 
-**expression cache** — the CEL expression cache stats. A cold cache (0 entries) is normal on a freshly-restarted daemon. A WARN means the hit rate is suspiciously low (under 50%) which could indicate the daemon is recompiling expressions every evaluation.
+**expression cache** — the CEL expression cache stats. A cold cache (0 entries) is normal on a freshly-restarted instance. A WARN means the hit rate is suspiciously low (under 50%) which could indicate the instance is recompiling expressions every evaluation.
 
 ### When doctor catches something
 
@@ -88,7 +88,7 @@ spl trust                      # trust scores per (actor, domain)
 spl namespace list             # registered namespaces
 ```
 
-These are read-only summary commands. Together they tell you "the daemon thinks the world looks like X". If X doesn't match what you expected, you've narrowed the problem to a single task, thread, or actor.
+These are read-only summary commands. Together they tell you "the instance thinks the world looks like X". If X doesn't match what you expected, you've narrowed the problem to a single task, thread, or actor.
 
 ## Step 3: `spl debug replay` — why is THIS task in THAT state?
 
@@ -183,9 +183,9 @@ The output is JSONL — each line is independent, suitable for piping to `jq`, i
 
 ### What's NOT in audit export today
 
-HTTP middleware permission denials are currently `tracing::warn!` events in the daemon log, not records. They show up in `~/.syncro/logs/spl.log` filtered with `grep "PERMISSION DENIED"` but won't appear in `spl audit export`. Promoting them to first-class audit records is tracked as a follow-up — for now, log + audit are two complementary streams.
+HTTP middleware permission denials are currently `tracing::warn!` events in the instance log, not records. They show up in `~/.syncro/logs/spl.log` filtered with `grep "PERMISSION DENIED"` but won't appear in `spl audit export`. Promoting them to first-class audit records is tracked as a follow-up — for now, log + audit are two complementary streams.
 
-## Step 6: read the daemon log
+## Step 6: read the instance log
 
 If steps 1-5 didn't surface the issue, drop to the structured log:
 
@@ -238,17 +238,17 @@ spl expr eval '<your-cel-expression>' --context routing --record '<sample-record
 spl debug replay <thread-where-record-landed>  # which records ARE on that thread?
 ```
 
-If the rule loads, compiles, evaluates true on a sample, but isn't firing on real records, check the daemon log for `reload_config: processing LEARN record` to confirm the rule was actually reloaded after you added it.
+If the rule loads, compiles, evaluates true on a sample, but isn't firing on real records, check the instance log for `reload_config: processing LEARN record` to confirm the rule was actually reloaded after you added it.
 
-### "The daemon won't start"
+### "The instance won't start"
 
 ```bash
 spl doctor                       # what's the current state?
-tail -50 ~/.syncro/logs/spl.log  # what was the last thing the daemon said?
+tail -50 ~/.syncro/logs/spl.log  # what was the last thing the instance said?
 ls -la ~/.syncro/run/            # is there a stale PID file?
 ```
 
-Most start failures are: port already in use, stale PID file, or a corrupt SQLite store. The runbook covers each: see [Daemon lifecycle](/docs/operate/runbook#daemon-lifecycle).
+Most start failures are: port already in use, stale PID file, or a corrupt SQLite store. The runbook covers each: see [Instance lifecycle](/docs/operate/runbook#instance-lifecycle).
 
 ### "I think permissions are denying my requests"
 
@@ -263,7 +263,7 @@ If you've locked yourself out, see [`spl config permissions-unlock`](/docs/refer
 
 ### "I deleted hub.db by accident"
 
-Don't restart the daemon. The destructive backup gotcha will overwrite your good backup the moment a fresh daemon starts. See [Backup discipline](/docs/operate/runbook#backup-discipline) — restore from off-host first.
+Don't restart the instance. The destructive backup gotcha will overwrite your good backup the moment a fresh instance starts. See [Backup discipline](/docs/operate/runbook#backup-discipline) — restore from off-host first.
 
 ### "A namespace claim is being rejected and I don't know why"
 
@@ -279,7 +279,7 @@ The `show` output marks each ancestor with `✓` (Active) or `✗` (Archived/Del
 A few things still require log reading or direct database inspection:
 
 - **Trust score derivation traces** — `spl trust` shows current scores, but not the per-record evidence chain that produced them. A `spl debug trust <actor> <domain>` command is planned for a future release; for now, read the verdict records on the actor's trust thread directly.
-- **Dispatch internals** — when a dispatch fails, you see the failure in the task thread, but not the adapter-side timings, retries, or sub-thread tool calls. Pull these from the daemon log filtered by `target=syncropel_engine::dispatch`.
+- **Dispatch internals** — when a dispatch fails, you see the failure in the task thread, but not the adapter-side timings, retries, or sub-thread tool calls. Pull these from the instance log filtered by `target=syncropel_engine::dispatch`.
 - **Performance regressions** — the expression cache stats are exposed by doctor, but per-rule evaluation timings live only in the log.
 
 These are bounded follow-ups. None are urgent — the four shipped tools cover the everyday investigation surface.

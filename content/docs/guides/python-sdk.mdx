@@ -13,7 +13,7 @@ Python 3.10+. Single runtime dependency (`httpx`).
 
 ## Hello, Syncropel
 
-Start a Syncropel daemon locally (`spl serve`), then:
+Start a Syncropel instance locally (`spl serve`), then:
 
 ```python
 import asyncio
@@ -46,7 +46,7 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 - **Canonical references** — built-in constructors for cross-publisher correlation (music tracks, code files, incidents, calendar events, and more)
 - **Fail-open transport** — every emit returns a result; transport errors never raise
 - **Identity-aware** — records are signed with the configured DID
-- **In-memory `MockKernel`** at `syncropel.testing` — write adapter tests without running a daemon
+- **In-memory `MockKernel`** at `syncropel.testing` — write adapter tests without running a instance
 
 ## Core API
 
@@ -63,7 +63,7 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 | `health()` | Server health probe. Fail-open (returns `{}` on failure). |
 | `close()` | Release the underlying HTTP client. |
 
-**Constructor kwargs:** `endpoint` (required), `identity` (required), `timeout=30.0`, `max_retries=2`, `backoff_ms=250.0`, `on_emit=None`, `api_key=None` (bearer token for authenticated daemons), `transport=None` (custom `httpx` transport for tests).
+**Constructor kwargs:** `endpoint` (required), `identity` (required), `timeout=30.0`, `max_retries=2`, `backoff_ms=250.0`, `on_emit=None`, `api_key=None` (bearer token for authenticated instances), `transport=None` (custom `httpx` transport for tests).
 
 ### Identity
 
@@ -116,9 +116,9 @@ Ref.social_person(email="alice@example.com")   # → @social.person
 
 Eleven categories total — full list in the inline help: `help(Ref)`.
 
-## Authenticating to a remote daemon
+## Authenticating to a remote instance
 
-When the Syncropel daemon has bearer-token auth enabled, pass the token via `api_key`:
+When the Syncropel instance has bearer-token auth enabled, pass the token via `api_key`:
 
 ```python
 import os
@@ -229,12 +229,12 @@ class InferResult:
 Unlike `client.emit()`, `client.infer()` **fails hard**:
 
 - Invalid request shape raises `ValueError` / `TypeError` before any HTTP call.
-- Network or daemon error on INTEND emission raises `RuntimeError`.
+- Network or instance error on INTEND emission raises `RuntimeError`.
 - Poll timeout raises `TimeoutError`.
 
 Catch timeouts explicitly if you want the thread id preserved for manual polling.
 
-## Testing without a daemon
+## Testing without a instance
 
 Use `MockKernel` to write unit tests against the SDK's interface without running `spl serve`:
 
@@ -264,5 +264,5 @@ def test_my_adapter():
 
 - [Records concept](/docs/concepts/records) — the 8-field envelope and why it's content-addressed
 - [Threads concept](/docs/concepts/threads) — how records group into workflows
-- [Authentication & Service Accounts](/docs/operate/keyring) — securing the daemon your Python code talks to
+- [Authentication & Service Accounts](/docs/operate/keyring) — securing the instance your Python code talks to
 - [Agent integration guide](/docs/guides/agent-integration) — use the SDK inside an AI agent

@@ -19,7 +19,7 @@ Validate an expression without running it:
 spl expr check 'record.act == "KNOW" && record.body.verdict == "accept"' --context trigger
 ```
 
-Evaluate an expression against real daemon state:
+Evaluate an expression against real instance state:
 
 ```bash
 spl expr eval 'system.uptime_secs > 3600' --context health_check
@@ -117,7 +117,7 @@ trust_count("did:sync:agent:dev", "code") >= 10   // require minimum evidence
 
 ### `system`
 
-Daemon-level state (available in most contexts):
+Instance-level state (available in most contexts):
 
 ```
 system.uptime_secs                             // int
@@ -327,7 +327,7 @@ $ spl expr check 'record.act == "KNO" && record.clock + "x"' --context trigger
 ✗ compile error: type error: cannot add int and string at column 36
 ```
 
-Type errors are caught at compile time, not at evaluation. A stored expression has already been validated before it reaches the runtime — the daemon refuses to ingest a rule with bad CEL.
+Type errors are caught at compile time, not at evaluation. A stored expression has already been validated before it reaches the runtime — the instance refuses to ingest a rule with bad CEL.
 
 ### Evaluation Errors
 
@@ -345,7 +345,7 @@ Monitor the compiled expression cache (how often expressions hit vs recompile):
 curl -s http://localhost:9100/v1/engine/expression_cache/stats | jq
 ```
 
-Fields: `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `avg_compile_micros`, `size`, `capacity`. A well-tuned daemon under steady-state load should show hit rate >99%.
+Fields: `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `avg_compile_micros`, `size`, `capacity`. A well-tuned instance under steady-state load should show hit rate >99%.
 
 ## Performance
 
@@ -360,7 +360,7 @@ The expression engine's performance characteristics:
 | `task()` lookup | < 5 ms |
 | `trust()` lookup | < 1 ms |
 
-Compiled expressions are cached in a 1024-entry LRU by default. Cache lifetime = daemon process lifetime.
+Compiled expressions are cached in a 1024-entry LRU by default. Cache lifetime = instance process lifetime.
 
 ## Permission Enforcement
 
@@ -394,17 +394,17 @@ spl config permissions-enable
 
 **Security model**: when enforcement is on, rules are evaluated in descending priority order. First match wins. If no rule matches, the request is **denied** (fail-closed). Every denial emits an audit log entry. `GET /health` is always exempt so liveness checks work.
 
-**Pre-flight check**: `spl config permissions-enable` simulates the disable path before flipping the switch. It refuses with a clear error and prints the exact `add-permission-rule` invocation needed when your loaded rules don't cover `(record_write, thread_read, config_read)` for the daemon's `identity.actor`.
+**Pre-flight check**: `spl config permissions-enable` simulates the disable path before flipping the switch. It refuses with a clear error and prints the exact `add-permission-rule` invocation needed when your loaded rules don't cover `(record_write, thread_read, config_read)` for the instance's `identity.actor`.
 
 **Emergency unlock**: if you locked yourself out on an older version (or by other means — disabling the admin rule, dropping a deny rule, etc.), recovery is now one command instead of SQL surgery:
 
 ```bash
-spl stop                  # the daemon caches config in memory
+spl stop                  # the instance caches config in memory
 spl config permissions-unlock     # writes permissions_enabled=false directly to the store
 spl serve                # restart — enforcement is off
 ```
 
-`permissions-unlock` opens the SQLite store directly and appends a `permissions_enabled=false` LEARN record on `th_engine_config`, bypassing the HTTP middleware that would otherwise deny the request. It refuses to run if the daemon is still up (use `--force` to override the safety check). Only sqlite stores are supported — for `--memory` daemons, just restart.
+`permissions-unlock` opens the SQLite store directly and appends a `permissions_enabled=false` LEARN record on `th_engine_config`, bypassing the HTTP middleware that would otherwise deny the request. It refuses to run if the instance is still up (use `--force` to override the safety check). Only sqlite stores are supported — for `--memory` instances, just restart.
 
 ## Migration from Legacy Forms
 

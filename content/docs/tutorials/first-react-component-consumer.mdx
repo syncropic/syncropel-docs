@@ -4,7 +4,7 @@ description: 30-minute walk from create-next-app to a Syncropel-driven task inbo
 ---
 
 <Callout type="info">
-This tutorial assumes you've completed [Your First SDK Integration](/docs/tutorials/first-sdk-integration) and have a `spl` daemon running locally with a token. The React palette has no provider and no required CSS framework — it works with any React 18+ app.
+This tutorial assumes you've completed [Your First SDK Integration](/docs/tutorials/first-sdk-integration) and have a `spl` instance running locally with a token. The React palette has no provider and no required CSS framework — it works with any React 18+ app.
 </Callout>
 
 ## What you'll build
@@ -50,7 +50,7 @@ The stylesheet ships design tokens at `:root` and component styles. There is **n
 
 ## Section B — Wire the SDK as a server route (5 minutes)
 
-Browser code can't read `~/.syncro/token` directly. Put the daemon-facing logic in a Next.js API route so the token stays server-side.
+Browser code can't read `~/.syncro/token` directly. Put the instance-facing logic in a Next.js API route so the token stays server-side.
 
 Create `app/api/inbox/route.ts`:
 
@@ -286,7 +286,7 @@ For the full token reference, see [Theming via CSS variables](/docs/guides/react
 
 The skeleton you just built has every load-bearing piece:
 
-- Server-side daemon access via an API route (token never reaches the browser)
+- Server-side instance access via an API route (token never reaches the browser)
 - A polled query that drives a `useState`-backed list
 - A POST handler that emits new records via the SDK
 - Palette-only UI rendering — no custom CSS framework, no provider
@@ -307,7 +307,7 @@ Common next steps:
 A Next.js page that:
 
 - ✅ Loads `@syncropel/react` design tokens at the app root
-- ✅ Reads the bearer token server-side and proxies to the daemon
+- ✅ Reads the bearer token server-side and proxies to the instance
 - ✅ Renders records as `Card` + `Chip` from the palette
 - ✅ Polls for live updates every three seconds
 - ✅ Emits new INTEND records on user action

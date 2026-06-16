@@ -9,7 +9,7 @@ The `syncropic/spl` Docker image gives you Syncropel as a self-contained, rootle
 
 - **Production deployment** — single instance behind a reverse proxy, persistent SQLite store on a docker volume.
 - **Multi-instance development** — coordinator + workers on a private network, each with isolated `SYNCROPEL_HOME`, no host state pollution.
-- **Reproducible E2E testing** — clean container per run, no risk of stale daemons or leaked PID files between tests.
+- **Reproducible E2E testing** — clean container per run, no risk of stale instances or leaked PID files between tests.
 
 The image is multi-stage: a `rust:1-bookworm` builder produces a stripped release binary, and a `debian:bookworm-slim` runtime carries only `ca-certificates`, `tini`, and `curl`. Final size is ~80–100 MB.
 
@@ -53,7 +53,7 @@ docker build -t myorg/spl:latest .
 
 ## Single-instance deployment
 
-The simplest deployment — one daemon, one volume, one host port:
+The simplest deployment — one instance, one volume, one host port:
 
 ```bash
 docker run -d \
@@ -70,7 +70,7 @@ The container:
 - Uses `tini` as PID 1 so `SIGTERM` triggers a graceful shutdown.
 - Mounts a named volume at `/syncropel`, which is the value of `SYNCROPEL_HOME`. Everything (config, store, secrets, logs, run dir) lives inside that one path.
 - Listens on `0.0.0.0:9100` inside the container, mapped to `localhost:9100` on the host.
-- Reports a HEALTHCHECK every 10 seconds against `/health`. `docker ps` shows `(healthy)` once the daemon is ready.
+- Reports a HEALTHCHECK every 10 seconds against `/health`. `docker ps` shows `(healthy)` once the instance is ready.
 
 Verify it works:
 
@@ -106,7 +106,7 @@ Useful environment variables you can pass with `-e`:
 | Variable | Purpose |
 |---|---|
 | `RUST_LOG` | Log level (`info`, `debug`, `trace`). Default `info`. |
-| `SPL_ACTOR` | Override the daemon's identity actor (also settable via `config.toml`). |
+| `SPL_ACTOR` | Override the instance's identity actor (also settable via `config.toml`). |
 | `SYNCROPEL_HOME` | Override the home path inside the container. Default `/syncropel`. |
 
 API keys for any configured LLM provider (Anthropic, OpenAI, Google, etc.) are read from `${SYNCROPEL_HOME}/secrets/`. The simplest way to provide them is to copy the file into the volume after first start:
@@ -134,7 +134,7 @@ The compose file defines three services on a private bridge network:
 | `worker-a` | `worker-a` | `9201` | `worker-a-home` | `did:sync:user:worker-a` |
 | `worker-b` | `worker-b` | `9202` | `worker-b-home` | `did:sync:user:worker-b` |
 
-Host ports are in the 9200 range so they don't collide with a production daemon that may be running on `localhost:9100`. Inside each container the daemon still listens on its own port 9100 — only the host-side mapping changes.
+Host ports are in the 9200 range so they don't collide with a production instance that may be running on `localhost:9100`. Inside each container the instance still listens on its own port 9100 — only the host-side mapping changes.
 
 Each container has its own SQLite store, its own trust ledger, and its own config — fully isolated. Containers reach each other on the `syncropel` network by service name:
 
@@ -188,7 +188,7 @@ When you're ready to put a docker deployment in front of real traffic:
   docker run --read-only --tmpfs /tmp -v spl-home:/syncropel ...
   ```
 - **Resource limits**: `--memory 1g --cpus 2` is plenty for a single-actor instance. Bump for multi-actor production loads.
-- **Permission enforcement**: enable CEL permission rules before exposing the daemon — see [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) and author an admin allow rule first to avoid the lockout trap.
+- **Permission enforcement**: enable CEL permission rules before exposing the instance — see [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) and author an admin allow rule first to avoid the lockout trap.
 
 ## Troubleshooting
 

@@ -96,51 +96,51 @@ Or scope it more narrowly to the resources you actually need.
 
 **Why**: Chrome's Private Network Access policy blocks `https://syncropel.com`
 from fetching `http://127.0.0.1` without an explicit ACK from the
-instance. Older daemon builds didn't ACK the PNA preflight.
+instance. Older instance builds didn't ACK the PNA preflight.
 
-**Fix**: Upgrade the daemon: `curl -sSf https://get.syncropic.com/spl | sh && spl stop && spl serve`. Or grant PNA permission
+**Fix**: Upgrade the instance: `curl -sSf https://get.syncropic.com/spl | sh && spl stop && spl serve`. Or grant PNA permission
 manually in `chrome://settings/content/insecureprivatenetwork`.
 
-### 6. Multiple daemons reachable
+### 6. Multiple instances reachable
 
-**Symptom**: Banner says "Connecting…" and the `DaemonChooser` card
-appears with a list of detected daemons.
+**Symptom**: Banner says "Connecting…" and the `InstanceChooser` card
+appears with a list of detected instances.
 
 **Why**: 2+ candidate URLs returned 200 from `/health` (loopback +
 LAN + manually entered URL). The user has to pick one before the
 state machine can classify it.
 
-**Fix**: Click the daemon you want. The state machine remembers it
+**Fix**: Click the instance you want. The state machine remembers it
 as the preferred URL via IndexedDB, so subsequent loads skip the
 chooser.
 
 ### 7. Mobile cold start
 
-**Symptom**: On a phone (no daemon-capable host on this device),
+**Symptom**: On a phone (no instance-capable host on this device),
 banner shows the `MobileLocalWelcome` cards (QR pair + URL paste +
 browse).
 
-**Why**: Phones cannot run a Syncropel daemon. The localhost probe
+**Why**: Phones cannot run a Syncropel instance. The localhost probe
 baseline is replaced with explicit pairing affordances.
 
-**Fix**: Pair via QR from a desktop / laptop daemon. Or paste a URL
-to a daemon you've reached on your LAN.
+**Fix**: Pair via QR from a desktop / laptop instance. Or paste a URL
+to a instance you've reached on your LAN.
 
 ### 8. Connected (insecure)
 
 **Symptom**: Amber banner says "DEV MODE · auth bypassed".
 
-**Why**: Daemon was started with `auth.required = false`, typically
+**Why**: Instance was started with `auth.required = false`, typically
 during dev with `--insecure-localhost` or before v0.16's default
 flip. Functional but not safe to expose.
 
 **Fix**: Restart with `auth.required = true` (the default in current
 releases) once you've finished dev work. Or leave as-is for ephemeral
-test daemons on `--port 9200 --memory`.
+test instances on `--port 9200 --memory`.
 
 ### 9. Connected (secure)
 
-**Symptom**: Green dot. Banner says `Connected to <daemon-label>`.
+**Symptom**: Green dot. Banner says `Connected to <instance-label>`.
 
 **Why**: Healthy. `/health` 200 + credential injected + recent `/v1/*`
 queries succeeded.
@@ -157,13 +157,13 @@ generic unreachable panel.
 These don't have dedicated Phase 1 surfaces yet.
 
 **Fix**: Open `/diagnose` → "Recent API errors" to see the
-underlying `code` + `message` from the daemon. Most often it's
-either a stale daemon (`upgrade spl serve`), a missing CORS allow
+underlying `code` + `message` from the instance. Most often it's
+either a stale instance (`upgrade spl serve`), a missing CORS allow
 entry (`spl config auth-set-cors-origins ...`), or a network glitch.
 
 ## Common error codes (HTTP 4xx)
 
-The daemon returns a structured error envelope on every 4xx response:
+The instance returns a structured error envelope on every 4xx response:
 
 ```json
 {
@@ -182,15 +182,15 @@ copy-paste suggested fix per code.
 | `AUTH_REQUIRED` | No bearer token sent | `spl pair --device browser-<name>` and retry |
 | `AUTH_INVALID` | Token rejected (expired, revoked, or instance changed) | Reset pairing on `/diagnose`, then re-pair |
 | `SCOPE_FORBIDDEN` | Token valid but missing required scope | Re-pair with `--scopes admin` (or narrower scope per use) |
-| `NOT_FOUND` | Endpoint not available on this daemon version | Upgrade the daemon or stop using this view |
-| `CORS` | Origin not on daemon's CORS allowlist | `spl config auth-set-cors-origins https://syncropel.com http://localhost:3000 && spl stop && spl serve` |
-| `PNA` | Browser blocked the cross-origin → loopback fetch | Upgrade the daemon or grant PNA permission in browser |
-| `NETWORK` | Couldn't reach the daemon | `spl serve --status` and verify with `curl http://localhost:9100/health` |
-| `TIMEOUT` | Request timed out | Daemon under load or unreachable; retry; check `spl doctor` |
-| `INTERNAL` | Daemon returned 5xx | Inspect `~/.syncro/logs/spl.log`; file an issue if reproducible |
+| `NOT_FOUND` | Endpoint not available on this instance version | Upgrade the instance or stop using this view |
+| `CORS` | Origin not on instance's CORS allowlist | `spl config auth-set-cors-origins https://syncropel.com http://localhost:3000 && spl stop && spl serve` |
+| `PNA` | Browser blocked the cross-origin → loopback fetch | Upgrade the instance or grant PNA permission in browser |
+| `NETWORK` | Couldn't reach the instance | `spl serve --status` and verify with `curl http://localhost:9100/health` |
+| `TIMEOUT` | Request timed out | Instance under load or unreachable; retry; check `spl doctor` |
+| `INTERNAL` | Instance returned 5xx | Inspect `~/.syncro/logs/spl.log`; file an issue if reproducible |
 
 ## See also
 
-- [`spl doctor`](/docs/operate/doctor) — top-down daemon diagnostic
+- [`spl doctor`](/docs/operate/doctor) — top-down instance diagnostic
 - [`spl pair`](/docs/get-started/pairing) — pairing flow + scope selection
 - Runbook section [Backup discipline](/docs/operate/runbook#backup-discipline)

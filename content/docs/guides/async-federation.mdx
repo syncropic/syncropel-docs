@@ -5,9 +5,9 @@ description: Use a store-and-forward relay so your laptop and phone can particip
 
 ## Who this is for
 
-You have two Syncropel daemons that are rarely online at the same time — a laptop and a mobile device, two teammates in different time zones, or a hosted instance and a home server that sleeps overnight. Standard [synchronous federation](/docs/guides/federation-pair) requires both peers to be reachable during the sync window; async federation works around that with a store-and-forward relay.
+You have two Syncropel instances that are rarely online at the same time — a laptop and a mobile device, two teammates in different time zones, or a hosted instance and a home server that sleeps overnight. Standard [synchronous federation](/docs/guides/federation-pair) requires both peers to be reachable during the sync window; async federation works around that with a store-and-forward relay.
 
-If your daemons are always-on with good network paths to each other, use synchronous federation — it has fewer moving parts. This guide is for the case where they aren't.
+If your instances are always-on with good network paths to each other, use synchronous federation — it has fewer moving parts. This guide is for the case where they aren't.
 
 ## What async federation unlocks
 
@@ -44,7 +44,7 @@ spl config relay set https://relay.syncropel.com --for-pair all
 spl config relay set https://private-relay.example.com --for-pair did:sync:user:alice
 ```
 
-After configuration, restart `spl serve` — inbound receive tasks spawn at daemon startup.
+After configuration, restart `spl serve` — inbound receive tasks spawn at instance startup.
 
 ```bash
 spl stop
@@ -77,7 +77,7 @@ spl config relay clear --for-pair did:sync:user:alice
 ## How it works end-to-end
 
 1. **Sender emits a record** on a thread that has a federation pair pointing at the relay for the target peer.
-2. **Sender's daemon builds an envelope** — signs its payload with the sender's DID key, addresses it by receiver DID, and tries direct HTTPS to the receiver first.
+2. **Sender's instance builds an envelope** — signs its payload with the sender's DID key, addresses it by receiver DID, and tries direct HTTPS to the receiver first.
 3. **If direct fails** (receiver offline, no route, DNS timeout), the sender deposits the envelope at the configured relay via `POST /v1/mailbox/<receiver-did>`.
 4. **Relay queues the envelope** under the receiver's DID and returns 202 Accepted.
 5. **Receiver polls** `GET /v1/mailbox/<receiver-did>/receive` on its next federation sweep.
@@ -108,7 +108,7 @@ Future hosted-instance tiers may meter relay traffic for premium accounts; for n
 
 ## Pair with synchronous federation
 
-Async federation isn't exclusive with direct peering. The sender daemon's federation logic tries direct HTTPS first and falls back to the relay:
+Async federation isn't exclusive with direct peering. The sender instance's federation logic tries direct HTTPS first and falls back to the relay:
 
 ```
 emit record
@@ -126,7 +126,7 @@ This means:
 - **Only receiver online** → receiver polls relay, but nothing is queued yet; receiver waits.
 - **Neither online** → sender retains locally; when sender comes up, relay path activates.
 
-You don't choose one or the other. Configure both a federation pair (synchronous) and a relay (async fallback); the daemon uses whichever works.
+You don't choose one or the other. Configure both a federation pair (synchronous) and a relay (async fallback); the instance uses whichever works.
 
 ## Troubleshooting
 
@@ -139,13 +139,13 @@ You don't choose one or the other. Configure both a federation pair (synchronous
 
 ### Envelopes keep redelivering (appearing again after I thought I acked them)
 
-The receiver acks after successful ingest. If the receiver's daemon crashes or is killed between receive and ack, the next poll re-fetches the envelopes. Idempotent ingest at the receiver means this is safe — no duplicate records land in your store, but your relay's ack counter lags for a beat.
+The receiver acks after successful ingest. If the receiver's instance crashes or is killed between receive and ack, the next poll re-fetches the envelopes. Idempotent ingest at the receiver means this is safe — no duplicate records land in your store, but your relay's ack counter lags for a beat.
 
 Persistent redelivery without crash means the ack POST is failing. Check network connectivity from the receiver to the relay; this is the same path as receive, so receive working and ack failing points at an intermittent network fault or a reverse-proxy timing out on the POST.
 
 ### I see a big backlog on `spl config relay status`
 
-The relay's `/metrics` endpoint (if you're operating the relay or have read access) exposes `relay_queue_size{did="<your-did>"}`. If that's climbing, your daemon isn't draining fast enough. Options:
+The relay's `/metrics` endpoint (if you're operating the relay or have read access) exposes `relay_queue_size{did="<your-did>"}`. If that's climbing, your instance isn't draining fast enough. Options:
 
 - Increase poll frequency (uses a fixed cadence; a future version adds long-poll).
 - Check whether something is blocking on the receive path — `spl doctor` flags federation stalls.

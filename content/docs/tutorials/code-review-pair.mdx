@@ -1,9 +1,9 @@
 ---
 title: Build a multi-user code review flow
-description: Two daemons paired in one command, code-review records flowing both ways consent-gated. The complete two-person federation walkthrough.
+description: Two instances paired in one command, code-review records flowing both ways consent-gated. The complete two-person federation walkthrough.
 ---
 
-By the end of this tutorial, two daemons — call them **alice** and
+By the end of this tutorial, two instances — call them **alice** and
 **bob** — will be paired, share a workspace, and exchange code-review
 records over a single federation link. Alice opens a review request;
 Bob publishes a verdict; both surface in a shared three-pane view.
@@ -35,7 +35,7 @@ consent on a `code` namespace.
 
 ## Prerequisites
 
-- Two daemons. The simplest setup: one running on the default port
+- Two instances. The simplest setup: one running on the default port
   (`9100`) and a second on `9201` in a separate terminal. Both can
   live on the same machine; that's what this tutorial uses.
 - Identity initialized on each — `spl identity show` should report
@@ -43,12 +43,12 @@ consent on a `code` namespace.
 - `spl version` reports `0.27.2` or newer (when `code-review-pair`
   template + `spl federation invite` both ship).
 
-For convenience this tutorial gives each daemon its own data
+For convenience this tutorial gives each instance its own data
 directory and uses `--insecure-localhost` so they can pair without
-TLS certificates. For real cross-host setups, both daemons should
+TLS certificates. For real cross-host setups, both instances should
 serve TLS instead.
 
-## 1. Boot two daemons
+## 1. Boot two instances
 
 In terminal A (alice):
 
@@ -89,10 +89,10 @@ SPL_SERVE_URL=http://127.0.0.1:9100 spl status
 SPL_SERVE_URL=http://127.0.0.1:9201 spl status
 ```
 
-Both should report a healthy instance. You now have two daemons ready
+Both should report a healthy instance. You now have two instances ready
 to be paired.
 
-## 3. Pair the daemons
+## 3. Pair the instances
 
 Alice initiates the pair:
 
@@ -142,7 +142,7 @@ automatically.
 Alice publishes a `code_review.request.v1` record on the inbox
 thread. For records with custom body shapes (anything beyond the
 built-in `intend`/`know`/`do`/`learn` shortcuts), `POST /v1/records`
-on the daemon is the canonical surface:
+on the instance is the canonical surface:
 
 ```bash
 ALICE_DID=$(curl -s http://127.0.0.1:9100/.well-known/syncropel | jq -r .did)
@@ -167,7 +167,7 @@ curl -s -X POST http://127.0.0.1:9100/v1/records \
   }"
 ```
 
-The daemon assigns the canonical record id (SHA-256 of the
+The instance assigns the canonical record id (SHA-256 of the
 content-addressed fields) and returns it. Setting the right `clock`
 manually is fine for a tutorial; in real adapters the SDKs handle
 clock sequencing for you (see [TypeScript
@@ -181,7 +181,7 @@ SPL_SERVE_URL=http://127.0.0.1:9201 \
 spl sync th_review_inbox from did:sync:instance:alice-...
 ```
 
-(Substitute alice's DID — `spl identity show` on alice's daemon
+(Substitute alice's DID — `spl identity show` on alice's instance
 prints it. You can also derive it from the invite output's pair
 record on bob's side via `spl federation list`.)
 
@@ -238,8 +238,8 @@ spl thread records th_review_done
 
 The `code-review-pair` template ships with a three-pane view
 (`Inbox` / `In review` / `Verdicts`). To see it rendered, point a
-browser at each daemon's Studio surface (the path depends on your
-deployment — typically `/local` against the local daemon).
+browser at each instance's Studio surface (the path depends on your
+deployment — typically `/local` against the local instance).
 
 The Inbox pane folds `code_review.request.v1` records. The In
 review pane folds `code_review.assignment.v1` (a record bob would
@@ -249,7 +249,7 @@ emit when claiming a request). The Verdicts pane folds
 ## What you just demonstrated
 
 - A code-review flow that's *multi-user by design* — two roles, two
-  daemons, distinct publishing patterns on each side.
+  instances, distinct publishing patterns on each side.
 - A federation pair established with one composed command, including
   consent and thread allowlists.
 - Records flowing in both directions consent-gated. Alice's request

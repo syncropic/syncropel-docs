@@ -107,12 +107,12 @@ When instance B pulls from instance A:
    - Different namespaces + grant with L0 → return full records
    - Different namespaces + grant without L0 → return records with redacted body
 
-This runs on every pull. If a grant is added or revoked, the change takes effect on the next poll — no daemon restart needed.
+This runs on every pull. If a grant is added or revoked, the change takes effect on the next poll — no instance restart needed.
 
 ## What the filter does not do
 
 - **Not retroactive.** Revoking a grant doesn't remove records already delivered.
-- **Not adversarial protection.** The filter runs on the source side, so it requires that the source daemon is honest. For protection against a compromised source, use namespace-based access control on who can reach the daemon in the first place.
+- **Not adversarial protection.** The filter runs on the source side, so it requires that the source instance is honest. For protection against a compromised source, use namespace-based access control on who can reach the instance in the first place.
 - **Not per-record.** Grants are namespace-pair scoped, not record-scoped. If you need per-record gating, combine with CEL rules on emit.
 
 ## What's next

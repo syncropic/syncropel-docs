@@ -1,31 +1,31 @@
 ---
 title: Federation Discovery
-description: Find peer daemons via signed manifests served at `/.well-known/syncropel`. Covers `spl discover`, manifest verification, and the directory model.
+description: Find peer instances via signed manifests served at `/.well-known/syncropel`. Covers `spl discover`, manifest verification, and the directory model.
 ---
 
 ## Overview
 
-Federation in Syncropel is sovereign-by-default — every daemon runs independently, and peers find each other through content-addressed manifests rather than a central registry. This guide covers the first layer of that discovery model: peer-to-peer manifest fetch, Ed25519 signature verification, and the `spl discover` CLI.
+Federation in Syncropel is sovereign-by-default — every instance runs independently, and peers find each other through content-addressed manifests rather than a central registry. This guide covers the first layer of that discovery model: peer-to-peer manifest fetch, Ed25519 signature verification, and the `spl discover` CLI.
 
 Two discovery layers exist:
 
-- **Layer 1** — DNS-rooted manifest. Every daemon serves `/.well-known/syncropel` with two sibling blocks: a capabilities manifest (what this daemon can do) and a federation manifest (what it advertises to federation peers). This guide covers Layer 1.
+- **Layer 1** — DNS-rooted manifest. Every instance serves `/.well-known/syncropel` with two sibling blocks: a capabilities manifest (what this instance can do) and a federation manifest (what it advertises to federation peers). This guide covers Layer 1.
 - **Layer 2** — optional DHT-based discovery. Ships when real-network observation justifies the complexity.
 
 If you already know a peer's URL and want to emit records + sync records with them, see the [federation pairing guide](./federation) instead. This guide is for finding peers you don't yet have URLs for, and for verifying what a peer advertises before you pair with it.
 
 ## Prerequisites
 
-A daemon only publishes the federation manifest if it has a cryptographic identity configured:
+A instance only publishes the federation manifest if it has a cryptographic identity configured:
 
 ```bash
-# On the publishing daemon (first time only).
+# On the publishing instance (first time only).
 spl init
 # Or, if init was already run without a keypair:
 spl identity generate
 ```
 
-This writes a did:key keypair to `~/.syncro/identity.key`. The daemon picks it up on startup and uses it to sign the manifest. Without it, `/.well-known/syncropel` still serves the capabilities manifest — but the `federation_manifest` sibling is omitted, and any caller querying the peer will see `federation.enabled = false`.
+This writes a did:key keypair to `~/.syncro/identity.key`. The instance picks it up on startup and uses it to sign the manifest. Without it, `/.well-known/syncropel` still serves the capabilities manifest — but the `federation_manifest` sibling is omitted, and any caller querying the peer will see `federation.enabled = false`.
 
 ## Quick Start
 
@@ -45,7 +45,7 @@ Advertises kinds: music.catalog.track, music.catalog.album
 Pair endpoint:    https://alice.example.com/v1/sync
 ```
 
-What happened under the hood: the CLI fetched `https://alice.example.com/.well-known/syncropel`, extracted the `federation_manifest` sibling key, resolved the `daemon.did` to its Ed25519 public key, and verified the signature over the manifest body. Tampered manifests or signature mismatches exit non-zero with a clear error — the CLI never returns a claim it could not cryptographically verify.
+What happened under the hood: the CLI fetched `https://alice.example.com/.well-known/syncropel`, extracted the `federation_manifest` sibling key, resolved the `instance.did` to its Ed25519 public key, and verified the signature over the manifest body. Tampered manifests or signature mismatches exit non-zero with a clear error — the CLI never returns a claim it could not cryptographically verify.
 
 From a script:
 
@@ -101,7 +101,7 @@ A minimal example:
 
 A few notes on shape:
 
-- **`daemon.did`** is the peer's identity. The signature is verified against this DID's public key. A manifest signed by a different key than the one the DID resolves to is rejected.
+- **`instance.did`** is the peer's identity. The signature is verified against this DID's public key. A manifest signed by a different key than the one the DID resolves to is rejected.
 - **`advertises.kinds`** is the opt-in list of `body.kind` values this peer is willing to receive via federation. An empty list is legitimate — a peer may be open to pairing but not announce specific kinds.
 - **`capabilities_ref`** and **`responders_ref`** are JSON Pointers into the same `/.well-known/syncropel` response. They let clients navigate to the broader capability manifest and the responder-metadata block without issuing another HTTP request.
 - **`signature.expires_at`** is a freshness window, not a revocation mechanism. Peers typically re-sign daily; receivers should reject manifests whose `expires_at` is in the past.
@@ -152,13 +152,13 @@ The manifest-based model is deliberately simple. Security properties worth knowi
 2. **Tamper-evident.** Changing any field in the manifest invalidates the signature. A proxy or CDN cannot alter what a peer advertises without detection.
 3. **Freshness-bounded.** `signature.expires_at` caps how long a cached manifest can be trusted. Past-expiry manifests are rejected by `spl discover`.
 4. **No central authority.** The directory (when it ships) is one of many possible aggregators. Peers can always be reached and verified directly from their URL; no single party can gate discovery.
-5. **Opt-in advertising.** A daemon with an identity keypair decides whether to populate `advertises.kinds`. Empty is acceptable — the peer is reachable for explicit pairing but does not broadcast a menu.
+5. **Opt-in advertising.** A instance with an identity keypair decides whether to populate `advertises.kinds`. Empty is acceptable — the peer is reachable for explicit pairing but does not broadcast a menu.
 
 ## Common troubleshooting
 
 - **`peer served /.well-known/syncropel but no federation_manifest key`** — the peer has no identity configured. Run `spl init` or `spl identity generate` on the peer.
 - **`signature verification failed`** — either the manifest was tampered with in transit, or the peer's DID resolves to a different public key than the one that signed. Re-fetch; if persistent, the peer's DID resolution is misconfigured.
-- **`manifest expired`** — the peer hasn't re-signed within its freshness window. Poke the peer operator to restart the daemon (signer rotates on each boot).
+- **`manifest expired`** — the peer hasn't re-signed within its freshness window. Poke the peer operator to restart the instance (signer rotates on each boot).
 - **`Directory aggregation is not wired yet`** — pass `--peer-url` with a specific peer URL, or wait for the directory path to land.
 
 ## Next steps

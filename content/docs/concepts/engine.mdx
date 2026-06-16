@@ -78,7 +78,7 @@ The maintenance loop. Runs on a cron schedule (configurable per job) and handles
 - **Snapshots.** Produce daily thread snapshots for backup / federation seeding.
 - **Cost and health reports.** Aggregate the day's dispatch costs and publish the summary.
 
-CRON work is typically offloaded to spawned tasks rather than running inline in the daemon process, so a long cron job doesn't block ingest or reconcile. The daemon acts as the scheduler; the actual work runs in short-lived subprocesses that emit their results back as records.
+CRON work is typically offloaded to spawned tasks rather than running inline in the instance process, so a long cron job doesn't block ingest or reconcile. The instance acts as the scheduler; the actual work runs in short-lived subprocesses that emit their results back as records.
 
 ## Config is data
 

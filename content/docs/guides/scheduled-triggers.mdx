@@ -19,7 +19,7 @@ evaluates schedules on every tick.
 
 ## Prerequisites
 
-- Running `spl serve` daemon
+- Running `spl serve` instance
 - An actor DID to dispatch to (typically `did:sync:agent:<role>`)
 - The actor must have a registered adapter (see [Actors and adapters](/docs/guides/actors-and-adapters))
 
@@ -39,7 +39,7 @@ spl config add-trigger \
 ```
 
 Cron format is standard: `minute hour day month weekday`. The above
-reads "at 9am UTC every day". The daemon evaluates each cron on every
+reads "at 9am UTC every day". The instance evaluates each cron on every
 `tick_interval_ms` (default 1s), so firing resolution is ~1s.
 
 ## Verify the trigger

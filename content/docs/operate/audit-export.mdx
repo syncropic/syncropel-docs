@@ -71,7 +71,7 @@ the event downstream (content-addressed `id`, all 8 fields, etc.).
 - Absolute RFC3339: `--since 2026-04-01T00:00:00Z`
 
 No time filter → full record log. Be careful on long-running prod
-daemons — the output can be large.
+instances — the output can be large.
 
 ## Retention patterns
 
@@ -124,7 +124,7 @@ spl audit export --since 24h --categories aitl \
 
 ## Operational notes
 
-- The command runs against the daemon over the Unix socket (prod) or
+- The command runs against the instance over the Unix socket (prod) or
   `SPL_SERVE_URL` (dev). No SQL-level access required.
 - JSON Lines are newline-delimited; if your SIEM expects JSON arrays,
   wrap with `jq -s`.

@@ -21,7 +21,7 @@ By the end of this tutorial you will have:
 
 Total time: about 20 minutes if everything works, 30 minutes if you want to explore.
 
-**Prerequisites**: `spl` binary installed with fleet support (`spl fleet --help` works), a working `~/.syncro` prod daemon (or be willing to set one up fresh), and ~2 GB of free disk for per-worker state roots.
+**Prerequisites**: `spl` binary installed with fleet support (`spl fleet --help` works), a working `~/.syncro` prod instance (or be willing to set one up fresh), and ~2 GB of free disk for per-worker state roots.
 
 ## Part 1 — Start the fleet
 
@@ -48,9 +48,9 @@ Fleet ready. Inspect with:
 
 This does three things:
 
-1. Verifies the coordinator (your existing prod daemon at `~/.syncro` on port 9100) is healthy. If no coordinator is running, it starts one.
+1. Verifies the coordinator (your existing prod instance at `~/.syncro` on port 9100) is healthy. If no coordinator is running, it starts one.
 2. Creates `~/.syncro-worker-a` and `~/.syncro-worker-b` if they don't exist (empty state roots, fresh init).
-3. Launches two worker daemons on ports 9201 and 9202, each with `SPL_FLEET_COORDINATOR_URL=http://localhost:9100` so they know where to register.
+3. Launches two worker instances on ports 9201 and 9202, each with `SPL_FLEET_COORDINATOR_URL=http://localhost:9100` so they know where to register.
 
 Within 15 seconds, both workers POST their first heartbeat to the coordinator. Verify:
 
@@ -284,7 +284,7 @@ The task is now in `review` or `done` state (depending on your evaluation gate c
 spl fleet stop --workers
 ```
 
-This sends SIGTERM to both worker daemons. Each emits a final heartbeat with `health: "draining"` before exiting. The coordinator stays running for overnight scheduled work (the common case at end-of-day).
+This sends SIGTERM to both worker instances. Each emits a final heartbeat with `health: "draining"` before exiting. The coordinator stays running for overnight scheduled work (the common case at end-of-day).
 
 If you want to stop everything including the coordinator:
 

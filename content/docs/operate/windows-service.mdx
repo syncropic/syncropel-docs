@@ -1,6 +1,6 @@
 ---
 title: Windows Service
-description: Run `spl serve` as a Windows Service so the daemon starts at boot, survives logoff, and integrates with services.msc + the Event Log. Install, start, stop, uninstall, and troubleshooting.
+description: Run `spl serve` as a Windows Service so the instance starts at boot, survives logoff, and integrates with services.msc + the Event Log. Install, start, stop, uninstall, and troubleshooting.
 ---
 
 On Linux and macOS, `spl serve` already detaches from the
@@ -12,7 +12,7 @@ Console applications launched from
 PowerShell or CMD are bound to the session that started them and are
 torn down when the user logs off. The native supervisor on Windows is
 the Service Control Manager (SCM) — the same thing that owns `lsass`,
-`spooler`, and every other background daemon surfaced in
+`spooler`, and every other background instance surfaced in
 `services.msc`.
 
 `spl serve` ships a Windows Service wrapper. Three
@@ -20,7 +20,7 @@ flags drive the full lifecycle:
 
 | Flag | What it does | Admin required |
 |---|---|---|
-| `--install-service` | Register the daemon with the SCM (default name `SyncropelDaemon`) | yes |
+| `--install-service` | Register the instance with the SCM (default name `SyncropelInstance`) | yes |
 | `--uninstall-service` | Remove the registration (stops the service first if running) | yes |
 | `--service` | Internal — SCM invokes the binary with this flag | n/a |
 
@@ -37,14 +37,14 @@ From an **elevated PowerShell** (Run as Administrator):
 spl serve --install-service
 
 # 2. Start — SCM invokes the binary; the service appears in services.msc
-sc.exe start SyncropelDaemon
+sc.exe start SyncropelInstance
 
-# 3. Verify — /v1/capabilities responds, spl status shows the daemon
+# 3. Verify — /v1/capabilities responds, spl status shows the instance
 curl http://127.0.0.1:9100/v1/capabilities
 spl status
 
 # 4. Stop — graceful shutdown (drains in-flight work)
-sc.exe stop SyncropelDaemon
+sc.exe stop SyncropelInstance
 
 # 5. Uninstall — removes SCM registration and Event Log source
 spl serve --uninstall-service
@@ -56,15 +56,15 @@ further intervention.
 
 ## Customizing the service name
 
-Multi-instance hosts (for example a test rig running three daemons
+Multi-instance hosts (for example a test rig running three instances
 against three different `SYNCROPEL_HOME` directories) need three
 different SCM names. Pass `--service-name` on every flag:
 
 ```powershell
-spl serve --install-service  --service-name SyncropelDaemon_dev
-sc.exe start SyncropelDaemon_dev
-sc.exe stop  SyncropelDaemon_dev
-spl serve --uninstall-service --service-name SyncropelDaemon_dev
+spl serve --install-service  --service-name SyncropelInstance_dev
+sc.exe start SyncropelInstance_dev
+sc.exe stop  SyncropelInstance_dev
+spl serve --uninstall-service --service-name SyncropelInstance_dev
 ```
 
 Names must be 1..256 characters and cannot contain slashes, control
@@ -110,18 +110,18 @@ process exits with code 0.
 Install registers an Event Log source whose name matches the service
 name. Lifecycle events — start, stop, unexpected exits — land in
 **Event Viewer → Windows Logs → Application** filtered by **Source =
-SyncropelDaemon** (or your `--service-name` override).
+SyncropelInstance** (or your `--service-name` override).
 
 From PowerShell:
 
 ```powershell
-Get-EventLog -LogName Application -Source SyncropelDaemon -Newest 20
+Get-EventLog -LogName Application -Source SyncropelInstance -Newest 20
 ```
 
-For deeper diagnostics the daemon's own tracing output still writes
+For deeper diagnostics the instance's own tracing output still writes
 to `%USERPROFILE%\.syncro\logs\spl.log`. The Event Log is the place
-to look when the daemon failed to start at boot or was killed by
-the OS; the tracing log is the place to look when the daemon is
+to look when the instance failed to start at boot or was killed by
+the OS; the tracing log is the place to look when the instance is
 running but something inside it is misbehaving.
 
 ## Troubleshooting
@@ -140,10 +140,10 @@ request in a timely fashion." Most common causes:
 
 1. **Port 9100 already in use** — another `spl serve` is already
    listening. Run `spl status` from a regular shell to see the
-   existing daemon, then stop it first.
+   existing instance, then stop it first.
 2. **Missing auth bootstrap** — if `auth.required = true` in the
-   store and no service-account authorizes the daemon's default
-   user actor, the daemon's pre-flight fails. Stop the service,
+   store and no service-account authorizes the instance's default
+   user actor, the instance's pre-flight fails. Stop the service,
    run interactively with
    `spl serve --insecure-localhost` once to mint a recovery token,
    then restart the service.
@@ -175,7 +175,7 @@ seconds, the service may be hung — use `sc.exe queryex <name>`
 to read the PID and kill it forcibly:
 
 ```powershell
-sc.exe queryex SyncropelDaemon
+sc.exe queryex SyncropelInstance
 taskkill /F /PID <pid>
 ```
 

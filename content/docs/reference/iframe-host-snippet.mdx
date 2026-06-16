@@ -1,10 +1,10 @@
 ---
 title: Iframe Host Snippet
-description: A copy-paste-able vanilla HTML + JS snippet that embeds a Syncropel iframe extension into any web app. Implements the SAP handshake, origin allowlisting, capability gating, and emits relayed to the daemon.
+description: A copy-paste-able vanilla HTML + JS snippet that embeds a Syncropel iframe extension into any web app. Implements the SAP handshake, origin allowlisting, capability gating, and emits relayed to the instance.
 ---
 
 <Callout type="warn">
-**This snippet is security-sensitive.** It accepts messages from a sandboxed iframe and forwards record emits to a Syncropel daemon. Read the [Security expectations](#security-expectations) section before deploying. A bad origin check or weak capability gate gives an extension full access to your instance.
+**This snippet is security-sensitive.** It accepts messages from a sandboxed iframe and forwards record emits to a Syncropel instance. Read the [Security expectations](#security-expectations) section before deploying. A bad origin check or weak capability gate gives an extension full access to your instance.
 </Callout>
 
 ## Use this when
@@ -20,7 +20,7 @@ The snippet is intentionally framework-free — vanilla HTML + JS, no build step
 - Origin allowlisting — messages from any origin not in `EXT_ORIGINS` are dropped
 - The full host-side handshake: `hello` → wait for `ready` → reply with `action.result` confirming granted capabilities
 - A capability policy that gates `records.emit`, `records.query`, `records.subscribe`, `navigate`
-- Relayed `records.emit` calls to a Syncropel daemon via authenticated `fetch`
+- Relayed `records.emit` calls to a Syncropel instance via authenticated `fetch`
 - A minimal consent prompt when the extension requests a sensitive capability for the first time
 - iframe height adjustment via the extension's `height` messages
 - Goodbye signal on tab unload
@@ -55,7 +55,7 @@ Save this as `host.html`:
     <script>
       // ----- CONFIGURE THESE THREE CONSTANTS ------------------------------
       const EXT_URL = "http://localhost:5173/";          // your extension's URL
-      const DAEMON_URL = "http://localhost:9100";         // your spl serve daemon
+      const DAEMON_URL = "http://localhost:9100";         // your spl serve instance
       const DAEMON_TOKEN = "spl_dev_xxx_yyyyyyyyyyyy";    // bearer token (from ~/.syncro/token)
       // -------------------------------------------------------------------
 
@@ -162,9 +162,9 @@ Save this as `host.html`:
         );
       }
 
-      // ---- daemon relay -------------------------------------------------
+      // ---- instance relay -------------------------------------------------
 
-      async function daemonEmit(payload) {
+      async function instanceEmit(payload) {
         const body = {
           act: payload.act,
           actor: ACTOR,
@@ -190,7 +190,7 @@ Save this as `host.html`:
         return { record_id: data.id ?? data.record_id };
       }
 
-      async function daemonQuery(vql) {
+      async function instanceQuery(vql) {
         const params = new URLSearchParams({ limit: "100" });
         if (typeof vql.thread === "string") params.set("thread", vql.thread);
         else params.set("thread", SELECTED_THREAD);
@@ -205,13 +205,13 @@ Save this as `host.html`:
 
       // Naive subscribe: poll every 2s and ship deltas to the extension.
       const subscriptions = new Map(); // sub_id → { thread, lastClock, intervalId }
-      function daemonSubscribe(vql) {
+      function instanceSubscribe(vql) {
         const subId = crypto.randomUUID();
         const thread = typeof vql.thread === "string" ? vql.thread : SELECTED_THREAD;
         let lastClock = 0;
         const tick = async () => {
           try {
-            const { records } = await daemonQuery({ thread });
+            const { records } = await instanceQuery({ thread });
             const fresh = records.filter((r) => r.clock > lastClock);
             if (fresh.length) {
               lastClock = Math.max(lastClock, ...fresh.map((r) => r.clock));
@@ -230,7 +230,7 @@ Save this as `host.html`:
         return { subscription_id: subId };
       }
 
-      function daemonUnsubscribe(subId) {
+      function instanceUnsubscribe(subId) {
         const s = subscriptions.get(subId);
         if (s) { clearInterval(s.intervalId); subscriptions.delete(subId); }
         return { ok: true };
@@ -260,7 +260,7 @@ Save this as `host.html`:
               return sendActionResult(env.id, null, { code: "denied", message: "records.emit not granted" });
             }
             try {
-              const result = await daemonEmit(env.payload);
+              const result = await instanceEmit(env.payload);
               sendActionResult(env.id, result);
             } catch (e) {
               sendActionResult(env.id, null, { code: "transport", message: String(e?.message ?? e) });
@@ -272,7 +272,7 @@ Save this as `host.html`:
               return sendActionResult(env.id, null, { code: "denied", message: "records.query not granted" });
             }
             try {
-              const result = await daemonQuery(env.payload.vql ?? {});
+              const result = await instanceQuery(env.payload.vql ?? {});
               sendActionResult(env.id, result);
             } catch (e) {
               sendActionResult(env.id, null, { code: "transport", message: String(e?.message ?? e) });
@@ -283,11 +283,11 @@ Save this as `host.html`:
             if (!grantedCapabilities.includes("records.subscribe")) {
               return sendActionResult(env.id, null, { code: "denied", message: "records.subscribe not granted" });
             }
-            sendActionResult(env.id, daemonSubscribe(env.payload.vql ?? {}));
+            sendActionResult(env.id, instanceSubscribe(env.payload.vql ?? {}));
             return;
           }
           case "records.unsubscribe":
-            sendActionResult(env.id, daemonUnsubscribe(env.payload.subscription_id));
+            sendActionResult(env.id, instanceUnsubscribe(env.payload.subscription_id));
             return;
           case "navigate":
             // Host implementations decide what to do. Here we just log.
@@ -360,7 +360,7 @@ Three constants control everything:
 | Constant | What |
 |---|---|
 | `EXT_URL` | Where the extension lives. Schemes + ports must match exactly — `http://localhost:5173/` is not the same origin as `http://127.0.0.1:5173/`. |
-| `DAEMON_URL` | Your `spl serve` daemon. Default `http://localhost:9100`. |
+| `DAEMON_URL` | Your `spl serve` instance. Default `http://localhost:9100`. |
 | `DAEMON_TOKEN` | A bearer token. Read it from `~/.syncro/token` and paste in. **Never commit a token to git.** |
 
 For multi-extension hosts, expand `EXT_ORIGINS` from a `Set` to a per-iframe lookup, and gate the dispatch handler on the source origin matching the iframe whose adapter is talking.
@@ -385,7 +385,7 @@ Every host-side `postMessage` uses the captured `extOrigin`, never `"*"`. This g
 
 ### Rotate the bearer token
 
-The snippet hard-codes `DAEMON_TOKEN`. For anything beyond local dev, fetch the token from a server endpoint that holds it, rather than baking it into the host page. The `fetch` in `daemonEmit` can be a relative path to your own server which proxies to the daemon.
+The snippet hard-codes `DAEMON_TOKEN`. For anything beyond local dev, fetch the token from a server endpoint that holds it, rather than baking it into the host page. The `fetch` in `instanceEmit` can be a relative path to your own server which proxies to the instance.
 
 ### Capability gating is your kill switch
 
@@ -401,7 +401,7 @@ The validator drops envelopes more than five minutes off `Date.now()`. This blun
 
 ### Treat the extension as untrusted
 
-Even with all the above, treat every extension as untrusted code running with the user's authority. Your daemon's [permission CEL rules](/docs/guides/cel-expressions) should encode what records each user is allowed to write, and the daemon will reject requests that violate them. The iframe host is **not** the policy enforcement point — the daemon is.
+Even with all the above, treat every extension as untrusted code running with the user's authority. Your instance's [permission CEL rules](/docs/guides/cel-expressions) should encode what records each user is allowed to write, and the instance will reject requests that violate them. The iframe host is **not** the policy enforcement point — the instance is.
 
 For more on iframe sandboxing, see the [OWASP Cheat Sheet on HTML5 Security](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing-cors-and-iframes).
 

@@ -191,9 +191,9 @@ All multi-step patterns persist their state as LEARN records on the query's thre
 | `escalate` | `infer.orchestration.escalate.state.v1` |
 | `ensemble_with_audit` | `infer.orchestration.audit.state.v1` |
 
-The state records carry enough information to resume the orchestration after a crash. This is why keeping state in records is load-bearing — if orchestration state lived in daemon memory, a restart would lose it, and a 7-day human escalation would be un-recoverable.
+The state records carry enough information to resume the orchestration after a crash. This is why keeping state in records is load-bearing — if orchestration state lived in instance memory, a restart would lose it, and a 7-day human escalation would be un-recoverable.
 
-Replay semantics: re-ingesting the query thread on a fresh daemon re-drives the orchestration to exactly where it stopped. If all responses are in-record, the fold is deterministic. If a human responder hadn't answered yet, the executor waits for their DO exactly as it would have on the original run.
+Replay semantics: re-ingesting the query thread on a fresh instance re-drives the orchestration to exactly where it stopped. If all responses are in-record, the fold is deterministic. If a human responder hadn't answered yet, the executor waits for their DO exactly as it would have on the original run.
 
 ## Nested queries — the composition escape hatch
 

@@ -104,7 +104,7 @@ rm ~/.config/systemd/user/spl-serve.service
 ## macOS — launchd LaunchAgent
 
 macOS uses `launchd` instead of systemd. A LaunchAgent runs in your
-user session; a LaunchDaemon runs system-wide. For a personal
+user session; a LaunchInstance runs system-wide. For a personal
 instance, LaunchAgent is the right choice.
 
 ### 1. Write the plist file
@@ -198,7 +198,7 @@ guide. Quickstart from an elevated PowerShell:
 
 ```powershell
 spl serve --install-service
-sc.exe start SyncropelDaemon
+sc.exe start SyncropelInstance
 ```
 
 ## Common pitfalls
@@ -233,7 +233,7 @@ preferred shell host).
 
 ## See also
 
-- [Starting Your Instance](/docs/get-started/daemon) — the three modes
+- [Starting Your Instance](/docs/get-started/instance) — the three modes
   `spl serve` runs in (dev / secure local / exposed)
 - [Windows Service](/docs/operate/windows-service) — full Windows
   Service install + lifecycle reference

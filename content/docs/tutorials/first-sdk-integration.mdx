@@ -4,7 +4,7 @@ description: 15-minute walk from npm install to a working Node.js script that em
 ---
 
 <Callout type="info">
-This tutorial assumes you already have **`spl` installed and a daemon running** with a token in `~/.syncro/token`. If you don't, do the [Quickstart](/docs/start) and [Authentication setup](/docs/operate/keyring) first — both take under five minutes.
+This tutorial assumes you already have **`spl` installed and a instance running** with a token in `~/.syncro/token`. If you don't, do the [Quickstart](/docs/start) and [Authentication setup](/docs/operate/keyring) first — both take under five minutes.
 </Callout>
 
 ## What you'll build
@@ -114,7 +114,7 @@ closed: true
 
 If `opened.success` is `false`, check that:
 
-- `spl serve --status` reports the daemon as running
+- `spl serve --status` reports the instance as running
 - `~/.syncro/token` is readable and non-empty
 - The token hasn't been revoked — `spl token list`
 
@@ -241,13 +241,13 @@ thread has 4 records:
 2 actions on this thread
 ```
 
-The query is **fail-open**: if the daemon is unreachable or returns 5xx, you get an empty array, not a thrown exception. That's deliberate — your app keeps responding even when the engine is degraded. The same property holds for `emit`: transport errors return `{ success: false, error }` instead of raising. Grammar errors (a malformed `body.kind`) still throw, because they are programmer mistakes the engine can't fix.
+The query is **fail-open**: if the instance is unreachable or returns 5xx, you get an empty array, not a thrown exception. That's deliberate — your app keeps responding even when the engine is degraded. The same property holds for `emit`: transport errors return `{ success: false, error }` instead of raising. Grammar errors (a malformed `body.kind`) still throw, because they are programmer mistakes the engine can't fix.
 
 ## What you have now
 
 A Node script that:
 
-- ✅ Authenticates against a local Syncropel daemon
+- ✅ Authenticates against a local Syncropel instance
 - ✅ Emits records on a thread with grammar-validated `body.kind`
 - ✅ Attaches canonical references for cross-publisher correlation
 - ✅ Closes the thread with a fulfilling `KNOW`

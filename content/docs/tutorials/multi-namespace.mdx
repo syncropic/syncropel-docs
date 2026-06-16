@@ -18,13 +18,13 @@ You'll need: a running `spl serve` (the [Quickstart](/docs/start) covers this), 
 
 If you skipped the [Namespaces concept](/docs/concepts/namespaces) page, read the first three sections first — they explain the WHY this tutorial demonstrates.
 
-## Step 1: confirm the daemon is healthy
+## Step 1: confirm the instance is healthy
 
 ```bash
 spl doctor
 ```
 
-You should see 7 PASS checks. If `daemon reachable` fails, run `spl serve` first.
+You should see 7 PASS checks. If `instance reachable` fails, run `spl serve` first.
 
 ```bash
 spl namespace list
@@ -186,7 +186,7 @@ You should get a 403 with a helpful error message:
 }
 ```
 
-The error tells you exactly what's wrong AND how to fix it. This is the [monotonic narrowing rule](/docs/concepts/namespaces#the-narrowing-rule) in action — the daemon walked the ancestor chain, hit `fake-corp`, found it missing from the registry, and refused the write.
+The error tells you exactly what's wrong AND how to fix it. This is the [monotonic narrowing rule](/docs/concepts/namespaces#the-narrowing-rule) in action — the instance walked the ancestor chain, hit `fake-corp`, found it missing from the registry, and refused the write.
 
 ## Step 6: try cross-environment escalation
 

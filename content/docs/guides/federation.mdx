@@ -1,6 +1,6 @@
 ---
 title: Federation — pairing two instances
-description: Set up record sync between two Syncropel daemons. Covers identity setup, creating pairs, how propagation works, cross-namespace consent, and the common misconfigurations.
+description: Set up record sync between two Syncropel instances. Covers identity setup, creating pairs, how propagation works, cross-namespace consent, and the common misconfigurations.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -16,9 +16,9 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 ## Who this is for
 
-You have two Syncropel daemons — one on your laptop and one on a server, or two servers, or any combination — and you want records emitted on one to show up on the other. This guide walks you through the setup.
+You have two Syncropel instances — one on your laptop and one on a server, or two servers, or any combination — and you want records emitted on one to show up on the other. This guide walks you through the setup.
 
-If you're trying to *find* peer daemons you don't yet have URLs for, start with the [federation discovery guide](./federation-discovery) instead. If you want records to reach a peer that's offline, see the [async federation guide](./async-federation).
+If you're trying to *find* peer instances you don't yet have URLs for, start with the [federation discovery guide](./federation-discovery) instead. If you want records to reach a peer that's offline, see the [async federation guide](./async-federation).
 
 ## How federation works
 
@@ -35,14 +35,14 @@ Records are signed when emitted and verified when received. Duplicate records ar
 ## Prerequisites
 
 - `spl` installed on both instances. Verify with `spl version`.
-- Both daemons reachable from each other over HTTP. If one is behind NAT or bound to `127.0.0.1`, see the troubleshooting section.
-- Each daemon has an identity configured. Run `spl init` once on a fresh install — it generates a keypair and a `did:key:...` identity in `~/.syncro/config.toml`. Upgraded daemons without a DID in config need `spl init --force` once.
+- Both instances reachable from each other over HTTP. If one is behind NAT or bound to `127.0.0.1`, see the troubleshooting section.
+- Each instance has an identity configured. Run `spl init` once on a fresh install — it generates a keypair and a `did:key:...` identity in `~/.syncro/config.toml`. Upgraded instances without a DID in config need `spl init --force` once.
 
-## Walk-through: pair two local daemons
+## Walk-through: pair two local instances
 
-For demonstration, let's run two daemons on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250. The same commands apply when the daemons are on different machines.
+For demonstration, let's run two instances on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250. The same commands apply when the instances are on different machines.
 
-### 1. Start both daemons
+### 1. Start both instances
 
 ```bash
 # Terminal 1: instance A
@@ -56,7 +56,7 @@ spl init --force
 spl serve --port 9250 --host 0.0.0.0
 ```
 
-Pass `--host 0.0.0.0` when you want the daemon reachable from other machines or containers. The default `--host 127.0.0.1` only accepts loopback connections.
+Pass `--host 0.0.0.0` when you want the instance reachable from other machines or containers. The default `--host 127.0.0.1` only accepts loopback connections.
 
 ### 2. Capture each instance's DID
 
@@ -144,7 +144,7 @@ For machine-readable access use `spl status --json` or query the endpoints direc
 - **`GET /v1/sync/health`** — aggregate mesh health: pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency across all pairs, top slowest pairs, top error-prone pairs, any active drift alerts.
 - **`GET /v1/sync/pairs/{id}/stats`** — per-pair detail: rolling rate, latency histogram, error count in the last hour, poll interval state, cumulative counters.
 
-## Peer discovery — finding other daemons without hand-configured URLs
+## Peer discovery — finding other instances without hand-configured URLs
 
 You don't have to hand-configure every `peer_did` + `peer_url`. The `spl fleet sync peers discover` command surfaces peers found via four mechanisms:
 
@@ -156,7 +156,7 @@ spl fleet sync peers discover --method did-sync --namespace acme-corp
 spl fleet sync peers discover --method static            # Peers from config
 ```
 
-**mDNS (LAN broadcast)** — on the same local network, daemons advertise themselves on `_syncropel._tcp.local` and discover each other in under a second. Listener is on by default; the broadcaster is off by default (opt in with `[sync.discovery] mdns_broadcast = true` in `~/.syncro/config.toml`).
+**mDNS (LAN broadcast)** — on the same local network, instances advertise themselves on `_syncropel._tcp.local` and discover each other in under a second. Listener is on by default; the broadcaster is off by default (opt in with `[sync.discovery] mdns_broadcast = true` in `~/.syncro/config.toml`).
 
 **did:web resolution** — if you know a peer's domain (e.g., `alice.dev`), the resolver does a standard HTTPS GET to `https://alice.dev/.well-known/did.json` and extracts the peer's endpoint. No directory service required. Publish your own domain-hosted DID document with `spl identity publish-did-web --domain alice.dev`.
 
@@ -172,16 +172,16 @@ When a pair is in `failing` state, `last_error` uses structured codes:
 
 | Code | Meaning | Fix |
 |---|---|---|
-| `CONNECT_REFUSED` | Peer daemon not reachable | Check peer is running; if cross-machine, make sure it's not bound only to `127.0.0.1` |
+| `CONNECT_REFUSED` | Peer instance not reachable | Check peer is running; if cross-machine, make sure it's not bound only to `127.0.0.1` |
 | `TIMEOUT` | Peer didn't respond in time | Network slow or peer overloaded |
 | `DNS_FAILURE` | `peer_url` hostname doesn't resolve | Typo in the URL, or DNS is unavailable |
 | `HTTP_4XX` | Peer rejected the request | Check namespaces registered, consent grants, signatures |
-| `HTTP_5XX` | Peer daemon error | Check the peer's logs |
-| `PARSE_ERROR` | Peer returned malformed JSON | Version mismatch, or the peer isn't an `spl` daemon |
+| `HTTP_5XX` | Peer instance error | Check the peer's logs |
+| `PARSE_ERROR` | Peer returned malformed JSON | Version mismatch, or the peer isn't an `spl` instance |
 
 ## Cross-namespace sharing
 
-By default, records in one namespace are not visible to a peer in a different namespace — the consent filter blocks them. To grant cross-namespace consent, use `spl consent grant` on the source daemon:
+By default, records in one namespace are not visible to a peer in a different namespace — the consent filter blocks them. To grant cross-namespace consent, use `spl consent grant` on the source instance:
 
 ```bash
 spl consent grant --to-namespace partner-team --hash-levels L0,L1,L2,L3
@@ -193,21 +193,21 @@ See the [consent management guide](./consent) for the full flow.
 
 ### "My pair was created but no records propagate"
 
-The most common cause is a daemon bound to `127.0.0.1` while the pair points at a non-loopback host. Two signals to check:
+The most common cause is a instance bound to `127.0.0.1` while the pair points at a non-loopback host. Two signals to check:
 
 - The response to `POST /v1/sync/pairs` includes a `warning` field when this is detected.
 - `spl doctor` flags it:
 
 ```
-! federation bind host      1 sync pair(s) configured but daemon is bound
+! federation bind host      1 sync pair(s) configured but instance is bound
                             to 127.0.0.1. Remote peers cannot reach this
                             instance. Restart with
                             `spl serve --host 0.0.0.0 --daemon`.
 ```
 
-Fix: restart the daemon with `--host 0.0.0.0`.
+Fix: restart the instance with `--host 0.0.0.0`.
 
-### "Daemon rejects records with namespace X"
+### "Instance rejects records with namespace X"
 
 Error: `NAMESPACE_REJECTED: ancestor 'X' is not Active in the registry.`
 

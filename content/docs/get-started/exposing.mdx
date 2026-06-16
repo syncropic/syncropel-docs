@@ -1,5 +1,5 @@
 ---
-title: Exposing the Daemon Securely
+title: Exposing the Instance Securely
 description: Make `spl serve` reachable from other machines without putting an unauthenticated SQLite-backed HTTP server on the public internet. Tailscale, reverse proxy with TLS, CORS, and what never to do.
 ---
 
@@ -16,26 +16,26 @@ Three safe paths, and one you should never take.
 
 Tailscale gives each machine an address in the `100.x.y.z` space. The addresses are only routable between machines you've explicitly joined to your tailnet. No public IP is exposed. Access control is built in.
 
-Install Tailscale on the daemon host and any device that needs to reach it. Then:
+Install Tailscale on the instance host and any device that needs to reach it. Then:
 
 ```bash
 # Find the host's tailnet address
 tailscale ip -4
 
-# Bind the daemon to that address
+# Bind the instance to that address
 spl stop
 spl serve --host 100.x.y.z
 ```
 
-Devices on the same tailnet reach the daemon at `http://100.x.y.z:9100`. That becomes the `--url` you pass to `spl pair`.
+Devices on the same tailnet reach the instance at `http://100.x.y.z:9100`. That becomes the `--url` you pass to `spl pair`.
 
-Tailscale's ACLs further narrow which devices can reach the daemon. Default-allow across your own tailnet is fine for personal use; tighten for shared machines.
+Tailscale's ACLs further narrow which devices can reach the instance. Default-allow across your own tailnet is fine for personal use; tighten for shared machines.
 
 ## Alternative: reverse proxy with TLS
 
-A reverse proxy — Caddy, nginx, Traefik, or Cloudflare Tunnel — terminates TLS on a public hostname and forwards to the daemon on loopback. This is the right answer when you need a public URL (say, `https://syncropel.your-domain.com`) for a federation peer or a web dashboard hosted elsewhere.
+A reverse proxy — Caddy, nginx, Traefik, or Cloudflare Tunnel — terminates TLS on a public hostname and forwards to the instance on loopback. This is the right answer when you need a public URL (say, `https://syncropel.your-domain.com`) for a federation peer or a web dashboard hosted elsewhere.
 
-Keep the daemon bound to loopback:
+Keep the instance bound to loopback:
 
 ```bash
 spl serve                                 # stays on 127.0.0.1:9100
@@ -73,9 +73,9 @@ server {
 }
 ```
 
-### Daemon-side hardening when behind a proxy
+### Instance-side hardening when behind a proxy
 
-When a proxy terminates connections, the daemon sees `127.0.0.1` as the client IP for everything. Two config flags harden against header spoofing in this mode:
+When a proxy terminates connections, the instance sees `127.0.0.1` as the client IP for everything. Two config flags harden against header spoofing in this mode:
 
 ```bash
 spl config set strict_actor_header true
@@ -89,7 +89,7 @@ Both take effect on the next request — no restart needed.
 
 ## Alternative: Cloudflare Tunnel
 
-A variant of the reverse-proxy pattern that doesn't require opening a port on your firewall. The daemon stays on loopback; a `cloudflared` agent establishes an outbound tunnel to Cloudflare's edge and they terminate TLS on the public hostname.
+A variant of the reverse-proxy pattern that doesn't require opening a port on your firewall. The instance stays on loopback; a `cloudflared` agent establishes an outbound tunnel to Cloudflare's edge and they terminate TLS on the public hostname.
 
 ```bash
 cloudflared tunnel create syncropel
@@ -112,13 +112,13 @@ Same hardening flags apply (`strict_actor_header`, `strict_impersonation_enforce
 spl serve --host 0.0.0.0
 ```
 
-On a cloud VM, `--host 0.0.0.0` exposes the daemon on port 9100 to the entire internet. Even with auth on, you are one config mistake away from a token leak that compromises the whole record store. Even with perfect auth hygiene, you're paying every bot on the internet to probe your daemon's surface.
+On a cloud VM, `--host 0.0.0.0` exposes the instance on port 9100 to the entire internet. Even with auth on, you are one config mistake away from a token leak that compromises the whole record store. Even with perfect auth hygiene, you're paying every bot on the internet to probe your instance's surface.
 
 If you find yourself wanting `--host 0.0.0.0`, pick one of the three safer alternatives above. The only legitimate use of `0.0.0.0` is on a host that is itself behind a firewall, reverse proxy, or tunnel — and in that case, `--host 127.0.0.1` would also work and is simpler.
 
-## CORS — when a browser calls your daemon
+## CORS — when a browser calls your instance
 
-The daemon's HTTP API rejects cross-origin requests by default. To let a browser at `https://syncropel.com` (or any other origin) call your locally-running daemon, add the origin to the allowlist:
+The instance's HTTP API rejects cross-origin requests by default. To let a browser at `https://syncropel.com` (or any other origin) call your locally-running instance, add the origin to the allowlist:
 
 ```bash
 spl config auth-set-cors-origins https://syncropel.com
@@ -130,21 +130,21 @@ Multiple origins:
 spl config auth-set-cors-origins https://syncropel.com,https://app.example.com
 ```
 
-The setting is a runtime record — it takes effect immediately and survives daemon restarts.
+The setting is a runtime record — it takes effect immediately and survives instance restarts.
 
 Typical setups:
 
-- **`syncropel.com` calling your daemon.** Add `https://syncropel.com`.
-- **A private web app calling a shared team daemon.** Add the app's origin.
+- **`syncropel.com` calling your instance.** Add `https://syncropel.com`.
+- **A private web app calling a shared team instance.** Add the app's origin.
 - **Developer localhost (rare).** Add `http://localhost:<port>`.
 
 ### Verifying CORS
 
-From the browser's devtools network tab, the daemon's responses should include `Access-Control-Allow-Origin` matching the request's `Origin`. If they don't, the request is either coming from an origin not on the allowlist, or you haven't set the allowlist at all. `spl config show` lists current settings.
+From the browser's devtools network tab, the instance's responses should include `Access-Control-Allow-Origin` matching the request's `Origin`. If they don't, the request is either coming from an origin not on the allowlist, or you haven't set the allowlist at all. `spl config show` lists current settings.
 
 ## Federation pairing
 
-Once the daemon is reachable on a stable URL, a federation peer can pair to it. The pairing flow mints reciprocal `federation:manage`-scoped service accounts, exchanges public keys, and persists a pair record on both sides. See the [Federation pair guide](/docs/guides/federation-pair) for the canonical `spl federation pair <peer-url>` walkthrough and the [Discovery guide](/docs/guides/federation-discovery) for auto-discovery via DNS or mDNS.
+Once the instance is reachable on a stable URL, a federation peer can pair to it. The pairing flow mints reciprocal `federation:manage`-scoped service accounts, exchanges public keys, and persists a pair record on both sides. See the [Federation pair guide](/docs/guides/federation-pair) for the canonical `spl federation pair <peer-url>` walkthrough and the [Discovery guide](/docs/guides/federation-discovery) for auto-discovery via DNS or mDNS.
 
 ## Decision matrix
 
@@ -152,7 +152,7 @@ Once the daemon is reachable on a stable URL, a federation peer can pair to it. 
 |---|---|
 | Phone on same home Wi-Fi | Bind to LAN IP, or use Tailscale |
 | CLI from a second personal machine | Tailscale |
-| Browser on `syncropel.com` | Loopback daemon + CORS allowlist |
+| Browser on `syncropel.com` | Loopback instance + CORS allowlist |
 | Federation peer on a cloud host | Reverse proxy with TLS or Cloudflare Tunnel |
 | Team-shared instance | Reverse proxy with TLS on a private network |
 | Single developer laptop | Loopback only — don't expose at all |
@@ -160,6 +160,6 @@ Once the daemon is reachable on a stable URL, a federation peer can pair to it. 
 ## See also
 
 - [Authentication and service accounts](/docs/operate/keyring) — scopes, token lifecycle, emergency recovery
-- [Federation pair guide](/docs/guides/federation-pair) — pair two daemons for bi-directional sync via `spl federation pair`
+- [Federation pair guide](/docs/guides/federation-pair) — pair two instances for bi-directional sync via `spl federation pair`
 - [Operator runbook](/docs/operate/runbook) — backup discipline, recovery, upgrades
-- [Troubleshooting](/docs/get-started/troubleshooting) — when an exposed daemon isn't reachable or CORS is blocking
+- [Troubleshooting](/docs/get-started/troubleshooting) — when an exposed instance isn't reachable or CORS is blocking

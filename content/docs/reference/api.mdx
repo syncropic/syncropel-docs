@@ -89,7 +89,7 @@ curl -X POST http://localhost:9100/v1/records \
 
 #### Namespace-scoped ingest
 
-Records can target a specific [namespace](/docs/concepts/namespaces) by setting `body.namespace`. The daemon walks the namespace's ancestor chain and rejects the record with `403 NAMESPACE_REJECTED` if any ancestor is missing or not Active. Records that omit `body.namespace` fall through to the implicit `default` namespace and are always accepted.
+Records can target a specific [namespace](/docs/concepts/namespaces) by setting `body.namespace`. The instance walks the namespace's ancestor chain and rejects the record with `403 NAMESPACE_REJECTED` if any ancestor is missing or not Active. Records that omit `body.namespace` fall through to the implicit `default` namespace and are always accepted.
 
 ```bash
 curl -X POST http://localhost:9100/v1/records \
@@ -330,7 +330,7 @@ curl -X POST http://localhost:9100/v1/data/write/complete \
 
 ## Folds
 
-A fold is a derived view computed from records — the turn timeline, thread state, trust, and more. One endpoint resolves any fold; the kernel dispatches by name.
+A fold is a derived view computed from records — the turn timeline, thread state, trust, and more. One endpoint resolves any fold; Syncropel dispatches by name.
 
 | Method | Path | Description |
 |---|---|---|
@@ -349,7 +349,7 @@ Each response carries a `watermark` (`max(records.sequence)` the value covers) s
 
 ## Graph
 
-Graph queries traverse the substrate as a graph of people, threads, and the records that connect them. Pass `?root=⊤` to query across everything you reach (see [Universal traversal](/docs/guides/universal-traversal)).
+Graph queries traverse the record graph of people, threads, and the records that connect them. Pass `?root=⊤` to query across everything you reach (see [Universal traversal](/docs/guides/universal-traversal)).
 
 | Method | Path | Description |
 |---|---|---|
@@ -509,7 +509,7 @@ There is no dedicated `/v1/audit/*` endpoint family. The [`spl audit export`](/d
 3. Filter client-side by category (system actor, AITL verdict, dispatch outcome, governance) and time window
 4. Emit one JSON object per matching record on stdout
 
-This means `spl audit export` works against any Syncropel daemon without server-side changes. The trade-off is that it's O(n) over thread count — for very large stores you should pass `--thread <id>` to scope the query.
+This means `spl audit export` works against any Syncropel instance without server-side changes. The trade-off is that it's O(n) over thread count — for very large stores you should pass `--thread <id>` to scope the query.
 
 A server-side `/v1/audit/export?since=...&categories=...` endpoint is planned for a future release. It would push the filtering into SQL and return a single JSONL stream, removing the per-thread round trips. For now, use `spl audit export` (scoped with `--thread <id>` for large stores).
 
@@ -517,7 +517,7 @@ For SIEM integration recipes (cron rotation, Splunk/Elastic/Loki pipelines, etc.
 
 ### Permission denials are NOT in audit export today
 
-HTTP middleware permission denials are emitted as `tracing::warn!` events to the daemon log (`~/.syncro/logs/spl.log`), not as records. They appear in the log filtered by `grep "PERMISSION DENIED"` but do NOT appear in `spl audit export` output. Promoting denials to first-class audit records is tracked as a follow-up — for now treat the daemon log and the audit export as complementary security-event streams.
+HTTP middleware permission denials are emitted as `tracing::warn!` events to the instance log (`~/.syncro/logs/spl.log`), not as records. They appear in the log filtered by `grep "PERMISSION DENIED"` but do NOT appear in `spl audit export` output. Promoting denials to first-class audit records is tracked as a follow-up — for now treat the instance log and the audit export as complementary security-event streams.
 
 ## Proxy
 
@@ -529,7 +529,7 @@ The proxy endpoint accepts a Messages-API-shape request body and translates it i
 
 ## Capability discovery
 
-Two endpoints expose what the daemon supports. Clients should prefer them over hard-coding feature flags — the manifest is the single source of truth.
+Two endpoints expose what the instance supports. Clients should prefer them over hard-coding feature flags — the manifest is the single source of truth.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
@@ -538,7 +538,7 @@ Two endpoints expose what the daemon supports. Clients should prefer them over h
 
 ### GET `/v1/capabilities`
 
-The authenticated surface. Returns the capability manifest scoped to the caller — auth state, advertised MCP tools, supported DID methods, store backend, available transports, API version. Clients use this to enable or disable features based on what the connected daemon actually supports; SDKs feature-detect without a trial-and-error HTTP round trip.
+The authenticated surface. Returns the capability manifest scoped to the caller — auth state, advertised MCP tools, supported DID methods, store backend, available transports, API version. Clients use this to enable or disable features based on what the connected instance actually supports; SDKs feature-detect without a trial-and-error HTTP round trip.
 
 ```bash
 curl -s -H "Authorization: Bearer $SPL_TOKEN" \
@@ -589,23 +589,23 @@ When auth is off, the endpoint is reachable without a token. When auth is on, an
 
 ### GET `/.well-known/syncropel`
 
-The unauthenticated surface, served at the [Well-Known URI](https://datatracker.ietf.org/doc/html/rfc8615) location so any peer on the public internet can discover a daemon without prior coordination. The response envelope carries two top-level manifests as sibling keys:
+The unauthenticated surface, served at the [Well-Known URI](https://datatracker.ietf.org/doc/html/rfc8615) location so any peer on the public internet can discover a instance without prior coordination. The response envelope carries two top-level manifests as sibling keys:
 
 | Key | Audience | Purpose |
 |---|---|---|
 | `capabilities_manifest` | Prospective client | Same shape as `/v1/capabilities` — a peer can feature-detect before authenticating |
-| `federation_manifest` | Prospective federation peer | Ed25519-signed; describes what this daemon offers the federation mesh |
+| `federation_manifest` | Prospective federation peer | Ed25519-signed; describes what this instance offers the federation mesh |
 
 ```bash
 curl -s http://localhost:9100/.well-known/syncropel | jq 'keys'
 # [ "capabilities_manifest", "federation_manifest" ]
 ```
 
-The `federation_manifest` key is present only when the daemon is federation-enabled and has a signing key available. Peers that only want the client view can read `capabilities_manifest` and ignore the federation sibling.
+The `federation_manifest` key is present only when the instance is federation-enabled and has a signing key available. Peers that only want the client view can read `capabilities_manifest` and ignore the federation sibling.
 
 #### Federation manifest shape
 
-The `federation_manifest` is Ed25519-signed over its canonical JSON (excluding the `signature` field). Verification proceeds against the DID document resolved from `daemon.did`. Consumers — `spl discover`, federation directories, peer-discovery CLIs — verify the signature before trusting any advertised field.
+The `federation_manifest` is Ed25519-signed over its canonical JSON (excluding the `signature` field). Verification proceeds against the DID document resolved from `instance.did`. Consumers — `spl discover`, federation directories, peer-discovery CLIs — verify the signature before trusting any advertised field.
 
 ```json
 {
@@ -659,10 +659,10 @@ Key fields:
 
 | Field | Purpose |
 |---|---|
-| `daemon.did` | The DID this manifest is authoritative for. Must match the DID served at the domain's DID document |
+| `instance.did` | The DID this manifest is authoritative for. Must match the DID served at the domain's DID document |
 | `federation.pair_endpoint` | Entry point for the pair handshake |
-| `advertises.kinds` | `body.kind` values the daemon answers federation queries about. A peer advertising `music.catalog.track` commits to serving sync requests for that kind per its consent policy |
-| `advertises.refs` | Content-addressed REFERENCE identifiers this daemon holds — used by future DHT discovery as the primary announce key |
+| `advertises.kinds` | `body.kind` values the instance answers federation queries about. A peer advertising `music.catalog.track` commits to serving sync requests for that kind per its consent policy |
+| `advertises.refs` | Content-addressed REFERENCE identifiers this instance holds — used by future DHT discovery as the primary announce key |
 | `advertises.namespaces` | Namespace handles whose records are federation-eligible (willingness, not grant) |
 | `consent_policy.default_posture` | `"open"`, `"pair-then-ask"`, `"invite-only"`, or `"closed"`. Informative hint for pre-handshake self-filtering |
 | `capabilities_ref` / `responders_ref` | Pointers back into the same envelope; clients follow them to fetch the sibling manifests |
@@ -676,7 +676,7 @@ For the discovery workflow and how this composes with `did:web`, `did:sync`, and
 |---|---|---|
 | GET | `/v1/identity` | The instance's identity, plus the calling token's authentication state |
 
-Returns the instance's own identity — `{actor, display_name, did, method, key_path, key_fingerprint}` — populated at daemon startup. New installs generate a `did:key:...` on `spl init`; upgraded installs without a DID need `spl init --force` once.
+Returns the instance's own identity — `{actor, display_name, did, method, key_path, key_fingerprint}` — populated at instance startup. New installs generate a `did:key:...` on `spl init`; upgraded installs without a DID need `spl init --force` once.
 
 This endpoint requires a valid bearer token. Since **v0.53** the response also reports the calling token's own authentication state, so a renderer can decide what to show the viewer:
 
@@ -737,7 +737,7 @@ This endpoint is **auth-invariant** — it needs no token. An anonymous caller g
 
 ## Federation sync
 
-Federation is pull-first HTTP replication between two daemons. Both flat (`/v1/sync/*`) and domain-grouped (`/v1/federation/sync/*`) routes are served.
+Federation is pull-first HTTP replication between two instances. Both flat (`/v1/sync/*`) and domain-grouped (`/v1/federation/sync/*`) routes are served.
 
 ### Changes feed
 
@@ -764,7 +764,7 @@ Request body: `{ids: [...]}` or `{records: [...]}`. When the `x-syncropel-federa
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/v1/sync/pairs` | List all sync pairs on this daemon |
+| GET | `/v1/sync/pairs` | List all sync pairs on this instance |
 | POST | `/v1/sync/pairs` | Create a pair (target pulls from source) |
 | GET | `/v1/sync/pairs/{id}` | Pair detail (state, cursor, retries, last_error) |
 | DELETE | `/v1/sync/pairs/{id}` | Remove a pair |
@@ -772,11 +772,11 @@ Request body: `{ids: [...]}` or `{records: [...]}`. When the `x-syncropel-federa
 | POST | `/v1/sync/pairs/{id}/resume` | Resume pulling |
 | POST | `/v1/sync/pairs/{id}/kick` | Force immediate poll regardless of backoff |
 
-Create body: `{peer_did, peer_url, thread_id}`. Response includes `pair_id` and, if the daemon detects a loopback misconfiguration, a `warning` field with the recovery command.
+Create body: `{peer_did, peer_url, thread_id}`. Response includes `pair_id` and, if the instance detects a loopback misconfiguration, a `warning` field with the recovery command.
 
 The pair direction is semantically "target pulls source" — creating a pair on B with `peer_did=A` means records flow A→B. For bidirectional sync, create a pair on each side.
 
-Pair state is persistent across daemon restart — the registry is rebuilt from lifecycle records on a reserved control thread at startup.
+Pair state is persistent across instance restart — the registry is rebuilt from lifecycle records on a reserved control thread at startup.
 
 ### Federation health + per-pair stats
 
@@ -801,17 +801,17 @@ Aggregate response shape (elided):
 }
 ```
 
-Metrics are in-memory with a 1-hour rolling window — ephemeral, reset on daemon restart. The daemon-wide `/health` endpoint also includes a `federation` summary for one-glance status.
+Metrics are in-memory with a 1-hour rolling window — ephemeral, reset on instance restart. The instance-wide `/health` endpoint also includes a `federation` summary for one-glance status.
 
 ### LAN peer discovery
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/v1/discovery/mdns` | List peers the local daemon has discovered via LAN mDNS browsing |
+| GET | `/v1/discovery/mdns` | List peers the local instance has discovered via LAN mDNS browsing |
 
 Returns a roster of peers with DID, endpoint, namespace, handle, capabilities (all from their TXT records), and `last_seen` timestamps. Used by `spl fleet sync peers discover --method mdns`.
 
-The daemon advertises itself on `_syncropel._tcp.local` when `[sync.discovery] mdns_broadcast = true`; it listens for other daemons' advertisements by default. Failures during mDNS init are logged but never fail the daemon (LAN discovery is a soft feature).
+The instance advertises itself on `_syncropel._tcp.local` when `[sync.discovery] mdns_broadcast = true`; it listens for other instances' advertisements by default. Failures during mDNS init are logged but never fail the instance (LAN discovery is a soft feature).
 
 ## did:sync directory
 
@@ -824,7 +824,7 @@ The daemon advertises itself on `_syncropel._tcp.local` when `[sync.discovery] m
 | GET | `/directory/{hash}/operations` | Full operation log for a did:sync |
 | GET | `/directory/handle/{handle}` | Resolve a human-readable handle to its did:sync |
 
-Gated by `config.directory_enabled` — off by default. A daemon can act as a did:sync directory provider; most installs don't need to.
+Gated by `config.directory_enabled` — off by default. A instance can act as a did:sync directory provider; most installs don't need to.
 
 ## Service accounts
 
@@ -838,7 +838,7 @@ Gated by `config.directory_enabled` — off by default. A daemon can act as a di
 
 ### Bootstrap the first service account
 
-`POST /v1/bootstrap/service-account` is a one-shot, unauthenticated endpoint used to create the first SA on a fresh daemon. Once any SA exists in the target namespace, the endpoint returns `409 BOOTSTRAP_CLOSED` and you must use the authenticated `POST /v1/service-accounts` path instead.
+`POST /v1/bootstrap/service-account` is a one-shot, unauthenticated endpoint used to create the first SA on a fresh instance. Once any SA exists in the target namespace, the endpoint returns `409 BOOTSTRAP_CLOSED` and you must use the authenticated `POST /v1/service-accounts` path instead.
 
 ```bash
 curl -X POST http://localhost:9100/v1/bootstrap/service-account \
@@ -972,7 +972,7 @@ The surface for adding either a new device of yours (guest holder) or a federate
 | POST | `/v1/invite-templates` | `admin` (always) | Save a template |
 | POST | `/v1/tokens/{token_id}/rotate` | bearer of the token being rotated (self-only) | Slide bearer expiry forward |
 
-The `(always)` annotation on admin routes is load-bearing: even with the daemon's `auth.required = false` master switch enabled (auth-off mode for local dev), the operator routes refuse anonymous callers via a separate `always_admin_auth_route` gate. The auth-off switch covers data-plane endpoints; the admin gate is independent.
+The `(always)` annotation on admin routes is load-bearing: even with the instance's `auth.required = false` master switch enabled (auth-off mode for local dev), the operator routes refuse anonymous callers via a separate `always_admin_auth_route` gate. The auth-off switch covers data-plane endpoints; the admin gate is independent.
 
 ### Issue a pair invite
 
@@ -1087,4 +1087,4 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 
 ## CORS
 
-All `/v1/*` + `/.well-known/*` + `/directory/*` endpoints include CORS headers (`tower-http::CorsLayer` with permissive defaults). The daemon at `localhost:9100` is reachable from web UI origins without proxy configuration.
+All `/v1/*` + `/.well-known/*` + `/directory/*` endpoints include CORS headers (`tower-http::CorsLayer` with permissive defaults). The instance at `localhost:9100` is reachable from web UI origins without proxy configuration.

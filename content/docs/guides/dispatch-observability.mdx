@@ -187,7 +187,7 @@ Records give you the shape of what happened. Logs give you the line-by-line narr
 spl logs --trace-id th_8c51e9c8...
 ```
 
-This reads both the JSON-structured daemon log (`~/.syncro/logs/spl.log`) and the rotated siblings (`spl.log.1`, `.2`), plus the legacy foreground `~/.syncro/serve.log` if present, filters to lines whose span context includes `sub_thread=th_8c51e9c8...`, merges them chronologically, and prints them pretty-formatted.
+This reads both the JSON-structured instance log (`~/.syncro/logs/spl.log`) and the rotated siblings (`spl.log.1`, `.2`), plus the legacy foreground `~/.syncro/serve.log` if present, filters to lines whose span context includes `sub_thread=th_8c51e9c8...`, merges them chronologically, and prints them pretty-formatted.
 
 Other selectors:
 
@@ -209,14 +209,14 @@ Example output:
 2026-04-23T18:15:44.901Z [tracing] INFO  syncropel_engine::dispatch::stream_monitor cli_adapter: dispatch complete latency_ms=821301 cost_usd=0.0423 codepath=stream_eof_fallback failure_reason=subprocess_exited_nonzero sub_thread=th_8c51e9c8...
 ```
 
-At least one filter is required — unfiltered tailing is `spl serve --logs`. The log query deliberately refuses empty filters so you don't drown in every line of the daemon's output.
+At least one filter is required — unfiltered tailing is `spl serve --logs`. The log query deliberately refuses empty filters so you don't drown in every line of the instance's output.
 
 ## Log retention
 
-Daemon logs rotate at 10 MB per file with three generations (`spl.log`, `spl.log.1`, `spl.log.2`). Rotated siblings and the legacy foreground `serve.log` are time-pruned at daemon startup with a 7-day default. Configure via:
+Instance logs rotate at 10 MB per file with three generations (`spl.log`, `spl.log.1`, `spl.log.2`). Rotated siblings and the legacy foreground `serve.log` are time-pruned at instance startup with a 7-day default. Configure via:
 
-1. The `SPL_LOG_RETENTION_DAYS` env var on the daemon process — runtime override.
-2. A `syncropel.config.log_retention.v1` LEARN record on `th_engine_config` (format below) — persisted via the record log; the daemon surfaces its `days` value as `SPL_LOG_RETENTION_DAYS` on subsequent restarts.
+1. The `SPL_LOG_RETENTION_DAYS` env var on the instance process — runtime override.
+2. A `syncropel.config.log_retention.v1` LEARN record on `th_engine_config` (format below) — persisted via the record log; the instance surfaces its `days` value as `SPL_LOG_RETENTION_DAYS` on subsequent restarts.
 
 ```json
 {

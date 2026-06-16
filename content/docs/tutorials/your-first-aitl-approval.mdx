@@ -12,7 +12,7 @@ After this, you'll understand why Syncropel is described as "self-improving" —
 ## Before you start
 
 - `spl 0.33.0` or later (`spl --version`)
-- A running daemon — either local (`spl serve`) or hosted (`<label>.syncropel.app`).
+- A running instance — either local (`spl serve`) or hosted (`<label>.syncropel.app`).
 - `spl status` returns `healthy`.
 - An LLM provider key configured (`spl config set-key anthropic <key>`) — the engine's intelligence loop needs a model to reason about new routing. If you're on a hosted instance the key is already wired.
 
@@ -37,7 +37,7 @@ The engine hot-reloads on the next config broadcast — no restart.
 
 ## 2. Emit a record with no matching routing rule
 
-Pick a body kind the daemon hasn't seen. The simplest is a fresh thread with a do-something intent:
+Pick a body kind the instance hasn't seen. The simplest is a fresh thread with a do-something intent:
 
 ```bash
 spl intend "Translate the README.md to French" --thread th_fr_translate
@@ -93,7 +93,7 @@ Output:
   result:  routing_rule_added (name: routing_translator_v1)
 ```
 
-What happened mechanically: your approval is itself a record. The AITL kind dispatcher reads `body.aitl.kind`, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the daemon's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
+What happened mechanically: your approval is itself a record. The AITL kind dispatcher reads `body.aitl.kind`, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the instance's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
 
 Verify the rule landed:
 
@@ -152,7 +152,7 @@ This is the smallest example of why AITL is Syncropel's self-improvement primiti
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `spl aitl list` always returns empty | Intelligence is disabled; the engine didn't emit a proposal. | Confirm `spl config show` reports a model + provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. The daemon hot-reloads on the next broadcast. |
+| `spl aitl list` always returns empty | Intelligence is disabled; the engine didn't emit a proposal. | Confirm `spl config show` reports a model + provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. The instance hot-reloads on the next broadcast. |
 | Proposal stays in `pending` forever | You're reading from a paired peer, not the originating instance. AITL state is per-instance until the proposal is approved + the resulting rule federates. | Run `spl aitl list` against the instance that *emitted* the original record. Check `spl actor list` to confirm which DID is the active actor. |
 | `spl aitl approve` returns `403 forbidden` | Default-secure auth on a hosted instance — the bearer token doesn't have `aitl:approve` scope. | Mint a service account with the right scopes: `spl service-account create --name "AITL approver" --scopes aitl:approve --with-token`, then `spl token save <token>`. |
 | Approved rule didn't fire on the next similar record | The proposal generalized too narrowly (matches L0 only) — the second record differs at L0. | Inspect with `spl config list-rules`, find the rule, and broaden its CEL `match` expression. The pattern layer will eventually crystallize the broader shape on its own; manual editing is the fast path. |

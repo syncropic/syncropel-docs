@@ -14,7 +14,7 @@ description: Protect your Syncropel data — the database, task content, and con
 
 ## Automatic Backup
 
-The `spl serve` daemon backs up the database on every startup:
+The `spl serve` instance backs up the database on every startup:
 
 ```
 ~/.local/share/syncropel/backups/hub.db.bak
@@ -35,7 +35,7 @@ ls -la ~/.local/share/syncropel/backups/
 ## Recovery
 
 ```bash
-# Stop the daemon
+# Stop the instance
 spl stop
 
 # Restore from backup
@@ -61,5 +61,5 @@ The engine reconstructs all derived state from the immutable record log:
 ## Prevention
 
 - Use separate ports for development (`--port 9200`) and production (port 9100)
-- Development daemons use `--memory` for ephemeral storage
+- Development instances use `--memory` for ephemeral storage
 - Task content files in `~/.syncro-data/` are independent of the database

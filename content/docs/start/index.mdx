@@ -61,7 +61,7 @@ The instance may have failed to bind port 9100. Check `~/.syncro/logs/spl.log` �
 The task-completion gate refuses to attribute completion when the working tree is dirty (so wrong commits don't get tied to the wrong task). Either `git commit` first, or pass `--force` if the changes are unrelated.
 
 **`spl stop` says "not running" but an instance clearly is.**
-The PID file got orphaned (rare but real). Use `pgrep -af "spl serve"` then `kill <pid>` directly. See [Operator Runbook → orphan PID recovery](/docs/operate/runbook#when-spl-serve---stop-says-not-running-but-the-daemon-clearly-is) for the full procedure.
+The PID file got orphaned (rare but real). Use `pgrep -af "spl serve"` then `kill <pid>` directly. See [Operator Runbook → orphan PID recovery](/docs/operate/runbook#when-spl-serve---stop-says-not-running-but-the-instance-clearly-is) for the full procedure.
 
 ## What to do next
 

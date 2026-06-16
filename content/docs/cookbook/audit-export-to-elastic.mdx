@@ -60,11 +60,11 @@ spl audit export --since 65m --categories aitl,governance
 
 ## The trade-off
 
-**Export is pull-based, not streaming.** You run `spl audit export` on your cron schedule; the command queries the record log and emits everything matching since the watermark. If your SIEM needs *real-time* alerting (sub-minute latency from event to alert), an hourly cron is too slow. For that, tail the daemon log or subscribe via SSE to the broadcast channel — but you lose the structured audit categorisation and have to filter in your pipeline.
+**Export is pull-based, not streaming.** You run `spl audit export` on your cron schedule; the command queries the record log and emits everything matching since the watermark. If your SIEM needs *real-time* alerting (sub-minute latency from event to alert), an hourly cron is too slow. For that, tail the instance log or subscribe via SSE to the broadcast channel — but you lose the structured audit categorisation and have to filter in your pipeline.
 
 **`--since` is wall-clock, not per-record.** Records ingested in a brief burst and then quiet for an hour can straddle the window boundary. The 5-minute overlap (`--since 65m` on an hourly cron) gives the SIEM's dedupe (by record ID) a chance to drop duplicates. Every record's ID is stable and in the export — dedupe is safe.
 
-**Permission-rule denials are currently tracing events, not records.** They appear in the daemon log but don't (yet) land in the record log. So `spl audit export` picks them up only if your SIEM pipeline is also tailing the daemon log. Making denials first-class audit records is planned for a future release; for now, tail the daemon log alongside the export.
+**Permission-rule denials are currently tracing events, not records.** They appear in the instance log but don't (yet) land in the record log. So `spl audit export` picks them up only if your SIEM pipeline is also tailing the instance log. Making denials first-class audit records is planned for a future release; for now, tail the instance log alongside the export.
 
 ## See also
 

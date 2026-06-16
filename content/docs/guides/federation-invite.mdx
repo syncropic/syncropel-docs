@@ -36,10 +36,10 @@ top of pair, and the failure modes are the same.
 
 ## Prerequisites
 
-- Both daemons are running and reachable.
+- Both instances are running and reachable.
 - Each has a cryptographic identity (`spl identity show`; if missing,
   `spl identity generate`).
-- The local daemon has the destination URL or, if a pair already
+- The local instance has the destination URL or, if a pair already
   exists, the `pair_id`.
 
 ## The headline command
@@ -239,7 +239,7 @@ echo "Forward this to the recipient: $RECIPIENT_URL"
   refreshes their manifest.
 - **Thread without `th_` prefix** — `--grant-thread foo` is rejected
   at parse time. Use `th_foo` (or whatever the actual canonical
-  thread ID is on your daemon).
+  thread ID is on your instance).
 - **Bare handle as peer** — `spl federation invite alice/code` is
   rejected with a pointer to use a URL or existing `pair_id`. Handle
   resolution depends on a directory service that isn't shipped yet.

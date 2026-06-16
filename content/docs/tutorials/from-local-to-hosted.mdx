@@ -14,7 +14,7 @@ Allow ~30 minutes; most of it is provisioning + verification.
 ## Before you start
 
 - `spl 0.33.0` or later (`spl --version`)
-- A local daemon with some real-feeling state — at least a few threads, a few records, ideally one federation pair. If you're starting fresh, do [Your first thread](./first-thread) first to populate something to migrate.
+- A local instance with some real-feeling state — at least a few threads, a few records, ideally one federation pair. If you're starting fresh, do [Your first thread](./first-thread) first to populate something to migrate.
 - A browser to sign up at `syncropel.com`.
 - $0 budget — hosted instances are free, up to three per account (see the [hosted plan](/docs/get-started/hosted)).
 
@@ -169,12 +169,12 @@ For the full device pairing model, see [pairing a second device](/docs/get-start
 
 ## 8. Decommission the local instance (when ready)
 
-Don't shut down the local daemon yet — give yourself a few days to confirm the hosted instance is doing what you need.
+Don't shut down the local instance yet — give yourself a few days to confirm the hosted instance is doing what you need.
 
 When you're ready to retire local:
 
 ```bash
-# Stop the local daemon
+# Stop the local instance
 spl stop
 
 # Move the local data dir to an archive location (don't delete — see warning)
@@ -195,7 +195,7 @@ You exercised Syncropel's **portability primitive**:
 2. **Identity is portable.** The DID document + private key travel with the bundle. The hosted instance signs records as your DID, not a new one. Federation pairs you had locally still see "you" on the hosted side — DID resolution refreshes the URL automatically.
 3. **The migration is reversible.** Hosted → local works the same way as local → hosted. Steward equivalence — covered in the [federation concept](/docs/concepts/federation) — is binding: any steward can become any other steward.
 4. **Round-trip is CI-gated.** This isn't an aspirational property. Every Syncropel release runs an export → import → diff suite that fails the release if any record diverges. You can rely on it.
-5. **No lock-in is structural, not promised.** The "you can leave any time" claim is a mechanism (`spl export` works on any steward, hosted or self-hosted), not a marketing line. Your hosted instance can always emit a bundle that imports cleanly into a self-hosted daemon you run yourself.
+5. **No lock-in is structural, not promised.** The "you can leave any time" claim is a mechanism (`spl export` works on any steward, hosted or self-hosted), not a marketing line. Your hosted instance can always emit a bundle that imports cleanly into a self-hosted instance you run yourself.
 
 This is what makes hosted Syncropel a strictly different deal from most SaaS: the data and the system that interpreted it are both portable. You're not paying for proprietary state; you're paying for someone else to run the same `spl` binary you have on your laptop, with the same APIs, the same records, the same exit ramp.
 

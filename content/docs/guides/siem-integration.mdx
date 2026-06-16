@@ -49,7 +49,7 @@ Top-level `category` makes filtering trivial in any SIEM. The full record is nes
 
 ## What's NOT exported (read this first)
 
-**HTTP middleware permission denials are not records today.** They're `tracing::warn!` events in the daemon log (`~/.syncro/logs/spl.log`) with a structured `PERMISSION DENIED` message. To get a complete security view in your SIEM, pipe the daemon log alongside `spl audit export`. Promoting denials to first-class audit records is planned for a future release; for now, the two streams are complementary.
+**HTTP middleware permission denials are not records today.** They're `tracing::warn!` events in the instance log (`~/.syncro/logs/spl.log`) with a structured `PERMISSION DENIED` message. To get a complete security view in your SIEM, pipe the instance log alongside `spl audit export`. Promoting denials to first-class audit records is planned for a future release; for now, the two streams are complementary.
 
 The other pre-existing limitation: `spl audit export` enumerates threads client-side and fetches records per thread. For stores with thousands of threads this becomes slow. Pass `--thread <id>` to scope when you can. A server-side `/v1/audit/export` endpoint that pushes filtering into SQL is planned for a future release.
 
@@ -334,12 +334,12 @@ zcat /var/log/spl-audit/audit-*.jsonl.gz /var/log/spl-audit/*.jsonl 2>/dev/null 
 
 You're not getting dashboards, but for solo or small-team deployments this is enough to satisfy compliance audits and post-incident investigation. Move to a real SIEM when log volume or query complexity demands it.
 
-## Companion: shipping the daemon log
+## Companion: shipping the instance log
 
 To get a complete view, also ship `~/.syncro/logs/spl.log`. It's JSON-line format, so the same shippers work.
 
 ```yaml
-# Filebeat example — ship both audit + daemon log
+# Filebeat example — ship both audit + instance log
 filebeat.inputs:
   - type: filestream
     id: syncropel-audit
@@ -349,20 +349,20 @@ filebeat.inputs:
       stream: audit
 
   - type: filestream
-    id: syncropel-daemon-log
+    id: syncropel-instance-log
     paths:
       - /home/syncropel/.syncro/logs/spl.log
     parsers:
       - ndjson:
           target: ""
     fields:
-      stream: daemon
+      stream: instance
 ```
 
-Filter for permission denials in the daemon log — these are NOT in audit export today:
+Filter for permission denials in the instance log — these are NOT in audit export today:
 
 ```text
-index=security sourcetype=syncropel:daemon "PERMISSION DENIED"
+index=security sourcetype=syncropel:instance "PERMISSION DENIED"
 ```
 
 ## Operational checklist
@@ -375,7 +375,7 @@ Before declaring your audit pipeline production-ready:
 - [ ] Shipper is tailing the output directory
 - [ ] First events visible in SIEM index
 - [ ] Tested filter for each of the 4 categories (system, aitl, dispatch, governance)
-- [ ] Daemon log also being shipped (for permission denials)
+- [ ] Instance log also being shipped (for permission denials)
 - [ ] Dedup strategy chosen (SIEM-side dedup on record.id is the easiest)
 - [ ] Logrotate or equivalent configured on the cron output
 - [ ] Alert rule for "no audit events for N minutes" — catches a broken pipeline before it matters
@@ -386,7 +386,7 @@ Before declaring your audit pipeline production-ready:
 
 The audit export pipeline is the first slice. Two follow-ups are tracked:
 
-1. **Permission denials as first-class records** — the HTTP middleware will emit `did:sync:system:auth` records on every denial, making them appear in `spl audit export --categories governance`. Removes the need to ship the daemon log separately for security purposes.
+1. **Permission denials as first-class records** — the HTTP middleware will emit `did:sync:system:auth` records on every denial, making them appear in `spl audit export --categories governance`. Removes the need to ship the instance log separately for security purposes.
 2. **Server-side `/v1/audit/export`** — pushes filtering into SQL for stores with thousands of threads, returns a single JSONL stream from one HTTP call, removes the per-thread round-trip overhead.
 
 the current CLI-driven pipeline is fully functional. They're efficiency + completeness improvements for the next iteration.
@@ -395,4 +395,4 @@ the current CLI-driven pipeline is fully functional. They're efficiency + comple
 
 - [`spl audit export`](/docs/reference/cli#developer-tools-v0100) — full CLI flags
 - [Debugging Syncropel](/docs/guides/debugging) — when to reach for audit export vs other tools
-- [Operator Runbook](/docs/operate/runbook) — daemon-log filtering for permission denials
+- [Operator Runbook](/docs/operate/runbook) — instance-log filtering for permission denials

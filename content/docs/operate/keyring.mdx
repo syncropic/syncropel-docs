@@ -1,10 +1,10 @@
 ---
 title: Authentication & Service Accounts
-description: Enable bearer-token authentication, create service accounts, pair devices, and manage token lifecycle. Bearer-token auth is enforced by default on every spl serve daemon.
+description: Enable bearer-token authentication, create service accounts, pair devices, and manage token lifecycle. Bearer-token auth is enforced by default on every spl serve instance.
 ---
 
 <Callout type="info">
-**`spl serve` is default-secure.** `auth.required = true` is the default — every daemon rejects unauthenticated requests out of the box. To bootstrap: create the first service account, save the token, and every `spl` command works from there.
+**`spl serve` is default-secure.** `auth.required = true` is the default — every instance rejects unauthenticated requests out of the box. To bootstrap: create the first service account, save the token, and every `spl` command works from there.
 </Callout>
 
 ## TL;DR
@@ -15,7 +15,7 @@ description: Enable bearer-token authentication, create service accounts, pair d
 
 ## 1. What the authentication layer does
 
-Bearer-token authentication protects every HTTP request. Without it, `spl serve` would be catastrophic the moment the daemon was reachable from any other machine — over LAN, a private network, a tunnel, a reverse proxy, or an accidentally-bound `0.0.0.0` interface. The authentication layer closes that hole:
+Bearer-token authentication protects every HTTP request. Without it, `spl serve` would be catastrophic the moment the instance was reachable from any other machine — over LAN, a private network, a tunnel, a reverse proxy, or an accidentally-bound `0.0.0.0` interface. The authentication layer closes that hole:
 
 - **Service accounts** are first-class records with stable identifiers, DID-claim allowlists, and closed scope lists.
 - **Bearer tokens** authenticate HTTP callers. Format: `spl_<env>_<sa_id>_<secret>`. Hashed on the server; plaintext shown once on mint.
@@ -74,14 +74,14 @@ spl learn \
   --actor did:sync:system:engine
 ```
 
-### 3.3 Restart the daemon
+### 3.3 Restart the instance
 
 ```bash
 spl stop
 spl serve
 ```
 
-The daemon reloads `th_engine_config`, picks up the new setting, and starts enforcing.
+The instance reloads `th_engine_config`, picks up the new setting, and starts enforcing.
 
 ### 3.4 Verify auth is live
 
@@ -114,7 +114,7 @@ Token discovery precedence (first non-empty wins):
 
 `spl token show-source` reports which source is currently in use (masked; never prints the full secret).
 
-## 4. Pairing a phone (or any device) to the daemon
+## 4. Pairing a phone (or any device) to the instance
 
 Once auth is on, you want a simpler flow than dictating a 50-char token over the phone. Use `spl pair`:
 
@@ -127,7 +127,7 @@ spl pair \
 
 The command creates a dedicated service account, mints a token, and renders both as a QR code in the terminal plus a text fallback. The phone's Syncropel PWA scans the QR, stores the URL + token, and starts using them for API calls.
 
-**Choose `--url` carefully.** It's the URL the phone will call — not your daemon's `localhost:9100`. In order of typical preference:
+**Choose `--url` carefully.** It's the URL the phone will call — not your instance's `localhost:9100`. In order of typical preference:
 
 - Private network / VPN: `https://your-host.example.com:9100` (works from anywhere the phone is on that network)
 - LAN: `http://192.168.1.50:9100` (works on home Wi-Fi; breaks when away)
@@ -172,14 +172,14 @@ Kills every token ever issued under the SA plus blocks any future tokens minted 
 
 ## 6. Emergency escape hatch
 
-If your token is lost, your laptop is offline from the server, or you locked yourself out of your own daemon:
+If your token is lost, your laptop is offline from the server, or you locked yourself out of your own instance:
 
 ```bash
 spl stop
 spl serve --insecure-localhost
 ```
 
-This starts the daemon force-bound to `127.0.0.1` only (no external reachability regardless of `--host`) with auth enforcement disabled. You regain `spl` CLI access for cleanup:
+This starts the instance force-bound to `127.0.0.1` only (no external reachability regardless of `--host`) with auth enforcement disabled. You regain `spl` CLI access for cleanup:
 
 ```bash
 spl service-account list
@@ -187,7 +187,7 @@ spl token rotate <sa_id>
 spl stop && spl serve
 ```
 
-The daemon logs a WARN on every startup when `--insecure-localhost` is active. This is intentional — it should never be the default state.
+The instance logs a WARN on every startup when `--insecure-localhost` is active. This is intentional — it should never be the default state.
 
 ## 7. Troubleshooting
 
@@ -199,7 +199,7 @@ Token is missing or invalid. Verify:
 echo $SPL_TOKEN | spl token info /dev/stdin
 ```
 
-If that says "invalid format," re-export `SPL_TOKEN` from your shell config. If it says "token_id not found," the token has been revoked or the daemon's index hasn't picked it up yet (rare; restart daemon).
+If that says "invalid format," re-export `SPL_TOKEN` from your shell config. If it says "token_id not found," the token has been revoked or the instance's index hasn't picked it up yet (rare; restart instance).
 
 ### `403 SCOPE_FORBIDDEN`
 

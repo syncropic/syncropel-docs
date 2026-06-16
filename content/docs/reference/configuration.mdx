@@ -120,7 +120,7 @@ spl learn \
 
 Exempt routes (always unauthenticated): `GET /health`, `POST /v1/bootstrap/service-account`, `GET /.well-known/syncropel`.
 
-The daemon reloads `th_engine_config` on broadcast, so new records take effect on the next request — no restart needed.
+The instance reloads `th_engine_config` on broadcast, so new records take effect on the next request — no restart needed.
 
 **2. CORS allow-list** — a separate LEARN record:
 
@@ -133,7 +133,7 @@ spl learn \
 
 CORS headers are sent only when `auth.required = true`. With auth off, CORS is permissive by default.
 
-**3. Escape hatch** — `spl serve --insecure-localhost` force-binds the daemon to `127.0.0.1` and disables auth enforcement, regardless of the `auth.required` setting. Used for emergency recovery when tokens are lost. A WARN log is emitted on every startup when this flag is active. **Never use in production.**
+**3. Escape hatch** — `spl serve --insecure-localhost` force-binds the instance to `127.0.0.1` and disables auth enforcement, regardless of the `auth.required` setting. Used for emergency recovery when tokens are lost. A WARN log is emitted on every startup when this flag is active. **Never use in production.**
 
 See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full workflow — first-SA bootstrap, token lifecycle, federation pairing, and emergency recovery.
 
@@ -141,7 +141,7 @@ See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the
 
 Configure the provider used for [semantic search](/docs/guides/search). Without a provider, `POST /v1/records/search` returns `503 SEMANTIC_SEARCH_DISABLED` and `spl search` surfaces a `disabled: true` flag instead of raising.
 
-Managed via `spl config embedding-provider set|show|clear` (see the [CLI reference](/docs/reference/cli#embedding-provider)). Both commands write a LEARN record on `th_engine_config`; the daemon rebuilds its embedder on broadcast — no restart.
+Managed via `spl config embedding-provider set|show|clear` (see the [CLI reference](/docs/reference/cli#embedding-provider)). Both commands write a LEARN record on `th_engine_config`; the instance rebuilds its embedder on broadcast — no restart.
 
 ```bash
 spl learn \
@@ -180,7 +180,7 @@ spl learn \
 | `for_pair` | string | — | Peer DID this relay is for, or the sentinel `"all"` as the catch-all |
 | `enabled` | bool | `true` | When `false`, the entry is preserved but skipped at lookup time |
 
-At send time, lookup proceeds most-specific-first: an exact `for_pair == peer_did` match wins; otherwise the `"all"` catch-all is used. Inbound receive tasks spawn at daemon startup — restart `spl serve` after configuring a new relay URL so the receive loop binds.
+At send time, lookup proceeds most-specific-first: an exact `for_pair == peer_did` match wins; otherwise the `"all"` catch-all is used. Inbound receive tasks spawn at instance startup — restart `spl serve` after configuring a new relay URL so the receive loop binds.
 
 ### Responder overrides
 

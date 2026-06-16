@@ -121,7 +121,7 @@ If your stages have wildly different latencies — say Haiku 3s, Opus 30s — a 
 
 Also note: `waterfall_first` (the **fold** function) is a different thing — it picks the first acceptable response from a batch that all arrived in parallel. The `waterfall` **orchestration** pattern above dispatches stages sequentially. See [Fold Functions — waterfall_first](/docs/guides/inference/fold-functions#function-waterfall_first).
 
-## Run this against a dev daemon
+## Run this against a dev instance
 
 With haiku, sonnet, and opus configured as providers, the query above runs end-to-end. Watch the records land on the query's thread:
 

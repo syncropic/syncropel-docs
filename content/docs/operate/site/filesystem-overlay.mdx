@@ -105,7 +105,7 @@ inlining it into the response. Only three element kinds are accepted:
 
 Anything else — `<script>`, `<noscript>`, `<iframe>`, raw text nodes —
 is rejected at parse time. The reject is silent at the request layer
-(the head fragment is dropped); the daemon's structured log records the
+(the head fragment is dropped); the instance's structured log records the
 rejection with the offending tag for diagnosis. There is no path to
 inject JavaScript via Tier 3.
 
@@ -164,7 +164,7 @@ operator-supplied assets — that's the operator's responsibility.
 
 The Tier 3 overlay is read on each render request and cached for 5
 seconds at the process level. Drop a file, wait up to 5 seconds, hit
-`GET /` — the new overlay is live. No daemon restart, no record emit.
+`GET /` — the new overlay is live. No instance restart, no record emit.
 
 To verify what the renderer is reading right now:
 

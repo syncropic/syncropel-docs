@@ -17,7 +17,7 @@ control what your instance reacts to.
 
 ## What a profile is
 
-A Syncropel instance is, at its core, a substrate: it accepts records,
+A Syncropel instance, at its core, accepts records,
 stores them immutably, and computes state by folding them. That much is
 always true and never optional.
 
@@ -25,15 +25,14 @@ What *varies* is whether the instance also **reacts** to records — whether
 it has a conversational agent that answers your messages, an intelligence
 agent that proposes routing when nothing matches, and a default rule that
 turns intents into work. Reactivity is a property of what you have
-**deployed** onto the substrate, not a fixed opinion baked into the
-kernel.
+**deployed** onto your instance, not a fixed opinion baked in.
 
 A **deployment profile** is the choice of what gets seeded the first time
 an instance boots. There are two:
 
 | Profile | What it seeds on first boot |
 |---|---|
-| `blank` | **Nothing reactive.** The substrate stores and folds records. It does not answer messages, propose routing, or auto-route intents. It reacts to nothing until you deliberately deploy a capability onto it. |
+| `blank` | **Nothing reactive.** The instance stores and folds records. It does not answer messages, propose routing, or auto-route intents. It reacts to nothing until you deliberately deploy a capability onto it. |
 | `assistant` | **The conversational defaults.** A conversational agent (Scribe) that replies on a thread, an intelligence agent that proposes routing when no rule matches, and a default rule that routes intents to work. |
 
 A blank instance is a true blank slate. You can pair it, query it, fold
@@ -52,14 +51,14 @@ The profile is resolved at boot from one input, with a sensible default:
    exactly as it always has.
 
 To run a self-hosted instance with the conversational defaults, set the
-variable before starting the daemon:
+variable before starting the instance:
 
 ```bash
 SPL_PROFILE=assistant spl serve --daemon
 ```
 
 To force a blank instance explicitly (useful in scripts, demos, or CI
-where you want a deterministic, non-reacting substrate):
+where you want a deterministic, non-reacting instance):
 
 ```bash
 SPL_PROFILE=blank spl serve --daemon
@@ -77,7 +76,7 @@ agent — it still needs a language model configured before it can actually
 respond. See [Talking to Scribe](/docs/get-started/scribe) for wiring a
 model on a self-hosted instance.
 
-Choose **`blank`** when you want the substrate and nothing else:
+Choose **`blank`** when you want the bare instance and nothing else:
 
 - You are using the instance purely as a record store, a federation peer,
   or a backup target — and an agent answering your messages would be
@@ -85,7 +84,7 @@ Choose **`blank`** when you want the substrate and nothing else:
 - You want a deterministic, reaction-free instance for tests, demos, or
   seeding scripted data without auto-responses landing on your threads.
 - You intend to deploy your own capabilities deliberately, and you want
-  to start from a clean substrate rather than removing defaults you did
+  to start from a clean instance rather than removing defaults you did
   not ask for.
 
 ## Existing instances are unaffected
@@ -114,7 +113,7 @@ deploy the missing defaults without disturbing the records already there.
 - [Talking to Scribe](/docs/get-started/scribe) — the conversational
   agent the assistant profile seeds, and how to give it a model on a
   self-hosted instance.
-- [Starting Your Instance](/docs/get-started/daemon) — the run modes
+- [Starting Your Instance](/docs/get-started/instance) — the run modes
   `spl serve` supports.
 - [Instance Lifecycle](/docs/operate/instance-lifecycle) — the end-to-end
   recipe from provisioning to teardown.

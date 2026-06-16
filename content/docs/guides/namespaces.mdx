@@ -69,7 +69,7 @@ Each customer is an ORG. Customers' records cannot reach each other's namespaces
 - **Max 4 segments**: `acme/payments/staging/job-42` is the deepest legal namespace. Five segments is rejected at parse time.
 - **Length**: each segment ≤ 64 chars, total ID ≤ 256 chars.
 
-The CLI enforces these rules at create time and the daemon re-validates at ingest. You'll get a clear error message either way.
+The CLI enforces these rules at create time and the instance re-validates at ingest. You'll get a clear error message either way.
 
 ## Setting up your hierarchy
 
@@ -385,7 +385,7 @@ spl namespace list
 spl doctor
 ```
 
-`spl doctor` confirms the daemon is up, the engine config thread has records, and the expression cache is healthy. If `spl namespace list` shows nothing but DEFAULT after a restart where you'd previously created namespaces, the registry replay didn't pick them up — check the daemon log at `~/.syncro/logs/spl.log` for `namespace_registry: skipping invalid entry` warnings.
+`spl doctor` confirms the instance is up, the engine config thread has records, and the expression cache is healthy. If `spl namespace list` shows nothing but DEFAULT after a restart where you'd previously created namespaces, the registry replay didn't pick them up — check the instance log at `~/.syncro/logs/spl.log` for `namespace_registry: skipping invalid entry` warnings.
 
 ## Operational checklist before turning on namespace enforcement
 
@@ -407,7 +407,7 @@ Run through this before you start gating real records on namespace existence:
 
 The narrowing guarantee enforces **existence** — every ancestor in the chain must be in the registry and Active. It does NOT yet enforce:
 
-- **Capability subsets**: a record can claim any `body.dial`, `body.primitives`, etc. The daemon does not yet check that those capabilities are a subset of what the parent namespace's policy allows.
+- **Capability subsets**: a record can claim any `body.dial`, `body.primitives`, etc. The instance does not yet check that those capabilities are a subset of what the parent namespace's policy allows.
 - **Store-level partitioning**: records are tagged with `body.namespace` but the SQLite store does not yet index by namespace, and read queries return records across all namespaces a caller can reach.
 
 For a single-tenant deployment or trusted-actor multi-tenant setup, the HTTP-boundary enforcement is sufficient. For untrusted multi-tenant where a customer might try to inject records claiming another customer's namespace, you also want the policy YAML + store-level isolation gaps closed before going live.

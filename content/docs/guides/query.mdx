@@ -5,7 +5,7 @@ description: Filter records server-side with structured query documents. Support
 
 ## Overview
 
-Query lets you ask the daemon: _"give me every record where X"_, with X expressed as a structured filter document. The filter runs server-side — nothing streams over the wire except the matches. This is the right tool for any query that touches more than one thread, any filter over body shape (`body.kind`, `body.priority`, `body._refs.*`), or any workload big enough that client-side filtering wastes bandwidth.
+Query lets you ask the instance: _"give me every record where X"_, with X expressed as a structured filter document. The filter runs server-side — nothing streams over the wire except the matches. This is the right tool for any query that touches more than one thread, any filter over body shape (`body.kind`, `body.priority`, `body._refs.*`), or any workload big enough that client-side filtering wastes bandwidth.
 
 Two entry points:
 
@@ -174,7 +174,7 @@ spl config add-body-kind-manifest \
   --indexed-field body.title
 ```
 
-After the daemon reloads config the `body.kind` column in the same query plan stays in `unindexed_fields` (SQLite's optimizer uses the new expression index transparently — the plan's `unindexed_fields` list is a conservative "this was a body.* path" marker, not a statement about actual plan choice). For the ground-truth check, use `EXPLAIN QUERY PLAN`:
+After the instance reloads config the `body.kind` column in the same query plan stays in `unindexed_fields` (SQLite's optimizer uses the new expression index transparently — the plan's `unindexed_fields` list is a conservative "this was a body.* path" marker, not a statement about actual plan choice). For the ground-truth check, use `EXPLAIN QUERY PLAN`:
 
 ```bash
 sqlite3 ~/.syncro/hub.db "EXPLAIN QUERY PLAN \

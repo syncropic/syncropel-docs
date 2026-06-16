@@ -118,7 +118,7 @@ Three LLMs at ~5-15s each cost 3× a single query. You're paying for variance re
 
 `min_quorum: 2` keeps you from blocking on a single slow responder. If you raise it to 3, a single timeout kills the query — you'd see `quorum_not_met` instead of a KNOW.
 
-## Run this against a dev daemon
+## Run this against a dev instance
 
 With three LLM providers configured in `~/.syncro/providers.yaml`, the CLI above runs end-to-end. If you only have one provider, point the other two at the same provider with different model aliases or replace them with a pattern / system responder.
 

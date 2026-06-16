@@ -17,7 +17,7 @@ This writes `~/.config/systemd/user/spl-serve.service` with contents equivalent 
 
 ```ini
 [Unit]
-Description=Syncropel daemon (user service)
+Description=Syncropel instance (user service)
 After=network.target
 
 [Service]
@@ -46,7 +46,7 @@ spl status
 
 ### Boot-time start with `loginctl enable-linger`
 
-User services only run when the user is logged in by default. For a daemon that comes up at boot without login, enable lingering:
+User services only run when the user is logged in by default. For a instance that comes up at boot without login, enable lingering:
 
 ```bash
 # As root
@@ -57,7 +57,7 @@ The user service now starts at boot and persists across logout.
 
 ### Manual start (non-systemd distros)
 
-On distros without systemd (Alpine, many embedded or minimal images), start the daemon from your shell's rc file or a startup script:
+On distros without systemd (Alpine, many embedded or minimal images), start the instance from your shell's rc file or a startup script:
 
 ```bash
 # ~/.bashrc, ~/.zshrc, or equivalent
@@ -185,7 +185,7 @@ Structured filter using `jq`:
 tail -f ~/.syncro/logs/spl.log | jq 'select(.level=="ERROR" or .level=="WARN")'
 ```
 
-Log rotation is automatic at 10 MB per file, keeping the last 7 rotations at `~/.syncro/logs/spl.log.1` through `spl.log.7`. The on-disk total tops out near 80 MB even on a very busy daemon.
+Log rotation is automatic at 10 MB per file, keeping the last 7 rotations at `~/.syncro/logs/spl.log.1` through `spl.log.7`. The on-disk total tops out near 80 MB even on a very busy instance.
 
 ## Data directory
 
@@ -194,7 +194,7 @@ Log rotation is automatic at 10 MB per file, keeping the last 7 rotations at `~/
 ├── config.toml
 ├── hub.db              SQLite store
 ├── keys/               identity keypairs
-├── logs/               daemon logs
+├── logs/               instance logs
 ├── run/                PID file + Unix socket
 ├── secrets/            API keys for upstream providers
 └── token               bearer token for the CLI

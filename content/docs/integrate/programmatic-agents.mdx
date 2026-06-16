@@ -39,7 +39,7 @@ You need an agent harness that supports code execution. Examples:
 - **Custom Python/Node sandbox** you control (Docker, Firecracker, gvisor)
 - Any other code-execution-capable model harness — the SDK is pure HTTP+JSON
 
-And a Syncropel daemon reachable from the sandbox's network:
+And a Syncropel instance reachable from the sandbox's network:
 
 - Local: `http://localhost:9100` if the sandbox runs on the same machine
 - Remote: `https://your-host.example.com:9100` with a bearer token
@@ -249,7 +249,7 @@ if not result.success:
     print(f"Syncropel unreachable: {result.error}")
 ```
 
-This is intentional: your agent's core work shouldn't crash because a coordination record failed to reach the daemon. The alternative (throwing exceptions) makes Syncropel a liability instead of an asset.
+This is intentional: your agent's core work shouldn't crash because a coordination record failed to reach the instance. The alternative (throwing exceptions) makes Syncropel a liability instead of an asset.
 
 Grammar errors (malformed `body.kind`, invalid `act`) DO raise — those are programmer errors worth catching.
 
@@ -265,7 +265,7 @@ client = Client(
 )
 ```
 
-For unauthenticated local daemons (dev mode), omit `api_key`.
+For unauthenticated local instances (dev mode), omit `api_key`.
 
 For cloud agents, store the token in your platform's secret manager:
 - **Cloudflare Workers**: `wrangler secret put SPL_TOKEN`

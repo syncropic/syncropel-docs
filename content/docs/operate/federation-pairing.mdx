@@ -1,11 +1,11 @@
 ---
 title: Federation Pairing
-description: Pair two Syncropel daemons so they can sync threads, exchange records, and converge on shared state. Covers when to pair, the pair lifecycle, debug recipes for the common failure modes, soak-test results, and capacity planning.
+description: Pair two Syncropel instances so they can sync threads, exchange records, and converge on shared state. Covers when to pair, the pair lifecycle, debug recipes for the common failure modes, soak-test results, and capacity planning.
 ---
 
 ## Audience
 
-This page is for the operator running two (or more) Syncropel daemons that need to talk to each other. Single-instance operators don't need pairs — pairs exist specifically to bridge separate instances under separate identities, with consent and credentials negotiated explicitly.
+This page is for the operator running two (or more) Syncropel instances that need to talk to each other. Single-instance operators don't need pairs — pairs exist specifically to bridge separate instances under separate identities, with consent and credentials negotiated explicitly.
 
 If you only run `spl serve` on one machine, skip this page. If you run two and they need to share threads, read on.
 
@@ -14,13 +14,13 @@ If you only run `spl serve` on one machine, skip this page. If you run two and t
 A pair is the right primitive when:
 
 - **You have two laptops** and want one set of threads visible from both, with edits flowing in either direction.
-- **You're bridging a hosted instance and a local one** — say, `<label>.syncropel.app` for the agent stack and a laptop daemon for capture-and-emit.
+- **You're bridging a hosted instance and a local one** — say, `<label>.syncropel.app` for the agent stack and a laptop instance for capture-and-emit.
 - **You're sharing a workspace across collaborators** — each collaborator has their own instance, their own identity, their own trust ledger; pairs let consented threads cross the boundary.
 - **You're running a fleet** of mostly-identical instances behind the same operator and want intra-fleet sync without re-running the discovery dance every time.
 
 A pair is **not** the right primitive for:
 
-- Multi-tenancy in one daemon (use namespaces — see `spl namespace --help`).
+- Multi-tenancy in one instance (use namespaces — see `spl namespace --help`).
 - Backup or migration (use `spl thread snapshot` / `restore`).
 - Read-only embedding into an external app (use the SDK).
 
@@ -33,8 +33,8 @@ Pair establishment is a one-shot CLI handshake that exchanges DIDs, signs a mani
   chart={`sequenceDiagram
     autonumber
     participant A as Alice (initiator)
-    participant ANet as Alice daemon
-    participant BNet as Bob daemon
+    participant ANet as Alice instance
+    participant BNet as Bob instance
     participant B as Bob (responder)
 
     A->>ANet: spl federation pair https://bob.example/
@@ -62,12 +62,12 @@ The diagram above is the canonical handshake — discovery, signed manifest, rec
 
 ## Prerequisites
 
-Before either daemon runs `spl federation pair`:
+Before either instance runs `spl federation pair`:
 
-1. **Both daemons have a cryptographic identity.** Run `spl identity generate` on each side if `spl identity show` returns nothing. Without an identity, the federation manifest is not auto-published and the handshake has nothing to sign.
-2. **Both daemons publish a federation manifest.** `curl https://<peer>/.well-known/syncropel` should return JSON with `did`, `pair_endpoint`, and a signature. The manifest auto-publishes once the daemon has an identity.
+1. **Both instances have a cryptographic identity.** Run `spl identity generate` on each side if `spl identity show` returns nothing. Without an identity, the federation manifest is not auto-published and the handshake has nothing to sign.
+2. **Both instances publish a federation manifest.** `curl https://<peer>/.well-known/syncropel` should return JSON with `did`, `pair_endpoint`, and a signature. The manifest auto-publishes once the instance has an identity.
 3. **Each side has a token with the `admin` scope** (you'll be writing pair records and minting federation-scoped SAs).
-4. **The pair_endpoint is reachable.** Port-forward, tunnel, or DNS — whatever it takes for `curl` from one daemon's host to the other's `pair_endpoint`.
+4. **The pair_endpoint is reachable.** Port-forward, tunnel, or DNS — whatever it takes for `curl` from one instance's host to the other's `pair_endpoint`.
 
 ## 2. Pair lifecycle
 
@@ -139,7 +139,7 @@ Pause is the right move when you're upgrading the peer or making sensitive confi
 spl federation refresh <pair_id>
 ```
 
-The daemon refreshes manifests on a schedule, but `refresh` forces it now. Use this after the peer rotated identity or changed `pair_endpoint`. The pair transitions through `peer_manifest_changed` and lands back in `active` if the new manifest verifies.
+The instance refreshes manifests on a schedule, but `refresh` forces it now. Use this after the peer rotated identity or changed `pair_endpoint`. The pair transitions through `peer_manifest_changed` and lands back in `active` if the new manifest verifies.
 
 ### Revoke (terminal)
 
@@ -185,7 +185,7 @@ curl -v https://bob.example/.well-known/syncropel
 
 The manifest must return 200 with a JSON body that includes `did` and a signature. Common causes for failure:
 
-- **Bob's daemon hasn't generated an identity.** The manifest auto-publishes only when an identity exists. Fix on Bob's side: `spl identity generate`.
+- **Bob's instance hasn't generated an identity.** The manifest auto-publishes only when an identity exists. Fix on Bob's side: `spl identity generate`.
 - **`pair_endpoint` is reachable from the public internet but the `/.well-known/syncropel` route isn't.** Reverse proxies sometimes strip dot-prefixed paths. Test from Bob's host: `curl http://localhost:9100/.well-known/syncropel` should return identical JSON.
 - **TLS chain doesn't validate.** `curl --insecure` succeeds but `spl federation pair` refuses. Fix the TLS chain — `spl federation pair` does not accept self-signed certs.
 
@@ -196,7 +196,7 @@ The manifest must return 200 with a JSON body that includes `did` and a signatur
 Causes:
 
 - The peer rotated identity but the manifest was cached. Force-refresh: `curl -H 'cache-control: no-cache' https://bob.example/.well-known/syncropel` and compare DIDs.
-- The DID document at the published endpoint doesn't match the DID inside the manifest. Bob must run `spl identity generate` again or bring the DID document in line with the daemon's identity.
+- The DID document at the published endpoint doesn't match the DID inside the manifest. Bob must run `spl identity generate` again or bring the DID document in line with the instance's identity.
 
 ### POST /v1/federation/pair returns 401
 
@@ -298,7 +298,7 @@ Per pair, in polling mode (5 min default):
 
 Practical limits:
 
-- **A single daemon comfortably runs 50+ pairs in polling mode** on a small instance (2 GB / 1 vCPU is plenty), assuming the workload is dominated by sync rather than user-facing work.
+- **A single instance comfortably runs 50+ pairs in polling mode** on a small instance (2 GB / 1 vCPU is plenty), assuming the workload is dominated by sync rather than user-facing work.
 - **For continuous mode, plan ~10-20 pairs** before you start contending with adapter throughput. Each open SSE adds a per-tick overhead the reconciler has to absorb.
 - **Bandwidth is rarely the constraint.** The constraint is record-ingest throughput on the receiving side, which is bounded by the adapter pipeline, not by the pair primitive.
 

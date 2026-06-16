@@ -7,7 +7,7 @@ description: Permissions live in the protocol, not bolted on. Every act produces
 
 Governance in Syncropel is built into the foundation, not bolted on at the application level. There is no separate access-control system, no separate audit log, no separate policy engine. Permission rules are records on a reserved thread, evaluated by the same expression engine that handles routing, triggers, status folds, AITL, and health checks. The thing that decides "can this happen?" is the same kind of thing that decides "what should happen next?".
 
-This shape is the point. A team that wants to change a permission edits a rule and emits a record; the daemon reloads and the next request sees the new behaviour. No deploy, no migration, no second tool to learn. The cost of getting governance right is the cost of writing one good predicate.
+This shape is the point. A team that wants to change a permission edits a rule and emits a record; the instance reloads and the next request sees the new behaviour. No deploy, no migration, no second tool to learn. The cost of getting governance right is the cost of writing one good predicate.
 
 Three properties follow from this design and are worth naming up front, because they're what the rest of this page elaborates: **permissions live alongside the data they govern**, **the act log and the audit log are the same log**, and **without a rule that says "yes" the system says "no"**.
 
@@ -34,7 +34,7 @@ A permission rule is a `LEARN` record on `th_engine_config` with `body.topic: "p
 
 You don't usually emit this JSON by hand — `spl config add-permission-rule` builds the record and posts it. But the storage shape is worth seeing once, because it makes the rest of the model concrete: the rule itself is a record, like every other piece of state in the system.
 
-The engine reloads its config the moment a new permission rule lands in the broadcast. The next request that comes in is evaluated against the new rule set. There is no daemon restart, no config-file dance, no warm-up window. Syncropel keeps no state that isn't in the record log; reload is just a fresh recomputation.
+The engine reloads its config the moment a new permission rule lands in the broadcast. The next request that comes in is evaluated against the new rule set. There is no instance restart, no config-file dance, no warm-up window. Syncropel keeps no state that isn't in the record log; reload is just a fresh recomputation.
 
 Permission rules sit in a family of seven other CEL-driven decision contexts — triggers, preconditions, routing, fold, health, AITL, and join. Each context has its own bindings. The Permission context exposes `record`, `resource` (the thing being requested — a string like `"record_write"` or `"task_approve"`), `current_actor()`, `trust()`, `task()`, `system`, `now()`, and three fleet-state functions discussed below. See the [CEL Expressions guide](/docs/guides/cel-expressions) for the full surface.
 
@@ -84,7 +84,7 @@ Concretely:
 
 **Actors are who governance keys on.** A permission rule can ask `trust(current_actor(), "ops") > 0.7` or `current_actor().startsWith("did:sync:user:")`. The DID is the stable handle; trust is the evidence layer. See [Actors](/docs/concepts/actors) and [Trust](/docs/concepts/trust).
 
-**Federation extends governance via consent.** When records cross instance boundaries, the consent filter on `th_consent` decides what flows through. Pairing two daemons does not by itself grant access — you also need a matching consent grant. See [Federation](/docs/concepts/federation) and the [Consent guide](/docs/guides/consent).
+**Federation extends governance via consent.** When records cross instance boundaries, the consent filter on `th_consent` decides what flows through. Pairing two instances does not by itself grant access — you also need a matching consent grant. See [Federation](/docs/concepts/federation) and the [Consent guide](/docs/guides/consent).
 
 ## Fleet-level kill switches
 
@@ -116,7 +116,7 @@ The shipped governance layer covers the core parts of the protocol end-to-end. T
 
 Two pieces of the design are not yet implemented:
 
-- **Session Capability Tokens (SCTs).** The design calls for a model where each session is issued a signed capability envelope at the start, then the executor validates each operation locally against the envelope without consulting the daemon. Today, every gated request runs through the CEL evaluator on the daemon. This is fast enough for current workloads — the evaluator handles thousands of requests per second with the LRU cache warmed — but SCTs become important when an executor needs to govern itself offline.
+- **Session Capability Tokens (SCTs).** The design calls for a model where each session is issued a signed capability envelope at the start, then the executor validates each operation locally against the envelope without consulting the instance. Today, every gated request runs through the CEL evaluator on the instance. This is fast enough for current workloads — the evaluator handles thousands of requests per second with the LRU cache warmed — but SCTs become important when an executor needs to govern itself offline.
 - **Namespace policy YAML composition** (intersect-on-allow, union-on-deny) — the YAML language for `dial`, `primitives`, `max_effects`, etc. is designed but the namespace `policy` field is opaque text today. The narrowing check validates existence and status, not capability subsets. Tracked alongside the namespaces gap.
 
 Both are bounded follow-ups. The core guarantees most operators actually need — fail-closed by default, every operation is a record, no off-record state — hold today.
@@ -129,4 +129,4 @@ Both are bounded follow-ups. The core guarantees most operators actually need �
 - **[Federation](/docs/concepts/federation)** — extending governance across instances through consent.
 - **[CEL Expressions guide](/docs/guides/cel-expressions)** — the predicate language and all eight evaluation contexts.
 - **[Consent guide](/docs/guides/consent)** — federation governance for cross-namespace sharing.
-- **[Keyring guide](/docs/operate/keyring)** — the bootstrap flow for enabling permissions on a new daemon.
+- **[Keyring guide](/docs/operate/keyring)** — the bootstrap flow for enabling permissions on a new instance.

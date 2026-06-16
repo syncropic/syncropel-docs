@@ -1,11 +1,11 @@
 ---
 title: Pair two stewards in one command
-description: Use `spl federation pair` to establish a record-bound persistent relationship between two daemons. Replaces hand-wired URL+DID+token plumbing with a single CLI command.
+description: Use `spl federation pair` to establish a record-bound persistent relationship between two instances. Replaces hand-wired URL+DID+token plumbing with a single CLI command.
 ---
 
 ## What this is
 
-A *steward* is any running Syncropel instance — your laptop daemon, a hosted instance at `<label>.syncropel.app`, or a self-hosted server you run for a project. Two stewards can be **paired** so they sync records consent-gated.
+A *steward* is any running Syncropel instance — your laptop instance, a hosted instance at `<label>.syncropel.app`, or a self-hosted server you run for a project. Two stewards can be **paired** so they sync records consent-gated.
 
 `spl federation pair <peer-url>` is the one-command way to establish that pair between two stewards. The command:
 
@@ -15,14 +15,14 @@ A *steward* is any running Syncropel instance — your laptop daemon, a hosted i
 4. Persists signed pair records on both sides on the reserved thread `th_federation_pairs`.
 5. Returns. From that point on, `spl sync` consults the pair store automatically — no `--peer-token` flag, ever.
 
-This guide assumes you have two daemons (call them **alice** and **bob**), each with cryptographic identity configured, and you can reach each other's URLs.
+This guide assumes you have two instances (call them **alice** and **bob**), each with cryptographic identity configured, and you can reach each other's URLs.
 
 ## Prerequisites
 
-- Both daemons are running a recent version of `spl`: `spl version`.
-- Each daemon has a cryptographic identity. Run `spl identity show` — if it says "no identity," run `spl identity generate`.
-- Each daemon's URL is reachable from the other. For local two-daemon setups, use `--insecure-localhost` on both. For cross-host, both should serve TLS.
-- Optional but recommended: `spl identity verify` on each side first to make sure the local key matches the daemon's resolved DID.
+- Both instances are running a recent version of `spl`: `spl version`.
+- Each instance has a cryptographic identity. Run `spl identity show` — if it says "no identity," run `spl identity generate`.
+- Each instance's URL is reachable from the other. For local two-instance setups, use `--insecure-localhost` on both. For cross-host, both should serve TLS.
+- Optional but recommended: `spl identity verify` on each side first to make sure the local key matches the instance's resolved DID.
 
 ## The headline command
 
@@ -180,7 +180,7 @@ Default: no auto-approval. Trust comes from explicit handshake decisions.
 
 ## Token rotation
 
-Pair tokens default to 90-day TTL with auto-renewal at 83 days (7-day window). The daemon detects the upcoming expiry, runs a lighter handshake-refresh with the peer, and emits update records on both sides with new token IDs. The old token is revoked at issuance time — no overlap window.
+Pair tokens default to 90-day TTL with auto-renewal at 83 days (7-day window). The instance detects the upcoming expiry, runs a lighter handshake-refresh with the peer, and emits update records on both sides with new token IDs. The old token is revoked at issuance time — no overlap window.
 
 If automatic refresh fails:
 - 1 day before expiry: emits a `pair_renewal_failed` audit record

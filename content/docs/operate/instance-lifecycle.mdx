@@ -11,7 +11,7 @@ If something is broken right now, jump to [Recovery](/docs/operate/runbook#recov
 
 ## How the engine actually runs
 
-The daemon implements four cooperating loops over an immutable record log. Every operational decision below — when to back up, how to read a probe, what to drain before stopping — makes more sense once the loops are visible.
+The instance implements four cooperating loops over an immutable record log. Every operational decision below — when to back up, how to read a probe, what to drain before stopping — makes more sense once the loops are visible.
 
 <Mermaid
   caption="The four engine loops. State is computed from records; none of the loops mutate anything outside the record log."
@@ -51,7 +51,7 @@ The daemon implements four cooperating loops over an immutable record log. Every
 The internal layers follow the same structure. Nothing above depends on anything below it; the engine is portable along any of the dashed boundaries (Records / Algebra and Trust are portable to the browser).
 
 <Mermaid
-  caption="spl daemon internal layering. Strict layering, no upward dependencies."
+  caption="spl instance internal layering. Strict layering, no upward dependencies."
   chart={`flowchart TD
     algebra["Records / Algebra"]
     trust["Trust"]
@@ -86,22 +86,22 @@ curl -sSf https://get.syncropic.com/spl | sh
 spl init
 ```
 
-`spl init` creates `~/.syncro/`, generates a daemon identity (or surfaces the existing one), and prints the next-step commands. It does not start the daemon.
+`spl init` creates `~/.syncro/`, generates a instance identity (or surfaces the existing one), and prints the next-step commands. It does not start the instance.
 
-Start the daemon as a foreground process the first time so you can see what it's doing:
+Start the instance as a foreground process the first time so you can see what it's doing:
 
 ```bash
 spl serve --foreground
 ```
 
-You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it as a daemon:
+You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it as a instance:
 
 ```bash
 spl serve
 spl status
 ```
 
-For a daemon that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance) — `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
+For a instance that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance) — `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
 
 ### Hosted (Syncropic-provisioned)
 
@@ -115,7 +115,7 @@ The hosted-instance flow is the same engine as the self-hosted one — same bina
     participant Site as syncropel.com
     participant Prov as provisioning service
     participant Auth as edge auth proxy
-    participant K as spl daemon<br/>(hosted instance)
+    participant K as spl instance<br/>(hosted instance)
 
     U->>Site: sign in
     Site->>Prov: POST /provision<br/>(signed-in session, label)
@@ -159,11 +159,11 @@ spl status
 
 This is the path the hosted provisioner uses (the secret is delivered as a platform-managed secret), and it is the cleanest path for self-hosters because there is no insecure-bind window. The SA is minted once; subsequent restarts with `SPL_BOOTSTRAP_TOKEN` set are no-ops because the SA already exists.
 
-Validation rules: secret length 16–256 ASCII printable characters, no whitespace or control bytes. Out-of-range values fall through to the existing preflight (warn-and-continue), so a malformed env var will not lock the daemon out.
+Validation rules: secret length 16–256 ASCII printable characters, no whitespace or control bytes. Out-of-range values fall through to the existing preflight (warn-and-continue), so a malformed env var will not lock the instance out.
 
 ### Path B — `--insecure-localhost` (laptop dev)
 
-Restart the daemon with `--insecure-localhost`. It binds 127.0.0.1 only and disables auth. Mint an SA via the bootstrap endpoint:
+Restart the instance with `--insecure-localhost`. It binds 127.0.0.1 only and disables auth. Mint an SA via the bootstrap endpoint:
 
 ```bash
 spl stop
@@ -192,9 +192,9 @@ Once bootstrapped, treat `auth.required = true` as load-bearing. It is the defau
 - One service account per tool/agent/integration. Closed scope per SA — `records:read,records:write` for an emitter, `admin` only when minting tokens or setting policy.
 - Tokens carry a snapshot of the SA's scopes at issuance time. Live-edit the SA's scopes for new tokens; revoke + re-mint the existing token only when scopes shrink.
 - Save the token once via `spl token save <bearer>`; the CLI auto-injects it for every subsequent invocation.
-- Permission CEL is enforced fail-closed. Before turning on a permission rule, run `spl config permissions-enable` — its preflight refuses unless allow-rules cover `record_write`, `thread_read`, and `config_read` for the daemon's own actor. Skipping the preflight is how operators lock themselves out.
+- Permission CEL is enforced fail-closed. Before turning on a permission rule, run `spl config permissions-enable` — its preflight refuses unless allow-rules cover `record_write`, `thread_read`, and `config_read` for the instance's own actor. Skipping the preflight is how operators lock themselves out.
 
-If the daemon is ever exposed beyond loopback, stand up a CORS allowlist before the first cross-origin browser hit:
+If the instance is ever exposed beyond loopback, stand up a CORS allowlist before the first cross-origin browser hit:
 
 ```bash
 spl config auth-set-cors-origins https://syncropel.com https://app.example.com
@@ -202,15 +202,15 @@ spl config auth-set-cors-origins https://syncropel.com https://app.example.com
 
 ## 4. Backup discipline
 
-> **CRITICAL — read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. The recovery drill that ships with the daemon source tree was written specifically because operators conflated the two.
+> **CRITICAL — read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. The recovery drill that ships with the instance source tree was written specifically because operators conflated the two.
 
-### What the daemon does for you
+### What the instance does for you
 
 On every startup, `spl serve` snapshots `~/.syncro/hub.db` to `~/.local/share/syncropel/backups/<instance-key>/hub.db.bak`. The destination lives outside `~/.syncro/`, so a `rm -rf ~/.syncro/` does not nuke the backup.
 
-### What the daemon does NOT do
+### What the instance does NOT do
 
-The startup backup is **destructive on every restart**. If `hub.db` is empty, corrupt, or wrong when the daemon starts, that empty/corrupt/wrong file overwrites the backup. By the time you notice, the good copy is gone.
+The startup backup is **destructive on every restart**. If `hub.db` is empty, corrupt, or wrong when the instance starts, that empty/corrupt/wrong file overwrites the backup. By the time you notice, the good copy is gone.
 
 ### What you should do instead
 
@@ -234,7 +234,7 @@ Right before an upgrade, a permission rule rollout, or a destructive migration:
 cp ~/.syncro/hub.db ~/.local/share/syncropel/backups/hub.db.before-$(date +%Y%m%d-%H%M%S)
 ```
 
-The daemon does not need to be stopped — SQLite's WAL makes this safe — but it does need to not be in the middle of a heavy write burst. Watch `spl status` first.
+The instance does not need to be stopped — SQLite's WAL makes this safe — but it does need to not be in the middle of a heavy write burst. Watch `spl status` first.
 
 ### Restore
 
@@ -303,13 +303,13 @@ spl drain start
 spl drain status   # waits until in-flight = 0
 ```
 
-### Stop the daemon gracefully
+### Stop the instance gracefully
 
 ```bash
 spl stop
 ```
 
-This sends `SIGTERM`. The daemon flushes the SQLite WAL, closes the socket, and removes its PID file. If `--stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).
+This sends `SIGTERM`. The instance flushes the SQLite WAL, closes the socket, and removes its PID file. If `--stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).
 
 ### VACUUM (optional, but reclaims space)
 
@@ -317,7 +317,7 @@ This sends `SIGTERM`. The daemon flushes the SQLite WAL, closes the socket, and 
 sqlite3 ~/.syncro/hub.db 'VACUUM;'
 ```
 
-`VACUUM` rewrites the database file to its compact form. It is safe with the daemon stopped; do not run it against a running daemon.
+`VACUUM` rewrites the database file to its compact form. It is safe with the instance stopped; do not run it against a running instance.
 
 ### Archive
 
@@ -327,7 +327,7 @@ tar czf ~/syncropel-archive-$TS.tar.gz \
     -C "$HOME" .syncro .syncro-data .local/share/syncropel
 ```
 
-The three directories together capture everything: `~/.syncro/` is the daemon state and identity, `~/.syncro-data/` is task content + alias mappings, `~/.local/share/syncropel/` is the rolling backup history. Move the tarball off-host before deleting the originals.
+The three directories together capture everything: `~/.syncro/` is the instance state and identity, `~/.syncro-data/` is task content + alias mappings, `~/.local/share/syncropel/` is the rolling backup history. Move the tarball off-host before deleting the originals.
 
 ### Delete
 

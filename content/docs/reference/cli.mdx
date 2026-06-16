@@ -30,8 +30,8 @@ All commands support:
 
 ```bash
 # Short verbs (canonical for operator interactive use)
-spl serve            # start the daemon in the background
-spl stop             # stop the running daemon
+spl serve            # start the instance in the background
+spl stop             # stop the running instance
 spl restart          # stop + start
 
 # Full form (canonical for systemd, Docker, K8s, managed cloud platforms, and other process supervisors)
@@ -46,7 +46,7 @@ spl status
 spl version
 ```
 
-`spl serve` / `spl stop` / `spl restart` are convenience aliases over the daemon-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the daemon to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Kubernetes pods, and managed cloud platforms.
+`spl serve` / `spl stop` / `spl restart` are convenience aliases over the instance-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the instance to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Kubernetes pods, and managed cloud platforms.
 
 | Command | Description |
 |---|---|
@@ -54,17 +54,17 @@ spl version
 | `serve --daemon` | Start in background mode |
 | `serve --memory` | Use ephemeral in-memory store (for development) |
 | `serve --echo` | Echo mode — no AI provider needed |
-| `serve --stop` | Stop the background daemon |
-| `serve --restart` | Stop the daemon if running, then start in background mode |
-| `serve --status` | Print daemon status without starting the server |
-| `serve --logs` | Tail the daemon log file. `-n` controls the initial line count; `--no-follow` prints once and exits |
-| `serve --insecure-localhost` | Dev escape hatch: skip bearer-token authentication. Forces the daemon to bind to `127.0.0.1` regardless of `--host` and emits a WARN log on startup. Intended for local dev daemons and E2E tests — never pass in production |
+| `serve --stop` | Stop the background instance |
+| `serve --restart` | Stop the instance if running, then start in background mode |
+| `serve --status` | Print instance status without starting the server |
+| `serve --logs` | Tail the instance log file. `-n` controls the initial line count; `--no-follow` prints once and exits |
+| `serve --insecure-localhost` | Dev escape hatch: skip bearer-token authentication. Forces the instance to bind to `127.0.0.1` regardless of `--host` and emits a WARN log on startup. Intended for local dev instances and E2E tests — never pass in production |
 | `status` | Show server health, uptime, record count |
 | `version` | Show version |
 
 ### Run as a system service
 
-On Windows, register the daemon with the Service Control Manager so it survives logoff and starts at boot. See the [Windows service guide](/docs/operate/windows-service) for the full runbook.
+On Windows, register the instance with the Service Control Manager so it survives logoff and starts at boot. See the [Windows service guide](/docs/operate/windows-service) for the full runbook.
 
 ```bash
 spl serve --install-service [--service-name <name>]
@@ -75,7 +75,7 @@ spl serve --uninstall-service [--service-name <name>]
 |---|---|
 | `--install-service` | Register `spl serve` with the Windows Service Control Manager. Must be run from an elevated shell. Idempotent: if a service with this name already points at the current binary, succeeds without changes |
 | `--uninstall-service` | Remove the SCM registration. Stops the service first if running. Safe on a host that does not have the service installed |
-| `--service-name <name>` | Override the default service name (`SyncropelDaemon`). Useful on multi-instance hosts |
+| `--service-name <name>` | Override the default service name (`SyncropelInstance`). Useful on multi-instance hosts |
 | `--service` | Internal — invoked by the SCM when the service starts. Operators should not pass this directly |
 
 On Linux and macOS these flags return a clear error and point at systemd / launchd. See the [operator runbook](/docs/operate/runbook) for the systemd unit template.
@@ -95,7 +95,7 @@ spl reset --wipe-task-data  # also delete ~/.syncro-data/ (extra confirmation)
 
 Wipes `~/.syncro/` back to a fresh state by listing the directory at runtime and deleting every entry not protected by a `--keep-*` flag. With no `--keep-*` flag the home dir itself is also removed, so the next `spl init` works without `--force`.
 
-Refuses if any of four signals indicate a daemon is running: PID file at `~/.syncro/run/spl.pid`, Unix socket connect, TCP `127.0.0.1:9100` connect, or `systemctl --user is-active spl-serve.service`. The TCP and systemd signals are scoped to the default `~/.syncro/` home so `SYNCROPEL_HOME=/some/other/path` invocations don't false-positive on unrelated daemons. If you use a systemd user unit, stop it (`systemctl --user stop spl-serve.service`) — `spl stop` alone is insufficient because the unit respawns the daemon.
+Refuses if any of four signals indicate a instance is running: PID file at `~/.syncro/run/spl.pid`, Unix socket connect, TCP `127.0.0.1:9100` connect, or `systemctl --user is-active spl-serve.service`. The TCP and systemd signals are scoped to the default `~/.syncro/` home so `SYNCROPEL_HOME=/some/other/path` invocations don't false-positive on unrelated instances. If you use a systemd user unit, stop it (`systemctl --user stop spl-serve.service`) — `spl stop` alone is insufficient because the unit respawns the instance.
 
 Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601>` (outside `~/.syncro/` so the backup survives the reset) before deleting anything. Never touches `~/.syncro-data/` (task content + alias mappings) by default.
 
@@ -260,7 +260,7 @@ spl chrome archive
 |---|---|
 | `chrome show` | Print the current chrome record — the draft if one exists, otherwise the published record. `--published` forces the published lookup |
 | `chrome init` | Scaffold a draft `core.instance.shell.v1` from a bundled template. `--template` is one of `personal` (default), `graph-showcase`, `library`, `team`. Fails if a draft already exists — re-run with `--force` to overwrite |
-| `chrome validate <file>` | Schema-check a `core.instance.shell.v1` body in a local file. No daemon needed — good for pre-commit hooks. Exit `0` on valid, `1` on invalid |
+| `chrome validate <file>` | Schema-check a `core.instance.shell.v1` body in a local file. No instance needed — good for pre-commit hooks. Exit `0` on valid, `1` on invalid |
 | `chrome publish` | Promote the current draft to `lifecycle: published` — the live chrome that `GET /v1/instance/shell` serves and renderers draw |
 | `chrome archive` | Archive the published record. Renderers fall back to the bundled default chrome |
 
@@ -384,11 +384,11 @@ spl config add-body-kind-manifest \
 spl config list-body-kind-manifests [-o json]
 ```
 
-The daemon applies manifests at config-reload time: each declared field becomes a `CREATE INDEX ... ON records(json_extract(body, '$.<field>'))` so rich-query filter predicates on that path use the index transparently. Re-adding the same `--kind` replaces the manifest (latest LEARN wins).
+The instance applies manifests at config-reload time: each declared field becomes a `CREATE INDEX ... ON records(json_extract(body, '$.<field>'))` so rich-query filter predicates on that path use the index transparently. Re-adding the same `--kind` replaces the manifest (latest LEARN wins).
 
 ### Embedding provider
 
-Configure the provider used for [semantic search](/docs/guides/search). Writes an `embedding_provider` LEARN record on `th_engine_config`; the daemon rebuilds its embedder on broadcast — no restart. The `ollama` provider ships today; hosted adapters land in a subsequent release.
+Configure the provider used for [semantic search](/docs/guides/search). Writes an `embedding_provider` LEARN record on `th_engine_config`; the instance rebuilds its embedder on broadcast — no restart. The `ollama` provider ships today; hosted adapters land in a subsequent release.
 
 ```bash
 # Enable semantic search against a local Ollama (nomic-embed-text is the default model).
@@ -422,7 +422,7 @@ spl config relay push --peer <did> --thread <thread_id>
 | `relay clear` | Remove a relay entry. `--for-pair` defaults to `all` to drop the catch-all; pass a DID to clear a specific mapping |
 | `relay push` | Deposit one thread's records into the configured peer's relay mailbox. Used when a direct pair is known to be offline. Returns an envelope ID on success |
 
-Relay entries are stored as `federation.relay` LEARN records on `th_engine_config`. Outbound `set` / `clear` / `push` take effect immediately; enabling a new relay URL for **inbound** receive requires a daemon restart, since the receive loops are spawned at startup.
+Relay entries are stored as `federation.relay` LEARN records on `th_engine_config`. Outbound `set` / `clear` / `push` take effect immediately; enabling a new relay URL for **inbound** receive requires a instance restart, since the receive loops are spawned at startup.
 
 ```bash
 # Catch-all: route to the hosted relay for any peer without a specific mapping
@@ -440,7 +440,7 @@ spl config relay push --peer did:sync:peer:alice --thread th_abc123...
 Curate the responder list surfaced on `/v1/capabilities` and `/.well-known/syncropel`. The manifest auto-populates from actor/adapter records; these commands let operators add custom entries, override auto-populated values, or suppress specific DIDs.
 
 <Callout type="info">
-The responder manifest is dormant in this release — the schema is persisted and surfaced on discovery endpoints so peers can already read it, but the daemon does not yet consume these fields for its own routing decisions. A subsequent release will make them load-bearing. Configure now if you're already coordinating cross-peer discovery; otherwise there's no rush.
+The responder manifest is dormant in this release — the schema is persisted and surfaced on discovery endpoints so peers can already read it, but the instance does not yet consume these fields for its own routing decisions. A subsequent release will make them load-bearing. Configure now if you're already coordinating cross-peer discovery; otherwise there's no rush.
 </Callout>
 
 ```bash
@@ -578,16 +578,16 @@ spl work-loop "<goal>" \
 | `--max-turns <N>` | Cap on loop turns. Default: 20. Tier ceilings may clamp this below the requested value. |
 | `--model <NAME>` | Inference model. Default: `claude-sonnet-4-6`. |
 | `--tools <CSV>` | Allowlist of tool names (comma-separated). Default: all available tools. |
-| `--remote` | Run the loop on the daemon (built-in tools, no host `bash`) instead of in-process. Records land on the daemon and the thread is watchable from anywhere. |
+| `--remote` | Run the loop on the instance (built-in tools, no host `bash`) instead of in-process. Records land on the instance and the thread is watchable from anywhere. |
 | `--verify` | Run under independent evaluation: a planner expands the goal into acceptance criteria, a separate evaluator judges the result, and the loop never self-asserts "done". Forced on for Trial-tier actors. |
-| `--token <BEARER>` | Bearer token for daemon auth. Precedence: `--token` > `SPL_TOKEN` env > `~/.syncro/token`. |
+| `--token <BEARER>` | Bearer token for instance auth. Precedence: `--token` > `SPL_TOKEN` env > `~/.syncro/token`. |
 | `--json` | Emit machine-readable progress instead of pretty text. |
 
 ```bash
 # Local in-process run, no verify
 spl work-loop "Summarise this week's dispatches"
 
-# Daemon-run, verified, JSON output
+# Instance-run, verified, JSON output
 spl work-loop "Find every record tagged 'beta' and emit consent grants" \
   --remote --verify --json
 ```
@@ -612,7 +612,7 @@ spl work-loop-review <THREAD> \
 | `--reject` | Reject the loop's outcome. |
 | `--domain <DOMAIN>` | The work domain this verdict counts toward (e.g. `code`, `research`). Default: `general`. |
 | `--notes <TEXT>` | Review notes on an accept, or the reason on a reject. |
-| `--token <BEARER>` | Bearer token for daemon auth. Precedence: `--token` > `SPL_TOKEN` env > `~/.syncro/token`. |
+| `--token <BEARER>` | Bearer token for instance auth. Precedence: `--token` > `SPL_TOKEN` env > `~/.syncro/token`. |
 | `--json` | Emit machine-readable output. |
 
 ```bash
@@ -689,7 +689,7 @@ spl fleet start [--workers N]        # Boot coordinator + N worker instances
 spl fleet stop [--workers | --all]   # Stop workers only, or everything
 ```
 
-`spl fleet start --workers 2` boots two worker daemons on auto-assigned `SYNCROPEL_HOME` paths (`~/.syncro-worker-{a,b}`) and auto-assigned ports (9201, 9202), with the current `~/.syncro` prod daemon acting as coordinator. Each worker inherits `SPL_FLEET_COORDINATOR_URL` pointing at the coordinator and begins emitting heartbeats within ~15 seconds.
+`spl fleet start --workers 2` boots two worker instances on auto-assigned `SYNCROPEL_HOME` paths (`~/.syncro-worker-{a,b}`) and auto-assigned ports (9201, 9202), with the current `~/.syncro` prod instance acting as coordinator. Each worker inherits `SPL_FLEET_COORDINATOR_URL` pointing at the coordinator and begins emitting heartbeats within ~15 seconds.
 
 Worker state roots are persistent across fleet restarts. Next `spl fleet start --workers 2` reuses them. To start fresh, delete `~/.syncro-worker-*` before booting.
 
@@ -843,7 +843,7 @@ Uses thread snapshot/restore under the hood. Useful for onboarding a new instanc
 
 ## Federation — Peer Discovery
 
-Find other daemons without hand-configured peer URLs. See the [federation pair guide](/docs/guides/federation-pair) for the canonical pairing flow once a peer is found, and the [federation discovery guide](/docs/guides/federation-discovery) for when each discovery method fits.
+Find other instances without hand-configured peer URLs. See the [federation pair guide](/docs/guides/federation-pair) for the canonical pairing flow once a peer is found, and the [federation discovery guide](/docs/guides/federation-discovery) for when each discovery method fits.
 
 ```bash
 spl fleet sync peers discover                       # Try all available methods
@@ -861,7 +861,7 @@ Output groups results by method and deduplicates peers seen via multiple methods
 
 ### Manifest-based discovery
 
-Query a peer's signed federation manifest directly. `spl discover` fetches `/.well-known/syncropel` from the given URL, extracts the federation manifest, verifies its Ed25519 signature against the advertised daemon DID, and prints a ranked result. See the [federation discovery guide](/docs/guides/federation-discovery) for the manifest format and how it fits with the other discovery methods.
+Query a peer's signed federation manifest directly. `spl discover` fetches `/.well-known/syncropel` from the given URL, extracts the federation manifest, verifies its Ed25519 signature against the advertised instance DID, and prints a ranked result. See the [federation discovery guide](/docs/guides/federation-discovery) for the manifest format and how it fits with the other discovery methods.
 
 ```bash
 spl discover --peer-url <url> [--capability <tag>] [--kind <body.kind>] [--strict] [--json]
@@ -896,7 +896,7 @@ Generate a W3C-conformant DID document for operators who control a domain. Uploa
 spl identity publish-did-web --domain alice.dev [--output did.json]
 ```
 
-The document includes the daemon's current public key and a service entry of type `syncropel` pointing at the daemon's advertised endpoint. Anyone who knows `alice.dev` can then resolve `did:web:alice.dev` without a directory service.
+The document includes the instance's current public key and a service entry of type `syncropel` pointing at the instance's advertised endpoint. Anyone who knows `alice.dev` can then resolve `did:web:alice.dev` without a directory service.
 
 ## Federation — Consent
 
@@ -917,7 +917,7 @@ Source namespace is `default` unless written directly. Without L0 in `--hash-lev
 spl config permissions-unlock [--force]    # Unlock from permission lockout
 ```
 
-`permissions-unlock` writes a `permissions_enabled=false` LEARN record directly to the SQLite store, bypassing the HTTP middleware that would otherwise deny the disable (the classic lockout trap). Refuses to run while the daemon is up unless `--force` is passed — you still need to restart the daemon for the change to take effect. Only sqlite stores are supported.
+`permissions-unlock` writes a `permissions_enabled=false` LEARN record directly to the SQLite store, bypassing the HTTP middleware that would otherwise deny the disable (the classic lockout trap). Refuses to run while the instance is up unless `--force` is passed — you still need to restart the instance for the change to take effect. Only sqlite stores are supported.
 
 See [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the pre-flight check that prevents the trap from firing in the first place.
 

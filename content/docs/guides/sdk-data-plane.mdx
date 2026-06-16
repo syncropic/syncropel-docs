@@ -151,7 +151,7 @@ try {
 } catch (e) {
   if (e instanceof SyncropelDataError) {
     // e.status  — HTTP status (e.g. 409, 403, 507)
-    // e.code    — kernel error code (e.g. "precondition_failed", "quota_exceeded")
+    // e.code    — error code (e.g. "precondition_failed", "quota_exceeded")
     // e.detail  — human-readable detail
     // e.isConflict — true for a compare-and-swap / create-only conflict (409)
     // e.expectedHash / e.currentHash — set on a conflict

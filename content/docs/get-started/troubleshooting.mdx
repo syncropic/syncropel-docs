@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: A diagnostic tree for the real failure modes users hit on install and first daemon start. Start here before filing an issue.
+description: A diagnostic tree for the real failure modes users hit on install and first instance start. Start here before filing an issue.
 ---
 
 Use this page when something that should work isn't working. Each section names a concrete symptom, explains what's happening, and gives the exact recovery command.
@@ -26,7 +26,7 @@ The most common causes and their fixes:
 
 ### `unable to open database file`
 
-The daemon could not open `hub.db` — either the path is wrong, the directory isn't writable, or the current working directory is in a location SQLite doesn't handle well (notably UNC or WSL-mounted paths on Windows).
+The instance could not open `hub.db` — either the path is wrong, the directory isn't writable, or the current working directory is in a location SQLite doesn't handle well (notably UNC or WSL-mounted paths on Windows).
 
 Quick workaround: specify the store path explicitly.
 
@@ -34,21 +34,21 @@ Quick workaround: specify the store path explicitly.
 spl serve --store ~/.syncro/hub.db
 ```
 
-If that succeeds, the path resolution was the issue. On Linux and macOS the daemon always uses `~/.syncro/hub.db` implicitly; the `--store` flag just makes it explicit. On Windows, run from a native PowerShell (not a WSL shell) to avoid 9P filesystem weirdness.
+If that succeeds, the path resolution was the issue. On Linux and macOS the instance always uses `~/.syncro/hub.db` implicitly; the `--store` flag just makes it explicit. On Windows, run from a native PowerShell (not a WSL shell) to avoid 9P filesystem weirdness.
 
 ### `auth.required is enabled but no service accounts exist`
 
-On Linux/macOS this is not an error — the local CLI authenticates over the Unix socket (filesystem-trust) and a zero-service-account daemon is the canonical happy path. If you see this message anyway:
+On Linux/macOS this is not an error — the local CLI authenticates over the Unix socket (filesystem-trust) and a zero-service-account instance is the canonical happy path. If you see this message anyway:
 
 - **On Windows**: Unix-socket trust is not yet wired for the Windows local-CLI path. Mint a bearer with [`spl pair --device local-windows --url http://127.0.0.1:9100 --scopes admin`](/docs/get-started/pairing) and save the printed token.
 - **You've opted out of Unix-socket trust** (`[auth] unix_socket = false` in `config.toml`): you've explicitly chosen the bearer-only model — see [Service accounts](/docs/get-started/service-accounts) for the pair flow.
-- **You're on an older daemon**: upgrade with `curl get.syncropic.com/spl | sh` to land the canonical first-run flow.
+- **You're on an older instance**: upgrade with `curl get.syncropic.com/spl | sh` to land the canonical first-run flow.
 
 The legacy "bootstrap dance" (`--insecure-localhost` → `spl service-account create --bootstrap` → `spl token save`) still works but is no longer required on the canonical first run.
 
 ### `address already in use`
 
-Another process is already on port 9100. Either a zombie daemon, another `spl serve`, or a different program.
+Another process is already on port 9100. Either a zombie instance, another `spl serve`, or a different program.
 
 ```bash
 # Linux / macOS
@@ -59,7 +59,7 @@ lsof -iTCP:9100 -sTCP:LISTEN  # alternative
 Get-NetTCPConnection -LocalPort 9100
 ```
 
-If the owner is a stale `spl`, see "stale PID file" below. If it's a different program, either stop that program or start the daemon on a different port with `--port`.
+If the owner is a stale `spl`, see "stale PID file" below. If it's a different program, either stop that program or start the instance on a different port with `--port`.
 
 ## "Database is locked"
 
@@ -77,7 +77,7 @@ If a process is listed with an old PID, kill it:
 Stop-Process -Id <pid> -Force
 ```
 
-Then start the daemon again.
+Then start the instance again.
 
 ### 9P or WSL cwd interaction (Windows)
 
@@ -150,7 +150,7 @@ The output should include `%LOCALAPPDATA%\Programs\spl` (or the expanded path).
 
 ## Stale PID file
 
-`spl stop` reports the daemon isn't running, but `spl status` or `curl http://127.0.0.1:9100/health` shows a daemon is clearly alive. The PID file has been orphaned.
+`spl stop` reports the instance isn't running, but `spl status` or `curl http://127.0.0.1:9100/health` shows a instance is clearly alive. The PID file has been orphaned.
 
 Recovery:
 
@@ -202,9 +202,9 @@ Any records you had are gone. Automatic backups at `~/.local/share/syncropel/bac
 
 ## Data went to `System32` (Windows)
 
-If you ran `spl serve` from an elevated `cmd.exe` whose working directory was `C:\Windows\System32\`, and the daemon's path resolution was misbehaving, `hub.db` may have been created in `System32`. Symptoms: no data in `%USERPROFILE%\.syncro\`, but the daemon reports records exist.
+If you ran `spl serve` from an elevated `cmd.exe` whose working directory was `C:\Windows\System32\`, and the instance's path resolution was misbehaving, `hub.db` may have been created in `System32`. Symptoms: no data in `%USERPROFILE%\.syncro\`, but the instance reports records exist.
 
-Fix: stop the daemon, move the file, point the daemon at the right location.
+Fix: stop the instance, move the file, point the instance at the right location.
 
 ```powershell
 spl stop
@@ -224,7 +224,7 @@ Run the full diagnostic:
 spl doctor --json
 ```
 
-Every check reports `pass`, `warn`, or `fail` with a specific fix. If `doctor` is green but behavior is still wrong, capture the daemon log around the failure — `spl doctor --json` produces a machine-readable summary you can attach when reporting the issue.
+Every check reports `pass`, `warn`, or `fail` with a specific fix. If `doctor` is green but behavior is still wrong, capture the instance log around the failure — `spl doctor --json` produces a machine-readable summary you can attach when reporting the issue.
 
 ## See also
 

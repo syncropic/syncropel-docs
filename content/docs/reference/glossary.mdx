@@ -23,7 +23,7 @@ A `KNOW` record with `body.verdict: "accept"` from an independent evaluator. Cre
 ## B
 
 **Bearer Token**
-A random credential string minted by `spl service-account create` and presented in the `Authorization: Bearer <token>` HTTP header. The daemon resolves the token to a service account DID via the token map, then enforces namespace and permission rules as if the SA were the actor. See [Keyring](/docs/operate/keyring).
+A random credential string minted by `spl service-account create` and presented in the `Authorization: Bearer <token>` HTTP header. The instance resolves the token to a service account DID via the token map, then enforces namespace and permission rules as if the SA were the actor. See [Keyring](/docs/operate/keyring).
 
 **Body**
 The JSON payload field of a record (`record.body`). Opaque to the engine; conventions are documented per topic. See [Record Format](/docs/reference/record-format).
@@ -130,7 +130,7 @@ A `DO` record with `body.topic: "heartbeat"` emitted by each live instance on `t
 The engine's hot path: receive a record, validate, hash, store, broadcast. Budget under 100 microseconds. Never blocks on downstream work.
 
 **Instance**
-A single `spl serve` daemon with its own `SYNCROPEL_HOME`, `hub.db`, port binding, and identity. An instance may run standalone or as a coordinator/worker in a fleet.
+A single `spl serve` instance with its own `SYNCROPEL_HOME`, `hub.db`, port binding, and identity. An instance may run standalone or as a coordinator/worker in a fleet.
 
 **Instance Registry**
 The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local (single writer).

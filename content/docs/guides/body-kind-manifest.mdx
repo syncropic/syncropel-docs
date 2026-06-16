@@ -1,6 +1,6 @@
 ---
 title: Body-Kind Manifests
-description: Declare which body fields for a given body.kind should be indexed. The daemon creates SQLite expression indexes at config reload so rich-query filters on nested body fields stay fast as your record log grows.
+description: Declare which body fields for a given body.kind should be indexed. The instance creates SQLite expression indexes at config reload so rich-query filters on nested body fields stay fast as your record log grows.
 ---
 
 ## Why Manifests Exist
@@ -30,7 +30,7 @@ spl config add-body-kind-manifest \
   --description "Music catalog — indexed for lookup and chronology"
 ```
 
-Within ~1 second the daemon's config reload handler runs, applies the manifest to the store, and `CREATE INDEX IF NOT EXISTS` runs for each declared field. The index names follow a stable pattern so you can inspect them directly:
+Within ~1 second the instance's config reload handler runs, applies the manifest to the store, and `CREATE INDEX IF NOT EXISTS` runs for each declared field. The index names follow a stable pattern so you can inspect them directly:
 
 ```bash
 sqlite3 ~/.syncro/hub.db "SELECT name FROM sqlite_master \

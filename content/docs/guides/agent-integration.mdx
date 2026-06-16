@@ -100,7 +100,7 @@ Memories include learned conventions, quality gates, past corrections, and domai
 
 ## Remote agents & authentication
 
-When an AI agent runs on a different machine than the `spl serve` daemon — e.g. a workflow agent on a CI runner, or a coding agent reaching back to your laptop — the agent needs to authenticate over HTTP. See [Authentication & Service Accounts](/docs/operate/keyring) for the pattern:
+When an AI agent runs on a different machine than the `spl serve` instance — e.g. a workflow agent on a CI runner, or a coding agent reaching back to your laptop — the agent needs to authenticate over HTTP. See [Authentication & Service Accounts](/docs/operate/keyring) for the pattern:
 
 1. Create a dedicated service account for the agent with scoped capabilities (`records:write` + `records:read` is usually enough)
 2. Mint a bearer token, pass it to the agent as an environment variable

@@ -13,26 +13,26 @@ Three entry points:
 - **HTTP**: `POST /v1/records/search` with a JSON body
 - **SDK**: `client.search({ query })` (TypeScript) or `await client.search(query)` (Python)
 
-All three talk to the same embedding provider — configured once per daemon, used by every search. The **Ollama** provider (local, zero-cost) ships today; additional hosted providers land in later releases. If you just need text search and don't want to configure a provider, use [Find](./find) — it works everywhere with zero setup.
+All three talk to the same embedding provider — configured once per instance, used by every search. The **Ollama** provider (local, zero-cost) ships today; additional hosted providers land in later releases. If you just need text search and don't want to configure a provider, use [Find](./find) — it works everywhere with zero setup.
 
 ## Prerequisites — configure an embedding provider
 
 Semantic search is off by default. Before any search works, configure a provider:
 
 ```bash
-# One-time setup — installs nothing; requires an Ollama daemon already running.
+# One-time setup — installs nothing; requires an Ollama instance already running.
 spl config embedding-provider set ollama \
   --endpoint http://localhost:11434 \
   --model nomic-embed-text
 ```
 
-This writes an `embedding_provider` LEARN record on `th_engine_config`. The daemon rebuilds its embedder on the next broadcast of that record — no restart. Verify:
+This writes an `embedding_provider` LEARN record on `th_engine_config`. The instance rebuilds its embedder on the next broadcast of that record — no restart. Verify:
 
 ```bash
 spl config embedding-provider show
 ```
 
-When no provider is configured the daemon returns HTTP 503 on search requests. Both SDKs surface this distinctly (`disabled: true` on the result) so a UI can render a "set up Ollama" hint instead of treating it as an error.
+When no provider is configured the instance returns HTTP 503 on search requests. Both SDKs surface this distinctly (`disabled: true` on the result) so a UI can render a "set up Ollama" hint instead of treating it as an error.
 
 To disable search without clearing other config:
 
@@ -147,7 +147,7 @@ If you need strict pre-filtering (e.g. "only look inside this thread"), combine 
   - **`score`** — cosine similarity in `[-1, 1]`, though in practice `[0, 1]` for any healthy embedding model.
   - **`record`** — the full Record — `id`, `thread`, `actor`, `act`, `body`, `clock`, and all the rest.
 
-When the provider is unreachable (daemon returns 503), the SDK returns:
+When the provider is unreachable (instance returns 503), the SDK returns:
 
 ```json
 {
@@ -244,7 +244,7 @@ Hosted provider kinds land in a subsequent release. The `spl config embedding-pr
 
 ## Limits & Failure Modes
 
-- **Embedding provider reachability**: if Ollama isn't running, the daemon logs an embedder error at ingest time (the record ingests fine, the embedding is skipped) and returns 503 on search requests. Restart the provider and re-ingest if you care about the skipped records.
+- **Embedding provider reachability**: if Ollama isn't running, the instance logs an embedder error at ingest time (the record ingests fine, the embedding is skipped) and returns 503 on search requests. Restart the provider and re-ingest if you care about the skipped records.
 - **`k` clamp**: `k > 100` is silently clamped to 100. For very large result sets, combine search (for relevance) with [Query](./query) (for structural pagination).
 - **Empty query**: both SDKs raise / throw on empty query — this is a programmer error, never fail-open.
 - **Filter + k interaction**: if `k=10` and your filters reject 9 of the top 10, you'll get a single hit — _not_ re-ranked. For dense filters where you need a guaranteed return size, request a larger `k` upfront.

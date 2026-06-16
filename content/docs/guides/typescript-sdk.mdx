@@ -14,7 +14,7 @@ Requires Node 18+ or any runtime with a global `fetch`. Zero native dependencies
 
 ## Hello, Syncropel
 
-Start a Syncropel daemon locally (`spl serve`), then:
+Start a Syncropel instance locally (`spl serve`), then:
 
 ```typescript
 import { Client, Identity, Ref } from "@syncropel/sdk";
@@ -42,10 +42,10 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 - **Universal runtime** — Node, Deno, Bun, Cloudflare Workers, browsers. Uses platform `fetch`.
 - **Async client** — `emit`, `query`, `queryThread`, `intend`, `fulfill`, plus reserved-kind helpers
 - **Files & blobs** — `client.data.*` reads and writes the data plane (see [Files & blobs](/docs/guides/sdk-data-plane))
-- **Folds & live threads** — `client.folds.resolve()` reads any kernel fold; `client.threads.watch()` streams a thread live
+- **Folds & live threads** — `client.folds.resolve()` reads any fold; `client.threads.watch()` streams a thread live
 - **Grammar enforcement** — `body.kind` validated client-side before any network call
 - **Canonical references** — 11 built-in constructors for cross-publisher correlation
-- **Fail-open reads, surfaced errors** — record reads fail open (a flaky daemon never crashes your UI); malformed requests and data-plane writes raise so a dropped write is never mistaken for success
+- **Fail-open reads, surfaced errors** — record reads fail open (a flaky instance never crashes your UI); malformed requests and data-plane writes raise so a dropped write is never mistaken for success
 - **Identity-aware** — records carry the configured DID
 - **`MockKernel`** — in-memory fake at `@syncropel/sdk/testing` for adapter unit tests
 - **Companion types** — pair with [`@syncropel/projections`](/docs/guides/projections) when you're working with rendered document schemas
@@ -74,7 +74,7 @@ new Client({
   maxRetries?: number,            // transient 5xx/network retry count
   backoffMs?: number,             // base backoff between retries
   onEmit?: (result) => void,      // observation hook (fires after every emit)
-  apiKey?: string,                // bearer token for authenticated daemons
+  apiKey?: string,                // bearer token for authenticated instances
   fetch?: typeof fetch,           // custom transport (use for testing)
 });
 ```
@@ -87,18 +87,18 @@ Beyond the flat emit/query methods, the rest of the surface is grouped into name
 |---|---|
 | `client.records` | `.create(opts)` (emit alias), `.get(id)`, `.richQuery({ filter, sort?, limit? })` — server-side filtered query. |
 | `client.threads` | `.list()`, `.records(id)`, `.state(id)`, `.project(id, format)`, and `.watch(id)` — a live `AsyncIterable` of thread events (see below). |
-| `client.folds` | `.resolve<V>(name, cacheKey?)` reads any kernel fold through one typed method; `.watermark(name, key)` checks liveness without recomputing. |
+| `client.folds` | `.resolve<V>(name, cacheKey?)` reads any fold through one typed method; `.watermark(name, key)` checks liveness without recomputing. |
 | `client.data` | Files & blobs — write (with compare-and-swap), read, list, stat, publish, materials. See [Files & blobs](/docs/guides/sdk-data-plane). |
 | `client.namespaces` | `.list()`, `.create({ id, description?, policy? })`. |
 | `client.federation` | `.peers()`, `.pair(peer)`, `.sync(thread, peer?)`, `.discoverPeers()`, `.mergeResults()`. |
 | `client.invites` | issue / list / preview / redeem / revoke / audit invitations. |
-| `client.graph` | `.query({ start, edges?, depth?, filter? })` — graph queries over the substrate. |
+| `client.graph` | `.query({ start, edges?, depth?, filter? })` — graph queries over your instance. |
 | `client.expr` | `.eval({ expression, context, record? })` — evaluate a CEL expression server-side. |
 | `client.aitl` | `.pending()`, `.decide(id, { decision, reason? })` — actor-in-the-loop proposals. |
 
 ### Reading folds
 
-A fold is a derived view computed from a thread's (or the whole substrate's) records — the turn timeline, thread state, trust, and more. Read any of them through one method:
+A fold is a derived view computed from a thread's (or the whole instance's) records — the turn timeline, thread state, trust, and more. Read any of them through one method:
 
 ```typescript
 // per-thread fold: pass the thread id as the cache key
@@ -214,9 +214,9 @@ interface EmitResult {
 }
 ```
 
-## Authenticating to a remote daemon
+## Authenticating to a remote instance
 
-When the Syncropel daemon has bearer-token auth enabled, pass the token via `apiKey`:
+When the Syncropel instance has bearer-token auth enabled, pass the token via `apiKey`:
 
 ```typescript
 const client = new Client({
@@ -313,7 +313,7 @@ interface InferResult {
 Unlike `client.emit()`, `client.infer()` **fails hard**:
 
 - Invalid request shape throws before any HTTP call.
-- Network or daemon error on INTEND emission throws.
+- Network or instance error on INTEND emission throws.
 - Poll timeout throws `TimeoutError`.
 
 Catch timeouts explicitly if you want the thread id preserved for manual polling.
@@ -322,7 +322,7 @@ Catch timeouts explicitly if you want the thread id preserved for manual polling
 
 The SDK distinguishes two failure modes:
 
-- **Fail-open** — record reads (`query`, `queryThread`, `richQuery`, `health`, `folds.resolve`) return an empty result on a *transient* failure (a briefly-unavailable daemon, a `5xx`, an auth blip), so a UI never crashes on backend trouble.
+- **Fail-open** — record reads (`query`, `queryThread`, `richQuery`, `health`, `folds.resolve`) return an empty result on a *transient* failure (a briefly-unavailable instance, a `5xx`, an auth blip), so a UI never crashes on backend trouble.
 - **Surfaced (thrown)** — a *programmer error* or a write that must not be lost throws, so it can't be mistaken for an empty result:
 
 | Error | Thrown when |
@@ -347,7 +347,7 @@ try {
 **Migrating from 0.7.x:** `richQuery` / `query` / `queryThread` used to swallow a malformed `4xx` into an empty result. As of 0.8.0 they throw `SyncropelQueryError` instead. Valid queries are unaffected; wrap any call that might send a malformed filter/sort in a `try/catch`. The canonical fix for the most common case is the object sort form `{ clock: -1 }` (not a string).
 </Callout>
 
-## Testing without a daemon
+## Testing without a instance
 
 Use `MockKernel` to write unit tests against the SDK interface without running `spl serve`:
 
@@ -406,4 +406,4 @@ export default {
 - [Projections SDK](/docs/guides/projections) — schema + validators for rendered documents you emit or consume
 - [React components](/docs/guides/react-components) — UI atoms that render projection documents
 - [Python SDK](/docs/guides/python-sdk) — the equivalent package for Python code
-- [Authentication & Service Accounts](/docs/operate/keyring) — securing the daemon your code talks to
+- [Authentication & Service Accounts](/docs/operate/keyring) — securing the instance your code talks to

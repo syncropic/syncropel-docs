@@ -1,11 +1,11 @@
 ---
 title: Your first federation pair
-description: Pair two daemons in one command. Emit on one, query on the other, see federated records flow consent-gated. The smallest two-instance walkthrough.
+description: Pair two instances in one command. Emit on one, query on the other, see federated records flow consent-gated. The smallest two-instance walkthrough.
 ---
 
 ## What you'll build
 
-Two daemons (call them **alice** and **bob**), paired via `spl federation pair`, exchanging records over a single signed federation link. You'll emit a record on alice, sync it to bob, and verify the round-trip — all without any hand-wired URL+token plumbing.
+Two instances (call them **alice** and **bob**), paired via `spl federation pair`, exchanging records over a single signed federation link. You'll emit a record on alice, sync it to bob, and verify the round-trip — all without any hand-wired URL+token plumbing.
 
 After this, you'll understand why federation in Syncropel is just **records on a reserved thread**, not a separate auth or transport system. The pair lifecycle, consent grants, and sync state are all derived from records on `th_federation_pairs`.
 
@@ -14,11 +14,11 @@ Allow ~30 minutes including a one-time AITL approval on bob's side.
 ## Before you start
 
 - `spl 0.33.0` or later (`spl --version`)
-- The shell can run two daemons side by side. Easiest setup: same machine, different ports + different `SYNCROPEL_HOME`.
-- Each daemon has a cryptographic identity (`spl identity show` reports a DID). If not, `spl identity generate`.
-- Cross-daemon reachability — both daemons running on the same machine satisfies this trivially.
+- The shell can run two instances side by side. Easiest setup: same machine, different ports + different `SYNCROPEL_HOME`.
+- Each instance has a cryptographic identity (`spl identity show` reports a DID). If not, `spl identity generate`.
+- Cross-instance reachability — both instances running on the same machine satisfies this trivially.
 
-## 1. Boot two daemons
+## 1. Boot two instances
 
 Terminal A — alice on port 9100:
 
@@ -34,9 +34,9 @@ SYNCROPEL_HOME="$HOME/.syncro-bob" \
   spl serve --port 9201 --insecure-localhost
 ```
 
-`--insecure-localhost` tells each daemon to skip TLS verification on cross-daemon calls. Use it for **local two-daemon dev only**. For real cross-host pairs, both sides should serve TLS.
+`--insecure-localhost` tells each instance to skip TLS verification on cross-instance calls. Use it for **local two-instance dev only**. For real cross-host pairs, both sides should serve TLS.
 
-In a third terminal, alias each daemon as a separate `spl` invocation:
+In a third terminal, alias each instance as a separate `spl` invocation:
 
 ```bash
 alias spl-alice='SYNCROPEL_HOME=$HOME/.syncro-alice SPL_SERVE_URL=http://127.0.0.1:9100 spl'
@@ -176,7 +176,7 @@ ACTOR                              ACT       BODY (excerpt)
 did:sync:user:alice                INTEND    Test the federation link
 ```
 
-Same record id, same body, same thread id on both daemons. Records are content-addressed, so this is structural — there's no possibility of divergent state for this record between alice and bob; they're hashing the same bytes and getting the same id.
+Same record id, same body, same thread id on both instances. Records are content-addressed, so this is structural — there's no possibility of divergent state for this record between alice and bob; they're hashing the same bytes and getting the same id.
 
 The reverse direction works the same way:
 
@@ -208,7 +208,7 @@ State is the fold over this thread. Pause/resume/revoke commands all emit record
 You exercised Syncropel's **federation primitive** end-to-end:
 
 1. **One command established the relationship.** `spl federation pair <url>` ran a 3-roundtrip handshake (manifest discovery → nonce-protected handshake → reciprocal SA mint), persisted signed pair records on both sides, and returned. No hand-edited config file. No copy-pasted bearer tokens.
-2. **Operator approval is structural, not bypassable.** Bob's daemon emitted an AITL record and refused to complete until an operator approved. The approval is itself a signed record on `th_aitl_decisions` — auditable forever. Auto-approval is opt-in via a CEL aitl_rule (see the [federation pair guide — auto-approval](/docs/guides/federation-pair#auto-approval-via-cel)) for trusted contexts; default is manual.
+2. **Operator approval is structural, not bypassable.** Bob's instance emitted an AITL record and refused to complete until an operator approved. The approval is itself a signed record on `th_aitl_decisions` — auditable forever. Auto-approval is opt-in via a CEL aitl_rule (see the [federation pair guide — auto-approval](/docs/guides/federation-pair#auto-approval-via-cel)) for trusted contexts; default is manual.
 3. **`spl sync` consults the pair store automatically.** The old antipattern (`spl sync ... --peer-token sk_...`) doesn't exist on this command. The pair record holds the credential; sync looks it up.
 4. **Records are content-addressed across stewards.** Alice's record id == bob's record id for the same record. There is no "alice-side id" and "bob-side id." This is what makes CRDT-style merge trivial: same id → same record, no conflicts possible.
 5. **The relationship is auditable + portable.** Pair lifecycle is records, not config. `spl export` from alice carries the pair record; importing to a new instance carries the relationship forward. URLs auto-refresh on first contact via DID resolution (see [portability guide](/docs/guides/portability#migrating-between-instances)).
@@ -226,8 +226,8 @@ The pair primitive is the gate to everything else federation does — async rela
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `peer served /.well-known/syncropel but no federation_manifest key` | The peer daemon doesn't have an identity configured. The manifest is generated from the local key. | On the peer daemon: `spl identity show`. If it reports `no identity`, run `spl identity generate`. Then re-try the pair from the initiating side. |
-| `pair_handshake_rejected: unauthenticated_initiator` | TLS verification failed. Either the peer URL doesn't serve a valid cert, or you forgot `--insecure-localhost` on a local-only setup. | For local two-daemon dev: ensure both daemons started with `--insecure-localhost`. For real cross-host: confirm both sides serve TLS. The flag is dev-only and refused on hosts other than `127.0.0.1`. |
+| `peer served /.well-known/syncropel but no federation_manifest key` | The peer instance doesn't have an identity configured. The manifest is generated from the local key. | On the peer instance: `spl identity show`. If it reports `no identity`, run `spl identity generate`. Then re-try the pair from the initiating side. |
+| `pair_handshake_rejected: unauthenticated_initiator` | TLS verification failed. Either the peer URL doesn't serve a valid cert, or you forgot `--insecure-localhost` on a local-only setup. | For local two-instance dev: ensure both instances started with `--insecure-localhost`. For real cross-host: confirm both sides serve TLS. The flag is dev-only and refused on hosts other than `127.0.0.1`. |
 | AITL approval times out (alice's CLI prints `still pending after 60s`) | Bob's operator didn't approve in the 60-second window. The pair is still in `establishing` state. | The original `pair_pending.v1` AITL on bob's side stays valid until bob explicitly rejects it or it TTLs out. Re-run `spl federation pair <url>` from alice — it'll mint a new nonce and the operator can approve the second attempt. |
 | `unpaired_peer` on `spl sync` | You're syncing from a URL or DID that doesn't match any pair record on this side. | Run `spl federation list` to confirm what pairs exist on this side. If you expected one but it's missing, the pair was never completed (handshake interrupted) — re-run `spl federation pair`. |
 | Pair shows `degraded` state | Peer was unreachable for >24 hours, or a sync call hit a 401 (token expired or revoked). | Run `spl federation refresh <peer-did>` to re-fetch the manifest and revalidate. If the peer is permanently gone, `spl federation revoke <peer-did>` cleanly closes out the pair. |

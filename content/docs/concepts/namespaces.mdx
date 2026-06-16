@@ -107,7 +107,7 @@ Three concrete reasons the spec mandates this shape:
 
 **1. Predictable cleanup.** When a customer leaves or a project ends, you archive the ORG-level namespace and you're done. Every JOB, ENV, and PROJECT record under it stops accepting writes. You never have to walk the descendant tree by hand or write cleanup queries against the database.
 
-**2. Tenancy without forking the engine.** The same daemon serves multiple orgs without cross-contamination. An attacker who somehow obtains an ORG-level credential for `acme-corp` cannot inject records claiming `bigcorp` as their namespace — the registry doesn't have a `bigcorp` ancestor for them to pass through.
+**2. Tenancy without forking the engine.** The same instance serves multiple orgs without cross-contamination. An attacker who somehow obtains an ORG-level credential for `acme-corp` cannot inject records claiming `bigcorp` as their namespace — the registry doesn't have a `bigcorp` ancestor for them to pass through.
 
 **3. Policy composition is closed.** When (in a future release) namespaces also carry policy YAML, the resolved policy at any level is the *intersection* of every ancestor's policy. There is no way to add capability by going deeper. This makes audit feasible — you can answer "what could a job-42 dispatch ever do?" by looking at the chain of policies, no need to chase implicit grants.
 
@@ -121,7 +121,7 @@ The implicit `default` namespace is always there, always Active, and never goes 
 
 ## What's enforced today vs the spec
 
-The current implementation covers the **existence layer** of the narrowing guarantee: every record's claimed namespace and every ancestor must be Active in the registry. This is enforced at the HTTP boundary by the daemon's `validate_namespace_for_ingest` check.
+The current implementation covers the **existence layer** of the narrowing guarantee: every record's claimed namespace and every ancestor must be Active in the registry. This is enforced at the HTTP boundary by the instance's `validate_namespace_for_ingest` check.
 
 Two pieces of the namespace model are not yet implemented and are tracked as follow-up tasks:
 

@@ -5,11 +5,11 @@ description: Share a single task thread with a collaborator on a different `spl`
 
 ## Problem
 
-A teammate runs their own `spl` instance. You're working on a task (say `TASK-0042`), and you want them to see its records as they land — their daemon should pull changes for the task's thread, signature-verify them, and ingest. You do *not* want to share everything. Just this one thread. They should not see your trust data, your other tasks, your engine config, or anything on other threads.
+A teammate runs their own `spl` instance. You're working on a task (say `TASK-0042`), and you want them to see its records as they land — their instance should pull changes for the task's thread, signature-verify them, and ingest. You do *not* want to share everything. Just this one thread. They should not see your trust data, your other tasks, your engine config, or anything on other threads.
 
 ## Recipe
 
-You both already have `spl init`-initialised daemons with DIDs. Exchange DIDs and endpoint URLs, then create one pair on each side pointing at the same thread ID.
+You both already have `spl init`-initialised instances with DIDs. Exchange DIDs and endpoint URLs, then create one pair on each side pointing at the same thread ID.
 
 On **your** side — you publish the thread, they subscribe:
 
@@ -40,7 +40,7 @@ spl fleet sync pairs
 spl fleet sync pull --thread "$TASK_THREAD"
 ```
 
-Within a few seconds of every record you emit on `TASK-0042`, their daemon ingests it. Records arrive, signatures are verified against your DID, and the consent filter runs — if you and your teammate are in different namespaces, the filter stops propagation unless a consent grant exists.
+Within a few seconds of every record you emit on `TASK-0042`, their instance ingests it. Records arrive, signatures are verified against your DID, and the consent filter runs — if you and your teammate are in different namespaces, the filter stops propagation unless a consent grant exists.
 
 ## The trade-off
 
@@ -48,10 +48,10 @@ Within a few seconds of every record you emit on `TASK-0042`, their daemon inges
 
 **Cross-namespace sharing needs a consent grant.** If your task is in `default` and theirs is in `their-namespace`, records don't cross without an explicit grant on `th_consent` specifying source, target, and allowed hash levels. See [Consent management](/docs/guides/consent) for the grant flow.
 
-**There's no push from your side.** Your daemon doesn't know their pair exists. They pull on their own schedule (default every few seconds) with exponential backoff if you're unreachable. If their instance is offline when you emit records, the records propagate the next time their pull loop runs — pull is idempotent.
+**There's no push from your side.** Your instance doesn't know their pair exists. They pull on their own schedule (default every few seconds) with exponential backoff if you're unreachable. If their instance is offline when you emit records, the records propagate the next time their pull loop runs — pull is idempotent.
 
 ## See also
 
 - **[Federation](/docs/concepts/federation)** — the full model: pairs, identity, consent, discovery.
-- **[Federation pair guide](/docs/guides/federation-pair)** — end-to-end walkthrough with two local daemons via `spl federation pair`.
+- **[Federation pair guide](/docs/guides/federation-pair)** — end-to-end walkthrough with two local instances via `spl federation pair`.
 - **[Consent management](/docs/guides/consent)** — cross-namespace grants.

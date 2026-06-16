@@ -39,11 +39,11 @@ The audit runs against `~/.syncro/secrets/` and `~/.syncro/keys/`. A failed audi
 
 ### Token-at-rest format
 
-Bearer tokens are NEVER stored in plaintext in `hub.db`. Only `sha256(secret)` lands; the plaintext is shown ONCE at mint time and never persisted in the daemon. If you misplace a token, mint a new one — no recovery from `hub.db`.
+Bearer tokens are NEVER stored in plaintext in `hub.db`. Only `sha256(secret)` lands; the plaintext is shown ONCE at mint time and never persisted in the instance. If you misplace a token, mint a new one — no recovery from `hub.db`.
 
-### Per-daemon keypair scope
+### Per-instance keypair scope
 
-The identity keypair is per-daemon, content-addressed via `did:key`. Rotating the keypair (regenerating the DID) **invalidates all federation pairs** — peers cache the DID and reject pair traffic from a different keypair. Recovery: re-run `spl federation pair` after rotation.
+The identity keypair is per-instance, content-addressed via `did:key`. Rotating the keypair (regenerating the DID) **invalidates all federation pairs** — peers cache the DID and reject pair traffic from a different keypair. Recovery: re-run `spl federation pair` after rotation.
 
 ### Bootstrap discipline
 
@@ -53,11 +53,11 @@ The identity keypair is per-daemon, content-addressed via `did:key`. Rotating th
 
 ### Host compromise
 
-Root or the daemon's user account can read every file in `~/.syncro/`. The plaintext identity seed lets an attacker:
+Root or the instance's user account can read every file in `~/.syncro/`. The plaintext identity seed lets an attacker:
 
 - Forge records under your DID
 - Decrypt federation pair traffic addressed to you
-- Issue bearer tokens that pass the daemon's auth gate (after replacing `hub.db`)
+- Issue bearer tokens that pass the instance's auth gate (after replacing `hub.db`)
 
 **Mitigation**: standard host hardening (disk encryption at the filesystem layer, restrict shell access, monitor for unauthorized SSH). For high-stakes tenants, run `spl serve` inside a dedicated VM or container with the keys/secrets dir on a separate filesystem volume.
 
@@ -104,7 +104,7 @@ A stolen laptop without full-disk encryption yields plaintext keys. A discarded 
 
 ### Hosted instance multi-tenancy
 
-A `*.syncropel.com` hosted instance runs `spl serve` with the daemon's identity in the container's filesystem. Syncropic's hosted-instance provisioning generates a fresh keypair per tenant, but the **container's host** sees the keys in plaintext while the container is running.
+A `*.syncropel.com` hosted instance runs `spl serve` with the instance's identity in the container's filesystem. Syncropic's hosted-instance provisioning generates a fresh keypair per tenant, but the **container's host** sees the keys in plaintext while the container is running.
 
 **Mitigation**: hosted-instance operators rely on the platform's volume encryption and tenant isolation. Self-hosting users on shared compute (e.g., a VM where another tenant has root) should treat the deployment as compromised by default.
 
@@ -123,10 +123,10 @@ This audit thread does NOT prevent the export from happening — auth scope (`Ad
 | Threat | Protected? | By |
 |---|---|---|
 | Casual file enumeration on multi-user host | ✓ | 0600 file permissions |
-| Daemon-user-only attacker (no root) | ✓ | 0600 file permissions |
+| Instance-user-only attacker (no root) | ✓ | 0600 file permissions |
 | Network-only attacker (over HTTP) | ✓ | Bearer-token auth (default-secure since v0.16) |
 | Replay of leaked bearer token | ✓ | Server-side validation against `sha256(secret)` lookup |
-| Host root / daemon-user compromise | ✗ | (mitigation: host hardening, full-disk encryption) |
+| Host root / instance-user compromise | ✗ | (mitigation: host hardening, full-disk encryption) |
 | Cloud-sync of identity dir | ✗ | (mitigation: explicit exclusion) |
 | Forensic disk imaging | ✗ | (mitigation: full-disk encryption) |
 | Accidental git commit | ✗ | (mitigation: `.gitignore`) |
