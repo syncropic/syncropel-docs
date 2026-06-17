@@ -193,7 +193,7 @@ See the [consent management guide](./consent) for the full flow.
 
 ### "My pair was created but no records propagate"
 
-The most common cause is a instance bound to `127.0.0.1` while the pair points at a non-loopback host. Two signals to check:
+The most common cause is an instance bound to `127.0.0.1` while the pair points at a non-loopback host. Two signals to check:
 
 - The response to `POST /v1/sync/pairs` includes a `warning` field when this is detected.
 - `spl doctor` flags it:

@@ -95,7 +95,7 @@ spl reset --wipe-task-data  # also delete ~/.syncro-data/ (extra confirmation)
 
 Wipes `~/.syncro/` back to a fresh state by listing the directory at runtime and deleting every entry not protected by a `--keep-*` flag. With no `--keep-*` flag the home dir itself is also removed, so the next `spl init` works without `--force`.
 
-Refuses if any of four signals indicate a instance is running: PID file at `~/.syncro/run/spl.pid`, Unix socket connect, TCP `127.0.0.1:9100` connect, or `systemctl --user is-active spl-serve.service`. The TCP and systemd signals are scoped to the default `~/.syncro/` home so `SYNCROPEL_HOME=/some/other/path` invocations don't false-positive on unrelated instances. If you use a systemd user unit, stop it (`systemctl --user stop spl-serve.service`) — `spl stop` alone is insufficient because the unit respawns the instance.
+Refuses if any of four signals indicate an instance is running: PID file at `~/.syncro/run/spl.pid`, Unix socket connect, TCP `127.0.0.1:9100` connect, or `systemctl --user is-active spl-serve.service`. The TCP and systemd signals are scoped to the default `~/.syncro/` home so `SYNCROPEL_HOME=/some/other/path` invocations don't false-positive on unrelated instances. If you use a systemd user unit, stop it (`systemctl --user stop spl-serve.service`) — `spl stop` alone is insufficient because the unit respawns the instance.
 
 Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601>` (outside `~/.syncro/` so the backup survives the reset) before deleting anything. Never touches `~/.syncro-data/` (task content + alias mappings) by default.
 
@@ -422,7 +422,7 @@ spl config relay push --peer <did> --thread <thread_id>
 | `relay clear` | Remove a relay entry. `--for-pair` defaults to `all` to drop the catch-all; pass a DID to clear a specific mapping |
 | `relay push` | Deposit one thread's records into the configured peer's relay mailbox. Used when a direct pair is known to be offline. Returns an envelope ID on success |
 
-Relay entries are stored as `federation.relay` LEARN records on `th_engine_config`. Outbound `set` / `clear` / `push` take effect immediately; enabling a new relay URL for **inbound** receive requires a instance restart, since the receive loops are spawned at startup.
+Relay entries are stored as `federation.relay` LEARN records on `th_engine_config`. Outbound `set` / `clear` / `push` take effect immediately; enabling a new relay URL for **inbound** receive requires an instance restart, since the receive loops are spawned at startup.
 
 ```bash
 # Catch-all: route to the hosted relay for any peer without a specific mapping

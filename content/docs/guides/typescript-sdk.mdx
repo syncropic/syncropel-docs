@@ -347,7 +347,7 @@ try {
 **Migrating from 0.7.x:** `richQuery` / `query` / `queryThread` used to swallow a malformed `4xx` into an empty result. As of 0.8.0 they throw `SyncropelQueryError` instead. Valid queries are unaffected; wrap any call that might send a malformed filter/sort in a `try/catch`. The canonical fix for the most common case is the object sort form `{ clock: -1 }` (not a string).
 </Callout>
 
-## Testing without a instance
+## Testing without an instance
 
 Use `MockKernel` to write unit tests against the SDK interface without running `spl serve`:
 

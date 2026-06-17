@@ -85,7 +85,7 @@ if (isSRPDocument(unknown)) {
 }
 ```
 
-`validateSRP` walks every node, checks required fields, and reports structured errors with `path`, `code`, and `message`. Use it on any input that claims to be SRP — records you received from a instance, documents an AI generated, user-submitted JSON.
+`validateSRP` walks every node, checks required fields, and reports structured errors with `path`, `code`, and `message`. Use it on any input that claims to be SRP — records you received from an instance, documents an AI generated, user-submitted JSON.
 
 Per-node validation is also exposed:
 
@@ -158,7 +158,7 @@ These are the same tokens consumed by `@syncropel/react` — your type-checked `
 
 ## Using alongside the record SDK
 
-Projections are most useful when they travel as record bodies — e.g., a instance emits a KNOW record whose body *is* a projection document, and the UI queries that thread and renders the documents.
+Projections are most useful when they travel as record bodies — e.g., an instance emits a KNOW record whose body *is* a projection document, and the UI queries that thread and renders the documents.
 
 ```typescript
 import { Client, Identity } from "@syncropel/sdk";

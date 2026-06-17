@@ -16,7 +16,7 @@ If you already know a peer's URL and want to emit records + sync records with th
 
 ## Prerequisites
 
-A instance only publishes the federation manifest if it has a cryptographic identity configured:
+An instance only publishes the federation manifest if it has a cryptographic identity configured:
 
 ```bash
 # On the publishing instance (first time only).
@@ -152,7 +152,7 @@ The manifest-based model is deliberately simple. Security properties worth knowi
 2. **Tamper-evident.** Changing any field in the manifest invalidates the signature. A proxy or CDN cannot alter what a peer advertises without detection.
 3. **Freshness-bounded.** `signature.expires_at` caps how long a cached manifest can be trusted. Past-expiry manifests are rejected by `spl discover`.
 4. **No central authority.** The directory (when it ships) is one of many possible aggregators. Peers can always be reached and verified directly from their URL; no single party can gate discovery.
-5. **Opt-in advertising.** A instance with an identity keypair decides whether to populate `advertises.kinds`. Empty is acceptable — the peer is reachable for explicit pairing but does not broadcast a menu.
+5. **Opt-in advertising.** An instance with an identity keypair decides whether to populate `advertises.kinds`. Empty is acceptable — the peer is reachable for explicit pairing but does not broadcast a menu.
 
 ## Common troubleshooting
 

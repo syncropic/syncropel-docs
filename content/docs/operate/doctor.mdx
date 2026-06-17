@@ -1,6 +1,6 @@
 ---
 title: spl doctor
-description: Top-down diagnostic that audits a instance's filesystem state, PID files, ports, config, and permissions. Run this first when something feels wrong.
+description: Top-down diagnostic that audits an instance's filesystem state, PID files, ports, config, and permissions. Run this first when something feels wrong.
 ---
 
 ## What it does
@@ -55,7 +55,7 @@ spl doctor — instance diagnostic
 all checks passed (7/7)
 ```
 
-Or on a instance with issues:
+Or on an instance with issues:
 
 ```text
 spl doctor — instance diagnostic
@@ -65,7 +65,7 @@ spl doctor — instance diagnostic
 ⚠ PID file references pid 12847, but no such process is alive.
   Recovery:
     pgrep -af "spl serve"
-    kill <pid>      # if a instance is running
+    kill <pid>      # if an instance is running
     spl serve   # restart cleanly
 ✗ /health not reachable on 127.0.0.1:9100 (connection refused)
 ✓ ~/.syncro/config.toml parses

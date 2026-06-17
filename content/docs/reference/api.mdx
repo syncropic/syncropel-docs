@@ -589,7 +589,7 @@ When auth is off, the endpoint is reachable without a token. When auth is on, an
 
 ### GET `/.well-known/syncropel`
 
-The unauthenticated surface, served at the [Well-Known URI](https://datatracker.ietf.org/doc/html/rfc8615) location so any peer on the public internet can discover a instance without prior coordination. The response envelope carries two top-level manifests as sibling keys:
+The unauthenticated surface, served at the [Well-Known URI](https://datatracker.ietf.org/doc/html/rfc8615) location so any peer on the public internet can discover an instance without prior coordination. The response envelope carries two top-level manifests as sibling keys:
 
 | Key | Audience | Purpose |
 |---|---|---|
@@ -824,7 +824,7 @@ The instance advertises itself on `_syncropel._tcp.local` when `[sync.discovery]
 | GET | `/directory/{hash}/operations` | Full operation log for a did:sync |
 | GET | `/directory/handle/{handle}` | Resolve a human-readable handle to its did:sync |
 
-Gated by `config.directory_enabled` — off by default. A instance can act as a did:sync directory provider; most installs don't need to.
+Gated by `config.directory_enabled` — off by default. An instance can act as a did:sync directory provider; most installs don't need to.
 
 ## Service accounts
 

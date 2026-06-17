@@ -98,7 +98,7 @@ The threat model spells out the guarantees in full. The load-bearing ones:
 - **Federated holder proofs are mandatory, never optional**: redeem requests with `holder_type: federated` MUST carry a valid Ed25519 attestation signed by the holder's home instance, with a fresh issued-at-ms. Syncropel refuses (and audits) on `bad_proof`, `key_unknown`, or `freshness_violation`.
 - **Audit thread parity**: every redeem / revoke / refusal on `th_invites` mirrors to `th_audit_invites`. The mirror runs in the same transaction so partial state ("redeem succeeded but audit didn't") cannot happen.
 - **Federation pair revoke cascades**: when you delete a federation pair, every federated-holder bearer issued through that pair is revoked in the same transaction. Stops "I removed the pair but their bearer still works" silently broken state.
-- **Always-admin auth on operator routes**: even on a instance configured `auth.required = false`, the operator endpoints (`/v1/invites`, `/v1/invites/audit`, `/v1/invites/bulk-revoke`, `/v1/invite-templates`, `/v1/tokens/*/rotate`) refuse anonymous callers. The auth-off master switch covers data-plane endpoints; the admin gate is independent.
+- **Always-admin auth on operator routes**: even on an instance configured `auth.required = false`, the operator endpoints (`/v1/invites`, `/v1/invites/audit`, `/v1/invites/bulk-revoke`, `/v1/invite-templates`, `/v1/tokens/*/rotate`) refuse anonymous callers. The auth-off master switch covers data-plane endpoints; the admin gate is independent.
 
 ## Reference
 

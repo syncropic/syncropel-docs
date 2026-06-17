@@ -86,7 +86,7 @@ curl -sSf https://get.syncropic.com/spl | sh
 spl init
 ```
 
-`spl init` creates `~/.syncro/`, generates a instance identity (or surfaces the existing one), and prints the next-step commands. It does not start the instance.
+`spl init` creates `~/.syncro/`, generates an instance identity (or surfaces the existing one), and prints the next-step commands. It does not start the instance.
 
 Start the instance as a foreground process the first time so you can see what it's doing:
 
@@ -94,14 +94,14 @@ Start the instance as a foreground process the first time so you can see what it
 spl serve --foreground
 ```
 
-You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it as a instance:
+You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it as an instance:
 
 ```bash
 spl serve
 spl status
 ```
 
-For a instance that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance) — `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
+For an instance that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance) — `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
 
 ### Hosted (Syncropic-provisioned)
 

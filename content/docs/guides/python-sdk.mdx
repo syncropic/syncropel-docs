@@ -46,7 +46,7 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 - **Canonical references** — built-in constructors for cross-publisher correlation (music tracks, code files, incidents, calendar events, and more)
 - **Fail-open transport** — every emit returns a result; transport errors never raise
 - **Identity-aware** — records are signed with the configured DID
-- **In-memory `MockKernel`** at `syncropel.testing` — write adapter tests without running a instance
+- **In-memory `MockKernel`** at `syncropel.testing` — write adapter tests without running an instance
 
 ## Core API
 
@@ -234,7 +234,7 @@ Unlike `client.emit()`, `client.infer()` **fails hard**:
 
 Catch timeouts explicitly if you want the thread id preserved for manual polling.
 
-## Testing without a instance
+## Testing without an instance
 
 Use `MockKernel` to write unit tests against the SDK's interface without running `spl serve`:
 
