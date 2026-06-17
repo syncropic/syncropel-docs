@@ -44,13 +44,12 @@ This is the same pattern Java packages, Android apps, and macOS bundle ids use, 
 
 An extension is just a static web app — HTML + JS + CSS that runs in an iframe. Any static host works.
 
-| Host | Setup cost | Best for |
+| Host type | Setup cost | Best for |
 |---|---|---|
-| **Cloudflare Pages** | 5 minutes (GitHub auto-deploy) | Most extensions; generous free tier; global CDN |
-| **Vercel** | 5 minutes | If you're already on Vercel for the rest of your stack |
-| **Netlify** | 5 minutes | Same as above; preview-deploys per branch are nice for extension dev |
-| **GitHub Pages** | 10 minutes | Open-source extensions; CORS works fine |
-| **Self-hosted** (S3 + CloudFront, your own nginx, etc.) | Variable | Enterprise hosts that need network controls |
+| **Static hosting platform** (auto-deploy from Git) | ~5 minutes | Most extensions; many offer a free tier and a global CDN |
+| **Git-integrated host with preview deploys** | ~5 minutes | Per-branch preview deploys are handy during extension dev |
+| **Static hosting from a public repo** | ~10 minutes | Open-source extensions; CORS works fine |
+| **Self-hosted** (object storage + a CDN, or your own reverse proxy) | Variable | Hosts that need network controls |
 
 **Whatever you pick, make sure:**
 

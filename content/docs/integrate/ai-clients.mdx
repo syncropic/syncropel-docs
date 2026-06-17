@@ -15,7 +15,7 @@ Different AI clients take different approaches to tool use. Syncropel ships a ma
 |---|---|---|---|
 | **MCP server** | Claude Desktop, Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI | `spl mcp serve` (ships with spl) | One JSON entry in the client's config file |
 | **Shell-integrated** | Claude Code, Codex CLI, any bash-capable agent | Nothing extra — `spl` is on your PATH | A copy-paste system-prompt recipe |
-| **Programmatic** | Any agent that writes code (code-execution-capable LLMs, Workers agents, custom harnesses) | `@syncropel/sdk` (npm) or `syncropel` (PyPI) | A bearer token at `Client` construction |
+| **Programmatic** | Any agent that writes code (code-execution-capable LLMs, edge-runtime agents, custom harnesses) | `@syncropel/sdk` (npm) or `syncropel` (PyPI) | A bearer token at `Client` construction |
 
 None of these require the agent to "know what Syncropel is." They plug in, emit records as the agent works, and every action becomes part of the causal trail.
 
@@ -303,7 +303,7 @@ For agents that accomplish tasks by writing code — any code-execution-capable 
 
 ### Why this pattern
 
-[Cloudflare](https://blog.cloudflare.com/code-mode-mcp/) and [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) both argue the same case: LLMs are trained on far more code than tool-call protocols. Presenting tools as a typed SDK in a sandboxed code environment yields large token savings for multi-step workflows. Chain 20 emits into one context round-trip instead of 20.
+[Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) makes the case: LLMs are trained on far more code than tool-call protocols. Presenting tools as a typed SDK in a sandboxed code environment yields large token savings for multi-step workflows. Chain 20 emits into one context round-trip instead of 20.
 
 See the [Programmatic Agents guide](/docs/integrate/programmatic-agents) for worked examples in Python and TypeScript.
 

@@ -1,6 +1,6 @@
 ---
 title: Programmatic Agents — agents that write code
-description: Integrate Syncropel with agents that accomplish tasks by writing and executing code. One context round-trip for N operations. Works with any code-execution-capable LLM, Workers agents, and any sandboxed code-generation harness.
+description: Integrate Syncropel with agents that accomplish tasks by writing and executing code. One context round-trip for N operations. Works with any code-execution-capable LLM, edge-runtime agents, and any sandboxed code-generation harness.
 ---
 
 ## What this is
@@ -12,7 +12,7 @@ It contrasts with **Traditional MCP**, where the agent calls each tool one at a 
 - **Traditional MCP**: 10 tool calls = 10 context round-trips = 10× token cost
 - **Programmatic**: 10 SDK calls inside one sandbox run = 1 context round-trip = 1× token cost
 
-The pattern has been written up by several teams under various names — [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) reports 98.7% token savings for multi-step workflows when switching to it; [Cloudflare](https://blog.cloudflare.com/code-mode-mcp/) reduced a 2,500-endpoint API to 2 sandboxed code tools with equivalent functionality. Whatever you call it, the structural property is the same: typed SDK + code execution + multiple operations per LLM turn.
+The pattern has been written up under various names — [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) reports 98.7% token savings for multi-step workflows when switching to it, and others have reduced a 2,500-endpoint API to 2 sandboxed code tools with equivalent functionality. Whatever you call it, the structural property is the same: typed SDK + code execution + multiple operations per LLM turn.
 
 ## Why Syncropel's SDKs are already this shape
 
@@ -35,7 +35,7 @@ You need an agent harness that supports code execution. Examples:
 
 - **Anthropic Claude with `code_execution`** (via the API's built-in code tool)
 - **OpenAI** with code interpreter (supports Python; use the `syncropel` PyPI package)
-- **Cloudflare Workers** running a work loop with fetch + V8 isolates
+- **Edge runtimes** running a work loop with fetch
 - **Custom Python/Node sandbox** you control (Docker, Firecracker, gvisor)
 - Any other code-execution-capable model harness — the SDK is pure HTTP+JSON
 
@@ -125,7 +125,7 @@ verified it passes, and recorded 8 records in thread bug-342.
 
 Efficient, auditable, and the user can `spl thread records bug-342` to see exactly what the agent did.
 
-## Quickstart — TypeScript, Cloudflare Workers
+## Quickstart — TypeScript, edge runtime
 
 ```typescript
 import { Client, Identity } from "@syncropel/sdk";
@@ -180,7 +180,7 @@ async function processWebhook(request: Request) {
 }
 ```
 
-Deploy with `wrangler deploy`. Every webhook handled emits 3 records. Zero LLM context round-trips per webhook.
+Deploy with your edge runtime's CLI. Every webhook handled emits 3 records. Zero LLM context round-trips per webhook.
 
 ## Design patterns
 
@@ -268,7 +268,7 @@ client = Client(
 For unauthenticated local instances (dev mode), omit `api_key`.
 
 For cloud agents, store the token in your platform's secret manager:
-- **Cloudflare Workers**: `wrangler secret put SPL_TOKEN`
+- **Edge runtimes**: store `SPL_TOKEN` as a secret with your platform's CLI
 - **AWS Lambda**: AWS Secrets Manager
 - **Anthropic API**: encrypted user metadata
 
@@ -284,7 +284,6 @@ See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint a
 ## Further reading
 
 - [Anthropic's MCP code-execution article](https://www.anthropic.com/engineering/code-execution-with-mcp)
-- [Cloudflare's writeup of the pattern](https://blog.cloudflare.com/code-mode-mcp/)
 - [TypeScript SDK reference](/docs/guides/typescript-sdk) — all exports and contracts
 - [Python SDK reference](/docs/guides/python-sdk) — the Python equivalent
 - [Canonical refs guide](/docs/guides/typescript-sdk#canonical-references-ref) — cross-publisher correlation

@@ -1,6 +1,6 @@
 ---
 title: TypeScript SDK
-description: Integrate with Syncropel from JavaScript or TypeScript — emit records, query threads, enforce grammar, fail open on transport errors. Works in Node, Deno, Bun, Cloudflare Workers, and modern browsers.
+description: Integrate with Syncropel from JavaScript or TypeScript — emit records, query threads, enforce grammar, fail open on transport errors. Works in Node, Deno, Bun, edge runtimes, and modern browsers.
 ---
 
 ## Install
@@ -39,7 +39,7 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 
 ## What you get
 
-- **Universal runtime** — Node, Deno, Bun, Cloudflare Workers, browsers. Uses platform `fetch`.
+- **Universal runtime** — Node, Deno, Bun, edge runtimes, browsers. Uses platform `fetch`.
 - **Async client** — `emit`, `query`, `queryThread`, `intend`, `fulfill`, plus reserved-kind helpers
 - **Files & blobs** — `client.data.*` reads and writes the data plane (see [Files & blobs](/docs/guides/sdk-data-plane))
 - **Folds & live threads** — `client.folds.resolve()` reads any fold; `client.threads.watch()` streams a thread live
@@ -373,9 +373,9 @@ test("my adapter emits a track", async () => {
 
 Useful `MockKernel` helpers: `recordsIn(thread)`, `recordsByKind(kind)`, `recordsByActor(did)`, `count()`, `clear()`, `failNextPostCall(n)`, `failNextGetCall(n)` (for transport-failure testing).
 
-## Running in Cloudflare Workers
+## Running on edge runtimes
 
-Because the SDK uses global `fetch`, it runs unmodified in Workers. Pass the Worker's environment bindings explicitly if you're using them:
+Because the SDK uses global `fetch`, it runs unmodified on edge runtimes. Pass the runtime's environment bindings explicitly if you're using them:
 
 ```typescript
 export default {

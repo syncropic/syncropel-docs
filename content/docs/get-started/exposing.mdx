@@ -33,7 +33,7 @@ Tailscale's ACLs further narrow which devices can reach the instance. Default-al
 
 ## Alternative: reverse proxy with TLS
 
-A reverse proxy — Caddy, nginx, Traefik, or Cloudflare Tunnel — terminates TLS on a public hostname and forwards to the instance on loopback. This is the right answer when you need a public URL (say, `https://syncropel.your-domain.com`) for a federation peer or a web dashboard hosted elsewhere.
+A reverse proxy — Caddy, nginx, or Traefik — terminates TLS on a public hostname and forwards to the instance on loopback. This is the right answer when you need a public URL (say, `https://syncropel.your-domain.com`) for a federation peer or a web dashboard hosted elsewhere.
 
 Keep the instance bound to loopback:
 
@@ -87,23 +87,11 @@ Both take effect on the next request — no restart needed.
 - **`strict_actor_header`** rejects requests that claim a DID via header without a matching token.
 - **`strict_impersonation_enforcement`** blocks admin tokens from acting as arbitrary actors unless an explicit allowlist is set.
 
-## Alternative: Cloudflare Tunnel
+## Alternative: an outbound tunnel
 
-A variant of the reverse-proxy pattern that doesn't require opening a port on your firewall. The instance stays on loopback; a `cloudflared` agent establishes an outbound tunnel to Cloudflare's edge and they terminate TLS on the public hostname.
+A variant of the reverse-proxy pattern that doesn't require opening a port on your firewall. The instance stays on loopback; a tunnel agent establishes an *outbound* connection to a tunnel service, which terminates TLS on a public hostname and forwards traffic back down the tunnel to `http://127.0.0.1:9100`.
 
-```bash
-cloudflared tunnel create syncropel
-cloudflared tunnel route dns syncropel syncropel.your-domain.com
-# ~/.cloudflared/config.yml:
-#   tunnel: <id>
-#   ingress:
-#     - hostname: syncropel.your-domain.com
-#       service: http://127.0.0.1:9100
-#     - service: http_status:404
-cloudflared tunnel run syncropel
-```
-
-Same hardening flags apply (`strict_actor_header`, `strict_impersonation_enforcement`).
+Several tunnel services offer this. Follow your provider's setup, point the tunnel's ingress at `http://127.0.0.1:9100`, and the same hardening flags apply (`strict_actor_header`, `strict_impersonation_enforcement`).
 
 ## Do not: public internet without TLS
 
@@ -153,7 +141,7 @@ Once the instance is reachable on a stable URL, a federation peer can pair to it
 | Phone on same home Wi-Fi | Bind to LAN IP, or use Tailscale |
 | CLI from a second personal machine | Tailscale |
 | Browser on `syncropel.com` | Loopback instance + CORS allowlist |
-| Federation peer on a cloud host | Reverse proxy with TLS or Cloudflare Tunnel |
+| Federation peer on a cloud host | Reverse proxy with TLS or an outbound tunnel |
 | Team-shared instance | Reverse proxy with TLS on a private network |
 | Single developer laptop | Loopback only — don't expose at all |
 
