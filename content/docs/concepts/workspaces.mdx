@@ -83,6 +83,25 @@ One of `draft`, `published`, or `archived`. Lifecycle is declared by
 whoever emits the record. Changing it means emitting a new record — see
 [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle).
 
+## Viewing in Studio
+
+Open a workspace — or any content thread, such as a note — in Studio and
+it renders its content directly. A view switcher lets you read the same
+thread three ways without changing anything:
+
+- **Document** — the rendered document: the workspace's regions, or a
+  note's formatted text. This is the default.
+- **Outline** — just the heading hierarchy, for jumping around a long
+  document.
+- **Records** — the underlying records the document is folded from, shown
+  unreduced. The document is a view *of* these records; this lens shows
+  the ground truth behind it.
+
+Switching views never edits the thread — each is a different reading of
+the same records. A thread someone else has [made
+public](/docs/guides/federation-discovery#make-your-work-public) renders
+the same way for you, read-only.
+
 ## Capabilities
 
 `meta.capabilities` is the ceiling on what a workspace may do. It is part
