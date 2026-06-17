@@ -12,7 +12,7 @@ It contrasts with **Traditional MCP**, where the agent calls each tool one at a 
 - **Traditional MCP**: 10 tool calls = 10 context round-trips = 10× token cost
 - **Programmatic**: 10 SDK calls inside one sandbox run = 1 context round-trip = 1× token cost
 
-The pattern has been written up under various names — [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) reports 98.7% token savings for multi-step workflows when switching to it, and others have reduced a 2,500-endpoint API to 2 sandboxed code tools with equivalent functionality. Whatever you call it, the structural property is the same: typed SDK + code execution + multiple operations per LLM turn.
+The pattern has been written up by several teams under various names — [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) reports 98.7% token savings for multi-step workflows when switching to it; [Cloudflare](https://blog.cloudflare.com/code-mode-mcp/) reduced a 2,500-endpoint API to 2 sandboxed code tools with equivalent functionality. Whatever you call it, the structural property is the same: typed SDK + code execution + multiple operations per LLM turn.
 
 ## Why Syncropel's SDKs are already this shape
 
@@ -284,6 +284,7 @@ See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint a
 ## Further reading
 
 - [Anthropic's MCP code-execution article](https://www.anthropic.com/engineering/code-execution-with-mcp)
+- [Cloudflare's writeup of the pattern](https://blog.cloudflare.com/code-mode-mcp/)
 - [TypeScript SDK reference](/docs/guides/typescript-sdk) — all exports and contracts
 - [Python SDK reference](/docs/guides/python-sdk) — the Python equivalent
 - [Canonical refs guide](/docs/guides/typescript-sdk#canonical-references-ref) — cross-publisher correlation

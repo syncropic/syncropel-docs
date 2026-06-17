@@ -303,7 +303,7 @@ For agents that accomplish tasks by writing code — any code-execution-capable 
 
 ### Why this pattern
 
-[Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) makes the case: LLMs are trained on far more code than tool-call protocols. Presenting tools as a typed SDK in a sandboxed code environment yields large token savings for multi-step workflows. Chain 20 emits into one context round-trip instead of 20.
+[Cloudflare](https://blog.cloudflare.com/code-mode-mcp/) and [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) both argue the same case: LLMs are trained on far more code than tool-call protocols. Presenting tools as a typed SDK in a sandboxed code environment yields large token savings for multi-step workflows. Chain 20 emits into one context round-trip instead of 20.
 
 See the [Programmatic Agents guide](/docs/integrate/programmatic-agents) for worked examples in Python and TypeScript.
 
