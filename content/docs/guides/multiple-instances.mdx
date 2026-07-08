@@ -1,0 +1,124 @@
+---
+title: Running multiple local instances
+description: Give a project, an experiment, or another person their own isolated Syncropel instance on the same machine — separate home directory, separate port, separate identity, separate backups.
+---
+
+One machine can run several Syncropel instances side by side. Each one is a
+complete, isolated world: its own records, its own identity, its own
+configuration, its own backups. Nothing is shared unless you explicitly
+[federate](/docs/tutorials/your-first-federation-pair) them.
+
+Reach for a second instance when:
+
+- a **project** deserves its own space (a music library, a research corpus,
+  a client engagement) and you don't want tens of thousands of imported
+  records mixed into your everyday instance;
+- you want a **scratch instance** to experiment against without any risk to
+  real data;
+- **someone else** on the machine needs their own world.
+
+## The one rule: the home directory *is* the instance
+
+Everything an instance is lives under one directory — the config, the keys,
+the record store, the Unix socket, the token, the logs:
+
+```
+~/.syncro/            your default instance (what plain `spl` talks to)
+~/.syncro-project/    a second instance — completely separate
+```
+
+The `SYNCROPEL_HOME` environment variable selects which one a command
+targets. **Every command you aim at a non-default instance needs the home
+pinned** — that discipline is the whole game:
+
+```bash
+export SYNCROPEL_HOME=$HOME/.syncro-project
+```
+
+A shell without that variable talks to `~/.syncro/` — your default
+instance. That's a feature (your everyday `spl task add` keeps working
+untouched), and it's also the classic mistake: running one command in the
+wrong terminal targets the wrong instance. Pin the home per shell, or use
+aliases (below).
+
+## Worked example: a second instance on port 9300
+
+```bash
+# 1. Create it — a fresh identity + config under its own home
+export SYNCROPEL_HOME=$HOME/.syncro-project
+spl init
+
+# 2. Start it on its own port (the default instance owns 9100)
+spl start --port 9300
+
+# 3. Prove it's alive and separate
+spl status
+spl task add "hello from the project instance"
+```
+
+Pass `--port` explicitly when starting — each instance needs its own, and
+`9100` belongs to your default instance.
+
+The local CLI works immediately with no tokens — the Unix socket inside the
+instance's own home is the authentication, exactly like a first install.
+
+### Open TCP access (browser, phone, remote CLI)
+
+Like any fresh secure instance, the HTTP API starts in bootstrap mode
+(`503 BOOTSTRAP_REQUIRED`) until its first service account exists:
+
+```bash
+spl service-account create --bootstrap --name admin \
+  --actors did:sync:user:$(whoami) --scopes admin --with-token
+spl token save spl_prod_sa_...        # lands in ~/.syncro-project/token
+```
+
+Each instance has its own accounts and its own tokens. A token minted on
+one instance means nothing to another.
+
+## Working with two instances at once
+
+Aliases keep the targeting explicit and typo-proof:
+
+```bash
+alias spl-work='spl'   # plain spl = the default home = ~/.syncro
+alias spl-project='SYNCROPEL_HOME=$HOME/.syncro-project spl'
+
+spl-work task list        # your everyday instance
+spl-project task list     # the project instance
+```
+
+## What's isolated (and how to check)
+
+| Concern | Isolation |
+|---|---|
+| Records | Each home has its own `hub.db`. A record added to one never appears on the other. |
+| Identity | `spl init` per home generates a separate identity and keypair. |
+| Auth | Service accounts, tokens, and pairings are per-instance. |
+| Config | `config.toml`, routing rules, assistant settings — all per-home. |
+| Backups | Each instance backs up to its own directory: `~/.local/share/syncropel/backups/instance-<id>/`. The daily automatic backup is per-instance too. |
+| Health | `spl doctor` audits whichever home is pinned. |
+
+Verify isolation the direct way: add a task on the project instance, then
+list tasks on your default instance — it isn't there.
+
+## Gotchas
+
+- **Never point two running instances at one home.** One home directory =
+  one instance. Two processes on the same `hub.db` is the one setup this
+  guide's isolation promises don't cover.
+- **The default shell targets the default instance.** If a command's output
+  looks like the wrong world, check `echo $SYNCROPEL_HOME` first.
+- **Ports don't follow the config file across restarts you run by hand** —
+  make `--port` part of how you always start the instance (a shell alias,
+  or a service definition per
+  [Keeping your instance running](/docs/operate/persist-instance)).
+- **Retiring an instance** is `spl stop` under its home, then archiving or
+  deleting that home directory. Nothing else on the machine references it.
+
+## See also
+
+- [First run](/docs/get-started/first-run) — what `spl init` creates inside a home
+- [Starting your instance](/docs/get-started/instance) — modes, ports, lifecycle
+- [Your first federation pair](/docs/tutorials/your-first-federation-pair) — make two instances *talk*, deliberately
+- [Backup & restore](/docs/guides/backup-restore) — per-instance backup discipline
