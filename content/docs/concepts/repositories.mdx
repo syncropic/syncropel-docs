@@ -1,0 +1,88 @@
+---
+title: Repositories
+description: A repository is a named, publishable snapshot of your records — created with one command, published with one more, readable by anyone you choose without them needing your instance to be online.
+---
+
+A **repository** gives a body of records a public name and a publish
+button. Where your instance is the private, living copy of your work, a
+repository is the part you choose to put on the shelf — under a handle like
+`acme/product-notes`, signed by you, browsable by others.
+
+## The handle
+
+A repository handle is a slash name:
+
+```
+{namespace}/{repository}
+```
+
+`acme/product-notes` names the repository `product-notes` owned by the
+`acme` namespace. The handle is deliberately thin — a name, its namespace,
+and its owner. Everything heavy (the records themselves) stays where it
+already lives; publishing takes a snapshot of it.
+
+```bash
+spl repo create acme/product-notes
+spl repo list
+spl repo show acme/product-notes
+```
+
+Creating a handle publishes nothing. It reserves the name and records who
+owns it — on your own instance, as a record like everything else.
+
+## Publishing
+
+```bash
+spl repo publish acme/product-notes --dry-run   # build the snapshot locally, upload nothing
+spl repo publish acme/product-notes             # snapshot, sign, publish
+```
+
+Publishing:
+
+1. **Snapshots** the repository's records at this moment. Readers see a
+   consistent published state, not your live instance.
+2. **Signs** the snapshot with your identity. Anyone reading it can verify
+   who published it and that nothing was altered.
+3. **Uploads** it to published storage with a signed listing, so it stays
+   readable even when your instance is off.
+
+Publish again whenever you want the public state to advance — each publish
+is a new signed snapshot.
+
+### Choosing how much detail travels
+
+`--visibility public` (the default) publishes the records as-is. The
+reduced-detail levels publish progressively less — structure without
+content — for when you want to share the *shape* of work rather than the
+work itself. See [the Graph](/docs/concepts/graph) for how readers
+experience each level.
+
+## Reading a repository
+
+A published repository is browsable at its handle on any Graph node that
+carries it — for example:
+
+```
+https://graph.syncropel.com/acme/product-notes
+```
+
+No account and no credential is needed to read what was published as
+public. The reader's experience — overview, records, the catalog of
+knowledge units — comes entirely from the published snapshot.
+
+## What repositories are *not*
+
+- **Not sync.** Federation moves live records between paired instances;
+  a repository is a signed publication. Use
+  [federation](/docs/concepts/federation) for collaboration, repositories
+  for publishing.
+- **Not a backup.** A snapshot of chosen records at chosen detail is not a
+  recovery mechanism — see [Backup & restore](/docs/guides/backup-restore).
+- **Not required.** An instance can run forever without publishing
+  anything.
+
+## See also
+
+- [Publishing a repository](/docs/operate/publish-repository) — the operate guide: create → dry-run → publish → verify
+- [The Graph](/docs/concepts/graph) — where published work is read
+- [Namespaces](/docs/concepts/namespaces) — the ownership boundary handles live under

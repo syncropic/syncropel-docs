@@ -1,0 +1,89 @@
+---
+title: Publishing a repository
+description: The operator flow — create a repository handle, dry-run the snapshot, publish it signed, and verify what readers will see.
+---
+
+This is the hands-on companion to the
+[repositories concept](/docs/concepts/repositories): the four steps from
+"records on my instance" to "a signed publication anyone can read."
+
+## 1. Create the handle
+
+```bash
+spl repo create acme/product-notes
+```
+
+The slash name is both the identity and the URL path. The namespace half
+(`acme`) is derived from the name; pass `--namespace` to override when the
+repository should live under a different one you own. Duplicate names are
+rejected.
+
+Check what exists:
+
+```bash
+spl repo list
+spl repo show acme/product-notes
+```
+
+## 2. Dry-run the snapshot
+
+```bash
+spl repo publish acme/product-notes --dry-run
+```
+
+The dry run builds and stages the full publish tree locally — nothing
+uploads, nothing becomes visible. Use it to see exactly what a publish
+*would* contain before the first real one, and as a pre-flight in scripts.
+
+## 3. Publish
+
+```bash
+spl repo publish acme/product-notes
+```
+
+Publishing runs server-side on your instance and is **owner-gated** — only
+the identity that owns the namespace can publish under it. The command
+snapshots the repository's records, signs the snapshot and its listing with
+your identity, and uploads to published storage.
+
+Useful flags:
+
+| Flag | What it does |
+|---|---|
+| `--visibility public` | Full detail (the default). Reduced-detail levels publish structure over content — see [the Graph](/docs/concepts/graph). |
+| `--topic <topic>` | Advertise a topic on the listing (repeatable) so readers can find the repository by subject. |
+| `--dry-run` | Stage locally, upload nothing. |
+| `--json` | Machine-readable output for scripts. |
+
+Re-running `publish` advances the published state — each run is a fresh
+signed snapshot; readers always see the latest complete one.
+
+## 4. Verify as a reader would
+
+```bash
+spl repo show acme/product-notes
+```
+
+Then open the public page:
+
+```
+https://graph.syncropel.com/acme/product-notes
+```
+
+Check the overview renders, the records tab shows what you intended to
+share, and nothing you meant to keep private is present — the published
+snapshot is exactly what a stranger sees, so review it as one.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `duplicate name` on create | The handle already exists on this instance. | `spl repo list` to see it; pick another name or publish the existing one. |
+| Publish rejected as not owner | Your current identity doesn't own the namespace in the handle. | `spl identity show` to confirm who you are; create the handle under a namespace you own. |
+| Published page missing recent records | Readers see the last **snapshot**, not your live instance. | Run `spl repo publish` again to advance the published state. |
+
+## See also
+
+- [Repositories](/docs/concepts/repositories) — the concept
+- [The Graph](/docs/concepts/graph) — how published work is read
+- [Namespaces](/docs/concepts/namespaces) — ownership and the `{ns}/` half of the handle

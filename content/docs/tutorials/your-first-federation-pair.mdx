@@ -116,7 +116,7 @@ Output:
             token_ttl: 90d
 ```
 
-The decision kind dispatcher recognized the `pair_pending.v1` kind and ran the federation pair completion path: minted a service account on bob's side, emitted a signed `pair.genesis.v1` on bob's `th_federation_pairs`, and wrote the result to a one-shot pending-pair-approvals slot.
+Approving a `pair_pending.v1` decision runs the pair completion path: bob's instance minted a service account for alice, emitted a signed `pair.genesis.v1` on its `th_federation_pairs` thread, and handed the result back to alice's waiting handshake.
 
 ## 4. Watch alice complete the handshake
 
