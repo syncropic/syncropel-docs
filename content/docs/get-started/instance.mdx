@@ -21,7 +21,15 @@ What it does:
 - Sets `auth.required = false` for the lifetime of this instance.
 - Logs a `WARN` line on startup so you notice if it's accidentally left on.
 
-This mode is the escape hatch for the chicken-and-egg problem: if `auth.required = true` but no service account exists yet, the instance will refuse to start (fail-closed). `--insecure-localhost` lets the instance come up so you can create the first service account, save the token, then flip back to secure mode. Full flow on the next page.
+To be precise about what this flag is: it turns **authentication** off for
+a loopback-only instance. It has nothing to do with TLS or certificates —
+local instances speak plain HTTP on loopback either way.
+
+You rarely *need* it: a fresh secure instance starts fine with zero service
+accounts (see [bootstrap mode](#what-a-successful-start-looks-like) below),
+and the local CLI works over the Unix socket immediately. Reach for
+`--insecure-localhost` when you want the **HTTP** surface open without
+tokens — quick local scripts, curl exploration, throwaway dev instances.
 
 **Never run this on a host you didn't boot yourself.** The guard against external reachability is strong, but the principle still holds: `--insecure-localhost` is for your laptop, not for anything shared.
 
@@ -36,8 +44,11 @@ This is the default and what every long-running instance should use.
 What it does:
 
 - Binds `127.0.0.1:9100` (and the Unix socket at `~/.syncro/run/spl.sock` on Linux and macOS).
-- Enforces `auth.required = true`. Every request needs a valid bearer token.
-- Refuses to start if no service account authorizes the operator's actor DID (the fail-closed guard referenced above).
+- Enforces `auth.required = true`. Every HTTP request needs a valid bearer token.
+- With **zero service accounts**, starts in **bootstrap mode**: the local
+  socket works normally, and the TCP API answers `503 BOOTSTRAP_REQUIRED`
+  (with the exact commands to run) until you mint the first service
+  account. The instance never refuses to start over missing accounts.
 - Takes a startup backup of `hub.db` to `~/.local/share/syncropel/backups/hub.db.bak` (see [Operator runbook](/docs/operate/runbook) for backup discipline).
 
 The instance stays bound to loopback, which means nothing outside the machine can reach it. To expose it beyond loopback, see [Exposing your instance securely](/docs/get-started/exposing).
@@ -55,6 +66,27 @@ Binds to every interface on the machine. This is what you pass when the instance
 Read [Exposing the instance securely](/docs/get-started/exposing) before using this flag. There are safer paths (Tailscale, reverse proxy) for almost every case where you might reach for `0.0.0.0`.
 
 ## Lifecycle
+
+### Start
+
+```bash
+spl start          # background (alias for `spl serve --daemon`)
+spl serve          # foreground — canonical for systemd / Docker / supervisors
+```
+
+`spl start` is the convenience verb `spl init` recommends for interactive
+use; it supports the same flags as `spl serve` (`--port`, `--memory`,
+`--echo`, `--store`, `--insecure-localhost`).
+
+### A different port
+
+```bash
+spl serve --port 9200
+```
+
+`--port` (default `9100`) is how a second instance shares a machine —
+each instance needs its own home directory too; see
+[Running multiple local instances](/docs/guides/multiple-instances).
 
 ### Check status
 
@@ -113,13 +145,26 @@ Store:    sqlite:///home/you/.syncro/hub.db
 Backup:   ~/.local/share/syncropel/backups/hub.db.bak (written)
 Bind:     127.0.0.1:9100
 Socket:   ~/.syncro/run/spl.sock
-Auth:     required (service accounts: 1)
+Auth:     required (service accounts: 0)
 PID:      12847
 
 Instance started. Run 'spl status' to verify health.
 ```
 
-The instance comes up healthy with zero service accounts, and the local CLI talks to it via the Unix socket — see [First run](/docs/get-started/first-run) and [Service accounts](/docs/get-started/service-accounts). The line `Auth: required (service accounts: 0)` is fine; the rich HTTP surface over TCP requires a bearer token until you pair a device or mint a service account.
+The instance comes up healthy with zero service accounts, and the local CLI
+talks to it via the Unix socket — `Auth: required (service accounts: 0)` is
+**bootstrap mode**, not an error. Until you mint the first service account,
+the TCP API answers every request with `503 BOOTSTRAP_REQUIRED` and the
+exact commands to run:
+
+```json
+{"code":"BOOTSTRAP_REQUIRED","instructions":[
+  "spl service-account create --bootstrap --name admin --scopes admin --with-token",
+  "..."
+]}
+```
+
+See [First run](/docs/get-started/first-run) and [Service accounts](/docs/get-started/service-accounts).
 
 ## See also
 

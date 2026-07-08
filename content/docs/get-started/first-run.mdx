@@ -32,12 +32,12 @@ The new directory tree:
 ├── config.toml              Identity, default model, server settings
 ├── token                    Bearer token for the CLI (created later; see page 4)
 ├── keys/                    Ed25519 signing keys for your identity
-│   ├── default.priv         Private key (mode 0600)
-│   └── default.pub          Public key
-├── logs/                    Instance logs (created on first instance start)
-├── run/                     PID file + Unix socket (created on first instance start)
+│   ├── primary.pub                    Public key
+│   └── did_sync_user_<name>.priv     Private key (mode 0600), named after your actor DID
+├── logs/                    Instance logs (populated on first instance start)
+├── run/                     PID file + Unix socket (populated on first instance start)
 ├── secrets/                 API keys for upstream providers (empty until you add)
-└── hub.db                   Main record store (created on first instance start)
+└── hub.db                   Main record store (created at init; grows from first start)
 ```
 
 On Windows, the same tree lives under `%USERPROFILE%\.syncro\`.
@@ -49,11 +49,15 @@ On Windows, the same tree lives under `%USERPROFILE%\.syncro\`.
 ```toml
 [identity]
 actor = "did:sync:user:you"
-did_key = "did:key:z6Mk..."
+did = "did:key:z6Mk..."
+method = "key"
+key_path = "/home/you/.syncro/keys/primary"
 ```
 
 - **`actor`** is the human-readable DID you'll see attached to every record you emit. It defaults to `did:sync:user:<your-username>` — the same username your OS reports.
-- **`did_key`** is the cryptographic identity. A fresh Ed25519 keypair is generated and the public half is encoded into a `did:key:` string. The private half is stored at `~/.syncro/keys/default.priv` with mode `0600`.
+- **`did`** is the cryptographic identity. A fresh Ed25519 keypair is generated and the public half is encoded into a `did:key:` string. The private half is stored under `~/.syncro/keys/` (named after your actor DID) with mode `0600`.
+- **`method`** names the DID method (`key` on a fresh install; `web` or `sync` after an [upgrade](#identity-types)).
+- **`key_path`** points at the keypair the instance signs with.
 
 Inspect the result:
 
@@ -64,10 +68,11 @@ spl identity show
 Expected output:
 
 ```
-Actor:      did:sync:user:you
-DID (key):  did:key:z6Mk...
-Public key: ~/.syncro/keys/default.pub
-Private key: ~/.syncro/keys/default.priv (0600)
+Identity:
+  DID:         did:key:z6Mk...
+  Method:      key
+  Key path:    /home/you/.syncro/keys/primary
+  Actor:       did:sync:user:you
 ```
 
 ## Inspecting `config.toml`
@@ -84,16 +89,32 @@ The default file is small — tens of lines. The blocks you'll see:
 - **`[fleet]`** — advertised endpoint for fleet mode (not relevant for single-machine use).
 
 <Callout type="info" title="Your instance can already use a model out of the box">
-A fresh instance ships with **managed model access** built in. The
-conversational agent and work loops work immediately after `spl init` —
-you do **not** have to configure a provider or supply an API key just to
-get the assistant responding.
-
-Setting a provider key in `[intelligence]` is an **optional override**,
-for when you want to use your own account or a specific model instead of
-the built-in managed access. Until you do, your instance uses the managed
-model access automatically.
+A fresh instance ships with **managed model access** built in — you do
+**not** have to supply a provider API key just to get the assistant
+responding. Setting a provider key in `[intelligence]` is an **optional
+override**, for when you want to use your own account or a specific model.
 </Callout>
+
+### Turning the assistant on (self-host)
+
+A self-hosted instance starts **deliberately blank**: it reacts to nothing
+until you choose what runs on it. Two ways to give it a voice:
+
+```bash
+spl init --preset personal     # at init: seed a ready-to-use setup
+                               # (presets: personal · team · research · builder · blank)
+
+spl config scribe enable       # any time later: enable the conversational
+                               # agent on an already-initialized instance
+```
+
+`spl config scribe enable` shows a short privacy disclosure and turns on
+the default conversational actor for new threads; `spl config scribe
+status` shows what's configured, and `disable` turns it back off. If you
+initialized bare and the assistant seems silent, this is why — nothing is
+broken.
+
+(Hosted instances come with the assistant already on.)
 
 Editing `config.toml` by hand is supported. Changes take effect on the next instance start. For **runtime** config (routing rules, fold rules, permissions, embedding providers), use `spl config …` commands instead — those changes hot-reload without a restart.
 
@@ -125,24 +146,30 @@ For machines you maintain yourself, **master identity mode** gives every device 
 spl init --master
 ```
 
-There is also `spl identity upgrade` for migrating an existing identity to a portable format. Either way, portability is optional — you can run Syncropel for years on a single machine without it.
+Master mode is an **init-time decision** — there is no migration from a
+per-machine identity to master mode later. (`spl identity upgrade` does
+something different: it moves an existing identity to a more capable **DID
+method** — `key` → `web` or `sync` — the identity itself stays the same.)
+Either way, portability is optional — you can run Syncropel for years on a
+single machine without it.
 
 ## Permissions
 
 After `spl init`:
 
 ```bash
-ls -la ~/.syncro/
+ls -la ~/.syncro/ ~/.syncro/keys/
 ```
 
 Verify:
 
-- `~/.syncro/` is mode `0700` (only you can read it).
-- `~/.syncro/config.toml` is mode `0600` or `0644` (never world-writable).
-- `~/.syncro/keys/default.priv` is mode `0600`.
+- `~/.syncro/config.toml` is never world-writable.
+- The private key under `~/.syncro/keys/` is mode `0600`.
 - `~/.syncro/token` (once created) is mode `0600`.
 
-If any of these look off, `spl doctor` will flag them with the exact `chmod` fix.
+The directory itself is created with your OS's default permissions; the
+secrets inside it (keys, tokens) carry their own `0600`. If anything looks
+off, `spl doctor` will flag it with the exact `chmod` fix.
 
 ## See also
 
