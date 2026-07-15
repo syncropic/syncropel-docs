@@ -198,7 +198,7 @@ spl stop
 spl serve
 ```
 
-Any records you had are gone. Automatic backups at `~/.local/share/syncropel/backups/hub.db.bak` may contain a recent snapshot — see [Operator runbook → Recovery](/docs/operate/runbook) for the full restore procedure.
+Any records you had are gone. Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` (a per-instance directory keyed by the instance DID) may contain a recent snapshot — see [Operator runbook → Recovery](/docs/operate/runbook) for the full restore procedure.
 
 ## Data went to `System32` (Windows)
 

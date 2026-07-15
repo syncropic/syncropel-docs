@@ -200,7 +200,7 @@ Log rotation is automatic at 10 MB per file, keeping the last 7 rotations at `~/
 └── token               bearer token for the CLI
 ```
 
-Automatic backups are written outside this directory at `~/.local/share/syncropel/backups/hub.db.bak` — see [Operator runbook](/docs/operate/runbook) for backup discipline.
+Automatic backups are written outside this directory, under `~/.local/share/syncropel/backups/instance-<did-tail>/` (keyed by the instance DID) — see [Operator runbook](/docs/operate/runbook) for backup discipline.
 
 ## See also
 

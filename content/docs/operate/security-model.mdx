@@ -11,7 +11,7 @@ description: What spl serve protects against (default-secure auth + filesystem p
 
 - `~/.syncro/keys/` and `~/.syncro/secrets/` contain **plaintext** identity + provider keys. Permissions are `0600` (owner-only).
 - `~/.syncro/hub.db` is an **unencrypted SQLite** carrying every record. Bearer-token plaintext is NOT stored — only `sha256(secret)` for validation.
-- **Excluded from auto-backup**: `~/.local/share/syncropel/backups/hub.db.bak` does NOT include the keys/ or secrets/ dirs.
+- **Excluded from auto-backup**: the startup backup at `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` does NOT include the keys/ or secrets/ dirs.
 - **What you must do**: exclude `~/.syncro/keys/` and `~/.syncro/secrets/` from cloud-sync (Dropbox, iCloud, OneDrive, rsync, dotfiles repos). On hosted instances: rely on the platform's secret manager rather than mounting `~/.syncro/`.
 - **What's coming**: OS-keyring integration (macOS Keychain, Linux Secret Service, Windows Credential Manager) is planned for a future release. Until it ships, file-permission discipline is the only at-rest defense.
 
@@ -47,7 +47,7 @@ The identity keypair is per-instance, content-addressed via `did:key`. Rotating 
 
 ### Bootstrap discipline
 
-`spl serve` writes `hub.db` to `~/.local/share/syncropel/backups/hub.db.bak` automatically on every startup. This backup deliberately does **NOT** include `~/.syncro/keys/` or `~/.syncro/secrets/` so a `cp` of the backup (e.g., to a different host for inspection) doesn't accidentally include identity material.
+`spl serve` writes `hub.db` to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` automatically on every startup (the directory is keyed by the instance DID — see [Operator runbook → Backup discipline](/docs/operate/runbook#backup-discipline)). This backup deliberately does **NOT** include `~/.syncro/keys/` or `~/.syncro/secrets/` so a `cp` of the backup (e.g., to a different host for inspection) doesn't accidentally include identity material.
 
 ## What's NOT protected (operator must mitigate)
 

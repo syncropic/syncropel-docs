@@ -208,6 +208,15 @@ spl config auth-set-cors-origins https://syncropel.com https://app.example.com
 
 On every startup, `spl serve` snapshots `~/.syncro/hub.db` to `~/.local/share/syncropel/backups/<instance-key>/hub.db.bak`. The destination lives outside `~/.syncro/`, so a `rm -rf ~/.syncro/` does not nuke the backup.
 
+The `<instance-key>` is normally `instance-<did-tail>` — the 24-hex tail of the instance DID. To find your directory:
+
+```bash
+curl -s localhost:9100/health | jq -r .instance_did
+ls ~/.local/share/syncropel/backups/instance-<tail>/
+```
+
+The daily backup job writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into the same per-instance directory.
+
 ### What the instance does NOT do
 
 The startup backup is **destructive on every restart**. If `hub.db` is empty, corrupt, or wrong when the instance starts, that empty/corrupt/wrong file overwrites the backup. By the time you notice, the good copy is gone.

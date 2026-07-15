@@ -8,7 +8,7 @@ Two distinct operations.
 - **Reset** wipes `~/.syncro/` (identity, keys, records, token, config) but leaves the `spl` binary installed and `~/.syncro-data/` (your task content) untouched. Use this when you want a clean first-run experience without reinstalling.
 - **Uninstall** removes the `spl` binary itself. Use this when you're done with Syncropel on this machine.
 
-Automatic backups at `~/.local/share/syncropel/backups/hub.db.bak` are written outside `~/.syncro/`, so they survive **reset but not full disk cleanup**. The backup is destructive — every instance start overwrites it. If you care about your records, copy them off-host before running either of the operations on this page.
+Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` (a per-instance directory keyed by the instance DID) are written outside `~/.syncro/`, so they survive **reset but not full disk cleanup**. The backup is destructive — every instance start overwrites it. If you care about your records, copy them off-host before running either of the operations on this page.
 
 ## Clean reset — `spl reset`
 
@@ -90,7 +90,7 @@ Remove-Item -Recurse -Force $env:USERPROFILE\.syncro
 spl init
 ```
 
-The manual `rm -rf` does NOT auto-back up `hub.db` first, so if there's anything you want to keep, copy it off-host before running this. The instance-startup backup at `~/.local/share/syncropel/backups/hub.db.bak` is your last line of defense after the fact.
+The manual `rm -rf` does NOT auto-back up `hub.db` first, so if there's anything you want to keep, copy it off-host before running this. The instance-startup backup at `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` is your last line of defense after the fact.
 
 After either path, you're back at the start of the onboarding flow. The `spl init` command prints the next steps — open the local front door at `http://127.0.0.1:9100/` or pair Studio at `https://syncropel.com/connect?url=http://127.0.0.1:9100`.
 
@@ -205,14 +205,20 @@ systemctl --user daemon-reload
 If you reset by mistake, the most recent instance startup backup is at:
 
 ```
-~/.local/share/syncropel/backups/hub.db.bak
+~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak
+```
+
+The directory is keyed by the 24-hex tail of the instance DID. After a reset the instance that wrote it is gone, so just list what's there:
+
+```bash
+ls ~/.local/share/syncropel/backups/*/
 ```
 
 Restore:
 
 ```bash
 spl stop
-cp ~/.local/share/syncropel/backups/hub.db.bak ~/.syncro/hub.db
+cp ~/.local/share/syncropel/backups/instance-<tail>/hub.db.bak ~/.syncro/hub.db
 spl serve
 ```
 

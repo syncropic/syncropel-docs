@@ -89,9 +89,18 @@ On every startup, `spl serve` checks if `~/.syncro/hub.db` exists. If it does, t
 
 The instance key is one of:
 
-1. `instance-<did-tail>` if a content-addressed instance DID is bootstrapped.
+1. `instance-<did-tail>` if a content-addressed instance DID is bootstrapped — the normal case. `<did-tail>` is the 24-hex tail of the instance DID.
 2. `home-<short-hash>` if `SYNCROPEL_HOME` is set but no DID exists yet.
-3. The default single path `~/.local/share/syncropel/backups/hub.db.bak` for the default instance.
+3. The legacy flat path `~/.local/share/syncropel/backups/hub.db.bak` — only for a default home with no instance DID at all, which is rare.
+
+To find your instance's directory:
+
+```bash
+curl -s localhost:9100/health | jq -r .instance_did
+ls ~/.local/share/syncropel/backups/instance-<tail>/
+```
+
+The daily backup job writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into the same per-instance directory, alongside the startup `hub.db.bak`.
 
 ### What the instance does NOT do — and the trap to avoid
 
@@ -135,6 +144,16 @@ docker run -d \
 
 For added safety, a daily `cron` or `systemd timer` snapshotting that host directory to remote storage (S3, B2, SFTP, etc.) is appropriate for any instance carrying real data.
 
+### Portable backup — publish the instance (v0.118+)
+
+The sqlite `.bak` protects against local file loss. For a backup that travels — one you can rebuild a working instance from on any machine — publish the whole instance as a repository snapshot:
+
+```bash
+spl repo publish <namespace>/<repo> --relocation
+```
+
+`--relocation` is shorthand for `--visibility L3 --scope instance --no-listing --carry-tokens`: it snapshots the instance as a verified, portable repository tree. Restore with `spl repo restore <dir-or-https-url>` (client-side, daemon stopped) or hydrate a fresh home at boot with `spl serve --repo <locator>`. The published repository is the canonical portable recovery form; the `.bak` remains the fast local safety net.
+
 ### What does NOT need to be backed up separately
 
 - **Trust scores**: derived from KNOW/DO records on startup. Will rebuild from the record log.
@@ -177,7 +196,7 @@ spl status
 If you don't have an off-host backup, the instance's auto-backup MAY still be intact:
 
 ```bash
-ls -la ~/.local/share/syncropel/backups/
+ls -la ~/.local/share/syncropel/backups/*/
 # pick the most recent hub.db.bak with a non-trivial size
 cp ~/.local/share/syncropel/backups/<instance-key>/hub.db.bak ~/.syncro/hub.db
 ```

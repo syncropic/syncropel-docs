@@ -53,16 +53,24 @@ SYNCROPEL_HOME="$DRILL_HOME" spl stop
 SYNCROPEL_HOME="$DRILL_HOME" spl serve --port 9300
 
 # Verify the backup file exists and has non-trivial size
-ls -lh "$HOME/.local/share/syncropel/backups/" | grep hub.db.bak
+ls -lh "$HOME/.local/share/syncropel/backups/"*/hub.db.bak
 ```
 
 The backup directory layout depends on whether your test daemon has a content-addressed instance DID (see [Backup discipline](./runbook.mdx#backup-discipline) for the per-instance keying rules). The shape you'll see is one of:
 
 ```text
-~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak    # bootstrapped instance
-~/.local/share/syncropel/backups/home-<short-hash>/hub.db.bak      # SYNCROPEL_HOME variant
-~/.local/share/syncropel/backups/hub.db.bak                        # default single path
+~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak    # bootstrapped instance (the normal case)
+~/.local/share/syncropel/backups/home-<short-hash>/hub.db.bak      # SYNCROPEL_HOME set, no DID bootstrapped yet
+~/.local/share/syncropel/backups/hub.db.bak                        # legacy flat path — default home, no instance DID (rare)
 ```
+
+To resolve which directory belongs to a running daemon, ask it for its DID (the drill daemon answers on its own port):
+
+```bash
+curl -s localhost:9300/health | jq -r .instance_did
+```
+
+The 24-hex tail of that DID is the `instance-<did-tail>` directory name.
 
 For the drill, also stash an off-host copy — you'll restore from this, not the daemon's auto-backup:
 
@@ -180,6 +188,16 @@ The drill exercises the **records + config** path. It does NOT exercise:
 - **In-flight dispatches** — anything mid-flight when the daemon crashed is lost. Re-dispatch from the task ID after restore.
 
 For the full breadth of what's protected vs what operator must mitigate, read [Security model — threat model summary](./security-model.mdx#threat-model-summary).
+
+## The portable alternative — publish the instance
+
+This drill exercises the sqlite `.bak` path, which protects against local file loss. From v0.118, the recommended **portable** backup is a published repository snapshot of the whole instance:
+
+```bash
+spl repo publish <namespace>/<repo> --relocation
+```
+
+`--relocation` is shorthand for `--visibility L3 --scope instance --no-listing --carry-tokens`: it snapshots the instance as a verified, portable repository tree. On any machine, `spl repo restore <dir-or-https-url>` (client-side, daemon stopped) or `spl serve --repo <locator>` (boot-time hydration of a fresh home) rebuilds a working instance from it. The published repository is the canonical portable recovery form; run this drill so you know the fast local path, and publish so you have the one that travels.
 
 ## See also
 

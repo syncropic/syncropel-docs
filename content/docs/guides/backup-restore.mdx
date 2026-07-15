@@ -14,22 +14,31 @@ description: Protect your Syncropel data — the database, task content, and con
 
 ## Automatic Backup
 
-The `spl serve` instance backs up the database on every startup:
+The `spl serve` instance backs up the database on every startup, into a per-instance directory keyed by the instance DID:
 
 ```
-~/.local/share/syncropel/backups/hub.db.bak
+~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak
 ```
 
-This backup is stored OUTSIDE `~/.syncro/` — removing that directory does not affect the backup.
+`<did-tail>` is the 24-hex tail of your instance DID. To find your directory:
+
+```bash
+curl -s localhost:9100/health | jq -r .instance_did
+ls ~/.local/share/syncropel/backups/instance-<tail>/
+```
+
+The daily backup job writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into the same directory. (An instance running on an isolated `SYNCROPEL_HOME` before its identity is bootstrapped keys the directory as `home-<hash>/` instead.)
+
+The backup directory is OUTSIDE `~/.syncro/` — removing that directory does not affect the backups.
 
 ## Manual Backup
 
 ```bash
-# Create a timestamped backup
-cp ~/.syncro/hub.db ~/.local/share/syncropel/backups/hub.db.$(date +%Y%m%d-%H%M%S)
+# Create a timestamped backup (use your instance directory from above)
+cp ~/.syncro/hub.db ~/.local/share/syncropel/backups/instance-<tail>/hub.db.$(date +%Y%m%d-%H%M%S)
 
-# List available backups
-ls -la ~/.local/share/syncropel/backups/
+# List available backups across all instance directories
+ls -la ~/.local/share/syncropel/backups/*/
 ```
 
 ## Recovery
@@ -39,7 +48,7 @@ ls -la ~/.local/share/syncropel/backups/
 spl stop
 
 # Restore from backup
-cp ~/.local/share/syncropel/backups/hub.db.bak ~/.syncro/hub.db
+cp ~/.local/share/syncropel/backups/instance-<tail>/hub.db.bak ~/.syncro/hub.db
 
 # Restart — trust and config rebuild automatically from records
 spl serve
@@ -49,6 +58,26 @@ spl status
 spl task list
 spl trust
 ```
+
+## Portable Backup — Publish the Instance
+
+From v0.118, the recommended portable backup is a published repository snapshot of the whole instance:
+
+```bash
+spl repo publish <namespace>/<repo> --relocation
+```
+
+`--relocation` is shorthand for `--visibility L3 --scope instance --no-listing --carry-tokens`: it snapshots the instance as a verified, portable repository tree. To rebuild a working instance from it on any machine:
+
+```bash
+# Client-side restore (with the daemon stopped)
+spl repo restore <dir-or-https-url>
+
+# Or hydrate a fresh home at boot
+spl serve --repo <locator>
+```
+
+The startup `.bak` file protects against local file loss; the published repository is the canonical portable recovery form — it travels between machines and verifies its own integrity on restore.
 
 ## What Rebuilds on Startup
 
