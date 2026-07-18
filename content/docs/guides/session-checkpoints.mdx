@@ -85,6 +85,50 @@ await client.emit({
 });
 ```
 
+## The boundary annotation — `--draft`
+
+You don't have to hand-write the checkpoint at all. With `--draft`, the
+daemon derives what happened from the substrate itself — what closed,
+what's still open, which decisions await you, what moved — and lands
+the annotation on your attention thread:
+
+```bash
+spl session save --draft --summary "One human line on top of the drafted summary"
+```
+
+`--summary`, `--learnings`, and `--next-steps` overlay the draft rather
+than replace it; the one hand-written summary line is usually the only
+part worth authoring by hand. `--reason` records *why* the boundary
+happened (`explicit_end`, `context_window_limit`, `timeout`, …) so a
+later reader knows whether the session ended cleanly.
+
+This is the natural thing to run before an agent's context window
+compacts, a laptop lid closes, or a shift ends — it costs one command
+and makes the next re-entry lossless.
+
+## `spl resume` — where was I, what changed, what needs me
+
+The other half of the boundary annotation. On a fresh session:
+
+```bash
+spl resume
+```
+
+One payload answers the three re-entry questions: the summary line you
+LEFT, what MOVED while you were away (rooms with new activity), what
+NEEDS you (pending decisions — answer them with `spl decisions`), the
+register totals, and the suggested next room. Descend into a specific
+room — a thread id, a thread prefix, or a task alias — for its
+five-bucket re-entry brief:
+
+```bash
+spl resume SKL-1234
+```
+
+`spl resume` reads the annotation `spl session save --draft` landed, so
+the pair is a closed loop: save at every boundary, resume at every
+re-entry, and nothing between sessions relies on memory.
+
 ## Resuming from a checkpoint
 
 The agent's first action each session is to read the latest checkpoint:
