@@ -46,6 +46,8 @@ spl status
 spl version
 ```
 
+`--port` and `--host` follow one precedence everywhere (`serve`, `start`, `stop`, `restart`): an explicit flag wins, then the `[server]` block in `~/.syncro/config.toml`, then the compiled default (`9100` / `127.0.0.1`). Before spawning, the instance probes the target port and **refuses to start** when something is already serving there — you get an immediate error naming the port instead of a phantom second daemon.
+
 `spl serve` / `spl stop` / `spl restart` are convenience aliases over the instance-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the instance to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Kubernetes pods, and managed cloud platforms.
 
 | Command | Description |
@@ -158,6 +160,52 @@ spl thread list
 spl thread show <id>
 spl thread records <id>
 ```
+
+## Decisions
+
+```bash
+spl decisions list                       # pending decision requests
+spl decisions approve <id>               # sugar for `choose <id> approve`
+spl decisions reject <id>
+spl decisions choose <id> <option-id>    # answer a CHOOSE with any declared option
+spl decisions provide <id> <value>       # answer a PROVIDE with a value
+spl decisions ack <id>                   # acknowledge an ACKNOWLEDGE
+```
+
+The decision gate is how anything on the instance — the intelligence
+layer, a work loop, a Faculty — asks a human for a call. Pending
+decisions also surface in `spl resume` under NEEDS.
+
+## Sessions and re-entry
+
+```bash
+spl session save --draft [--summary "..."] [--reason explicit_end]
+spl resume [room]                        # where was I / what changed / what needs me
+```
+
+`spl session save --draft` lands a fold-drafted boundary annotation
+(what closed, what's open, what awaits you); `spl resume` reads it back
+next session, with `[room]` (a thread id, prefix, or task alias)
+descending into one room's re-entry brief. See
+[Session checkpoints](/docs/guides/session-checkpoints).
+
+## Repositories
+
+```bash
+spl repo create <ns>/<name>              # thin handle (identity + URL path)
+spl repo list | show <name>
+spl repo publish <name> [--dry-run] [--visibility public|L1|L2|L3] [--relocation]
+spl repo clone <locator>                 # fresh home from a publication (verified)
+spl repo mount <locator>                 # incremental pull past the bound watermark
+spl repo fork <name> <branch> [--at W]   # one pointer write; segments shared
+spl repo drift <name>                    # divergence audit (exit 0 aligned / 3 drift)
+spl repo restore <tree>                  # rebuild a home from a relocation tree
+spl repo unlist <name>                   # retract discovery (data untouched)
+spl repo key <name> [--scope read|read-write] [--expires-days N]
+```
+
+See [Publishing a repository](/docs/operate/publish-repository) for the
+full lifecycle.
 
 ## Tasks
 

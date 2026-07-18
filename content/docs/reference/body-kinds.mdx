@@ -47,6 +47,23 @@ shape.
 
 For the kind grammar itself (3 vs 4 segments, allowed characters, reserved scopes, version semantics), see the [body.kind manifest guide](/docs/guides/body-kind-manifest).
 
+## The conversational Faculty family
+
+Conversational replies are actor-agnostic: the beat shape lives in the
+kind, and *which* assistant produced it lives in the record's `actor` —
+so a new Faculty converses without any new kinds.
+
+| Kind | Beat |
+|---|---|
+| `core.faculty.call.v1` | The outbound model call for a conversational turn. |
+| `core.faculty.response.v1` | The reply — content, `stop_reason`, `model_used`, `usage` (all four token dimensions), `cost_usd`. |
+| `core.faculty.error.v1` | The turn failed; the error is a record, not a log line. |
+| `core.faculty.cancelled.v1` | The user cancelled an in-flight reply. |
+
+The earlier per-actor families (`core.scribe.*`, `core.guide.*`) remain
+readable history — existing records still query, fold, and render — but
+new emits use the Faculty family.
+
 ## Kinds emitted by dispatch
 
 Every `spl task dispatch` (or any other dispatch path) emits a sequence of records that lets operators reconstruct what happened from the log alone — no log scraping, no subprocess inspection. Subscribe to these kinds to build live observability dashboards; query against them to answer "what did this dispatch cost / why did it fail / where in the codepath did it exit."
