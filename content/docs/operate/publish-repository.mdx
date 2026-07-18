@@ -58,6 +58,16 @@ Useful flags:
 Re-running `publish` advances the published state — each run is a fresh
 signed snapshot; readers always see the latest complete one.
 
+### Keep it published automatically
+
+You don't have to re-publish by hand. Publishing with `--relocation`
+snapshots the whole instance as its portable form ("backup = publish"),
+and once a home is bound to a published repository the daemon's
+**continuous write-back** flushes new records to the published tree as
+they land — the publication follows your instance instead of trailing
+it. See [Backup &amp; restore](/docs/guides/backup-restore) for the
+recovery half of the same story.
+
 ## 4. Verify as a reader would
 
 ```bash
@@ -73,6 +83,67 @@ https://graph.syncropel.com/acme/product-notes
 Check the overview renders, the records tab shows what you intended to
 share, and nothing you meant to keep private is present — the published
 snapshot is exactly what a stranger sees, so review it as one.
+
+## Reading it back: clone, mount, fork
+
+A published repository is not just a page — it is a complete, verified
+copy other machines can attach to:
+
+```bash
+# A fresh home from a publication — the `git clone` equivalent.
+spl repo clone syncropel://acme/product-notes
+
+# Pull ONLY what changed since the last hydration (incremental).
+spl repo mount syncropel://acme/product-notes
+
+# A new branch as one pointer write — segments are shared, nothing is copied.
+spl repo fork acme/product-notes experiments
+```
+
+The locator is a connection string (`syncropel://{ns}/{repo}`), an HTTPS
+base URL, or a local directory. `clone` and `mount` run **client-side
+against a home whose daemon is not running** — they verify every segment
+hash and record content-address before ingesting, then the daemon
+re-folds at next boot. `mount` on an already-bound home pulls only the
+segments past its watermark, so a routine sync is cheap.
+
+To check how far a live instance has drifted from its publication
+without changing anything:
+
+```bash
+spl repo drift acme/product-notes
+```
+
+Exit `0` means aligned, `3` means drift (the output shows which side has
+what the other lacks).
+
+## Deploy keys — scoped access without your identity
+
+For CI jobs, viewers, or another instance that should read (or write)
+one repository without holding your identity:
+
+```bash
+spl repo key acme/product-notes --scope read
+```
+
+The command is owner-gated and prints the bearer **once** — store it in
+your secret manager. The key carries a grant scoped to exactly
+`repo:acme/product-notes:read` (or `read-write`, which also allows
+publish and `fork`); it opens nothing else on the instance. Add
+`--expires-days` for a bounded lifetime, and revoke at any time with
+`spl token revoke`.
+
+## Unlisting — retract discovery, keep the data
+
+```bash
+spl repo unlist acme/product-notes
+```
+
+Unlisting retracts the repository's **directory listing** — it stops
+being discoverable — while the published tree itself stays in storage
+for anyone who already holds the locator or a deploy key. It removes
+*discovery*, not data. Owner-gated; re-publishing with a listing makes
+it discoverable again.
 
 ## Troubleshooting
 
