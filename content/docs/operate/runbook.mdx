@@ -158,7 +158,7 @@ spl repo publish <namespace>/<repo> --relocation
 
 - **Trust scores**: derived from KNOW/DO records on startup. Will rebuild from the record log.
 - **Engine config**: derived from LEARN records on `th_engine_config`. Will rebuild from the record log.
-- **Routing rules, fold rules, health checks, AITL rules, permission rules**: all stored as LEARN records. Will rebuild.
+- **Routing rules, fold rules, health checks, decision policies, permission rules**: all stored as LEARN records. Will rebuild.
 
 The record log IS the truth. Everything else is a fold over it. As long as `hub.db` is intact, all derived state recovers automatically.
 

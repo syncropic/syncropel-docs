@@ -5,7 +5,7 @@ description: Pipe Syncropel's security-relevant record stream into Elasticsearch
 
 ## Problem
 
-Security-relevant events — auth failures, AITL decisions, dispatch outcomes, governance denials, permission-rule refusals — need to land in your SIEM so they're searchable alongside everything else: firewall logs, auth provider logs, Kubernetes audit. You don't want to write a custom integration. You want to take what Syncropel already exports and pipe it.
+Security-relevant events — auth failures, decision-gate outcomes, dispatch outcomes, governance denials, permission-rule refusals — need to land in your SIEM so they're searchable alongside everything else: firewall logs, auth provider logs, Kubernetes audit. You don't want to write a custom integration. You want to take what Syncropel already exports and pipe it.
 
 ## Recipe
 
@@ -47,15 +47,15 @@ Where `export-audit.sh` wraps the command above with error handling + logging.
 The audit export filters the record log to security-relevant records. By default it includes:
 
 - **`system`** — records from `did:sync:system:engine` and related system actors (config reloads, notifications, governance events).
-- **`aitl`** — pending and decided AITL records.
+- **`decision`** — pending and decided decision-gate records (ADR-139).
 - **`dispatch`** — dispatch outcomes, budget exhausted, timeout.
 - **`governance`** — namespace narrowing rejections, permission rule denials, kill-switch records.
 
 Narrow further if your SIEM ingestion has cost implications:
 
 ```bash
-# Only AITL + governance — the decisions-that-matter slice.
-spl audit export --since 65m --categories aitl,governance
+# Only decision-gate + governance — the decisions-that-matter slice.
+spl audit export --since 65m --categories decision,governance
 ```
 
 ## The trade-off

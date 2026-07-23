@@ -1,11 +1,11 @@
 ---
 title: CEL Expressions
-description: Write rules, gates, and predicates using Syncropel's canonical expression language — one syntax for triggers, routing, preconditions, fold rules, health checks, AITL, permissions, and fan-out join predicates.
+description: Write rules, gates, and predicates using Syncropel's canonical expression language — one syntax for triggers, routing, preconditions, fold rules, health checks, the decision gate, permissions, and fan-out join predicates.
 ---
 
 ## Overview
 
-Syncropel uses **CEL (Common Expression Language)** as its canonical decision language. Every decision point in the system — event triggers, routing rules, task preconditions, status fold, health checks, AITL (Actor-in-the-Loop), and permissions — accepts CEL expressions. Write the predicate once; it works the same way everywhere.
+Syncropel uses **CEL (Common Expression Language)** as its canonical decision language. Every decision point in the system — event triggers, routing rules, task preconditions, status fold, health checks, the decision gate (ADR-139; the `aitl` evaluation context), and permissions — accepts CEL expressions. Write the predicate once; it works the same way everywhere.
 
 CEL is Google's type-safe, sandboxed expression language, used in production by Kubernetes admission controllers, gRPC, Envoy, Tekton, and GCP IAM. Syncropel extends CEL with a standard library exposing records, tasks, threads, trust, and system state.
 
@@ -145,7 +145,7 @@ now()                                          // int: unix seconds
 
 `current_namespace()` was added alongside the [namespace hierarchy](/docs/reference/cli#namespaces-v0100). Returns the namespace ID the current evaluation is scoped to (defaults to `"default"` when unset). Use `.startsWith("parent/")` to match an entire subtree of the 5-level hierarchy. Per-record namespace is accessible via `record.body.namespace`.
 
-### `proposal_confidence` and `meta_trust` (AITL context only)
+### `proposal_confidence` and `meta_trust` (decision-gate `aitl` context only)
 
 For gating intelligence proposals:
 
@@ -294,10 +294,10 @@ spl config add-health \
   --expression 'system.today.cost_usd < 10.0'
 ```
 
-### AITL Auto-Apply High-Confidence Proposals
+### Decision-gate auto-apply of high-confidence proposals
 
 ```bash
-spl config add-aitl-rule \
+spl config add-decision-policy \
   --name auto-apply-high-confidence \
   --action auto_apply \
   --priority 100 \

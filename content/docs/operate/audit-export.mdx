@@ -15,7 +15,7 @@ Four categories are emitted; filter any subset with `--categories`:
 | Category | What it captures |
 |---|---|
 | `system` | Records authored by `did:sync:system:*` actors — engine bootstrap, intelligence proposals, trust feedback, recovery events |
-| `aitl` | KNOW records with `body.verdict` (accept/reject) — reviewer approvals, dispatch verdicts |
+| `decision` | Decision-gate records — request + answer (`body.verdict` accept/reject) — reviewer approvals, dispatch verdicts |
 | `dispatch` | KNOW records with `body.topic == "dispatch_complete"` — every adapter invocation outcome + metrics |
 | `governance` | Records authored by `did:sync:system:governance` — policy decisions when permissions are enabled |
 
@@ -25,8 +25,8 @@ Four categories are emitted; filter any subset with `--categories`:
 # Last hour, all categories
 spl audit export --since 1h
 
-# Last 24 hours, AITL + dispatch only, piped to jq
-spl audit export --since 24h --categories aitl,dispatch | jq '.'
+# Last 24 hours, decision-gate + dispatch only, piped to jq
+spl audit export --since 24h --categories decision,dispatch | jq '.'
 
 # Single actor, single thread — useful for incident scoping
 spl audit export --actor did:sync:agent:dev --thread th_abc123...
@@ -41,7 +41,7 @@ Each line is a self-contained JSON object:
 
 ```json
 {
-  "category": "aitl",
+  "category": "decision",
   "thread": "th_03f822528448c2a0439a7292df96518dd8c899436f7386d2ba88c45113fc0e6c",
   "record": {
     "id": "151439fe29726ddc8958a70b2ce003f78d8a2a024fb0317f555376927b1ec437",
@@ -108,8 +108,8 @@ missed events.
 ### Category-specific pipelines
 
 ```bash
-# AITL-only → review dashboard
-spl audit export --since 24h --categories aitl \
+# decision-gate only → review dashboard
+spl audit export --since 24h --categories decision \
   | jq -c 'select(.record.body.verdict == "reject")' \
   | /usr/local/bin/review-alerts-webhook
 ```

@@ -54,7 +54,7 @@ RECONCILE:  for each broadcast record:
 
 The reconciler is a fixed-point runner. It keeps running until every record either matches a rule or is explicitly left for human review. Rules are checked in priority order; intelligence (the engine's reasoning path) only runs when no rule matches.
 
-Most records don't trigger reconcile work — system records skip it entirely to avoid cascades, already-handled records (`body.dispatch_handled: true`) skip it, AITL responses (records with `body.fulfills` or `body.cancels`) skip it. What *does* trigger reconcile is typically a user record or a triggered record that asks for something.
+Most records don't trigger reconcile work — system records skip it entirely to avoid cascades, already-handled records (`body.dispatch_handled: true`) skip it, decision responses (records with `body.fulfills` or `body.cancels`) skip it. What *does* trigger reconcile is typically a user record or a triggered record that asks for something.
 
 The reconciler uses a semaphore to cap concurrent dispatches (default 4). This is what prevents a burst of incoming records from spawning a corresponding burst of subprocesses. Back-pressure in the reconciler is a queue wait, not a rejection.
 
@@ -116,7 +116,7 @@ Record needs routing
   ▼ 4. Trust-based fallback               → pick the highest-trust actor
   │                                          in the record's domain.
   ▼ 5. Intelligence reasoning             → propose a routing decision,
-  │                                          emit as AITL for approval.
+  │                                          emit as the decision gate for approval.
   ▼ 6. Default handler                    → notify, don't dispatch.
 ```
 
@@ -128,7 +128,7 @@ The cascade falls forward. When step 2 misses, step 3 runs; when 3 misses, step 
 
 The engine gets better as records accumulate, by design:
 
-- **Intelligence decisions become AITL proposals.** The engine's reasoning doesn't silently execute — it proposes a routing rule and asks an operator to approve. Approved proposals become rules.
+- **Intelligence decisions become decision-gate proposals.** The engine's reasoning doesn't silently execute — it proposes a routing rule and asks an operator to approve. Approved proposals become rules.
 - **Rules that work repeatedly become patterns.** Every successful dispatch via a rule is evidence that the rule's shape is a pattern worth crystallizing.
 - **Patterns that meet C1-C4 crystallize into REPLAY.** Once crystallized, the same shape of work no longer needs rule matching — it replays the outcome directly.
 - **Meta-trust tracks the reasoning path.** The `intelligence` actor itself has a trust profile. Proposals it makes that get approved contribute to its trust; rejected ones detract.

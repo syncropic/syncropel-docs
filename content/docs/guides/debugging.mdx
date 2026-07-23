@@ -125,11 +125,11 @@ This kind of investigation used to require reading raw record JSON and tracing t
 
 ### Replay against any thread, not just tasks
 
-The first argument can be a task alias OR a literal thread ID. For non-task threads (e.g. `th_engine_config`, an AITL thread, a dispatch thread) you'll see the same record-by-record fold trace. Useful for understanding why a routing rule fired or didn't fire, or what AITL decisions have been made on a particular intelligence proposal.
+The first argument can be a task alias OR a literal thread ID. For non-task threads (e.g. `th_engine_config`, an decision thread, a dispatch thread) you'll see the same record-by-record fold trace. Useful for understanding why a routing rule fired or didn't fire, or what decision-gate decisions have been made on a particular intelligence proposal.
 
 ```bash
 spl debug replay th_engine_config | head -10
-spl debug replay $(spl thread list | grep aitl | head -1 | awk '{print $1}')
+spl debug replay $(spl thread list | grep decision | head -1 | awk '{print $1}')
 ```
 
 ## Step 4: `spl debug thread-diff` — how does this differ from a known-good one?
@@ -170,10 +170,10 @@ If the problem looks like access denial, permission, or governance — "I tried 
 spl audit export --since 1h
 ```
 
-This emits one JSON object per line for every security-relevant record in the last hour: system actor writes, AITL decisions, dispatch outcomes, governance events. Each line carries a `category` tag so you can filter:
+This emits one JSON object per line for every security-relevant record in the last hour: system actor writes, decision-gate decisions, dispatch outcomes, governance events. Each line carries a `category` tag so you can filter:
 
 ```bash
-spl audit export --since 1h --categories aitl
+spl audit export --since 1h --categories decision
 spl audit export --since 24h --categories dispatch | jq -r '.record.body.summary'
 spl audit export --since 24h --actor did:sync:user:alice
 spl audit export --since 24h --thread th_be084400...
@@ -256,7 +256,7 @@ Most start failures are: port already in use, stale PID file, or a corrupt SQLit
 spl config list-permission-rules            # what rules are loaded?
 spl config show                              # is enforcement enabled?
 grep "PERMISSION DENIED" ~/.syncro/logs/spl.log | tail -20   # what got denied?
-spl audit export --since 1h --categories aitl                # AITL decisions in the same window
+spl audit export --since 1h --categories decision                # decision-gate decisions in the same window
 ```
 
 If you've locked yourself out, see [`spl config permissions-unlock`](/docs/reference/cli#emergency-recovery-v0100).

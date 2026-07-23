@@ -116,7 +116,7 @@ Current implementation covers the core trust loop end-to-end: verdict records pr
 Two pieces are partially implemented and tracked as follow-ups:
 
 - **CUSUM drift detection** runs in the trust engine but the alert surface isn't wired to push notifications yet. The counters are observable at `GET /v1/governance/cusum-alerts`.
-- **Crystallization of patterns from trusted actors** works — a pattern from an actor with trust ≥ 0.90 and 100+ observations crystallizes per the C1-C4 criteria — but the REPLAY path doesn't yet fully bypass the LLM for crystallized patterns in all 7 decision points; it short-circuits in routing but not yet in AITL.
+- **Crystallization of patterns from trusted actors** works — a pattern from an actor with trust ≥ 0.90 and 100+ observations crystallizes per the C1-C4 criteria — but the REPLAY path doesn't yet fully bypass the LLM for crystallized patterns in all 7 decision points; it short-circuits in routing but not yet in the decision gate.
 
 Both are bounded gaps. The trust layer is statistically honest and domain-scoped today; the full payoff (automatic replay everywhere) lands as the remaining consumers are wired.
 

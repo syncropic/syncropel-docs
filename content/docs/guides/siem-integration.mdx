@@ -16,7 +16,7 @@ If you just want to look at what would be exported without setting up a pipeline
 | Category | What it captures | Example records |
 |---|---|---|
 | `system` | Records authored by `did:sync:system:*` actors | Engine bootstrap, intelligence proposals, trust feedback |
-| `aitl` | KNOW records with `body.verdict` (accept/reject) | Reviewer approvals, dispatch verdicts |
+| `decision` | Decision-gate records — the request plus its answer (`body.verdict` accept/reject) | Reviewer approvals, dispatch verdicts |
 | `dispatch` | KNOW records with `body.topic == "dispatch_complete"` | Every adapter invocation outcome |
 | `governance` | Records authored by `did:sync:system:governance` | Policy decisions (when permissions are enabled) |
 
@@ -24,7 +24,7 @@ Each emitted line has the shape:
 
 ```json
 {
-  "category": "aitl",
+  "category": "decision",
   "thread": "th_03f822528448c2a0439a7292df96518dd8c899436f7386d2ba88c45113fc0e6c",
   "record": {
     "id": "151439fe29726ddc8958a70b2ce003f78d8a2a024fb0317f555376927b1ec437",
@@ -146,15 +146,15 @@ TRUNCATE = 0
 This indexes each JSONL line as a single event with full JSON parsing. You can then query in SPL:
 
 ```text
-index=security sourcetype=syncropel:audit category=aitl
+index=security sourcetype=syncropel:audit category=decision
 | stats count by record.body.verdict, record.actor
 ```
 
 Common queries:
 
 ```text
-# All AITL rejections in the last 24h
-index=security sourcetype=syncropel:audit category=aitl record.body.verdict=reject
+# All decision-gate rejections in the last 24h
+index=security sourcetype=syncropel:audit category=decision record.body.verdict=reject
 
 # Dispatch outcomes by cost
 index=security sourcetype=syncropel:audit category=dispatch
@@ -205,7 +205,7 @@ output.elasticsearch:
 Each line becomes a single Elasticsearch document with full JSON parsing. Query in Kibana:
 
 ```
-category: aitl AND record.body.verdict: reject
+category: decision AND record.body.verdict: reject
 ```
 
 ### Vector approach (lightweight alternative)
@@ -269,7 +269,7 @@ scrape_configs:
 Query in Grafana / LogQL:
 
 ```text
-{job="syncropel-audit", category="aitl"} | json | record.body.verdict="reject"
+{job="syncropel-audit", category="decision"} | json | record.body.verdict="reject"
 ```
 
 ```text
@@ -296,7 +296,7 @@ logs:
 Datadog auto-detects JSON and creates facets for the nested fields. Query:
 
 ```
-service:syncropel @category:aitl @record.body.verdict:reject
+service:syncropel @category:decision @record.body.verdict:reject
 ```
 
 ## Self-hosted minimal pipeline
@@ -318,9 +318,9 @@ If you don't have a SIEM and want the lightest possible setup, just rotate JSONL
 Then for any investigation:
 
 ```bash
-# All AITL rejections this week
+# All decision-gate rejections this week
 zcat /var/log/spl-audit/audit-*.jsonl.gz /var/log/spl-audit/*.jsonl 2>/dev/null \
-    | jq -c 'select(.category == "aitl" and .record.body.verdict == "reject")'
+    | jq -c 'select(.category == "decision" and .record.body.verdict == "reject")'
 
 # Dispatch cost in the last 24h
 zcat /var/log/spl-audit/audit-*.jsonl.gz /var/log/spl-audit/*.jsonl 2>/dev/null \
@@ -374,7 +374,7 @@ Before declaring your audit pipeline production-ready:
 - [ ] Output files are non-empty when there's activity (and empty files are cleaned up)
 - [ ] Shipper is tailing the output directory
 - [ ] First events visible in SIEM index
-- [ ] Tested filter for each of the 4 categories (system, aitl, dispatch, governance)
+- [ ] Tested filter for each of the 4 categories (system, decision, dispatch, governance)
 - [ ] Instance log also being shipped (for permission denials)
 - [ ] Dedup strategy chosen (SIEM-side dedup on record.id is the easiest)
 - [ ] Logrotate or equivalent configured on the cron output

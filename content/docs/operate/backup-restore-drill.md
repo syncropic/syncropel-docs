@@ -144,7 +144,7 @@ echo "restored:  $RESTORED_COUNT records, last=$RESTORED_LAST"
 
 Both lines should match. If they don't, you restored from a stale backup (the auto-backup got overwritten before you copied it off-host, or the off-host copy itself is older than the baseline).
 
-Trust scores, routing rules, AITL rules, and engine config rebuild automatically from the record log on startup — you don't restore them separately. Verify:
+Trust scores, routing rules, decision policies, and engine config rebuild automatically from the record log on startup — you don't restore them separately. Verify:
 
 ```bash
 SYNCROPEL_HOME="$DRILL_HOME" spl trust 2>&1 | head -5

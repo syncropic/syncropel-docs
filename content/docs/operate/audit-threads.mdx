@@ -5,7 +5,7 @@ description: Per-domain `th_audit_*` threads carry audit-grade records for gover
 
 ## TL;DR
 
-Some governance domains (consent, federation pairs, secrets, impersonation, graph traversal, portability, snapshot/restore, tokens + service accounts, provisioning, subscriptions, API usage) emit a dedicated audit record on a `th_audit_<domain>` thread in addition to the operational record. Other domains (sync pairs, namespaces, AITL) use the operational thread itself as the audit trail. Both are audit-grade — operators get the same forensic content either way.
+Some governance domains (consent, federation pairs, secrets, impersonation, graph traversal, portability, snapshot/restore, tokens + service accounts, provisioning, subscriptions, API usage) emit a dedicated audit record on a `th_audit_<domain>` thread in addition to the operational record. Other domains (sync pairs, namespaces, the decision gate) use the operational thread itself as the audit trail. Both are audit-grade — operators get the same forensic content either way.
 
 ## Why two patterns
 
@@ -43,7 +43,7 @@ Eleven audit-thread families today.
 |---|---|---|
 | Sync pair | `th_sync_control` | LEARN with `topic: pair_state` (lifecycle transitions) + `topic: pair_removed` (terminal) |
 | Namespaces | `th_namespace_registry` | LEARN with `topic: namespace_entry` (create / archive / unarchive / delete) |
-| AITL approve/reject | (the original AITL proposal thread) | DO with `body.fulfills` or `body.cancels` — the decision IS the audit |
+| decision approve/reject | (the original decision-gate proposal thread) | DO with `body.fulfills` or `body.cancels` — the decision IS the audit |
 
 These domains satisfy none of the C1/C2/C3 criteria strongly enough to warrant separation today. The operational thread is the canonical audit trail; folding it gives operators the same forensic content they would get from a hypothetical sibling audit thread.
 
@@ -82,7 +82,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
   "http://localhost:9100/v1/threads/th_namespace_registry/records" \
   | jq '.data[] | select(.body.topic == "namespace_entry") | {clock, actor, body}'
 
-# AITL decisions on a specific proposal thread
+# decision-gate decisions on a specific proposal thread
 curl -s -H "Authorization: Bearer $TOKEN" \
   "http://localhost:9100/v1/threads/<proposal_thread_id>/records" \
   | jq '.data[] | select(.act == "DO") | select(.body.fulfills or .body.cancels)'
@@ -90,13 +90,13 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ### Bulk export to SIEM
 
-`spl audit export` ships a curated default that includes system actors, AITL verdicts, dispatch completions, and governance denials. It does NOT yet include the per-domain audit threads above; for full coverage today, combine the export with thread-by-thread record reads.
+`spl audit export` ships a curated default that includes system actors, decision verdicts, dispatch completions, and governance denials. It does NOT yet include the per-domain audit threads above; for full coverage today, combine the export with thread-by-thread record reads.
 
 See [Audit export](audit-export) for the SIEM bridge.
 
 ```bash
-# Curated SIEM stream (system + AITL + dispatch + governance)
-spl audit export --since 24h --categories system,aitl,dispatch,governance > /var/log/spl-audit.jsonl
+# Curated SIEM stream (system + the decision gate + dispatch + governance)
+spl audit export --since 24h --categories system,decision,dispatch,governance > /var/log/spl-audit.jsonl
 
 # Add per-domain audit threads as needed
 for thread in th_audit_consent th_audit_federation_pairs th_audit_impersonation \
@@ -116,7 +116,7 @@ For SOC2 / PCI / NIST 800-53 auditor-facing reports, the simplest narrative is:
 
 - **Cross-actor and cross-instance governance** (consent grants, federation pairs, graph traversal denials) is audit-traced via the dedicated `th_audit_*` threads listed above.
 - **Security-sensitive credential and identity operations** (secrets, impersonation) are audit-traced via dedicated audit threads with synchronous-before-return emission.
-- **Single-instance administrative operations** (namespace lifecycle, AITL decisions, sync pair lifecycle) are audit-traced via the operational record on the relevant operational thread; folding the thread gives the canonical forensic answer.
+- **Single-instance administrative operations** (namespace lifecycle, decision-gate decisions, sync pair lifecycle) are audit-traced via the operational record on the relevant operational thread; folding the thread gives the canonical forensic answer.
 - **Token + service-account lifecycle** is audit-traced via dedicated `th_audit_tokens` records (`core.token_lifecycle_event.v1` LEARN) emitted alongside the operational records on `api_tokens_thread(<namespace>)` / `service_accounts_thread(<namespace>)` for compliance-posture uniformity.
 
 The criteria-driven hybrid above is the documented answer when an auditor asks "why is the audit pattern asymmetric across domains?"

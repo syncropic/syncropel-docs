@@ -14,8 +14,8 @@ One of 8 types that classify what a record represents: `INTEND`, `DO`, `KNOW`, `
 **Adapter**
 A bridge between the Syncropel engine and an external system. CLI adapters spawn subprocesses (any agent CLI binary — Claude Code, Codex CLI, OpenCode, Pi, etc. — plus `bash` and custom binaries). Proxy adapters make HTTP calls (Anthropic, OpenAI, and other providers; custom endpoints). An actor can be registered with an adapter so dispatches to the actor's DID route through the adapter.
 
-**AITL (Actor-in-the-Loop)**
-A request for a decision from an actor, typically a human or trusted agent. Expressed as a `KNOW` with `body.awaits: "actor_decision"`. Resolved by a `DO` with `body.fulfills` or `body.cancels`. Used by the engine's intelligence path to surface proposals for approval before acting.
+**AITL (Actor-in-the-Loop) — retired term; see the decision gate**
+The former name for what is now the **decision gate** (ADR-139, v0.107). A request for a decision from an actor, typically a human or trusted agent — the body kind is `core.work.decision_request.v1`, expressed as a `KNOW` with `body.awaits: "actor_decision"` and resolved by a `DO` with `body.fulfills` or `body.cancels`. Surfaced with `spl decisions list`; answered with `spl decisions approve` / `reject` / `choose` / `provide` / `ack` (the three response shapes CHOOSE, PROVIDE, ACKNOWLEDGE). Used by the engine's intelligence path to surface routing proposals for approval before acting.
 
 **Approval**
 A `KNOW` record with `body.verdict: "accept"` from an independent evaluator. Creates trust evidence. See [Trust](/docs/concepts/trust).
@@ -40,7 +40,7 @@ The in-process pub/sub channel that publishes every ingested record to reconcile
 A deterministic JSON serialization with alphabetical keys, no whitespace, minimal number formatting. Any implementation produces identical bytes for identical input. Used for the hashing pre-image and for federation wire format. See [Record Format — canonical JSON](/docs/reference/record-format#canonical-json-encoding).
 
 **CEL (Common Expression Language)**
-Syncropel's policy-and-query expression language. Authors triggers, routing, preconditions, fold rules, health checks, AITL rules, permissions. 7 evaluation contexts, each with its own bindings. See [CEL expressions](/docs/guides/cel-expressions).
+Syncropel's policy-and-query expression language. Authors triggers, routing, preconditions, fold rules, health checks, decision policies, permissions. 7 evaluation contexts, each with its own bindings. See [CEL expressions](/docs/guides/cel-expressions).
 
 **Clock**
 A logical timestamp on each record, monotonically increasing per `(actor, thread)`. Non-negative i64. Starts at 0. Used for ordering records within a thread; not wall-clock time.
@@ -64,6 +64,9 @@ When a pattern meets the four quality thresholds (C1 trust ≥ 0.90, C2 observat
 Cumulative sum drift detection. The trust loop runs CUSUM against each `(actor, domain)` baseline and emits alerts when the success rate shifts meaningfully. Observable at `GET /v1/governance/cusum-alerts`.
 
 ## D
+
+**Decision gate** (ADR-139)
+The path by which anything on the instance — the intelligence loop, a paused work loop, a `spl decompose` plan, or a federated peer — asks an actor to decide before proceeding. A proposal is a `core.work.decision_request.v1` record; the answer is a `DO` that fulfills or cancels it. Confidence ≥ 0.90 auto-applies; ≥ 0.60 asks a human; below that is logged and dropped. Surfaced with `spl decisions list` (and under NEEDS in `spl resume`); answered with `spl decisions approve` / `reject` / `choose` / `provide` / `ack`. Three response shapes: CHOOSE, PROVIDE, ACKNOWLEDGE. Retires the term "AITL." See [Your first decision gate](/docs/tutorials/your-first-aitl-approval).
 
 **DID (Decentralized Identifier)**
 The permanent identity of an actor. Three methods supported: `did:key` (self-describing public key), `did:web` (domain-rooted HTTPS resolution), `did:sync` (directory-resolved with key rotation support). System-local DIDs use the `did:sync:user:…`, `did:sync:agent:…`, `did:sync:system:…` conventions.
@@ -136,7 +139,7 @@ A single `spl serve` instance with its own `SYNCROPEL_HOME`, `hub.db`, port bind
 The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local (single writer).
 
 **Intelligence**
-Syncropel's reasoning actor — `did:sync:system:intelligence`. Runs when the routing cascade finds no match; proposes a routing rule via AITL rather than executing directly. Its proposals accumulate meta-trust from accepted/rejected outcomes.
+Syncropel's reasoning actor — `did:sync:system:intelligence`. Runs when the routing cascade finds no match; proposes a routing rule via the decision gate rather than executing directly. Its proposals accumulate meta-trust from accepted/rejected outcomes.
 
 ## J
 
@@ -168,7 +171,7 @@ The mechanism that routes a piece of work to the highest-trust [Faculty](/docs/c
 An actor's persistent context across sessions — LEARN records on the actor's memory thread projecting into preferences, learned corrections, project state, and references. Loaded by the agent CLI adapter at dispatch time via the agent's manual. See [Actors — memory](/docs/concepts/actors#memory-persistent-context-across-sessions).
 
 **Meta-Trust**
-The trust score of Syncropel's intelligence actor itself, tracked separately from any specific domain. Accumulates from AITL proposals that get accepted vs rejected.
+The trust score of Syncropel's intelligence actor itself, tracked separately from any specific domain. Accumulates from decision-gate proposals that get accepted vs rejected.
 
 **Monotonic Narrowing**
 The rule that a child namespace can never claim capabilities its parent doesn't grant. Enforced at ingest by walking the ancestor chain and rejecting if any link is missing or non-Active. See [Namespaces — narrowing](/docs/concepts/namespaces#the-narrowing-rule).

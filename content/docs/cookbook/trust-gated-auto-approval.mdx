@@ -1,6 +1,6 @@
 ---
 title: Trust-gated auto-approval
-description: Let high-trust actors ship without blocking on human review; require review for low-trust ones. One AITL rule, one threshold, no per-task configuration.
+description: Let high-trust actors ship without blocking on human review; require review for low-trust ones. One decision policy, one threshold, no per-task configuration.
 ---
 
 ## Problem
@@ -9,13 +9,13 @@ You use Syncropel for real work. High-trust agents (the ones with dozens of appr
 
 ## Recipe
 
-One AITL rule that auto-applies proposals from actors above a trust threshold, and surfaces everything else for human decision.
+One decision policy that auto-applies proposals from actors above a trust threshold, and surfaces everything else for human decision.
 
 ```bash
 # Author the rule: auto-apply when the proposing actor has trust ≥ 0.80
 # in the task's domain AND at least 10 observations (proves the score
 # isn't noise from a handful of lucky hits).
-spl config add-aitl-rule \
+spl config add-decision-policy \
   --name "auto-apply-high-trust" \
   --action auto_apply \
   --priority 200 \
@@ -25,17 +25,17 @@ spl config add-aitl-rule \
   '
 
 # Default rule: everything else goes to human review.
-spl config add-aitl-rule \
+spl config add-decision-policy \
   --name "present-for-review" \
   --action present \
   --priority 10 \
   --expression "true"
 
 # Verify.
-spl config list-aitl-rules
+spl config list-decision-policies
 ```
 
-Priority 200 runs first. If the predicate holds, the proposal is auto-applied — the routing rule it suggests lands as a `LEARN` on `th_engine_config` immediately, and future records matching the proposed rule route automatically. Priority 10 runs last and catches everything else, surfacing it via `spl aitl list` for manual disposition.
+Priority 200 runs first. If the predicate holds, the proposal is auto-applied — the routing rule it suggests lands as a `LEARN` on `th_engine_config` immediately, and future records matching the proposed rule route automatically. Priority 10 runs last and catches everything else, surfacing it via `spl decisions list` for manual disposition.
 
 Try it:
 
@@ -43,11 +43,11 @@ Try it:
 # Dispatch work. If the routing cascade hits intelligence and the
 # proposing actor clears the threshold, the proposal auto-applies.
 # Otherwise it appears here:
-spl aitl list
+spl decisions list
 
 # Decide manually if needed:
-spl aitl approve <id>
-spl aitl reject <id>
+spl decisions approve <id>
+spl decisions reject <id>
 ```
 
 ## The trade-off
@@ -58,7 +58,7 @@ spl aitl reject <id>
 2. **Set a higher priority rule for high-stakes namespaces.** In `acme-corp/payments/prod` you may not want any auto-apply regardless of trust:
 
    ```bash
-   spl config add-aitl-rule \
+   spl config add-decision-policy \
      --name "never-auto-apply-in-prod-payments" \
      --action present \
      --priority 1000 \
@@ -72,5 +72,5 @@ The threshold of 0.80 is arbitrary. Tune to your risk tolerance — 0.90 is more
 ## See also
 
 - **[Trust](/docs/concepts/trust)** — the evidence model the threshold gates on.
-- **[CEL — aitl context](/docs/guides/cel-expressions)** — the bindings available in AITL rules.
+- **[CEL — aitl context](/docs/guides/cel-expressions)** — the bindings available in decision policies.
 - **[Routing rules guide](/docs/guides/routing-rules)** — what kinds of rules intelligence proposes.

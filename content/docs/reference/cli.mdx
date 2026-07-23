@@ -701,7 +701,7 @@ spl doctor [--json]                         # Top-down diagnostic (7 checks)
 spl debug replay <task-or-thread> [--json]  # Walk records, show status transitions
 spl debug thread-diff <a> <b> [--json]      # Structural diff of two threads
 spl audit export [--since 24h]              # JSONL export for SIEM
-                 [--categories system,aitl,dispatch,governance]
+                 [--categories system,decision,dispatch,governance]
                  [--actor X] [--thread X]
 spl completion bash|zsh|fish|powershell|elvish   # Shell completion script
 ```
@@ -712,7 +712,7 @@ spl completion bash|zsh|fish|powershell|elvish   # Shell completion script
 
 **`spl debug thread-diff`** prints a side-by-side structural comparison of two threads: record count, participants, fold status, act distribution.
 
-**`spl audit export`** emits one JSON object per line for security-relevant records (system actor writes, AITL decisions, dispatch outcomes, governance events). `--since` accepts relative durations (`24h`, `7d`), ISO 8601 timestamps, or unix seconds. Output is directly ingestable into Splunk, Elastic, Loki, or Datadog.
+**`spl audit export`** emits one JSON object per line for security-relevant records (system actor writes, decision-gate decisions, dispatch outcomes, governance events). `--since` accepts relative durations (`24h`, `7d`), ISO 8601 timestamps, or unix seconds. Output is directly ingestable into Splunk, Elastic, Loki, or Datadog.
 
 **`spl completion`** generates shell completion scripts via `clap_complete`. Pipe to the shell's completion directory:
 
@@ -1063,7 +1063,7 @@ spl service-account revoke sa_abc123def456ghi7 --reason "laptop stolen"
 ```bash
 spl init [--force]
 spl run "goal" [--timeout 600]
-spl aitl list
-spl aitl approve <id>
-spl aitl reject <id>
+spl decisions list
+spl decisions approve <id>
+spl decisions reject <id>
 ```

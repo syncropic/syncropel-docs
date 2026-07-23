@@ -472,13 +472,13 @@ This emits a `core.work.loop_cancel.v1` `DO` record on the loop's thread; the re
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/v1/aitl` | List pending decisions |
-| POST | `/v1/aitl/:id/decide` | Approve or reject a pending decision |
+| GET | `/v1/decisions` | List pending decisions |
+| POST | `/v1/decisions/:id/decide` | Approve or reject a pending decision |
 
 ### Approve a Decision
 
 ```bash
-curl -X POST http://localhost:9100/v1/aitl/abc123.../decide \
+curl -X POST http://localhost:9100/v1/decisions/abc123.../decide \
   -H "Content-Type: application/json" \
   -d '{"decision": "approve", "reason": "Looks correct"}'
 ```
@@ -506,7 +506,7 @@ There is no dedicated `/v1/audit/*` endpoint family. The [`spl audit export`](/d
 
 1. `GET /v1/threads` → enumerate threads
 2. `GET /v1/threads/:id/records` → fetch records per thread
-3. Filter client-side by category (system actor, AITL verdict, dispatch outcome, governance) and time window
+3. Filter client-side by category (system actor, the decision gate verdict, dispatch outcome, governance) and time window
 4. Emit one JSON object per matching record on stdout
 
 This means `spl audit export` works against any Syncropel instance without server-side changes. The trade-off is that it's O(n) over thread count — for very large stores you should pass `--thread <id>` to scope the query.
@@ -575,7 +575,7 @@ Response (elided):
     "...": "..."
   },
   "conventions": {
-    "aitl_path": "/v1/aitl",
+    "decisions_path": "/v1/decisions",
     "identity_path": "/v1/identity",
     "sync_path": "/v1/sync",
     "trust_path": "/v1/trust"

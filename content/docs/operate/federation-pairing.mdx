@@ -42,14 +42,14 @@ Pair establishment is a one-shot CLI handshake that exchanges DIDs, signs a mani
     BNet-->>ANet: federation manifest<br/>(DID, sig, pair_endpoint)
     ANet->>ANet: verify Ed25519 signature<br/>over manifest body
     ANet->>BNet: POST /v1/federation/pair<br/>{initiator_did, sig, namespaces, mode}
-    BNet->>BNet: AITL evaluation<br/>(auto_apply or hold for operator)
+    BNet->>BNet: decision-gate evaluation<br/>(auto_apply or hold for operator)
     alt auto-apply policy matches
         BNet->>BNet: mint federation:* SA + token
         BNet->>BNet: emit pair.handshake.v1 (signed)
         BNet-->>ANet: 200 OK + peer token + manifest snapshot
     else manual approval
         BNet-->>ANet: 202 Accepted (pending)
-        B->>BNet: spl aitl approve <pair_id>
+        B->>BNet: spl decisions approve <pair_id>
         BNet->>BNet: mint federation:* SA + token
         BNet-->>ANet: webhook / poll completes
     end
@@ -90,7 +90,7 @@ Pairing with did:sync:instance:bob (https://bob.example/) ...
 Pair active.
 ```
 
-If the responder runs in manual-approval mode, the initiator sees `202 Accepted` and the pair sits in `establishing` state until Bob's operator approves it via `spl aitl approve <pair_id>`. Approval triggers token mint on Bob's side and the initiator's next refresh advances the state to `active`.
+If the responder runs in manual-approval mode, the initiator sees `202 Accepted` and the pair sits in `establishing` state until Bob's operator approves it via `spl decisions approve <pair_id>`. Approval triggers token mint on Bob's side and the initiator's next refresh advances the state to `active`.
 
 Useful flags on the initiator:
 
@@ -250,7 +250,7 @@ Re-pairing is cheap. The historical cursor on the new pair starts at the current
 
 ## 4. Soak results — what to expect at steady state
 
-The federation soak test exercises a two-instance pair under a mixed workload (record emit, AITL approvals, fold-rule reloads) for an extended window. Reference numbers from a recent run, in CSV form so you can compare against your own:
+The federation soak test exercises a two-instance pair under a mixed workload (record emit, decision-gate approvals, fold-rule reloads) for an extended window. Reference numbers from a recent run, in CSV form so you can compare against your own:
 
 ```csv
 window,duration_min,records_emitted,records_synced,sync_lag_p50_ms,sync_lag_p99_ms,reconcile_queue_max,errors

@@ -44,7 +44,7 @@ The instance implements four cooperating loops over an immutable record log. Eve
 
     subgraph CRON["CRON (scheduled)"]
         Decay["trust decay"] --> Crys["crystallization"]
-        Crys --> Aitl["AITL timeout sweep"]
+        Crys --> Aitl["decision timeout sweep"]
     end`}
 />
 
@@ -264,7 +264,7 @@ Three probe surfaces, three intended consumers.
 | Path | Returns | Use for |
 |---|---|---|
 | `GET /health` | `200 ok` if process is alive and bound | Load-balancer liveness / platform health checks |
-| `GET /v1/engine/health` | JSON with reconcile counters, queue depth, AITL pending count | Operator readiness, alerting |
+| `GET /v1/engine/health` | JSON with reconcile counters, queue depth, decision pending count | Operator readiness, alerting |
 | `GET /v1/engine/health` (with `details=true`) | Full per-loop breakdown including expression-cache stats | Capacity planning, debugging |
 
 Liveness:
@@ -282,7 +282,7 @@ curl -fsS http://localhost:9100/v1/engine/health | jq
 #   "ingested_total": 18432,
 #   "reconciled_total": 18391,
 #   "reconcile_queue_depth": 2,
-#   "aitl_pending": 0,
+#   "decisions_pending": 0,
 #   "intelligence_enabled": true,
 #   "uptime_secs": 86400
 # }

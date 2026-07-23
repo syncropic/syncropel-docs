@@ -91,7 +91,7 @@ Records are never edited or deleted. Three kinds of "change" become three flavor
 - **Cancel a prior intent**: emit a `DO` with `body.cancels: "<intend_id>"`. The task fold reads this and transitions the task to cancelled.
 - **Change a config**: emit a new `LEARN` on `th_engine_config`. The engine reloads on broadcast; the latest record wins.
 
-No backdating. Clocks are monotonic per `(actor, thread)`, so you cannot insert a record into the past. An actor who disagrees with a past observation emits a *later* record contradicting it, and the fold decides which wins based on the rule that applies — often "latest by clock", sometimes "accept-first-wins" for AITL, sometimes domain-specific.
+No backdating. Clocks are monotonic per `(actor, thread)`, so you cannot insert a record into the past. An actor who disagrees with a past observation emits a *later* record contradicting it, and the fold decides which wins based on the rule that applies — often "latest by clock", sometimes "accept-first-wins" for the decision gate, sometimes domain-specific.
 
 This is what makes the record log auditable. Every state transition happened when it happened, signed by whoever did it, and nothing downstream can make the log look different later.
 
