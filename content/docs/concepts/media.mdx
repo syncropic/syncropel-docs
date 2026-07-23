@@ -1,0 +1,59 @@
+---
+title: Media that plays
+description: Audio, video — and, ahead, documents, decks, and live apps — are one thing to Syncropel: content a surface presents and you interact with, resolved from records at play time. A new kind of playable media is a record, not new code.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+[Your library](/docs/concepts/your-library) is about *keeping* things — content-addressed, versioned, queryable. This page is about *playing* them: how a track sounds, a video plays, and — ahead on the same rail — a report renders, a deck advances, an app runs. To Syncropel these are one thing: **content a surface presents and a human interacts with, resolved from records at play time.**
+
+## One idea, not one player per format
+
+In most systems every content type ships its own player, its own resolution path, its own access rules — a new format means new bespoke code. Syncropel applies the pattern it already uses for behavior (a record declares X, a small generic interpreter runs it, X extends by emitting more records) to **presentation**. The result: **a new kind of playable media is a record you emit, not a player you write.**
+
+Two records model any medium:
+
+- **`core.medium.v1` — the content descriptor (WHAT).** A typed reference to content (never the bytes inline): a `medium_kind` (an open, registry-classified string — `audio`, `video`, and more as they land), what the content is (a mount path, a content hash, a stream, a document, a runtime, a simulation), and a **modality** — `play`, `render`, `run`, or `simulate` — which is the key the surface dispatches on.
+- **`core.medium.player.v1` — the player descriptor (HOW).** A record deployed exactly like an actor adapter: it binds a `medium_kind` to a **playback primitive** and names how to obtain the content. Adding a declarative medium type is *emitting one of these*. No kernel change.
+
+<Callout type="info" title="Visibility is inherited, not declared on the medium">
+A medium descriptor never carries who-can-see-it. Visibility comes from the thread it lives on, the consent grant over that thread, and — for anonymous playback — the minted read-token. The same descriptor plays for its owner and (when a public grant exists) for a stranger, with no change to the record.
+</Callout>
+
+## The playback primitives (a small, closed set)
+
+Where media types are open and grow by emitting records, the **primitives** a player can bind to are a deliberately small, closed set — the one place the kernel is involved:
+
+| Primitive | For | Status |
+|---|---|---|
+| **`stream-transport`** | audio, video — ranged byte streaming (HTTP `206`) | **Wired today** |
+| **`static-render`** | documents, reports, decks — presented, not executed | Named; on the roadmap |
+| **`iframe-embed`** | sandboxed embedded surfaces | Named; on the roadmap |
+| **`wasm-app`** | live apps, games, world-models — executable media | Named; gated on the sandbox work |
+
+Today the substrate **plays** (audio and video) end to end. The `render` / `run` / `simulate` modalities are the designed shape of the same rail; they are named so the model is whole, but the executable rungs land as the sandbox and orchestrator pieces do. A medium that maps onto `stream-transport` is pure data right now; the rest is the forward path.
+
+## Playing it — for you, and for a stranger
+
+For the owner, a medium plays inside your library like any other content. The distinguishing capability is **anonymous playback**: a public link can make a crate *play* for someone with no account. That path resolves the medium without a login:
+
+`GET /v1/public/medium/resolve?thread=&ref=&kind=` — anonymous, gated by a public consent grant, and **grounded**: the requested `ref` must actually be referenced by a record on the granted thread, so a grant over one crate can't be used to fish for arbitrary files. It returns the descriptor plus a short-lived, grant-bound read-token and a read URL; the player streams the bytes with a ranged `206`, and re-resolves when the token expires. Revoking the grant kills every outstanding token at once.
+
+This is what makes a shared link *play* rather than just *describe*: the link resolves to an instance and a crate, and the crate's media stream without any credential the viewer has to hold. (The minted read-token exists because media elements can't send an `Authorization` header; it is a credential, never a record — it never enters the substrate.)
+
+## Why it's built this way
+
+The bespoke alternative — one hardcoded player per content type — is the exact CRUD-screen regression the rest of Syncropel avoids: it works for the first format and re-implements everything for the second. Modeling the player as a **record** means the surface, the resolution, and the access story are written once and every new medium reuses them. A format not yet invented is a `core.medium.player.v1` emit away from playing.
+
+## In short
+
+- Audio, video — and, ahead, documents, decks, apps — are **one thing**: content a surface presents, resolved from records at play time.
+- Two records model any medium: **`core.medium.v1`** (what) + **`core.medium.player.v1`** (how). A new medium type is a record, not new code.
+- The **playback primitives** are a small closed set; **`stream-transport`** (audio/video) is wired, the rest is the roadmap.
+- **Anonymous playback** lets a public link *play* — grant-gated, grounded, token-metered — with no account.
+
+## Related
+
+- [Your library](/docs/concepts/your-library) — how content is kept, versioned, and found.
+- [Files](/docs/concepts/files) — the content-addressed storage model the bytes live in.
+- [Consent](/docs/guides/consent) — the grants that gate anonymous access.

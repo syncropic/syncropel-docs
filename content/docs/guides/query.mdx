@@ -259,6 +259,21 @@ References stored via `Ref.*` constructors in the SDK live at `body._refs.<entit
 - **No joins**: the filter operates on one record at a time. For "records where another record referencing them exists", compose two queries client-side.
 - **Fail-open SDK transport**: both SDKs return an empty record list (not an exception) on network/5xx failures. Check `result.records.length` — zero is ambiguous between "no matches" and "transport failed". Use the `onEmit` hook or the raw HTTP call if you need to distinguish.
 
+## A query can be a record (`core.query.v1`)
+
+Everything above is the query *mechanism* — a filter you send and a result you read. When a query is worth **keeping** — a view you return to, a scope you want named, a standing question — it graduates to a record: the body kind **`core.query.v1`**.
+
+The same primitive spans the whole lifecycle. A one-off filter, a saved View, and a standing (live) query are not different kinds — they are one `core.query.v1` record at different stages, folded from the `th_queries` thread by the `query_shelf` fold. The record carries:
+
+- **`pipeline`** — the bounded filter/facet/sort/window (the scope algebra, compiled to a kernel filter).
+- **`name`** — required once the query is `saved`.
+- **`saved` / `live`** — lifecycle flags: `saved` promotes a typed-once filter to a durable View; `live` marks it a standing query.
+- **`provenance`** — where it came from: `source_thread` (the conversation that shaped it), `trigger_record`, `derived_from` (a prior query it was forked from).
+
+The design maxim is **"a query is a place, not a route"** — a saved View has a durable identity and provenance you can revisit and share, not an ephemeral request you re-type. Queries are surfaced and promoted in the workspace (the Studio scope bar); there is no CLI verb for them today — you emit a `core.query.v1` record like any other, and the `query_shelf` fold derives which rung of the ladder each query stands on.
+
+`core.query.v1` is distinct from **`core.graph.query.v1`** (a *federation traversal envelope* — an INTEND to walk a peer's graph). A similar word for a different thing; the two are not interchangeable.
+
 ## Next Steps
 
 - [**Body-Kind Manifests**](./body-kind-manifest) — declare which body fields to index so rich-query filter predicates scan instead of sort.

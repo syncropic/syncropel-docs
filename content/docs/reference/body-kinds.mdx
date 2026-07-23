@@ -47,6 +47,12 @@ shape.
 
 For the kind grammar itself (3 vs 4 segments, allowed characters, reserved scopes, version semantics), see the [body.kind manifest guide](/docs/guides/body-kind-manifest).
 
+<Callout type="info" title="The manifest is the authoritative kind registry; this page is a curated tour">
+
+This page documents the kinds most worth knowing by hand. The **complete, machine-readable enumeration** of every built-in kind is the code-derived registry, published as **`sdks/manifest.json`** (mirrored by the `@syncropel/config` package) and re-exported on every release — it is generated from the kernel's constitutional registry, so it never drifts from what the daemon actually accepts. When you need the exact fields or `substrate_role` of a specific kind, or a kind not listed here, the manifest is canonical and this page is not. A new kind joins the manifest at build; this reference gains an entry only for kinds an integrator will reach for directly.
+
+</Callout>
+
 ## The conversational Faculty family
 
 Conversational replies are actor-agnostic: the beat shape lives in the
