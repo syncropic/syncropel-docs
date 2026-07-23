@@ -13,7 +13,7 @@ After this, you'll understand the **economic claim** behind Syncropel: the margi
 
 - `spl 0.33.0` or later (`spl --version`)
 - An instance running with `spl status` healthy.
-- Completed [Your first decision gate](./your-first-aitl-approval) — patterns build on top of approved rules.
+- Completed [Your first decision gate](./your-first-decision) — patterns build on top of approved rules.
 - Patience for ~3 emissions and the engine's tick interval. The pattern detector is part of the TICK loop; defaults run every 60 seconds.
 
 This tutorial uses observability via `spl thread records`, `spl trust`, and `curl http://localhost:9100/v1/patterns` (the HTTP surface — `spl pattern` CLI is on the polish backlog per the [patterns concept doc](/docs/concepts/patterns#whats-enforced-today-vs-the-spec)).
@@ -129,7 +129,7 @@ spl thread records $THREAD4
 
 If routing has any rules that match the L1 signature of the closed pattern, you should see follow-on engine-emitted records — e.g., a DO with `body.dispatch_handled: true` and `body.replay_source: <pattern_id>`. Those engine-emitted records carry the pattern as evidence: state didn't come from new reasoning, it came from a structural-hash hit.
 
-If no rules exist yet for this shape, Syncropel will treat the new INTEND like the unrouted record from [the decision-gate tutorial](./your-first-aitl-approval) — proposing a routing rule as a decision request for you to approve. The pattern is observable but no auto-routing happens until a rule covers the shape.
+If no rules exist yet for this shape, Syncropel will treat the new INTEND like the unrouted record from [the decision-gate tutorial](./your-first-decision) — proposing a routing rule as a decision request for you to approve. The pattern is observable but no auto-routing happens until a rule covers the shape.
 
 ## 6. Inspect the routing fold
 
@@ -169,4 +169,4 @@ The economic claim: at steady state, ~85% of incoming work matches a crystallize
 | Threads 1 and 2 match at L0 but not L1 | Mis-emitted bodies — likely identical body strings. L0 hashes the bytes; identical bytes → L0 match. | This is fine, just less interesting. Vary the INTEND text between threads (different filename, different parameter) to demonstrate the L0 vs L1 split. |
 | Pattern observation count stuck at 1 | Each thread closed but they hash differently at every level (different body kinds, different actor, different acts). | Verify all three threads use the same act sequence (INTEND → DO → KNOW), the same actor, and structurally similar body shapes. Use `spl thread show <id>` to compare hash blocks side by side. |
 | Trust score flat at 0.0 after `--fulfills` | The closing KNOW didn't include a `--domain` — observations land in `general` and your `spl trust` view may be filtered. | Run `spl trust` with no flags to see all domains. Or pass `--domain code` (or whatever fits) to `spl know` to attribute observations to a specific domain. |
-| Fourth record didn't auto-route | No routing rule covers the pattern's L1 signature yet. Patterns make routing *possible*; rules make it *fire*. | Either approve a routing proposal (per [the decision-gate tutorial](./your-first-aitl-approval)) or hand-author a rule with `spl config add-rule`. Patterns and rules are orthogonal — the cascade matches patterns; rules dispatch. |
+| Fourth record didn't auto-route | No routing rule covers the pattern's L1 signature yet. Patterns make routing *possible*; rules make it *fire*. | Either approve a routing proposal (per [the decision-gate tutorial](./your-first-decision)) or hand-author a rule with `spl config add-rule`. Patterns and rules are orthogonal — the cascade matches patterns; rules dispatch. |

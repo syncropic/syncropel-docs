@@ -10,9 +10,10 @@
 /docs/get-started/windows/           /docs/get-started/install/      301
 /docs/get-started/linux-macos/       /docs/get-started/install/      301
 
-# tutorials/ — restored to nav 2026-05-30; only the renamed slug keeps a
-# redirect (from-dogfood-to-ops → from-local-to-hosted).
+# tutorials/ — restored to nav 2026-05-30; renamed slugs keep a redirect.
 /docs/tutorials/from-dogfood-to-ops/  /docs/tutorials/from-local-to-hosted/  301
+# your-first-aitl-approval → your-first-decision (2026-07-23, AITL retired per ADR-139)
+/docs/tutorials/your-first-aitl-approval/  /docs/tutorials/your-first-decision/  301
 
 # templates/ — 1 UNPUBLISH → guides
 /docs/templates/  /docs/guides/task-management/  301
