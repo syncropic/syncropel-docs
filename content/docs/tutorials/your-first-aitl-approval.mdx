@@ -1,32 +1,36 @@
 ---
-title: Your first AITL approval
-description: Walk through Syncropel's self-improvement loop. Emit a record that has no routing rule yet, see the engine propose one, approve it, and watch the next similar record route automatically.
+title: Your first decision gate
+description: Walk through Syncropel's self-improvement loop. Emit a record that has no routing rule yet, see the engine propose one as a decision request, approve it from the decision gate, and watch the next similar record route automatically.
 ---
 
 ## What you'll learn
 
-In about 30 minutes, you'll exercise the **AITL** (Actor-In-The-Loop) feedback path that makes Syncropel a learning system, not just a record store. You'll emit a record the engine doesn't yet know how to route, see it surface a proposed routing rule for your approval, accept the proposal, and verify the next similar record routes without any new reasoning.
+In about 30 minutes, you'll exercise the **decision gate** (ADR-139) — the path that makes Syncropel a learning system, not just a record store. You'll emit a record the engine doesn't yet know how to route, see it surface a **decision request** for your approval, approve it, and verify the next similar record routes without any new reasoning.
 
-After this, you'll understand why Syncropel is described as "self-improving" — the engine never silently changes routing or policy; it proposes, an operator approves, and the approval becomes a record that future runs replay.
+After this, you'll understand why Syncropel is described as "self-improving" — the engine never silently changes routing or policy. It proposes, an operator decides, and the decision becomes a record that future runs replay.
+
+<Callout type="info">
+**"AITL" is retired.** Earlier releases called this loop "AITL" (Actor-In-The-Loop) and shipped an `spl aitl` command. As of v0.107 the mechanism is the **decision gate**: a proposal is a `core.work.decision_request.v1` record, and you answer it with `spl decisions`. The concept is unchanged — the engine proposes, a human decides, the decision is a durable record — only the surface is cleaner and now covers any actor, not just the intelligence loop.
+</Callout>
 
 ## Before you start
 
-- `spl 0.33.0` or later (`spl --version`)
+- `spl 0.107.0` or later (`spl --version`)
 - A running instance — either local (`spl serve`) or hosted (`<label>.syncropel.app`).
 - `spl status` returns `healthy`.
-- An LLM provider key configured (`spl config set-key anthropic <key>`) — the engine's intelligence loop needs a model to reason about new routing. If you're on a hosted instance the key is already wired.
+- An LLM provider key configured (`spl config set-key anthropic <key>`) — the engine's intelligence loop needs a model to reason about new routing. On a hosted instance the key is already wired.
 
 If you've never emitted a record before, do [Your first thread](./first-thread) first. This tutorial assumes you can read `spl thread records <id>` output.
 
 ## 1. Confirm intelligence is enabled
 
-Intelligence (the loop that proposes AITL rules) ships off-by-default on local installs. Check:
+Intelligence (the loop that reasons about unrouted work and proposes decisions) ships off-by-default on local installs. Check:
 
 ```bash
 spl config show | grep -i intelligence
 ```
 
-If you see `intelligence_enabled: false` (or no entry at all), enable it:
+If you see `intelligence_enabled: false` (or no entry at all), enable it by giving the engine a model to think with:
 
 ```bash
 spl config set-key anthropic <your-key>
@@ -54,46 +58,52 @@ Output includes a record id and thread id:
 
 The engine ingests it, runs the routing match cascade, and finds nothing — no L0/L1/L2/L3 hash hit, no semantic match, no static rule. That miss is what triggers the intelligence loop.
 
-## 3. Watch a proposal land in /aitl
+## 3. See the proposal land in the decision queue
 
-Within a few seconds, the intelligence loop reasons about the unrouted intent and emits an AITL record on the reserved thread `th_aitl`. List pending proposals:
+Within a few seconds, the intelligence loop reasons about the unrouted intent. Because it isn't confident enough to auto-apply (confidence ≥ 0.90 auto-applies; ≥ 0.60 asks a human; < 0.60 is logged and dropped), it emits a **decision request** and waits for you. List the pending decisions:
 
 ```bash
-spl aitl list
+spl decisions list
 ```
 
 You'll see something like:
 
 ```
-ID                 KIND                            BODY (excerpt)
-aitl_3e7a9...      syncropel.routing.propose.v1    propose: route INTENDs matching
-                                                   "translate to <lang>" → translator-agent
+◈  72%  Intelligence proposal (confidence 72%): Add a new routing rule
+        that matches INTENDs like "translate <doc> to <lang>" and routes
+        them to the translator agent.
+        id: e6a0f87dfc917aba...
+        spl decisions approve e6a0f87dfc917aba
+
+1 pending
 ```
 
-The proposal carries a structured body: the CEL match expression the engine synthesized, the recommended target actor, and a confidence score. The full body is visible with:
+The request carries a structured body: the match expression the engine synthesized, the recommended target actor, and a confidence score. The full body is visible with:
 
 ```bash
-spl aitl list -o json | jq '.[0]'
+spl decisions list --json | jq '.[0]'
 ```
 
-Until you act, no rule exists in `th_engine_config` and no future record will route differently.
+Until you act, no rule exists in `th_engine_config` and no future record will route differently. The same pending decision also shows up in `spl resume` under **NEEDS** — the decision gate is the one queue for "anything on the instance is waiting on you."
 
 ## 4. Approve the proposal
 
+`spl decisions approve` is sugar for the CHOOSE response `choose <id> approve` — approving a routing proposal tells the engine to apply it:
+
 ```bash
-spl aitl approve aitl_3e7a9...
+spl decisions approve e6a0f87dfc917aba
 ```
 
 Output:
 
 ```
-✓ AITL approved
-  record:  aitl_3e7a9...
-  action:  applied
-  result:  routing_rule_added (name: routing_translator_v1)
+✓ Decision answered
+  request:  e6a0f87dfc917aba...
+  response: approve
+  result:   routing_rule_added (name: routing_translator_v1)
 ```
 
-What happened mechanically: your approval is itself a record. The AITL kind dispatcher reads `body.aitl.kind`, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the instance's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
+What happened mechanically: your approval is itself a record — a DO with `body.fulfills` pointing at the `core.work.decision_request.v1`. The engine reads the answered request, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the instance's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
 
 Verify the rule landed:
 
@@ -102,6 +112,16 @@ spl config list-rules
 ```
 
 You should see `routing_translator_v1` in the list.
+
+<Callout type="info">
+**Three ways to answer a decision.** Not every decision is yes/no. A `core.work.decision_request.v1` declares one of three response shapes, and the CLI has a verb for each:
+
+- **CHOOSE** — pick from declared options. `spl decisions choose <id> <option-id>`; `approve` / `reject` are sugar for the common two-option case.
+- **PROVIDE** — supply an open value. `spl decisions provide <id> --value <json-or-string>`.
+- **ACKNOWLEDGE** — a zero-data "seen it." `spl decisions ack <id>`.
+
+Same gate, same audit trail, whether the asker is the intelligence loop, a paused work loop, a `spl decompose` plan, or a federated peer.
+</Callout>
 
 ## 5. Emit a similar record and watch it route automatically
 
@@ -121,39 +141,39 @@ Compare to step 2's thread, which has only your bare INTEND with no follow-on �
 
 ## 6. Inspect the audit trail
 
-Approvals, rejections, and rule applications all emit audit records on `th_aitl_decisions`:
+The proposal, your answer, and the rule application are all records. The decision request opened on its own thread; the answer fulfills it; the rule application lands on `th_engine_config`. Export the security-relevant slice — `spl audit export` emits one JSON record per line — and filter it:
 
 ```bash
-spl thread records th_aitl_decisions | tail -3
+spl audit export --since 1h | jq 'select(.body.kind | test("decision|routing_rule"))'
 ```
 
-Every AITL decision is a record. There is no "approved by gut feel" path — the trail is structurally complete (per the [governance concept](/docs/concepts/governance)), and the same trail is what trust scoring will use to attribute future routing successes to your approval.
+Every decision is a record. There is no "approved by gut feel" path — the trail is structurally complete (per the [governance concept](/docs/concepts/governance)), and the same trail is what trust scoring uses to attribute future routing successes to your approval.
 
 ## What just happened
 
 You exercised Syncropel's **decision-record loop**:
 
-1. **A miss is data.** When routing finds no match, the engine doesn't fall back to a hardcoded default — it emits a structured proposal on `th_aitl` and waits.
-2. **An operator's approval is a record.** Not a flag, not a session decision — a signed record on `th_aitl_decisions` that any future replay (export → import, fold rebuild, audit) reads as canonical.
+1. **A miss is data.** When routing finds no match, the engine doesn't fall back to a hardcoded default — it emits a structured `core.work.decision_request.v1` and waits.
+2. **An operator's answer is a record.** Not a flag, not a session decision — a DO that fulfills the request, which any future replay (export → import, fold rebuild, audit) reads as canonical.
 3. **The rule is record-derived, not config-derived.** Routing rules live on `th_engine_config` as LEARN records. The fold over that thread is the engine's runtime config. State = fold(records).
 4. **Replay closes the loop.** The next similar record matches and skips reasoning entirely. Cost goes from "one LLM call" to "one expression evaluation" — that's the gradient that makes the system economically viable at scale (see [patterns](/docs/concepts/patterns)).
 
-This is the smallest example of why AITL is Syncropel's self-improvement primitive: the engine proposes, you decide, and your decision becomes a durable record.
+This is the smallest example of why the decision gate is Syncropel's self-improvement primitive: the engine proposes, you decide, and your decision becomes a durable record.
 
 ## Where to next
 
 - [Your first crystallized pattern](./your-first-crystallized-pattern) — what happens after the same approved rule fires 100 times: the pattern crystallizes, replay short-circuits the cascade entirely.
 - [Patterns concept](/docs/concepts/patterns) — the four hash levels, crystallization criteria C1-C4, the matching cascade.
-- [Engine concept](/docs/concepts/engine) — the four loops (INGEST, RECONCILE, TICK, CRON) and how AITL slots into RECONCILE.
-- [Governance concept](/docs/concepts/governance) — why permissions, AITL, and audit are all the same primitive (records on reserved threads).
-- [CEL expressions guide](/docs/guides/cel-expressions) — author your own AITL rules instead of waiting for the engine to propose them.
+- [Engine concept](/docs/concepts/engine) — the four loops (INGEST, RECONCILE, TICK, CRON) and how the decision gate slots into RECONCILE.
+- [Governance concept](/docs/concepts/governance) — why permissions, the decision gate, and audit are all the same primitive (records on reserved threads).
+- [CEL expressions guide](/docs/guides/cel-expressions) — author your own routing rules directly instead of waiting for the engine to propose them.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `spl aitl list` always returns empty | Intelligence is disabled; the engine didn't emit a proposal. | Confirm `spl config show` reports a model + provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. The instance hot-reloads on the next broadcast. |
-| Proposal stays in `pending` forever | You're reading from a paired peer, not the originating instance. AITL state is per-instance until the proposal is approved + the resulting rule federates. | Run `spl aitl list` against the instance that *emitted* the original record. Check `spl actor list` to confirm which DID is the active actor. |
-| `spl aitl approve` returns `403 forbidden` | Default-secure auth on a hosted instance — the bearer token doesn't have `aitl:approve` scope. | Mint a service account with the right scopes: `spl service-account create --name "AITL approver" --scopes aitl:approve --with-token`, then `spl token save <token>`. |
+| `spl decisions list` always returns empty | Intelligence is disabled, so the engine never proposed anything. | Confirm `spl config show` reports a model + provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. The instance hot-reloads on the next broadcast. |
+| A decision stays pending forever | You're reading from a paired peer, not the originating instance. Decision state is per-instance until the resulting rule federates. | Run `spl decisions list` against the instance that *emitted* the original record. Check `spl actor list` to confirm which DID is the active actor. |
+| `spl decisions approve` returns `403 forbidden` | Default-secure auth on a hosted instance — answering a decision emits a record, and the bearer token lacks write scope. | Mint a service account with write scope: `spl service-account create --name "Decider" --scopes records:write --with-token`, then `spl token save <token>`. |
 | Approved rule didn't fire on the next similar record | The proposal generalized too narrowly (matches L0 only) — the second record differs at L0. | Inspect with `spl config list-rules`, find the rule, and broaden its CEL `match` expression. The pattern layer will eventually crystallize the broader shape on its own; manual editing is the fast path. |
-| `spl thread records th_aitl_decisions` is empty after approval | The approve command emitted on a different namespace from the one you're reading. | Pass `--namespace <ns>` to match the namespace the original record was emitted into, or run `spl thread records th_aitl_decisions --namespace default`. |
+| `spl audit` shows no decision records after approving | The approve command ran against a different namespace from the one you're reading. | Pass `--namespace <ns>` to match the namespace the original record was emitted into. |
