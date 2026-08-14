@@ -1010,6 +1010,21 @@ Response (`201`):
 
 The optional `scope_target` body field narrows the invite — `{"kind": "thread", "thread_id": "th_..."}` or `{"kind": "namespace", "namespace": "..."}` instead of the default `{"kind": "instance"}`.
 
+**Membership envelope (ADR-194).** An optional `membership` object turns the invite principal-creating — redemption mints an identity + membership grant instead of a bare credential:
+
+```json
+{
+  "ttl_seconds": 86400,
+  "membership": {
+    "preset": "contributor",
+    "ttl_seconds": 15552000,
+    "label": "mora"
+  }
+}
+```
+
+`preset` resolves the membership grant's scopes (`reader` / `contributor` / `admin`); `membership.ttl_seconds` is the *grant* lifetime (1 hour to 10 years, default 180 days — distinct from the invite link's own `ttl_seconds`); the optional `label` pins the member name, which is how renewal works — redeeming a label-pinned invite for an existing custodial member renews the same principal with a fresh grant + bearer, revoking the old grant. CLI: `spl invite create --member --preset contributor`.
+
 ### Preview an invite (public)
 
 ```bash
@@ -1048,6 +1063,21 @@ curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
 
 Syncropel resolves Bob's DID document, verifies the Ed25519 signature against the `signer_instance_did`'s key, and rejects (with audit) on `bad_proof`, `key_unknown`, or `freshness_violation` (issued-at-ms outside the ±60s window).
 
+### Redeem — membership invite
+
+When the invite carries a `membership` envelope, the redeem body names the member and accepts custody:
+
+```bash
+curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
+  -H "Content-Type: application/json" \
+  -d '{
+    "member_label": "mora",
+    "custody": "custodial"
+  }'
+```
+
+`member_label` follows the label grammar (lowercase `[a-z0-9][a-z0-9-]*`, max 63 chars) and becomes `did:sync:user:<label>`. `custody` must be `"custodial"` today — `"device"` returns `501 Not Implemented`. Redemption writes the identity spine (genesis + binding + `core.identity.grant.v1` + custodian-signed `core.identity.acceptance.v1`), then mints a service account + bearer parented to the grant; the response carries the bearer, the member DID, scopes, and both expiries (bearer + grant). An unpinned invite redeemed against an existing label returns `409 MEMBER_LABEL_TAKEN`.
+
 ### Bulk revoke
 
 ```bash
@@ -1084,6 +1114,49 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 | `403` | `KEY_UNKNOWN` | `signer_instance_did` not resolvable |
 | `403` | `FRESHNESS_VIOLATION` | `holder_proof_issued_at_ms` outside the ±60s window |
 | `403` | `ROTATE_NOT_SELF` | Rotation attempted by a bearer different from the path's `token_id` |
+| `409` | `MEMBER_LABEL_TAKEN` | Membership redeem against a label that already belongs to a member, from an invite not pinned to that label (the takeover guard) |
+| `501` | — | Membership redeem with `custody: "device"` — custodial custody is the only implemented mode |
+
+## Members
+
+The membership roster + offboarding surface (ADR-194). Concept: [Principals & grants](../concepts/principals-and-grants). Operator walkthrough: [Add a teammate](../tutorials/add-a-teammate).
+
+| Method | Path | Scope | Description |
+|---|---|---|---|
+| GET | `/v1/members` | `records:read` | Roster of invite-minted principals. Self-scoping: admin sees all rows; any other caller sees only their own |
+| POST | `/v1/members/adopt` | `admin` | Adopt an existing actor as a principal; with `sa_id`, adopt an existing service account's holder and re-parent the credential to a membership grant (bearer-preserving) |
+| DELETE | `/v1/members/{label}` | `records:write` | Revoke a membership: the grant is revoked and every credential parented to it (bearers, agent sub-grants) dies with it. Bilateral — the caller must be an admin or the member themselves. Idempotent |
+
+### List members
+
+```bash
+curl -s http://localhost:9100/v1/members \
+  -H "Authorization: Bearer $SPL_TOKEN"
+```
+
+Rows carry `member` (the DID), `status`, `scopes`, and `expires_at`. A non-admin caller receives exactly their own row — a one-row answer is complete, not truncated.
+
+### Adopt
+
+```bash
+curl -X POST http://localhost:9100/v1/members/adopt \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"label": "mora", "sa_id": "sa_1f8e2c9a"}'
+```
+
+Without `sa_id`: binds an existing local actor (whose signing seed this instance already holds) as a principal — after which that actor's signed task verdicts verify at ingest. With `sa_id`: mints a custodial principal for the service account's holder and re-parents the credential without breaking the bearer. Optional `ttl_seconds` sets the grant lifetime (default 180 days). Idempotent on an existing principal (`already_principal: true`).
+
+### Revoke a membership
+
+```bash
+curl -X DELETE http://localhost:9100/v1/members/mora \
+  -H "Authorization: Bearer $SPL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"note": "contract ended"}'
+```
+
+The JSON body is optional; `note` is signed into the revocation record. The response reports `grant_id`, `credentials_revoked`, `sub_grants_invalidated`, and `scope` — honestly `"local"`: cross-instance credentials are outside this ledger's reach. The revoked member's bearer answers `401 GRANT_REVOKED` on its next request; the event lands as `member_revoked` on the invite audit feed (`GET /v1/invites/audit`).
 
 ## CORS
 

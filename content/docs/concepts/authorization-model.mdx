@@ -1,0 +1,88 @@
+---
+title: Authorization Model
+description: Six deciders, two evaluation orders, forbid-wins narrowing, and visible abstention. On a default instance three of six deciders govern — and the instance tells you which, via /v1/health.
+---
+
+## Overview
+
+Every authenticated request to a Syncropel instance passes through up to **six deciders** — independent checks that each get a chance to refuse. The model is written down rather than implied, and it has three properties worth internalizing before the table:
+
+1. **Forbid wins.** A decider can only *narrow* what a request may do. There is no decider that can override another's denial. Adding a decider never grants access that was previously refused.
+2. **Abstention is visible.** A decider that is switched off does not silently pass everything — it *abstains*, and the instance reports the abstention, which switch caused it, and what the check defers to. You can always find out what is actually governing.
+3. **The defaults are honest.** A default instance runs with **three of six deciders live**. The docs and the instance itself say so, rather than implying six layers of enforcement that are not all on.
+
+## The six deciders
+
+| Decider | Question it answers | Default state |
+|---|---|---|
+| **`scope`** | Does this credential's scope set cover this route class? (`records:read`, `admin`, wire grains…) | **Live** |
+| **`actor_claim`** | May this bearer act as the DID this request claims? | **Live** |
+| **`capability_grant`** (grant liveness) | Is the membership grant behind this credential still alive and unrevoked? An expired or revoked grant means the bearer is refused with `401 GRANT_EXPIRED` or `401 GRANT_REVOKED` — on the very next request after revocation. | **Live** — for grant-parented credentials. Legacy credentials (minted before the principal model, with no parent grant) answer to scope + actor claim alone; that coverage bound is stated, not hidden. |
+| **`permission_rules`** | Do the instance's CEL permission rules allow this (actor, resource)? | **Off** by default (`permissions_enabled` switch). When off, it abstains and defers to scope + actor claim. |
+| **`impersonation`** | May this caller author records as another actor? Authorizes through the permissions plane. | **Off** by default — it abstains whenever the permissions plane is off, and defers to the credential's actor allowlist. |
+| **`principal_proof`** | Does the caller hold the actor's key, beyond holding a bearer? | **Off** by default (`require_principal_proof` switch). |
+
+So the honest summary of a fresh instance: **scope, actor claim, and grant liveness govern; permission rules, impersonation, and principal proof abstain.** Each abstaining decider defers downward to the live ones — a request refused by scope stays refused no matter what the CEL rules would have said.
+
+## Two evaluation orders
+
+There is not one pipeline but two, and the asymmetry is stated rather than hidden:
+
+- The **control plane** — records, threads, folds, configuration, membership — evaluates deciders in one order.
+- The **data plane** — files and blobs under `/v1/data/*` — reaches its handlers through a different router and evaluates in its own order.
+
+At the concept level, what matters is that *both* planes are covered by the live deciders, and that "it passed on one plane" implies nothing about the other. If you are auditing an instance, check both. The per-route scope requirements for each surface are in the [API reference](/docs/reference/api) and [Scopes & permissions](/docs/reference/scopes-and-permissions).
+
+## Reading your own instance's posture
+
+Do not take this page's word for what your instance enforces — ask it. The bearer-gated health endpoint carries an `authorization` block naming each decider's state:
+
+```bash
+curl -s http://localhost:9100/v1/health \
+  -H "Authorization: Bearer $SPL_TOKEN"
+```
+
+The response's `authorization` block reports `live` (how many deciders govern), `of` (six), and one entry per decider. Abridged:
+
+```json
+{
+  "authorization": {
+    "live": 3,
+    "of": 6,
+    "deciders": [
+      { "decider": "scope",
+        "answers": "does this credential cover this route class?",
+        "state": "live", "fidelity": "exact" },
+      { "decider": "actor_claim",
+        "state": "live", "fidelity": "exact" },
+      { "decider": "permission_rules",
+        "state": "disabled", "switch": "permissions_enabled",
+        "because": "the CEL permission plane is switched off; rules are loaded but never evaluated",
+        "defer_to": "scope + actor_claim" },
+      { "decider": "capability_grant",
+        "answers": "is the membership grant behind this credential alive and unrevoked?",
+        "state": "live", "fidelity": "conservative",
+        "coverage": "consulted at the bearer door for grant-parented credentials; legacy credentials answer to scope + actor_claim alone" },
+      { "decider": "impersonation",
+        "state": "disabled", "switch": "permissions_enabled",
+        "defer_to": "actor_claim (allowed_actors)" },
+      { "decider": "principal_proof",
+        "state": "disabled", "switch": "require_principal_proof",
+        "defer_to": "impersonation" }
+    ]
+  }
+}
+```
+
+The shape to rely on: every decider always appears (including the ones with no switch at all); a `disabled` decider names the `switch` responsible, a `because`, and what it `defer_to`s; a live-but-bounded decider states its `coverage`; and `fidelity` distinguishes an exact check from a conservative or advisory one. (This is `GET /v1/health` with a bearer — the anonymous `/health` liveness probe deliberately carries no authorization block, because "which layers are off" is the most reconnaissance-valuable sentence the daemon could emit.)
+
+## Where verdict signing fits
+
+Task verdicts (`spl task approve` / `spl task reject`) are signed with the evaluator's identity key, and the ingest door verifies the signature whenever the actor resolves to a known key — a wrong signature is refused outright; an unknown key is admitted with a warning. This is not a seventh request-time decider: it is record-level integrity, enforced at ingest, and it composes with the principal model — including the refusal of self-judgment by chain described in [Principals & grants](/docs/concepts/principals-and-grants#why-a-grant-not-a-group-entry).
+
+## What's next
+
+- **[Principals & grants](/docs/concepts/principals-and-grants)** — the identity layer grant liveness enforces.
+- **[Scopes & permissions](/docs/reference/scopes-and-permissions)** — the scope enum, wire grains, and per-route requirements.
+- **[Honesty ledger](/docs/reference/honesty-ledger)** — the full enforced-versus-declared inventory.
+- **[CEL expressions](/docs/guides/cel-expressions)** — writing permission rules for when you turn that decider on.

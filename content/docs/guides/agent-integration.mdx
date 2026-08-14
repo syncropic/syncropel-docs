@@ -108,6 +108,8 @@ When an AI agent runs on a different machine than the `spl serve` instance — e
 
 This gives each agent its own revocable identity without sharing credentials between agents.
 
+An instance-level service account is the right shape for standing instance services — it survives personnel changes by design. For an agent that acts as an extension of a *person's* authority (their budget, their scopes, dying with their membership), see [Agent credentials](/docs/guides/agent-credentials) for the two paths and how to choose.
+
 ## What's Next
 
 - [Task management](/docs/guides/task-management) — the full task lifecycle

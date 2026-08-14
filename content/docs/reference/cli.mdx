@@ -1058,6 +1058,73 @@ spl token revoke --sa sa_abc123def456ghi7 --token-id 7a2936eccf...
 spl service-account revoke sa_abc123def456ghi7 --reason "laptop stolen"
 ```
 
+## Membership
+
+Principal-creating invites, the member roster, adoption, and offboarding. Concept: [Principals & grants](/docs/concepts/principals-and-grants); walkthrough: [Add a teammate](/docs/tutorials/add-a-teammate).
+
+### Invites — `spl invite`
+
+```bash
+spl invite create [--member] [--preset reader|contributor|admin] [--label <name>] \
+                  [--grant-ttl <secs>] [--scopes <csv>] [--ttl <secs>] \
+                  [--max-uses <n>] [--device-label "<text>"] [--json]
+spl invite list [--json]
+spl invite show <invite_id> [--json]
+spl invite revoke <invite_id> [--json]
+spl invite bulk-revoke <filter> [--json]
+spl invite audit [--json]
+spl invite presets [--json]
+spl invite templates [--json]
+```
+
+| Flag / arg | Applies to | Description |
+|---|---|---|
+| `--member` | `create` | Membership invite: redemption mints a **principal** (identity + membership grant + credential parented to the grant), not just a bearer |
+| `--preset <p>` | `create` | Scope preset (`reader` / `contributor` / `admin`). With `--member`, resolves the membership grant's scopes |
+| `--label <name>` | `create` | Pin the member label. Redemption must use this label; if the label already belongs to a member this instance holds custody for, redemption becomes a **renewal** (same principal, fresh grant + bearer, old grant revoked) |
+| `--grant-ttl <secs>` | `create` | Membership grant lifetime (1h to 10y; default 180 days). Distinct from `--ttl` |
+| `--scopes <csv>` | `create` | Explicit scope wire strings; overrides `--preset` |
+| `--ttl <secs>` | `create` | Invite *link* lifetime (default 24h) |
+| `--max-uses <n>` | `create` | Maximum redemptions (default 1) |
+| `--device-label "<text>"` | `create` | Label shown on the invite page |
+| `<filter>` | `bulk-revoke` | `expired`, `exhausted`, or `holder:<did>` |
+
+`spl invite audit` prints the invite lifecycle feed — issued / redeemed / exhausted / refused / `member_revoked`. `spl invite presets` and `spl invite templates` list the scope presets and saved invite templates.
+
+```bash
+# The golden path: invite a teammate as a contributor
+spl invite create --member --preset contributor
+# → prints the link; send it; the teammate redeems in the browser
+
+# Renew an existing member (admin-pinned invite)
+spl invite create --member --label mora
+```
+
+### Roster — `spl member`
+
+```bash
+spl member list [--json]
+spl member adopt <label> [--sa <sa_id>] [--ttl <secs>] [--json]
+spl member revoke <label> [--reason "<text>"] [--json]
+```
+
+| Command | Description |
+|---|---|
+| `list` | The membership roster. Admin sees all rows; any other caller sees only their own |
+| `adopt` | Adopt an existing actor as a principal. Without `--sa`: binds a label whose signing seed this instance already holds (the operator, a paired device) — after this, that actor's signed task verdicts verify. With `--sa <sa_id>`: mints a custodial principal for the service account's holder and re-parents the credential to a membership grant without breaking the bearer |
+| `revoke` | Offboarding as one revocation: the membership grant is revoked and every credential parented to it (bearers, agent sub-grants) dies with it — the bearer 401s on its next request. Bilateral (a member may revoke their own); idempotent; local-ledger scope |
+
+```bash
+# Adopt the operator so their verdicts verify
+spl member adopt dpwanjala
+
+# Re-home an agent's existing service account under a member
+spl member adopt mora --sa sa_1f8e2c9a
+
+# Offboard
+spl member revoke mora --reason "contract ended"
+```
+
 ## Other
 
 ```bash

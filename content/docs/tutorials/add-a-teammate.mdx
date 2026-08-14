@@ -1,0 +1,156 @@
+---
+title: Add a Teammate
+description: The golden path for membership — issue a principal-creating invite, your teammate redeems it in the browser, works under their own signed identity, and offboarding is one command that kills everything they were ever handed.
+---
+
+## What you'll do
+
+You run an instance. A teammate — call her Mora — needs to work on it. In this tutorial you will:
+
+1. Issue a **membership invite** and send her the link.
+2. Watch her redeem it in the browser and appear on the roster.
+3. See her work under her own principal — including signed task verdicts.
+4. Renew her membership when the grant expires.
+5. Revoke it, and verify her credential dies on its very next request.
+
+This is different from [pairing a device](/docs/guides/pair-share-invite): a plain invite mints a credential; a membership invite mints a **principal** — an identity with a key, a membership grant, and a credential parented to that grant. The concept page is [Principals & grants](/docs/concepts/principals-and-grants); this page is the walkthrough.
+
+**Prerequisites**: a running instance you hold an `admin` bearer for, reachable at a URL your teammate's browser can open.
+
+## 1. Issue the invite
+
+```bash
+spl invite create --member --preset contributor
+```
+
+```text
+✓ Issued membership invite (redemption creates a principal): inv_9f2c41d0b8a7
+  link:    https://alice.syncropel.app/i/inv_9f2c41d0b8a7?sig=...
+  expires: 2026-08-15T09:12:00Z
+  after redemption: `spl member list` shows the new member
+```
+
+What the flags mean:
+
+- `--member` makes this a principal-creating invite. Redemption will mint an identity, a membership grant, and a credential parented to that grant — not just a bearer.
+- `--preset contributor` resolves the membership grant's scopes (`records:read` + `records:write`). `reader` and `admin` are the other presets; `--scopes` overrides a preset with explicit wire strings.
+- The invite *link* expires in 24 hours by default (`--ttl` to change). The membership *grant* it will mint lasts 180 days by default (`--grant-ttl`, anywhere from 1 hour to 10 years). Two different lifetimes: one for the unredeemed link, one for the membership itself.
+
+Send Mora the link over whatever channel you trust. The URL is signed, so it is tamper-evident, but anyone holding it before it expires can redeem it — treat it like a key, not like a webpage.
+
+## 2. Your teammate redeems it
+
+Mora opens the link. The invite page shows who issued it, what scopes it grants, and asks her to:
+
+- **Choose a member name** — lowercase letters, digits, and hyphens, up to 63 characters (`mora`, `mora-k`). It becomes her DID on your instance: `did:sync:user:mora`.
+- **Accept custodial custody** — the page states plainly that your instance will hold her signing key and sign on her behalf. That is the only custody mode today; [Joining an instance](/docs/get-started/joining-an-instance) covers what it means from her side.
+
+She confirms. Behind the button, the browser calls `POST /v1/invites/inv_9f2c41d0b8a7/redeem` with her `member_label` and `custody: "custodial"`, and your instance writes the record spine — identity genesis, the label binding, the membership grant, and the custodian-signed acceptance — then mints her a service account and bearer parented to the grant. The page hands her the bearer once.
+
+## 3. Confirm the roster
+
+Back on your side:
+
+```bash
+spl member list
+```
+
+```text
+did:sync:user:mora                       active     scopes=["records:read","records:write"] expires_at="2027-02-10T09:14:02Z"
+```
+
+The redemption also landed on the audit feed:
+
+```bash
+spl invite audit
+```
+
+```text
+2026-08-14T09:14:02Z     redeemed         inv_9f2c41d0b8a7
+```
+
+Note the visibility rule: **you see every row because you are admin.** When Mora runs `spl member list` against your instance, she sees only her own row. The grant graph at `GET /v1/folds/grant` scopes the same way — admin sees everything, everyone else sees only grants where they are the issuer or the audience.
+
+## 4. Your teammate works
+
+On her machine, Mora saves the bearer so the CLI injects it automatically:
+
+```bash
+spl token save spl_prod_sa_XXXXXXXX_YYYYYYYYYYYY
+spl task list          # now authenticated as did:sync:user:mora
+```
+
+From here she works like anyone else — with one difference that matters: when she reviews work, her verdicts are **signed with her identity key** and verified at ingest:
+
+```bash
+spl task approve TASK-0041 --grade 0.75
+```
+
+The verdict record names her as the evaluator, carries her signature, and the instance verifies it because her label binding resolves to a key it knows. A verdict with a wrong signature is refused. And she cannot approve her own work through an alias — self-judgment is refused by resolving both parties to their principals through the grant chain, not by comparing DID strings.
+
+Her bearer has its own expiry (30 days by default) and can be rotated ahead of time — the membership grant is the long-lived thing; the bearer is a renewable credential under it.
+
+## 5. Renew when the grant expires
+
+Six months later the membership grant expires. Mora's next request gets:
+
+```text
+401 GRANT_EXPIRED
+```
+
+Renewal is a fresh invite **pinned to her label** — only an admin can issue it:
+
+```bash
+spl invite create --member --label mora
+```
+
+She redeems the new link exactly as before. Because the invite is pinned to a label your instance holds custody for, redemption becomes a **renewal**: the same principal — same DID, same history, same trust — gets a fresh grant and a fresh bearer, and the old grant is revoked with reason `membership-renewed`.
+
+The pin is also the takeover guard: an *unpinned* membership invite can never claim an existing label. If someone redeems a generic invite and types `mora`, they get `409 MEMBER_LABEL_TAKEN`. Owning an invite link is not enough to become an existing member; that requires an admin deliberately pinning the invite.
+
+## 6. Offboard
+
+When Mora leaves:
+
+```bash
+spl member revoke mora --reason "contract ended"
+```
+
+```text
+✓ Membership revoked: did:sync:user:mora (grant 7a29c4e1f0b3) — 1 credential(s) killed, 0 sub-grant(s) invalidated; scope: local
+```
+
+One command, and the cascade is structural: revoking the grant kills **every credential parented to it** — her bearer, and any agent sub-grants she had issued beneath her membership. Her bearer fails on its very next request:
+
+```text
+401 GRANT_REVOKED
+```
+
+Three honest notes on that output:
+
+- **Bilateral.** Mora can revoke her own membership too — leaving is not something only the operator can do.
+- **Idempotent.** Revoking an already-revoked member reports success without erroring.
+- **`scope: local`.** The revocation is enforced on *this* instance's ledger. Credentials that live on other instances are outside its reach today — see the [honesty ledger](/docs/reference/honesty-ledger) for the measured bound and where the cross-instance story lives.
+
+The event lands as `member_revoked` on the same audit feed (`spl invite audit`).
+
+## What just happened, in records
+
+Everything above is a handful of records — worth seeing once, because every claim in this tutorial is checkable against the log:
+
+| Step | Record(s) |
+|---|---|
+| Invite issued | `core.invite.v1` on `th_invites`, carrying a `membership` envelope |
+| Redemption | `core.identity.created.v1` (genesis) + `core.identity.binding.v1` (`did:sync:user:mora` → her master DID) + `core.identity.grant.v1` (scopes, `expires_at`, caveats, chain) + `core.identity.acceptance.v1` (custodian-signed) — then a service account + bearer parented to the grant |
+| Her approvals | Signed verdicts naming her as evaluator, verified at ingest |
+| Renewal | A fresh grant + acceptance; a `core.identity.revoke.v1` closing the old grant (reason `membership-renewed`) |
+| Offboarding | One `core.identity.revoke.v1` naming the grant — the credential cascade follows the parent links |
+
+That is the whole model: membership is a grant between principals, and one record ends it.
+
+## What's next
+
+- **[Principals & grants](/docs/concepts/principals-and-grants)** — why this is a grant, not a group entry.
+- **[Joining an instance](/docs/get-started/joining-an-instance)** — the page to send your teammate alongside the link.
+- **[Agent credentials](/docs/guides/agent-credentials)** — giving an agent a slice of a member's authority.
+- **[Scopes & permissions](/docs/reference/scopes-and-permissions)** — presets, wire grains, caveats, and the membership routes.

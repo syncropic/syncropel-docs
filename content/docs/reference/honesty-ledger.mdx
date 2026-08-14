@@ -1,0 +1,31 @@
+---
+title: Honesty ledger
+description: Every claim in these docs is enforcement-true. This page lists the boundaries — what is enforced today, what is declared for later, and where each fix lives.
+---
+
+These docs follow one rule: **a claim appears only if the running kernel enforces it.** The cost of that rule is a set of boundaries — places where the model is designed further than the implementation ships. This page is the inventory. If a limitation bites you and is not on this page, that is a documentation bug worth reporting.
+
+## The ledger
+
+| Boundary | Enforced today | Declared / designed | Where the fix lives |
+|---|---|---|---|
+| **Custody** | Custodial only — the instance holds each member's signing key and signs on their behalf. Requesting device custody returns `501 Not Implemented`; nothing is silently downgraded. | Device custody (the member holds their own key) is part of the identity model's design. | Device-custody implementation, review-gated; no shipped surface yet. |
+| **Revocation scope** | `local` — revoking a membership kills every credential parented to it *on this instance's ledger*, and the revoke response says `scope: "local"` out loud. Measured bound: in a hostile-peer scenario, 47% of a credential subtree can sit beyond local reach. | Cross-instance revocation propagation — the grammar is stated in the ADR-195 draft. | ADR-195 (draft) and the federation lane that implements it. |
+| **Key rotation** | None. A member's custodial key is minted at join and never rotates; renewal issues a fresh grant and bearer, not a fresh master key. | Rotation is designed into the identity family. | Rotation implementation, review-gated. |
+| **Deciders** | 3 of 6 govern on a default instance: scope, actor claim, and grant liveness. The other three abstain visibly, each naming its switch. | CEL permission rules, impersonation enforcement, and principal proof all exist behind switches (`permissions_enabled`, `strict_impersonation_enforcement`, `require_principal_proof`) and are off by default. | Flip the switches per instance; read your own posture at `GET /v1/health` — see the [authorization model](/docs/concepts/authorization-model). |
+| **Grant-liveness coverage** | Enforced at the request door for **grant-parented** credentials (`401 GRANT_EXPIRED` / `401 GRANT_REVOKED`). | Legacy credentials — minted before the principal model, with no parent grant — are untouched by this decider and answer to scope + actor claim alone. | Migrate legacy credentials via [adoption](/docs/guides/agent-credentials#adopting-an-existing-agent-credential) (`spl member adopt <label> --sa <sa_id>`), which re-parents them without breaking the bearer. |
+| **Renewal** | An expired membership renews only through an **admin-pinned invite** (`spl invite create --member --label <name>`). There is no self-service renewal, and an unpinned invite can never take over an existing label (`409 MEMBER_LABEL_TAKEN`). | Self-service renewal paths are a design question, not a promise. | Deliberate: the admin pin *is* the takeover guard (ADR-194 Amendment 2). |
+| **Verdict signatures from unknown keys** | A verdict whose signer resolves to a known key is verified, and a **wrong** signature is refused. | A verdict from an actor whose key does not resolve is admitted **with a warning**, not refused — unresolvable is treated as unproven, not as forged. | Coverage grows as actors become principals ([adoption](/docs/guides/agent-credentials#adopting-an-existing-agent-credential) makes an existing actor's verdicts verify). |
+| **The organizational principal** | Nothing — no org surface ships. | An organization as a principal with quorum custody, granting memberships with the same grammar. | Design work; no shipped surface, and these docs claim none. |
+
+## How to read this page
+
+- **"Enforced today"** means a test or a measured behaviour backs the sentence — refusals actually refuse, and stated bounds were measured, not estimated.
+- **"Declared"** means the model is written down and the docs may describe it as design, but nothing at runtime holds it up yet. A declared behaviour must never be load-bearing in your security posture.
+- When an entry moves from declared to enforced, it leaves this table and enters the ordinary docs.
+
+## Related
+
+- **[Authorization model](/docs/concepts/authorization-model)** — reading your instance's live posture instead of trusting prose.
+- **[Principals & grants](/docs/concepts/principals-and-grants)** — the model whose boundaries this page bounds.
+- **[Scopes & permissions](/docs/reference/scopes-and-permissions)** — the enforced grammar in detail.

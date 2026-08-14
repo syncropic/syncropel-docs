@@ -1,0 +1,93 @@
+---
+title: Scopes & permissions
+description: The closed scope enum, wire grains, grant caveats and attenuation rules, the chain of authority, and the membership routes with their visibility policy.
+---
+
+## The scope enum
+
+Capabilities are a closed enum. A credential carries a snapshot of its scopes at issuance time; changing a service account's scopes affects newly minted tokens, not existing ones.
+
+| Scope | Grants |
+|---|---|
+| `records:read` | `GET /v1/records`, `GET /v1/threads/*`, and other read surfaces |
+| `records:write` | `POST /v1/records` and other write surfaces |
+| `threads:write` | `POST /v1/threads`, `DELETE /v1/threads/{id}` |
+| `federation:manage` | All `/v1/sync/*`, `/v1/federation/*`, `/v1/discovery/*` |
+| `config:read` | `GET /v1/config/*` |
+| `config:write` | `POST /v1/config/*` |
+| `admin` | Everything, including service-account, token, invite, and membership mutations |
+
+The invite presets resolve to scope sets: `reader` → `records:read`; `contributor` → `records:read` + `records:write`; `admin` → `admin`. Discover them at `GET /v1/scope_presets` or `spl invite presets`.
+
+## Wire grains
+
+Alongside the enum, a credential's scope list may carry **wire grains** — per-resource capabilities that narrow access to a single thread or namespace:
+
+```text
+thread:<thread_id>:read
+thread:<thread_id>:write
+namespace:<ns>:read
+namespace:<ns>:write
+```
+
+A grain-scoped credential passes the coarse scope gate for its route class, and the per-resource check then admits only the named thread or namespace. This is what makes a "reader of exactly one thread" credential expressible — the thread gate is enforced on the read surfaces (listings, records, folds, the SSE feed), not just on writes.
+
+## Grants: caveats, attenuation, chain
+
+A membership or delegation grant (`core.identity.grant.v1`) carries more than scopes:
+
+### Caveats
+
+| Caveat | Meaning |
+|---|---|
+| `max_depth` | How many delegation hops may exist *below* this grant. `0` = this grant may issue no children. |
+| `max_fanout` | How many direct child grants this grant may issue. |
+| `budget` | A spend ceiling for work performed under this grant. |
+
+### Attenuation rules
+
+A child grant must be **narrower-or-equal** to every parent it cites — a broadening grant confers nothing:
+
+- The child's scope set must be a subset of (or equal to) the parent's.
+- Each caveat axis (`max_depth`, `max_fanout`, `budget`) must be narrower-or-equal to the parent's *effective* caveat — the minimum along the chain. Widening a parent's caveat, or dropping one the parent carries, invalidates the grant.
+- An ancestor's `max_depth` bounds its **whole subtree**: a grant sitting deeper below that ancestor than its `max_depth` allows is not in force.
+- A parent with `max_fanout = f` honors only its first `f` children.
+- Every grant carries a required `expires_at`, applied against real time at query, with a capped maximum lifetime.
+
+There is no operation that grants a child more than its parent holds. Widening requires a new grant from an issuer that actually holds the wider authority. (One deliberate conservatism: where a capability carries a guard expression, a child substituting a *different* guard is refused outright rather than compared — deciding whether an arbitrary replacement guard is narrower is not decidable, so the kernel refuses instead of assuming.)
+
+### Chain
+
+Every grant names its `chain`: the ordered list of ancestor grant ids back to the root. The ingest door verifies the chain against the record's actual `parents` walk before admitting the grant — a grant claiming an ancestry its parents don't support is refused. Chains are capped at **64 hops**.
+
+The chain is what makes authority auditable ("walk the records") and what enforces refusal of self-judgment: worker and evaluator both resolve through their chains to principals, so a derivation alias cannot judge its own principal's work.
+
+### Grant liveness at the door
+
+For grant-parented credentials, every authenticated request consults grant liveness: a revoked grant (its own, or any chain ancestor's) answers `401 GRANT_REVOKED`; an expired one answers `401 GRANT_EXPIRED`. Legacy credentials with no parent grant answer to scope + actor claim alone — see the [authorization model](/docs/concepts/authorization-model) for this stated coverage bound.
+
+## Membership routes (ADR-194)
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/v1/members` | `records:read` | **Self-scoping**: admin sees the full roster; any other caller sees only their own row. |
+| POST | `/v1/members/adopt` | `admin` | Adopt an existing actor (or a service account's holder, with `sa_id`) as a principal. |
+| DELETE | `/v1/members/{label}` | `records:write` | Revoke a membership + cascade every credential parented to its grant. **Bilateral gate**: the caller must be an admin *or the member being revoked* — a member may always end their own membership, and no third member can end someone else's. Optional JSON body `{"note": "..."}` rides the revocation record. Idempotent. |
+
+Membership invites are issued through the existing invite surface — `POST /v1/invites` with a `membership` envelope; see the [API reference](/docs/reference/api#pair-share-invite).
+
+## Visibility policy: roster and grant fold
+
+Two read surfaces deliberately answer differently per caller:
+
+- **`GET /v1/members`** — admin: all rows. Everyone else: only the row where they are the member.
+- **`GET /v1/folds/grant`** (the grant graph) — admin: the full graph. Everyone else: only grants where they are the issuer (`iss`) or the audience (`aud`).
+
+This is scoping, not filtering-as-error: a non-admin caller getting one row back is the correct, complete answer for them. Clients should not treat a short list as truncation.
+
+## Related
+
+- **[Authorization model](/docs/concepts/authorization-model)** — how scope composes with the other five deciders.
+- **[Principals & grants](/docs/concepts/principals-and-grants)** — the grant model.
+- **[Honesty ledger](/docs/reference/honesty-ledger)** — enforced-versus-declared boundaries.
+- **[API reference](/docs/reference/api)** — every route's full request/response shape.

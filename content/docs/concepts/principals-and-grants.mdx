@@ -1,0 +1,57 @@
+---
+title: Principals & Grants
+description: A bearer token can act; a principal exists. Membership is a signed grant between principals — one record to create it, one record to revoke it, and a provable chain of authority in between.
+---
+
+## Overview
+
+Syncropel has two levels of "who is calling":
+
+- A **bearer** can *act*. It is a credential — a string in an `Authorization` header that unlocks a set of scopes. Bearers are minted, rotated, and revoked; they have no history and no reputation. A bearer answers "is this request allowed?"
+- A **principal** *exists*. It is an identity with a key, a durable DID, and a place in the record log — something a signed verdict can name, something trust evidence can attach to, something a delegation chain can point back to, and something you can end with exactly one record. A principal answers "who is accountable?"
+
+Every principal ends up holding bearers (that is how its requests authenticate), but the reverse is not true: an instance can mint bearers that belong to no principal at all — plain [service accounts](/docs/get-started/service-accounts) — and those still work fine for machine plumbing. The difference shows up the moment identity matters: task verdicts are signed with a principal's key, trust accumulates per principal, and offboarding a principal revokes everything it was ever handed. A bare bearer participates in none of that.
+
+**Membership** is how a person (or later, an organization) becomes a principal on an instance. And membership is not a row in a group table — it is a **grant between principals**, carried as ordinary records.
+
+## The record spine
+
+Redeeming a [membership invite](/docs/tutorials/add-a-teammate) writes four kinds of record. If you are an AI agent reading the log, these are the kinds to fold:
+
+| Kind | What it is |
+|---|---|
+| `core.identity.created.v1` | Identity genesis — the new principal's master key comes into existence. |
+| `core.identity.binding.v1` | The binding from the member's label DID (`did:sync:user:<label>`) to the master DID. This is what lets a human-readable name resolve to a verifying key. |
+| `core.identity.grant.v1` | The membership grant itself: the instance principal grants the member principal a scope set, an `expires_at`, attenuation caveats (`max_depth`, `max_fanout`, `budget`), and a `chain` of ancestor grants. |
+| `core.identity.acceptance.v1` | The custodian-signed acceptance — the counter-signature that makes membership bilateral, not something done *to* the member. |
+
+After the spine, the instance mints a service account and bearer **parented to the grant**, with the credential's `allowed_actors` written from the grant. The credential is downstream of the membership; it inherits the membership's fate.
+
+Ending a membership is one more record: a `core.identity.revoke.v1` naming the grant. See [body kinds](/docs/reference/body-kinds#other-built-in-kinds) for field-level shapes.
+
+## Why a grant, not a group entry
+
+Most systems model membership as an entry in a group: a mutable row that says "alice is in team X". Syncropel models it as a signed grant between principals. Three properties fall out of that choice:
+
+**Revocation is one record.** Because every credential the member holds is *parented* to the membership grant, revoking the grant cascades through the whole credential subtree — bearers, agent sub-grants, all of it. The revoked member's bearer fails on its very next request. There is no checklist of tokens to hunt down, because the parent walk *is* the checklist.
+
+**Attenuation is structural.** A grant carries caveats — `max_depth` (how many delegation hops may exist below it), `max_fanout` (how many direct children it may issue), `budget` (a spend ceiling). Anything derived from a grant can only *narrow* these, never widen them. A member can hand an agent a smaller slice of their own authority; they cannot mint authority they were not given.
+
+**The chain of authority is provable.** Every grant names its `chain` — the ordered list of ancestor grants back to the root — and the ingest door verifies that chain against the record's actual parents before admitting it. "Why does this credential have this power?" is answerable by walking records, not by trusting a database.
+
+There is one more consequence worth naming: **self-judgment is refused by chain, not by string-matching DIDs.** When a task verdict arrives, the kernel resolves both the worker and the evaluator to their principals through the binding and grant records. A derivation alias of the same principal cannot approve its own work, no matter what its DID looks like.
+
+## Custody
+
+Today, custody is **custodial only**: the instance holds the member's master signing key and signs on their behalf. This is the honest state of the implementation — requesting device custody (the member holds their own key) returns `501 Not Implemented` rather than pretending. The tradeoffs of custodial custody, and what it means for you as a member, are laid out in [Joining an instance](/docs/get-started/joining-an-instance). The full enforced-versus-declared inventory is in the [honesty ledger](/docs/reference/honesty-ledger).
+
+## Where this goes
+
+An organization, in this model, is not a new concept — it is the same grammar with a different custody profile: an organizational principal whose key is controlled by a quorum of officers instead of a single custodian, granting memberships exactly as an instance does today. That layer is designed but not shipped; nothing on this page depends on it.
+
+## What's next
+
+- **[Add a teammate](/docs/tutorials/add-a-teammate)** — the full walkthrough: invite, redeem, work, renew, revoke.
+- **[Authorization model](/docs/concepts/authorization-model)** — how grants, scopes, and the other deciders combine on every request.
+- **[Scopes & permissions](/docs/reference/scopes-and-permissions)** — the scope enum, wire grains, caveats, and chain rules.
+- **[Actors](/docs/concepts/actors)** — the identity layer principals build on.

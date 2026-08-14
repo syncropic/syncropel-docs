@@ -1,0 +1,73 @@
+---
+title: Joining an Instance
+description: Someone sent you a membership invite link. What the page will ask, what name to pick, what custodial custody means for you, and where your credential goes.
+---
+
+You've been sent a link that looks like `https://<instance>/i/inv_...`. Someone who runs a Syncropel instance is inviting you to join it as a **member** — not just handing you an access token, but creating an identity for you on their instance: something your reviews are signed with, something trust attaches to, something you can walk away from at any time.
+
+This page is for you, the invitee. The operator's side is the [Add a teammate tutorial](/docs/tutorials/add-a-teammate).
+
+## What the link shows
+
+The invite page displays, before you commit to anything:
+
+- **Who issued the invite** — the instance and the issuing identity.
+- **What you'd be granted** — the scope set (typically read + write access to records) and how long the membership lasts.
+- **When the link expires** — invite links are short-lived (hours to a day); if it has expired, ask for a fresh one.
+
+Nothing happens until you confirm. If the invite has been revoked or already used up, the page says so honestly instead of failing later.
+
+## Choosing your member name
+
+The page asks you to pick a name: lowercase letters, digits, and hyphens, starting with a letter or digit, up to 63 characters. `mora`, `dan-k`, `ops2` are all fine.
+
+The name becomes your DID on this instance — `did:sync:user:<name>` — and it is the handle everything else refers to: the roster, your signed reviews, your accumulated trust, and eventually your offboarding. Pick something you're happy to see in an audit log for years.
+
+If the name is already taken by an existing member, redemption is refused — an invite link alone can never take over someone else's identity. (The one exception is deliberate: an admin can issue an invite *pinned to your name* so you can renew your own membership. If you were told "this link renews your access", that's what's happening.)
+
+## What custodial custody means for you
+
+Today, membership custody is **custodial**: the instance generates and holds your signing key, and signs on your behalf. Stated plainly, that means:
+
+- **The instance operator holds your signing key.** Your identity on this instance is only as trustworthy as the operator running it. This is the honest state of the system — asking for device custody (you hold your own key) is not silently downgraded; it is refused as not-yet-implemented.
+- **Your membership is bilateral.** The acceptance record that creates it is counter-signed, and revocation works in both directions — the operator can offboard you, and **you can revoke your own membership at any time**. You are not locked in.
+- **Everything is on the record.** Your joining, your grant, your reviews, and any revocation are ordinary records on the instance's log — inspectable, not implied.
+
+If that tradeoff is unacceptable for your situation, don't redeem — a membership on someone's instance is a relationship with its operator.
+
+## Where your credential goes
+
+After you confirm, the page shows you a bearer token **once**. This is the credential your tools will authenticate with.
+
+For the CLI:
+
+```bash
+spl token save spl_prod_sa_XXXXXXXX_YYYYYYYYYYYY
+```
+
+That writes `~/.syncro/token` (mode 0600), and every `spl` command targeting the instance sends it automatically. For SDK or HTTP use, pass it as the `Authorization: Bearer` header the way you would any bearer — see [Service accounts and tokens](/docs/get-started/service-accounts) for the discovery precedence (`--token` flag, `SPL_TOKEN` env, saved file).
+
+## "Parented to your membership" — what that means
+
+Your bearer is not a free-floating token. It is **parented to your membership grant**, which has two practical consequences:
+
+1. **The bearer expires on its own schedule** (30 days by default) and can be renewed without touching your membership. The membership grant is the long-lived thing (180 days by default); the bearer is a renewable credential under it.
+2. **When the membership ends — expiry, your own revoke, or the operator's — every credential under it dies with it.** Your bearer gets `401 GRANT_EXPIRED` or `401 GRANT_REVOKED` on its next request. There is no half-offboarded state where the membership is gone but a token still works.
+
+An expired membership is not the end of your identity: an admin issues a renewal invite pinned to your name, you redeem it, and you are the same principal — same DID, same history — with a fresh grant and bearer.
+
+## Your row on the roster
+
+You can see your own membership at any time:
+
+```bash
+spl member list
+```
+
+You'll see exactly one row — your own, with status, scopes, and expiry. That's not an error: the roster is self-scoped, and only admins see other members. The same rule applies to the grant graph — you see grants where you are a party, and nothing else.
+
+## What's next
+
+- **[Add a teammate](/docs/tutorials/add-a-teammate)** — the operator's side of the flow you just completed.
+- **[Principals & grants](/docs/concepts/principals-and-grants)** — the model behind "membership is a grant".
+- **[Service accounts and tokens](/docs/get-started/service-accounts)** — the general credential mechanics.
