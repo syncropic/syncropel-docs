@@ -328,6 +328,8 @@ sqlite3 ~/.syncro/hub.db 'VACUUM;'
 
 `VACUUM` rewrites the database file to its compact form. It is safe with the instance stopped; do not run it against a running instance.
 
+**After upgrading to v0.158+**: the schema migration drops a legacy column (`canonical_json`) that held a verbatim second copy of every record. SQLite reclaims that space lazily as pages are rewritten — the file does not shrink on its own. To reclaim it eagerly, stop the instance and run `VACUUM` once during a maintenance window. Budget roughly 2x the database size in free disk and expect an exclusive lock for the duration (minutes on multi-gigabyte ledgers). On a large ledger the reclaimed space can approach half the file.
+
 ### Archive
 
 ```bash
