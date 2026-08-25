@@ -1,0 +1,72 @@
+---
+title: Account sign-in for your instance
+description: Let people who hold a hosted account come back to your instance by signing in, by declaring which verifier your instance trusts. Hosted instances get this from provisioning; self-hosted instances opt in.
+---
+
+A person who was let into your instance can always come back with a key they
+kept ([Keeping your access](/docs/guides/keeping-your-access)). Account sign-in
+is the convenience on top: a signed-in hosted account can find that person's
+key again on any device, so they never have to carry the line themselves.
+
+Your instance decides whether to accept it, by **declaring a verifier**. No
+declaration, no account proof: the instance lists only `recovery_code` under
+`proof_kinds_accepted` on `GET /health`, and Studio shows nothing
+account-shaped on it. Nothing is on by default.
+
+## What the instance trusts, and what it never sees
+
+The verifier is a service that vouches for who a signed-in person is. It signs
+a short assertion (two minutes) naming a **subject**, the principal, your
+instance's DID, and an expiry. Your instance checks the signature against the
+public key it declared, checks that the principal has bound that subject, and
+only then mints a credential under the person's **existing** grant.
+
+The subject is a per-instance hash: `sha256(instance DID, newline, the
+account's stable id)`. Your instance never sees the account provider, an email,
+or an account id, and two instances cannot join their lists on it, because the
+salt (your DID) differs.
+
+Revoking the declaration withdraws the proof everywhere on your instance at
+once; every person's kept key keeps working, because the key is a different
+proof.
+
+## Hosted instances
+
+Instances provisioned on `syncropel.app` declare the provisioning service's
+verifier automatically at boot (the value arrives with the machine's
+environment as `SPL_ACCOUNT_VERIFIER`). Instances provisioned before the
+verifier existed receive it when the operator adds that environment value; the
+next boot writes the declaration and `GET /health` lists `account`.
+
+## Self-hosted instances
+
+You choose. To accept the hosted verifier, set the same environment value on
+your daemon before it starts:
+
+```bash
+export SPL_ACCOUNT_VERIFIER="<value published for the hosted verifier>"
+spl serve --daemon
+```
+
+To accept your own verifier instead (for example, your organisation's sign-in
+service signing the same assertion shape), publish its Ed25519 public key the
+same way: the value is base64 of
+`{"subject_rule":"sha256(instance_did\naccount_subject)","verifier_id":"<your id>","verifier_pubkey":"ed25519:<64 hex>"}`
+with keys in alphabetical order and no whitespace. Your verifier must compute
+the subject with exactly that rule, or every proof fails, constant-shape.
+
+To stop accepting account proofs, remove the value and restart, or write a
+superseding declaration with `"revoked": true` for the same `verifier_id`.
+
+## Checking it
+
+```bash
+curl -s https://<your-instance>/health | jq .proof_kinds_accepted
+# ["recovery_code"]             nothing declared
+# ["recovery_code","account"]   a live declaration
+```
+
+The doors a client uses are documented under [Self](/docs/reference/api#self):
+binding an account subject is `POST /v1/self/bindings` with `kind: account`,
+and coming back is `POST /v1/recredential` with `kind: account` and the
+verifier's assertion as `evidence`.
