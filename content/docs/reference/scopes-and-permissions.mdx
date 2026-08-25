@@ -74,6 +74,17 @@ For grant-parented credentials, every authenticated request consults grant liven
 | POST | `/v1/members/adopt` | `admin` | Adopt an existing actor (or a service account's holder, with `sa_id`) as a principal. |
 | DELETE | `/v1/members/{label}` | `records:write` | Revoke a membership + cascade every credential parented to its grant. **Bilateral gate**: the caller must be an admin *or the member being revoked* — a member may always end their own membership, and no third member can end someone else's. Optional JSON body `{"note": "..."}` rides the revocation record. Idempotent. |
 
+## Self routes
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/v1/self` | none (credential required) | Answers about the calling credential's own principal, so it needs a live bearer but no scope; a guest bearer with an empty scope set reaches it. |
+| POST, GET | `/v1/self/bindings` | none (credential required) | Bind or list the caller's own re-credential proofs. |
+| DELETE | `/v1/self/bindings/{id}` | none (credential required) | Remove one of the caller's own bindings. |
+| GET | `/v1/self/credentials` | none (credential required) | Every live bearer opening this instance as the caller. |
+| DELETE | `/v1/self/credentials/{bearer_id}` | none (credential required) | Revoke one of the caller's own bearers; the grant is untouched. |
+| POST | `/v1/recredential` | **exempt** (no bearer) | The proof in the body is the credential. Constant-shape `401 RECREDENTIAL_REFUSED`; rate limited per named principal and per IP before any hashing. |
+
 Membership invites are issued through the existing invite surface — `POST /v1/invites` with a `membership` envelope; see the [API reference](/docs/reference/api#pair-share-invite).
 
 ## Visibility policy: roster and grant fold

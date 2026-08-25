@@ -6,17 +6,17 @@ description: How to add a phone or a colleague to a Syncropel instance — issue
 ## What this is
 
 <Callout type="info" title="This flow is CLI-first today">
-Invites are issued and managed with `spl invite` (or the `/v1/invites/*` API). The invite **redemption** page — what the recipient opens — is a built-in browser page on your instance. A Studio settings panel for issuing and managing invites ships later; the steps below use the CLI.
+Invites are issued and managed with `spl invite` (or the `/v1/invites/*` API). The invite **redemption** page — what the recipient opens — is a built-in browser page on your instance. Studio's **+ add a connection** pane manages what a person holds (connections, keys, devices), and members with a mint grant make guest links from a thread; issuing invites in bulk is still the CLI. The steps below use the CLI.
 </Callout>
 
 `spl serve` gives you a built-in flow for adding either of two things to a running instance:
 
-1. **A new device of yours** — a phone, a tablet, a fresh laptop. It joins as a _guest holder_ — Syncropel mints a fresh service account + bearer for the device, the device stores the credential in browser IDB, and you can sign in from it anywhere.
+1. **A new device of yours** — a phone, a tablet, a fresh laptop. It joins as a _guest holder_ — Syncropel mints a **principal** (a custodial anchor, the guest DID kept as its label) under a guest-classed grant, and a bearer parented to that grant for the device; the device stores the credential in browser IDB. Revoking the grant ends the bearer, and the guest can [keep a key](/docs/guides/keeping-your-access) to come back on another device.
 2. **A federated colleague** — someone who's already paired with their _own_ instance and wants access to yours. They join as a _federated holder_ — Syncropel verifies a cryptographic attestation signed by their home instance, then mints an instance-bound bearer scoped to whatever you granted.
 
 Both flows share one primitive: `core.invite.v1`. A single body kind, one record on the instance's `th_invites` thread, one signed URL, two redeem paths. This guide is operator-facing.
 
-There is a third invite shape not covered here: the **membership invite** (`spl invite create --member`), whose redemption mints a full principal — an identity your teammate's reviews are signed with — rather than a device credential. See [Add a teammate](/docs/tutorials/add-a-teammate).
+There is a third invite shape not covered here: the **membership invite** (`spl invite create --member`), whose redemption mints a member principal on the roster — an identity your teammate's reviews are signed with — with scopes for the whole instance rather than one thread. See [Add a teammate](/docs/tutorials/add-a-teammate).
 
 ## Who this is for
 

@@ -1,0 +1,90 @@
+---
+title: Keeping your access
+description: Make a key to a place you were let into, use it on any device, and see every device that can open the place as you.
+---
+
+When somebody lets you into an instance, the credential lives in the browser
+you accepted it in. Lose that browser, or open a new phone, and you used to
+have to ask the host for a fresh link. Now you can keep a key yourself.
+
+A key is **to a door**, never "your account": two nights on one instance are
+two keys, on purpose. The instance stores only a hash of it; nobody but you
+ever sees the key again.
+
+## Make a key
+
+Open any thread you can read. Under **what this is**, members and guests see
+**keep this access**. Press **make a key** and Studio shows one line, once:
+
+```
+KRMRW-PEERZ-RHMSW-AH8Y9-1V9S7-K@btw.syncropel.com/did:sync:user:guest:aa72e25c…
+```
+
+Three parts, left to right: the key (26 letters and digits, grouped in fives so
+it reads aloud), the place, and who the key re-opens the place as. Copy it
+somewhere you will find again. It is not a link; pasting it into a browser's
+address bar does nothing.
+
+The floor is stated beside it and is not softened: lose the key **and** this
+browser, and whoever let you in has to let you in again.
+
+## Get back in on any device
+
+Open Studio on the new device, press **+ add a connection**, and paste the
+whole line into the field. Studio recognises it and offers **open with this
+key**. You land in the place as the same person, with the same threads.
+
+The key you pasted is spent by using it. Before you land, Studio shows you a
+**new key**, once. Keep that one; the old one no longer opens anything.
+
+Typing is forgiving: case does not matter, spaces and hyphens are ignored, and
+a photographed `O` or `I` is read as `0` or `1`.
+
+## Turn the key
+
+On a thread where you already kept a key, **keep this access** says so and
+offers **make a new one**. It asks for the current key first (paste the bare
+code or the whole line), then shows the replacement once. The old key stops
+working. Nobody holding a stolen browser can quietly replace your key, because
+they do not have the current one.
+
+## Your keys, and every device that can open this as you
+
+Under **+ add a connection**, when you are reading a place, two lists appear:
+
+- **your keys to this** lists the keys bound to you here. **remove** deletes
+  one; you can make another from any thread.
+- **keys in the wild** lists every device that can open this place as you,
+  with the one you are on marked. If one is not yours, **revoke** it. The
+  others keep working, and your standing in the place is untouched; only that
+  device is out.
+
+## What the instance refuses
+
+The door that turns a key into a credential answers every wrong attempt the
+same way, in the same time, whether the person named does not exist, has no
+key, or typed the wrong one. Studio shows that refusal in the door's own words
+and adds no diagnosis of its own. Attempts are rate limited: three in a burst,
+then one every five seconds, per person named and per network address.
+
+## What is coming
+
+The recovery key is the floor: no vendor, no account, works for a party guest.
+Two more ways to come back are being built on the same doors:
+
+- **link to your account**: when the instance accepts it, a signed-in hosted
+  account can find your key again on any device ("shared with you" under
+  connections). Hosted instances get this when the operator turns it on;
+  a self-hosted instance accepts it only if its operator declares a verifier.
+- **a passkey**: your phone or laptop keeps it for you and your platform
+  carries it between your devices. A passkey made on one kind of phone does
+  not travel to every laptop, so keep a code as well.
+
+Studio shows each of these only on instances that accept them.
+
+## For operators
+
+Nothing to configure for the recovery key; every instance on a current
+version accepts it. `GET /health` lists what an instance accepts under
+`proof_kinds_accepted`. The doors behind this page are in the
+[API reference](/docs/reference/api#self).

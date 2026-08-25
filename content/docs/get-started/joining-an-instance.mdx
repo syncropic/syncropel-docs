@@ -54,7 +54,7 @@ Your bearer is not a free-floating token. It is **parented to your membership gr
 1. **The bearer expires on its own schedule** (30 days by default) and can be renewed without touching your membership. The membership grant is the long-lived thing (180 days by default); the bearer is a renewable credential under it.
 2. **When the membership ends — expiry, your own revoke, or the operator's — every credential under it dies with it.** Your bearer gets `401 GRANT_EXPIRED` or `401 GRANT_REVOKED` on its next request. There is no half-offboarded state where the membership is gone but a token still works.
 
-An expired membership is not the end of your identity: an admin issues a renewal invite pinned to your name, you redeem it, and you are the same principal — same DID, same history — with a fresh grant and bearer.
+A new device is not the end of your access either: open any thread, press **keep this access**, and the key it shows re-opens the place as you from any browser (see [Keeping your access](/docs/guides/keeping-your-access)). An expired membership is not the end of your identity: an admin issues a renewal invite pinned to your name, you redeem it, and you are the same principal — same DID, same history — with a fresh grant and bearer.
 
 ## Your row on the roster
 

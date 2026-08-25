@@ -98,7 +98,7 @@ Six months later the membership grant expires. Mora's next request gets:
 401 GRANT_EXPIRED
 ```
 
-Renewal is a fresh invite **pinned to her label** — only an admin can issue it:
+Renewal is for an **expired** grant. While her grant is live she never needs you to get back in: on any thread, **keep this access** makes her a key, and pasting it into Studio on a new device re-credentials her under the same grant (see [Keeping your access](/docs/guides/keeping-your-access)). Renewal proper is a fresh invite **pinned to her label** — only an admin can issue it:
 
 ```bash
 spl invite create --member --label mora

@@ -41,6 +41,7 @@ Exempt routes (unauthenticated even when auth is enforced):
 - `GET /health`
 - `POST /v1/bootstrap/service-account` (one-shot per namespace)
 - `GET /.well-known/syncropel`
+- `POST /v1/recredential` (the proof in the body is the credential; constant-shape refusal, rate limited; see [Self](#self))
 
 For the full model — scopes, token format, rotation, federation composition — see the [Authentication & Service Accounts guide](/docs/operate/keyring). Endpoints for managing service accounts and tokens are documented in the [Service accounts](#service-accounts) section below.
 
@@ -48,7 +49,7 @@ For the full model — scopes, token format, rotation, federation composition �
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health` | Health check — returns `{"status": "ok"}` |
+| GET | `/health` | Health check — returns `{"status": "ok", "version", "instance_did", "proof_kinds_accepted"}`. `proof_kinds_accepted` lists which re-credential proofs this instance takes (`recovery_code`, and `account` or `passkey` once declared), so a client can tell before authenticating. |
 
 ## Records
 
@@ -689,6 +690,31 @@ This endpoint requires a valid bearer token. Since **v0.53** the response also r
 
 The anonymous form of this block — `is_authenticated: false`, `scopes: []` — is what an unauthenticated caller sees inside the [bootstrap aggregate](#instance) below.
 
+## Self
+
+The doors behind [Keeping your access](/docs/guides/keeping-your-access). All `/v1/self*` routes are **scope-exempt and credential-required**: any live bearer reaches them, including a guest bearer with an empty scope set, because they answer about the credential's own principal and nothing else.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/v1/self` | Who this credential is: label, standing, `bindings` (`{recovery_code, passkey, account}` as booleans) and `proof_kinds_accepted` |
+| POST | `/v1/self/bindings` | Bind a proof to the caller's own principal. Body `{"kind": "recovery_code"}` answers `{code_id, principal, kind, secret}`; the secret is 26 Crockford base32 characters, shown once, stored only as a hash. A second binding of the same kind is a rotation and needs `rotation_proof` (the current code); without it the door answers `409 ROTATION_REQUIRES_PROOF`. `{"kind": "account", "material": {"subject"}}` binds a hosted-account subject once the instance declares a verifier. |
+| GET | `/v1/self/bindings` | The caller's live bindings: `{data: [{id, kind, created_at}]}`, never the material |
+| DELETE | `/v1/self/bindings/{id}` | Remove one of the caller's own bindings |
+| GET | `/v1/self/credentials` | Every live bearer that opens this instance as the caller: `{data: [{bearer_id, sa_id, expires_at, last_used_at, via, current}]}` |
+| DELETE | `/v1/self/credentials/{bearer_id}` | Revoke one bearer. It fails its next request with `401`; the caller's other bearers and the grant are untouched. Not-yours and not-exists answer the same `404 CREDENTIAL_NOT_FOUND`. |
+
+### Re-credential
+
+```bash
+curl -X POST https://alice.syncropel.app/v1/recredential \
+  -H "Content-Type: application/json" \
+  -d '{"principal": "did:sync:user:guest:aa72…", "proof": {"kind": "recovery_code", "evidence": "KRMRWPEERZRHMSWAH8Y91V9S7K"}}'
+```
+
+No bearer: the proof is the credential. On success: `{token, principal, expires_at, label, sa_id, scopes, rebind_required}`. The new bearer is parented to the principal's **existing** live grant; nothing is renewed, revoked, or cascaded, so the person's other devices keep working. A recovery code is single-use: `rebind_required: true` tells the client to bind a fresh one at `POST /v1/self/bindings` with the new bearer. `account` proofs are reusable and answer `rebind_required: false`.
+
+Refusals are constant-shape by contract. `401 RECREDENTIAL_REFUSED` is the one answer for a principal that does not exist, has no binding, or presented a wrong proof; only after a proof verifies can `409 NO_LIVE_GRANT` say that nothing here is granted to that principal any more. `429 RATE_LIMITED` (burst of 3, then one every 5 seconds, keyed per supplied principal string and proof kind, and per IP) is answered before any hashing work. Clients render the message verbatim and add no diagnosis, or they become the oracle the door refuses to be.
+
 ## Instance
 
 Endpoints that resolve an instance's **chrome** — the `core.instance.shell.v1` record that frames every screen of Studio. See [Instance chrome](/docs/concepts/instance-chrome) for the concept.
@@ -1035,6 +1061,8 @@ Returns folded state: `revoked`, `expired`, `uses_remaining`, `accept_holder_typ
 
 ### Redeem — guest holder
 
+A guest redemption mints a **principal**, not just a credential: a custodial anchor, the guest DID kept as a label, and a guest-classed grant that the bearer is parented to. Revoking that grant fails the bearer on its next request (`401 GRANT_REVOKED`), and the guest can [keep a key](/docs/guides/keeping-your-access) to come back on another device. The response gains `guest_principal: {guest_did, master_did, grant_id}`.
+
 ```bash
 curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
   -H "Content-Type: application/json" \
@@ -1116,6 +1144,11 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 | `403` | `ROTATE_NOT_SELF` | Rotation attempted by a bearer different from the path's `token_id` |
 | `409` | `MEMBER_LABEL_TAKEN` | Membership redeem against a label that already belongs to a member, from an invite not pinned to that label (the takeover guard) |
 | `501` | — | Membership redeem with `custody: "device"` — custodial custody is the only implemented mode |
+| `401` | `RECREDENTIAL_REFUSED` | The one constant-shape refusal of `POST /v1/recredential`: unknown principal, no binding, or wrong proof, indistinguishably |
+| `409` | `NO_LIVE_GRANT` | A proof verified, but nothing is granted to that principal any more; no bearer that reads nothing is minted |
+| `409` | `ROTATION_REQUIRES_PROOF` | A binding of that kind already exists; rotating it needs the current proof |
+| `429` | `RATE_LIMITED` | Re-credential attempts exceeded the burst (3) and refill (one per 5 s) for that principal string or address |
+| `404` | `CREDENTIAL_NOT_FOUND` | `DELETE /v1/self/credentials/{bearer_id}`: not yours and does not exist answer alike |
 
 ## Members
 

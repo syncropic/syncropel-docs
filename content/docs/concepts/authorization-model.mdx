@@ -74,7 +74,7 @@ The response's `authorization` block reports `live` (how many deciders govern), 
 }
 ```
 
-The shape to rely on: every decider always appears (including the ones with no switch at all); a `disabled` decider names the `switch` responsible, a `because`, and what it `defer_to`s; a live-but-bounded decider states its `coverage`; and `fidelity` distinguishes an exact check from a conservative or advisory one. (This is `GET /v1/health` with a bearer — the anonymous `/health` liveness probe deliberately carries no authorization block, because "which layers are off" is the most reconnaissance-valuable sentence the daemon could emit.)
+The shape to rely on: every decider always appears (including the ones with no switch at all); a `disabled` decider names the `switch` responsible, a `because`, and what it `defer_to`s; a live-but-bounded decider states its `coverage`; and `fidelity` distinguishes an exact check from a conservative or advisory one. (This is `GET /v1/health` with a bearer — the anonymous `/health` liveness probe deliberately carries no authorization block, because "which layers are off" is the most reconnaissance-valuable sentence the daemon could emit. The one policy fact the anonymous probe does carry is `proof_kinds_accepted`, which re-credential proofs this instance takes, because a client needs it before it can authenticate at all.)
 
 ## Where verdict signing fits
 
