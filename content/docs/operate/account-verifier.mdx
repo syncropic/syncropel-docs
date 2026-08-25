@@ -58,12 +58,26 @@ the subject with exactly that rule, or every proof fails, constant-shape.
 To stop accepting account proofs, remove the value and restart, or write a
 superseding declaration with `"revoked": true` for the same `verifier_id`.
 
+## Passkeys: declaring the relying party
+
+A passkey is bound to a relying party (a domain) and the browser refuses to
+use it anywhere else. Your instance declares which one it accepts the same way
+it declares the verifier, with `SPL_PASSKEY_RP`: base64 of
+`{"origins":["https://studio.syncropel.com","https://syncropel.com"],"rp_id":"syncropel.com"}`
+(keys alphabetical, no whitespace). Hosted instances receive the hosted
+Studio's relying party from provisioning; the relying party is the apex
+domain so passkeys keep working if Studio's address changes. A self-hosted
+instance that serves Studio from its own host declares its own host and
+origins. No declaration, no passkey: `proof_kinds_accepted` omits it and Studio
+does not offer one.
+
 ## Checking it
 
 ```bash
 curl -s https://<your-instance>/health | jq .proof_kinds_accepted
 # ["recovery_code"]             nothing declared
-# ["recovery_code","account"]   a live declaration
+# ["recovery_code","account"]   a live verifier declaration
+# ["recovery_code","account","passkey"]   and a relying party too
 ```
 
 The doors a client uses are documented under [Self](/docs/reference/api#self):

@@ -49,7 +49,7 @@ For the full model — scopes, token format, rotation, federation composition �
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health` | Health check — returns `{"status": "ok", "version", "instance_did", "proof_kinds_accepted"}`. `proof_kinds_accepted` lists which re-credential proofs this instance takes (`recovery_code`, and `account` or `passkey` once declared), so a client can tell before authenticating. |
+| GET | `/health` | Health check — returns `{"status": "ok", "version", "instance_did", "proof_kinds_accepted"}`. `proof_kinds_accepted` lists which re-credential proofs this instance takes (`recovery_code`, and `account` or `passkey` once declared), and `passkey_rp: {rp_id}` names the relying party when one is declared, so a client can tell before authenticating. |
 
 ## Records
 
@@ -701,9 +701,12 @@ The doors behind [Keeping your access](/docs/guides/keeping-your-access). All `/
 | GET | `/v1/self/bindings` | The caller's live bindings: `{data: [{id, kind, created_at}]}`, never the material |
 | DELETE | `/v1/self/bindings/{id}` | Remove one of the caller's own bindings |
 | GET | `/v1/self/credentials` | Every live bearer that opens this instance as the caller: `{data: [{bearer_id, sa_id, expires_at, last_used_at, via, current}]}` |
+| POST | `/v1/self/bindings/challenge` | `{"kind": "passkey"}` answers the registration challenge: `{challenge, rp: {id, name}, user: {id, name, display_name}, expires_at}`; the browser's registration (attestation `none`, discoverable credential, no extensions) is then bound with `{"kind": "passkey", "material": {credential_id, client_data_json, attestation_object, transports?}}`. A second passkey needs `rotation_proof` (the current recovery code, or a passkey assertion over a Door 1 challenge). |
 | DELETE | `/v1/self/credentials/{bearer_id}` | Revoke one bearer. It fails its next request with `401`; the caller's other bearers and the grant are untouched. Not-yours and not-exists answer the same `404 CREDENTIAL_NOT_FOUND`. |
 
 ### Re-credential
+
+For a passkey, first `POST /v1/recredential/challenge` with `{principal, kind: "passkey"}` (no bearer): it answers `{challenge, rp_id, expires_at}` in the same shape for every principal string, `409 PASSKEY_NOT_ACCEPTED` when the instance declares no relying party, and `503 LEASE_HELD_ELSEWHERE` on a follower; then the assertion goes in `evidence` as `{credential_id, client_data_json, authenticator_data, signature, user_handle?}`.
 
 ```bash
 curl -X POST https://alice.syncropel.app/v1/recredential \
@@ -711,7 +714,7 @@ curl -X POST https://alice.syncropel.app/v1/recredential \
   -d '{"principal": "did:sync:user:guest:aa72…", "proof": {"kind": "recovery_code", "evidence": "KRMRWPEERZRHMSWAH8Y91V9S7K"}}'
 ```
 
-No bearer: the proof is the credential. On success: `{token, principal, expires_at, label, sa_id, scopes, rebind_required}`. The new bearer is parented to the principal's **existing** live grant; nothing is renewed, revoked, or cascaded, so the person's other devices keep working. A recovery code is single-use: `rebind_required: true` tells the client to bind a fresh one at `POST /v1/self/bindings` with the new bearer. `account` proofs are reusable and answer `rebind_required: false`.
+No bearer: the proof is the credential. On success: `{token, principal, expires_at, label, sa_id, scopes, rebind_required}`. The new bearer is parented to the principal's **existing** live grant; nothing is renewed, revoked, or cascaded, so the person's other devices keep working. A recovery code is single-use: `rebind_required: true` tells the client to bind a fresh one at `POST /v1/self/bindings` with the new bearer. `account` and `passkey` proofs are reusable and answer `rebind_required: false`. A passkey whose sign count goes backwards is refused constant-shape.
 
 Refusals are constant-shape by contract. `401 RECREDENTIAL_REFUSED` is the one answer for a principal that does not exist, has no binding, or presented a wrong proof; only after a proof verifies can `409 NO_LIVE_GRANT` say that nothing here is granted to that principal any more. `429 RATE_LIMITED` (burst of 3, then one every 5 seconds, keyed per supplied principal string and proof kind, and per IP) is answered before any hashing work. Clients render the message verbatim and add no diagnosis, or they become the oracle the door refuses to be.
 
@@ -1148,6 +1151,7 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 | `409` | `NO_LIVE_GRANT` | A proof verified, but nothing is granted to that principal any more; no bearer that reads nothing is minted |
 | `409` | `ROTATION_REQUIRES_PROOF` | A binding of that kind already exists; rotating it needs the current proof |
 | `429` | `RATE_LIMITED` | Re-credential attempts exceeded the burst (3) and refill (one per 5 s) for that principal string or address |
+| `409` | `PASSKEY_NOT_ACCEPTED` | The instance declares no relying party, so it takes no passkey |
 | `404` | `CREDENTIAL_NOT_FOUND` | `DELETE /v1/self/credentials/{bearer_id}`: not yours and does not exist answer alike |
 
 ## Members

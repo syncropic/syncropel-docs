@@ -67,20 +67,38 @@ key, or typed the wrong one. Studio shows that refusal in the door's own words
 and adds no diagnosis of its own. Attempts are rate limited: three in a burst,
 then one every five seconds, per person named and per network address.
 
-## What is coming
+## Two more ways back, where the instance accepts them
 
 The recovery key is the floor: no vendor, no account, works for a party guest.
-Two more ways to come back are being built on the same doors:
+Two more ways to come back ride the same doors, and Studio shows each only on
+instances that accept it (`proof_kinds_accepted` on the instance's `/health`).
 
-- **link to your account**: when the instance accepts it, a signed-in hosted
-  account can find your key again on any device ("shared with you" under
-  connections). Hosted instances get this when the operator turns it on;
-  a self-hosted instance accepts it only if its operator declares a verifier.
-- **a passkey**: your phone or laptop keeps it for you and your platform
-  carries it between your devices. A passkey made on one kind of phone does
-  not travel to every laptop, so keep a code as well.
+### Link to your account
 
-Studio shows each of these only on instances that accept them.
+Signed in to a hosted account, **keep this access** also offers **link to your
+account**. Press it and your account can find this key again on any device:
+under **+ add a connection**, **shared with you** lists the places your
+account knows, and **open as you** re-opens one without a line to paste. The
+account is a way to find the key, never the key itself: the instance sees a
+salted hash, not who you are to the account provider.
+
+Hosted instances get this when the operator turns it on; a self-hosted
+instance accepts it only if its operator declares a verifier
+([operators](/docs/operate/account-verifier)). Signing out on a shared device
+clears what that device held and leaves your account's list untouched.
+
+### Use a passkey
+
+Where the instance declares a relying party, **keep this access** offers
+**use a passkey**. One gesture registers a passkey that your phone or laptop
+keeps for you and your platform carries between your devices. On another
+device, paste a kept line into **+ add a connection** and choose **use a
+passkey instead**: the line only names the place and who you are there, its
+code is never sent, and the passkey signs the instance's challenge.
+
+A passkey is the safest key here. It is still one key to one door, and a
+passkey made on one kind of phone does not travel to every laptop, so keep a
+code as well; Studio says so when a passkey is the only key you hold.
 
 ## For operators
 
