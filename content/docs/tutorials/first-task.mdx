@@ -17,6 +17,16 @@ spl task add "Add input validation to the signup form" \
 
 The output shows a thread ID and an alias (like `TASK-0001`) that you can use as a shorthand.
 
+A task can be born with its relations, and they are written as real edges rather than prose:
+
+```bash
+spl task add "Validate the phone field too" --alias TASK-0002 \
+  --parent TASK-0001 \
+  --depends-on TASK-0001
+```
+
+`--parent` names the task this one is a child of, `--fixes` names a defect thread this one fixes, and `--depends-on` blocks this task until the named ones are approved. Each accepts an alias, a thread id or a record id, and each becomes a `parents` edge on the new task's first record (also listed under `body.relations`), so the thread graph sees the relation. Every reference is resolved before anything is written: an alias that does not exist, or a thread you cannot read, refuses the whole command with exit code 2 and nothing lands.
+
 ## View your tasks
 
 ```bash
@@ -57,6 +67,14 @@ spl task approve TASK-0001 --domain code --notes "Validation logic verified, tes
 ```
 
 Status changes to `approved`. This creates a trust observation — evidence that the work was completed successfully in the `code` domain.
+
+If the work shipped in a release, say which one and the verdict is parented to that release's record:
+
+```bash
+spl task approve TASK-0001 --domain code --grade 0.9 --in-release v0.197.0
+```
+
+`--in-release` also works on `spl task done`. A version with no release record in the store refuses with exit code 2 and writes nothing. `--grade` (0 to 1) carries a quality judgment beside the verdict; a plain accept teaches the trust fold almost nothing.
 
 ## See trust grow
 

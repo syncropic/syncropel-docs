@@ -1,0 +1,132 @@
+---
+title: The sandboxed transport
+description: Run every work loop in a separate isolated process instead of inside the daemon. How to turn it on and off, what the kernel judges per tool call, the admission ceiling, what changes on your machine, and how to verify it on your instance.
+---
+
+Requires 0.197.1 or later.
+
+## What it is
+
+A work loop, the thing that runs when an actor is given a goal and tools, can run in one of two places.
+
+- `in_process` is the default: inside the daemon, sharing its memory with the provider credential, the operator's bearer and the store.
+- `sandboxed` runs it as a separate process with no network access, no view of the instance's home directory, a restricted set of system calls, limits on memory, processes, files and CPU time, one short-lived credential handed to it on standard input, and five reachable doors on a local socket. Everything else answers 404.
+
+The daemon checks each isolation layer before the run is allowed to begin. A run it cannot isolate is refused rather than started, and it never receives a credential.
+
+The transport works on hosted instances and on your own machine alike. On a hosted instance the daemon runs each worker as a separate unprivileged user.
+
+## Turning it on, and off again
+
+Both directions are one config record on `th_engine_config`, live for the next run to start. There is no restart and no release in either direction, which is the point: a transport problem in production has to be one write away from off.
+
+```bash
+# On
+spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
+  --body '{"kind":"core.engine.config.v1","topic":"work_loop_transport","transport":"sandboxed"}'
+
+# Off (the rollback)
+spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
+  --body '{"kind":"core.engine.config.v1","topic":"work_loop_transport","transport":"in_process"}'
+```
+
+Check what the running service took, not only what was written:
+
+```bash
+curl -s -H "Authorization: Bearer $ADMIN" localhost:9100/v1/engine/health | jq .work_loop
+```
+
+```json
+{ "transport": "sandboxed", "admission_capacity": 16, "admission_available": 16 }
+```
+
+The setting is per instance and applies to every run that starts on it. An unrecognised value reads as `in_process`: a typo can neither move runs into a transport nobody asked for nor take the instance's loops down.
+
+Runs already in flight keep the transport they started under. Flipping the value stops new sandboxed runs; it does not reach into one already running. To stop that one:
+
+```bash
+# Cooperative, at the next turn boundary; lands as a cancelled outcome.
+curl -s -X POST -H "Authorization: Bearer $ADMIN" localhost:9100/v1/work/loop/$THREAD/cancel
+```
+
+## Every tool call is judged by the kernel
+
+A sandboxed worker holds no permission rules. Before it runs any tool it proposes the call to the kernel, which evaluates the same guard the in-process loop would have used, over the live rules, and writes its judgment as a `core.work.tool_verdict.v1` record before answering. Three layers answer in order:
+
+| layer | meaning | what to change |
+|---|---|---|
+| `grant` | the tool is not in this run's reach | the caller's tool grant, or the tier |
+| `clamp` | the loop contract's hard `forbidden_tools` | the run's own request |
+| `rule` | a live permission rule denied it | `spl config add-permission-rule` |
+| `allow` | nothing objected | nothing |
+
+Because the rules are read per call, a rule written while a run is going is honoured by that run's next tool call, with no restart:
+
+```bash
+spl config add-permission-rule --name stop-that --action deny --priority 100 \
+  --expression 'resource == "tool:bash"'
+```
+
+The verdict is authored by the kernel, and so is the run's outcome. The run credential cannot write either kind, so a run cannot declare that it was allowed to act or that it succeeded. The outcome's `success` is also checked against what the tools did: a run whose every call failed is not a success whatever its final answer says, and the outcome carries `tool_calls_ok` and `tool_calls_failed` so a reader has the evidence beside the verdict.
+
+To read what a run was allowed to do, walk its thread:
+
+```bash
+spl thread records $THREAD -o json | jq -r '
+  .data[] | select(.body.kind | test("tool_(call|verdict|result)")) |
+  "\(.sequence) \(.body.kind) \(.body.tool // .body.fulfills) \(.body.decision // .body.status // "")"'
+```
+
+## The admission ceiling
+
+The daemon admits a bounded number of concurrent sandboxed runs, derived from machine memory (one run per 512 MiB, at most 16). The slot is taken before a worker is started, so a saturated instance never starts a process it then has to refuse. A start past the ceiling answers HTTP 503 with the code `ADMISSION_CEILING` and the same two numbers that `/v1/engine/health` reports as `admission_capacity` and `admission_available`.
+
+## What changes on your machine
+
+- **A second socket.** The daemon binds `~/.syncro/run/spl-worker.sock` beside the operator socket. The operator socket still grants same-user trust; the worker socket requires a bearer on every request.
+- **The daemon's process is protected.** A same-user shell cannot read the daemon's memory or environment. `readlink /proc/<pid>/exe` needs `sudo`, and the daemon produces no core dump. This is the hardening working.
+- **Workers are found from the log, not from the process table.** The daemon logs each worker's process id when it starts it. Do not use `pgrep -f 'spl loop-worker'`; it matches the shell that issued it.
+
+```bash
+journalctl --user -u spl-serve -n 200 | grep 'running sandboxed'
+```
+
+- **Upgrades are stop, install, start.** A worker is started from the daemon's own binary, so replacing the binary under a running daemon does not change already-running workers, and a live copy over the running binary is refused (`Text file busy`). See [In-place upgrades](./runbook#in-place-upgrades).
+
+## Verify it on your instance
+
+Turn the transport on as above, then start one small run through the work loop door and watch it finish. The goal records a note and stops; the instance's built-in file tools are excluded so the run stays inside what a worker can serve.
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $ADMIN" -H 'content-type: application/json' \
+  localhost:9100/v1/work/loop \
+  -d '{"goal":"Record a note whose text is exactly: transport-check . Use the record_note tool with only the text argument. Then stop.",
+       "max_turns":3,"budget_usd":0.05,
+       "forbidden_tools":["read_file","write_file","list_dir","search"]}'
+```
+
+The response carries the run's `thread`. Poll it until it is finished:
+
+```bash
+curl -s -H "Authorization: Bearer $ADMIN" localhost:9100/v1/runs/$THREAD | jq .state
+# "done"
+```
+
+Then read the outcome record on the thread and check three things: `transport` is `sandboxed`, `tool_calls_ok` is at least 1, and the note is there.
+
+```bash
+spl thread records $THREAD -o json | jq '.data[] | select(.body.kind == "core.work.loop_outcome.v1" or .body.kind == "core.work.note.v1") | .body'
+```
+
+If the outcome says `stopped_short` and its summary names the worker socket or the inference relay, the instance is on a version before 0.197.1.
+
+## What is on by default
+
+The default transport is `in_process`. You turn `sandboxed` on per instance, and it then applies to every run on that instance. The instance's built-in file tools cannot yet be served to a sandboxed run, so a run whose reach includes them is refused rather than silently narrowed; exclude `read_file`, `write_file`, `list_dir` and `search` in the run's `forbidden_tools`, as the example above does.
+
+Host tools (`bash` and the filesystem set) run on the operator's own machine only, where the operator is already the trust boundary.
+
+## See also
+
+- [Security model](./security-model) for protection domains and the credential ordering
+- [Operator runbook](./runbook) for the upgrade sequence

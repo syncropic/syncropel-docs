@@ -2,6 +2,26 @@
 
 All notable additions and revisions to docs.syncropel.com are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-08-29: The sandboxed transport and the task graph
+
+- **[The sandboxed transport](/docs/operate/sandboxed-transport)**: new
+  operate page: what a sandboxed work loop is, how to turn it on and off with
+  one config record, the per-call kernel verdict and its layers, the
+  admission ceiling, what changes on the machine, hosted instances, and how
+  to verify it on your instance.
+- **[Security model](/docs/operate/security-model)**: protection domains,
+  the credential ordering, the three things a run cannot say about itself,
+  declared tools bounding a defined actor; three rows in the threat table.
+- **[Operator runbook](/docs/operate/runbook)**: the service-manager
+  upgrade sequence, why a live copy is refused, the protected daemon
+  process and `sudo -n readlink`, the transport rollback.
+- **[Your first task](/docs/tutorials/first-task)**: `--parent`, `--fixes`
+  and `--depends-on` write real edges; `--in-release` on done and approve;
+  an unresolvable reference refuses with exit 2 and writes nothing.
+- **[API reference](/docs/reference/api)** and **[Query guide](/docs/guides/query)**
+: `limit` is clamped to 1000, `capped` is the only truthful partial-page
+  signal, and `matched_total` must not be compared with the rows received.
+
 ## 2026-05-21 — Files in your instance (the in-Studio editor)
 
 - **[Working with files in your instance](/docs/guides/files-in-studio)** —

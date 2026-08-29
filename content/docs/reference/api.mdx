@@ -147,9 +147,11 @@ Request body:
 | `thread` | string | — | Optional thread scope. Shorthand for adding `{"thread": "..."}` to the filter; lets the backend use the thread index |
 | `filter` | object | `{}` | MongoDB-style filter document |
 | `sort` | object | — | Single-key sort spec: `{"clock": -1}` or `{"created_at": 1}` |
-| `limit` | int | 100 | Result cap. Max 1000 |
+| `limit` | int | 100 | Result cap. Clamped to 1000: asking for more returns 1000 and `capped: true` |
 | `offset` | int | 0 | Pagination offset |
 | `explain` | bool | `false` | When `true`, response includes a `plan` block describing the translated SQL, bind count, and which fields used the indexed fast path vs. `json_extract` |
+
+Two response fields are easy to misread. `capped: true` means more disclosable rows may exist beyond this page, whatever `limit` you asked for; it is the only truthful signal that a page is partial. `matched_total` is the filter's count before disclosure, so it is not comparable with `data.length` and must not be used to decide whether you have everything; an authorized reader can receive fewer rows than `matched_total` on a complete read.
 
 Response:
 

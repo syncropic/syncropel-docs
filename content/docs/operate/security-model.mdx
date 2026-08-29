@@ -132,6 +132,21 @@ This audit thread does NOT prevent the export from happening — auth scope (`Ad
 | Accidental git commit | ✗ | (mitigation: `.gitignore`) |
 | Cross-tenant on shared compute | ✗ | (mitigation: platform-level tenant isolation) |
 | Audit gap on portability ops | ✓ | `th_audit_portability` (since v0.31) |
+| A work loop reading the provider credential or the operator's bearer | ✓ (sandboxed transport, opt-in) | separate isolated process, no network, no view of the instance home, one scoped credential handed to it at start |
+| A same-user process reading the daemon's environment or memory | ✓ | the daemon's process is protected and credentials are moved out of its environment at boot |
+| A run declaring its own success or its own permission to act | ✓ | the kernel authors the tool verdict and the outcome; the run credential cannot write either kind |
+
+## Protection domains and the work loop
+
+Every tool a work loop can reach is classified by protection domain before it is offered, and the domains order: `sandboxed` < `mediated` < `kernel-trust-domain`. A sandboxed worker executes only what its domain allows and asks the kernel for everything else through five doors on a local socket. The daemon checks each isolation layer before it hands the run its credential. The order is the guarantee: a worker that could not be isolated is stopped having never held a credential.
+
+Three things a run cannot say about itself:
+
+- **Whether it was allowed to act.** Every tool call is judged by the kernel over the live permission rules and recorded as `core.work.tool_verdict.v1` before it runs. The run credential cannot write that kind.
+- **Whether it succeeded.** The kernel writes the outcome, counts the turns itself, requires a clean exit, and checks the claim against the thread's own tool tally: a run whose every tool call failed is not a success whatever its final answer says. The outcome carries `tool_calls_ok` and `tool_calls_failed`.
+- **What tools it has.** A defined actor's declared tool list bounds its runs on both transports; a declaration can narrow a tier and never widen one.
+
+Host tools (`bash` and the filesystem set) are wired for the operator's own machine only. The rollback for the whole transport is one config record; see [The sandboxed transport](./sandboxed-transport).
 
 ## What's on the roadmap
 

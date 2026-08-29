@@ -261,6 +261,12 @@ spl serve
 spl status
 ```
 
+If the instance runs under systemd, the same sequence is `systemctl --user stop spl-serve`, install, `systemctl --user start spl-serve`. Stop first in every case: a live copy over the running binary is refused (`Text file busy`), and a work loop's worker is started from the daemon's own binary, so an already-running worker keeps the version it started with until the daemon restarts.
+
+The daemon's process is protected, so a same-user shell cannot read its process entries; to confirm which binary a running daemon is, use `sudo -n readlink /proc/<pid>/exe`. The daemon also produces no core dump. Both are the hardening working, not a fault.
+
+If the instance has the sandboxed work-loop transport on, the rollback is one config record (`transport: in_process`); see [The sandboxed transport](./sandboxed-transport).
+
 The Syncropel engine's SQLite schema has been backward-compatible across 0.8.x → 0.9.x. The startup path runs `CREATE TABLE IF NOT EXISTS` for any new tables; existing data is untouched. If a future release requires a non-backward-compatible migration, the release notes will say so explicitly and the instance will refuse to start until you run the migration.
 
 The upgrade drill (`bash tests/drills/upgrade.sh`) verifies the data-preservation property end-to-end on every release: 5 user records + 1 routing rule + 1 permission rule are all confirmed intact across instance stop → container swap → instance start on the same volume. If you're maintaining a fork or shipping a custom build, run this drill before you cut a release.
