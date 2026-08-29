@@ -378,12 +378,25 @@ curl "http://localhost:9100/v1/graph/query?op=shared_context&a=did:sync:user:ali
 |---|---|---|
 | GET | `/v1/actors` | List registered actors |
 | GET | `/v1/actors/lookup?did=X` | Get actor detail by DID |
+| GET | `/v1/actors/roster` | Every defined actor with its definition record id, adapter kind, enabled state, model, tools, prompt reference, who proposed it, and trust standing per domain (`{object: actor_roster, count, data: [...]}`). |
 | POST | `/v1/blueprints/materialize` | Install a blueprint. Body: `{blueprint, extends?[], regime?, accept_plan?}`. The instance authors the records; the caller's own grant bounds any actor the blueprint declares (`403 TOOL_NOT_IN_REACH` / `WRITE_KIND_NOT_ADMITTED`); a signed blueprint needs the reviewed plan hash (`428 PLAN_CONSENT_REQUIRED`); an unsigned or untrusted one is `403 BLUEPRINT_UNSIGNED`. |
 
 A run row (`GET /v1/runs/{thread}`) carries `definition` (the actor
-definition record the run executed under) and `prompt` (the prompt record
-it resolved at start). A definition whose prompt does not resolve refuses the
-start with `422 WORK_PROMPT_UNRESOLVED`, naming the record.
+definition record the run executed under), `prompt` (the prompt record it
+resolved at start), `transport`, and the tool-call tally
+(`tool_calls_ok`, `tool_calls_failed`). A definition whose prompt does not
+resolve refuses the start with `422 WORK_PROMPT_UNRESOLVED`, naming the
+record. An open ask on the row names its `proposal_kind` when it is a
+proposal.
+
+Approving a decision whose context is a blueprint proposal
+(`POST /v1/decisions/{id}/decide` with `{"decision": "approve"}`) installs
+the blueprint as the approver and answers with `kind: blueprint_proposal`
+and `installed` (the actors, their derived grants, the records written). A
+plan-hash mismatch between the request and its blueprint is `409
+PLAN_HASH_MISMATCH`; the approver's grant bounds the actor exactly as the
+install door does. A verdict on a run under a proposed definition by the
+actor that proposed it is refused, `400 VERDICT_SELF_JUDGMENT`.
 
 ## Dispatch
 

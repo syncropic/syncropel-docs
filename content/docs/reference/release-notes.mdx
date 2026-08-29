@@ -9,6 +9,31 @@ This page summarizes recent releases in plain language — what changed and why 
 
 ---
 
+## An actor that defines actors
+
+Every work-loop actor can now read the roster (`list_actors`), read a run
+(`explain_run`) and propose a definition (`propose_definition`). A proposal
+is a decision request to the operator carrying a complete blueprint and the
+diff against what is installed; the run waits on the answer, and approving
+it installs the blueprint as the approver, bounded by the approver's own
+grant. The installed definition records who proposed it, a verdict on its
+runs also grades the proposer, and the proposer may never verdict such a run
+itself.
+
+The first actor defined this way is the harness engineer, whose domain is
+the other actors. Its charter is a chain of prompt records; one script
+installs it, makes it the actor that answers a fresh thread's first
+message, and retires the platform guide. A work-loop actor set as a thread
+default now answers a person the way the conversational actors do, so no
+adapter code is needed for an actor that talks.
+
+Also in this release: a definition's declared budget and turn ceilings
+apply to runs started without their own; the roster is a door
+(`GET /v1/actors/roster`); and a sandboxed run reads the roster and run rows
+through the instance rather than through a store its credential cannot see.
+
+---
+
 ## Deploy an actor from a blueprint
 
 An actor is now something you can write down, sign, review and install. A

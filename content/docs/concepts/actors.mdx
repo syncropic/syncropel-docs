@@ -147,6 +147,41 @@ the record; there is no silent fallback to a default prompt.
 Write it as a record on any thread, then point the actor at it with
 `"system_prompt_ref": "record:<id>"` in its definition.
 
+## An actor that defines actors
+
+Every work-loop actor holds three read-and-propose tools beside the
+substrate ones. `list_actors` is the roster: every defined actor with its
+definition's record id, its tools, its words, whether it is enabled, and its
+trust standing per domain. `explain_run` is one run's row: state, turns,
+spend against ceiling, the tool-call tally, the definition and prompt it
+ran under, the open ask. `propose_definition` is the one act: it writes a
+decision request to the operator carrying a complete blueprint and the diff
+against what is installed, and the run waits on the answer.
+
+Approval installs. When the operator approves such a request, the instance
+installs the blueprint as the approver, bounded by the approver's own
+grant, exactly as if they had installed it themselves, and stamps the new
+definition with who proposed it and which request approved it. Nothing the
+proposing actor does can shorten that; it cannot write a definition, and an
+actor running in the sandbox cannot even reach the door.
+
+The **harness engineer** (`did:sync:agent:harness`) is the first actor
+defined this way: an ordinary actor whose domain is the other actors. It
+reads the roster first on every run, reads runs before proposing changes,
+and ends an onboarding conversation with a proposal. It is judged
+second-order: a verdict on a run under a definition it proposed also moves
+its standing in the `harness` domain, and it may never verdict such a run
+itself (`400 VERDICT_SELF_JUDGMENT`). Install it with
+`scripts/install_harness_engineer.sh` from the source repository; the script
+writes its charter as a chain of prompt records, installs the signed
+blueprint through the consent gate, and makes it the actor that answers a
+fresh thread's first message.
+
+A definition may declare its own per-run `budget_usd` and `max_turns`. A
+caller's explicit values still win; when a run is started with none (a
+thread default answering a person, a run started without a budget), the
+definition's ceilings apply.
+
 ## What actors don't do
 
 Worth naming explicitly because the actor model is compact.

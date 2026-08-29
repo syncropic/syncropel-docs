@@ -78,6 +78,16 @@ A blueprint may `extends` another by content hash, so a shared "tools"
 blueprint can be installed under many actor blueprints; pass each parent
 file with `--extends` and the signature covers the whole set.
 
+There is a second way in. An actor may propose a blueprint with the
+`propose_definition` tool; the proposal is a decision request to the
+operator carrying the blueprint and its plan hash. Approving it installs
+the blueprint as the approver, bounded by the approver's grant, with no
+signature needed: a signature stands in for an operator who is not present,
+and here the operator read the exact blueprint and said yes. The instance
+re-derives the plan hash from the blueprint in the request and refuses on a
+mismatch, so what was approved is what lands. The installed definition
+records who proposed it and which request approved it.
+
 Once installed, the actor runs like any other: start a run for it, and the
 run's record names both the exact definition it ran under and the exact
 prompt it read. See [Actors](/docs/concepts/actors#the-words-an-actor-runs-under).
