@@ -117,6 +117,36 @@ For CLI work on the local instance, no authenticator is needed — the actor is 
 
 See the [security model](/docs/operate/security-model) for the full auth workflow — first-SA bootstrap, token lifecycle, federation pairing, emergency recovery.
 
+## The words an actor runs under
+
+An actor's instructions are a record, not a file. A prompt record carries
+the text (or, for a long document, a reference to a stored blob), an
+optional role (constitution, map, procedures, manual, charter), and the
+actor it was written for. An actor's definition names its prompt by record
+id, and prompts compose: a prompt may cite earlier prompts as its parents,
+and the chain renders oldest first, so a charter reads as constitution,
+then the instance map, then the actor's own procedures.
+
+When a run starts, the instance resolves that chain and stamps the resolved
+prompt's id on the run's record next to the definition it ran under. So
+"which words produced this run" is answered from the log, even after the
+definition has moved on. A prompt that cannot be resolved (missing, the
+wrong kind, a blob the instance does not hold) refuses the run and names
+the record; there is no silent fallback to a default prompt.
+
+```json
+{
+  "kind": "core.actor.prompt.v1",
+  "schema_version": "1.0.0",
+  "role": "charter",
+  "actor_did": "did:sync:agent:census",
+  "text": "You are the census taker of this instance. Every note you record begins with the word CENSUS."
+}
+```
+
+Write it as a record on any thread, then point the actor at it with
+`"system_prompt_ref": "record:<id>"` in its definition.
+
 ## What actors don't do
 
 Worth naming explicitly because the actor model is compact.

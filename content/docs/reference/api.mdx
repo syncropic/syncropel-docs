@@ -378,6 +378,12 @@ curl "http://localhost:9100/v1/graph/query?op=shared_context&a=did:sync:user:ali
 |---|---|---|
 | GET | `/v1/actors` | List registered actors |
 | GET | `/v1/actors/lookup?did=X` | Get actor detail by DID |
+| POST | `/v1/blueprints/materialize` | Install a blueprint. Body: `{blueprint, extends?[], regime?, accept_plan?}`. The instance authors the records; the caller's own grant bounds any actor the blueprint declares (`403 TOOL_NOT_IN_REACH` / `WRITE_KIND_NOT_ADMITTED`); a signed blueprint needs the reviewed plan hash (`428 PLAN_CONSENT_REQUIRED`); an unsigned or untrusted one is `403 BLUEPRINT_UNSIGNED`. |
+
+A run row (`GET /v1/runs/{thread}`) carries `definition` (the actor
+definition record the run executed under) and `prompt` (the prompt record
+it resolved at start). A definition whose prompt does not resolve refuses the
+start with `422 WORK_PROMPT_UNRESOLVED`, naming the record.
 
 ## Dispatch
 

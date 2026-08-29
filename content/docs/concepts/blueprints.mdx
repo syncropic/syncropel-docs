@@ -33,6 +33,55 @@ A few consequences follow from materializing as plain records:
 - **Nothing special to undo.** Seeded records behave like any other record afterward. You edit, supersede, or archive them through the normal flows; the blueprint isn't a live link you have to detach from.
 - **Auditable origin.** The seed records are in the log like everything else, so you can always see what the blueprint put there and when.
 
+## Blueprints that deploy an actor
+
+A blueprint can carry more than content. It can declare an **actor**: a
+definition that names the model the actor runs on, the tools it may call,
+the words it runs under and the kinds of record it may write, together with
+the tools it needs, the permission rules it should run behind, and any
+scheduled triggers (which always arrive disarmed). Installing such a
+blueprint is how an actor is deployed on an instance.
+
+Because an actor definition is control-plane configuration, deploying one is
+gated in three ways:
+
+- **The author signs, the operator trusts.** A blueprint that declares an
+  actor must carry its author's signature, and the author must be on the
+  instance's trusted-author list. `spl blueprint sign <file>` signs it in
+  place; `spl blueprint trust-author` adds an author to the list. An unsigned
+  blueprint, or one from an author the instance has not trusted, installs
+  only its content-level seeds.
+- **The operator consents to the reviewed plan.** `spl blueprint plan` prints
+  every actor, tool and rule the blueprint would land, and a plan hash. The
+  install must quote that hash. If the file changes between the review and
+  the install, the hash no longer matches and the install is refused.
+- **The installer's own authority bounds the actor.** An actor can reach no
+  tool its installer could not grant, write no kind of record its installer
+  may not write, and a seeded tool can claim no more privilege than the
+  installer holds. These bounds are checked when the blueprint is installed,
+  not the first time the actor runs, and the check happens in the instance,
+  never in the client. A member whose access is bounded gets a refusal that
+  names the tool or kind; the operator is unbounded.
+
+The records themselves are written by the instance, in order, with the actor
+definition last. If anything is refused partway, no runnable actor is left
+behind without the tools and rules it was declared with.
+
+```bash
+spl blueprint plan census.json --extends tools.json          # review: actors, tools, rules, plan hash
+spl blueprint sign census.json --extends tools.json          # sign in place with your signing key
+spl blueprint trust-author                                   # trust that key on this instance (once)
+spl blueprint install census.json --extends tools.json --accept-plan <hash>
+```
+
+A blueprint may `extends` another by content hash, so a shared "tools"
+blueprint can be installed under many actor blueprints; pass each parent
+file with `--extends` and the signature covers the whole set.
+
+Once installed, the actor runs like any other: start a run for it, and the
+run's record names both the exact definition it ran under and the exact
+prompt it read. See [Actors](/docs/concepts/actors#the-words-an-actor-runs-under).
+
 ## Blueprints vs. workspaces
 
 A blueprint and a workspace are easy to confuse, but they sit at different moments:

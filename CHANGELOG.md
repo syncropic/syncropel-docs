@@ -2,6 +2,20 @@
 
 All notable additions and revisions to docs.syncropel.com are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-08-29: Blueprints deploy actors, prompts are records
+
+- **[Blueprints](/docs/concepts/blueprints)**: a blueprint can declare an
+  actor, its tools and its rules; the author signs, the operator trusts and
+  consents to the reviewed plan, the installer's own authority bounds the
+  actor at install time; `plan`, `sign`, `trust-author`, `install`.
+- **[Actors](/docs/concepts/actors)**: the words an actor runs under are a
+  record; prompts compose through parents; a run stamps the prompt it read;
+  an unresolvable prompt refuses the start by name.
+- **[CLI reference](/docs/reference/cli)**: the blueprint verbs and
+  `spl judge <winner> over <loser>`, the pairwise judgment.
+- **[API reference](/docs/reference/api)**: `POST /v1/blueprints/materialize`
+  and its refusals; `prompt` on the run row.
+
 ## 2026-08-29: The sandboxed transport and the task graph
 
 - **[The sandboxed transport](/docs/operate/sandboxed-transport)**: new

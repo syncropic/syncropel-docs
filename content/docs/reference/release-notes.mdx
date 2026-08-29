@@ -9,6 +9,32 @@ This page summarizes recent releases in plain language — what changed and why 
 
 ---
 
+## Deploy an actor from a blueprint
+
+An actor is now something you can write down, sign, review and install. A
+blueprint can declare an actor with its model, its tools, the words it runs
+under and the kinds of record it may write, plus the tools and permission
+rules it needs. `spl blueprint plan` shows exactly what would land and a
+plan hash; `spl blueprint sign` and `spl blueprint trust-author` establish
+who wrote it; `spl blueprint install --accept-plan <hash>` deploys it. The
+instance writes the records itself and bounds the actor by what the
+installer may grant, so a member cannot deploy an actor with more reach
+than they have.
+
+The words are records too. An actor's prompt is a record it names by id,
+prompts compose through parents, and every run stamps the exact prompt it
+read next to the exact definition it ran under. A prompt that cannot be
+resolved refuses the run and says which record is missing.
+
+And a judgment got cheaper: `spl judge <winner> over <loser> --feature short`
+records that one thing was preferred over another and what differed, the
+smallest signal there is about what you value.
+
+See [Blueprints](/docs/concepts/blueprints#blueprints-that-deploy-an-actor)
+and [Actors](/docs/concepts/actors#the-words-an-actor-runs-under).
+
+---
+
 ## Intelligent task tooling
 
 The system now turns its own activity log into proactive help.

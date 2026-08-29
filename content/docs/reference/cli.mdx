@@ -230,6 +230,34 @@ spl task dispatch <id|alias> [--worktree] [--resume] [--budget USD] [--timeout S
 spl task tree <id|alias>
 ```
 
+### Judgments
+
+```bash
+spl judge <winner> over <loser> [--feature F]... [--loser-feature F]... [--basis "..."] [--thread T]
+```
+
+A pick is the cheapest judgment there is: this record over that one, and the
+features that separated them. `--feature` names something the winner has and
+the loser lacks; `--loser-feature` the reverse. Both candidates must be
+records the instance holds; the verdict lands on the winner's thread unless
+`--thread` says otherwise, and both candidates ride as its parents.
+
+## Blueprints
+
+```bash
+spl blueprint init [name] [--author DID] [--output FILE]
+spl blueprint plan <file> [--extends PARENT]... [--regime self-host|hosted]
+spl blueprint sign <file> [--extends PARENT]... [--key-file PATH]
+spl blueprint trust-author [--author-did DID] [--public-key B64] [--key-file PATH] [--revoked-after UNIX]
+spl blueprint install <file> [--extends PARENT]... --accept-plan <hash>      # alias of materialize
+```
+
+`plan` reviews without writing anything: actors, tools, rules, triggers and
+the plan hash. `sign` signs the file in place with a 32-byte signing key
+(default `~/.syncro/secrets/operator-identity.key`); `trust-author` records
+that key as trusted on the instance. `install` sends the blueprint to the
+instance, which re-checks consent and the installer's bounds before writing.
+
 ## Files
 
 Browse and manage an instance's [filesystem](/docs/concepts/files). See the
