@@ -124,6 +124,8 @@ curl -s -X POST -H "Authorization: Bearer $ADMIN" -H 'content-type: application/
        "max_turns":3,"budget_usd":0.05}'
 ```
 
+If you leave `budget_usd` out, a sandboxed run is minted with its tier's per-run default ceiling, because the inference broker refuses a credential with no ceiling; the run row's `budget_usd` shows the ceiling the credential actually holds. An in-process run with no budget stays unbounded, as before.
+
 The response carries the run's `thread`. Poll it until it is finished:
 
 ```bash
