@@ -379,14 +379,24 @@ curl "http://localhost:9100/v1/graph/query?op=shared_context&a=did:sync:user:ali
 | GET | `/v1/actors` | List registered actors |
 | GET | `/v1/actors/lookup?did=X` | Get actor detail by DID |
 | GET | `/v1/actors/roster` | Every defined actor with its definition record id, adapter kind, enabled state, model, tools, prompt reference, who proposed it, and trust standing per domain (`{object: actor_roster, count, data: [...]}`). |
+| GET | `/v1/runs?state=&actor=&since=&limit=` | Every run across actors, newest first, filtered by state, principal or executor, and start time; a bounded scan with `capped` on the wire. |
 | POST | `/v1/blueprints/materialize` | Install a blueprint. Body: `{blueprint, extends?[], regime?, accept_plan?}`. The instance authors the records; the caller's own grant bounds any actor the blueprint declares (`403 TOOL_NOT_IN_REACH` / `WRITE_KIND_NOT_ADMITTED`); a signed blueprint needs the reviewed plan hash (`428 PLAN_CONSENT_REQUIRED`); an unsigned or untrusted one is `403 BLUEPRINT_UNSIGNED`. |
 
 A run row (`GET /v1/runs/{thread}`) carries `definition` (the actor
 definition record the run executed under), `prompt` (the prompt record it
-resolved at start), `transport`, and the tool-call tally
-(`tool_calls_ok`, `tool_calls_failed`). A definition whose prompt does not
+resolved at start), `frame` (the record of the words the kernel itself told
+the run before its charter), `narrowed` (granted tools the transport
+withheld), `transport`, and the tool-call tally
+(`tool_calls_ok`, `tool_calls_failed`). On the run's thread every turn
+carries `resolution_path` and every tool result `duration_ms`; a provider
+failure inside the run is a record of its own (`core.work.provider_error.v1`,
+typed `error` on the event stream), beside the typed `tool.verdict` and
+`guardrail` events. A definition whose prompt does not
 resolve refuses the start with `422 WORK_PROMPT_UNRESOLVED`, naming the
-record. An open ask on the row names its `proposal_kind` when it is a
+record; a prompt reference that is not a record is refused at define with
+the same code. The define door refuses `work_loop.reach` and `admit` (`400
+DEFINE_FIELD_INERT`): a run's reach is its tier's, a read bound is a grant's.
+`brief` and `stands_on` land on the definition. An open ask on the row names its `proposal_kind` when it is a
 proposal.
 
 Approving a decision whose context is a blueprint proposal

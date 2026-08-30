@@ -132,7 +132,7 @@ This audit thread does NOT prevent the export from happening — auth scope (`Ad
 | Accidental git commit | ✗ | (mitigation: `.gitignore`) |
 | Cross-tenant on shared compute | ✗ | (mitigation: platform-level tenant isolation) |
 | Audit gap on portability ops | ✓ | `th_audit_portability` (since v0.31) |
-| A work loop reading the provider credential or the operator's bearer | ✓ (sandboxed transport, opt-in) | separate isolated process, no network, no view of the instance home, one scoped credential handed to it at start |
+| A work loop reading the provider credential or the operator's bearer | ✓ (sandboxed transport, the default for every non-operator tier; opt-in for the operator's own runs) | separate isolated process, no network, no view of the instance home, one scoped credential handed to it at start |
 | A same-user process reading the daemon's environment or memory | ✓ | the daemon's process is protected and credentials are moved out of its environment at boot |
 | A run declaring its own success or its own permission to act | ✓ | the kernel authors the tool verdict and the outcome; the run credential cannot write either kind |
 

@@ -9,6 +9,32 @@ This page summarizes recent releases in plain language — what changed and why 
 
 ---
 
+## The second principal
+
+Every run for a principal other than the operator now takes the sandboxed
+transport by default, decided per run by the tier of the principal it runs
+for; the operator's own runs stay in process unless they choose otherwise,
+and each default is one config record to move. A tool the tier grants but
+the sandbox cannot serve is withheld and named on the run, never dropped
+silently; a run that was refused for reaching one now starts. A stop lands
+at the run's next step: its next tool call is answered with a stop verdict,
+the run ends cancelled, and its worker is reaped. Approving a proposal wakes
+the run that made it, so it reads the decision and finishes instead of
+waiting forever.
+
+What a run is told and what fails are on its records: the kernel's own
+frame is a record named on every run, a provider failure inside a run is a
+record of its own, every turn says how its provider was resolved and every
+tool result how long it took. Runs are listable across actors, the event
+stream types verdicts and guardrails, the health door reports live runs,
+the roster carries each definition's ceilings, and `spl runs list|show|tail`
+reads it all from the terminal. The define door writes what it accepts and
+refuses what it cannot honour.
+
+Every release now runs an escape suite from inside a real sandboxed run, on
+the same-user shape and on a root daemon with a separate worker user; it
+found and closed a gap where a hosted worker had no resource limits.
+
 ## An actor that defines actors
 
 Every work-loop actor can now read the roster (`list_actors`), read a run

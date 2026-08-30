@@ -127,6 +127,17 @@ Every actor has a **tier** (Trial / Paid / Team / Operator), and the tier shapes
 
 Requests that exceed the tier's ceiling are denied up front — the loop does not start, no compensation record is emitted, the actor gets a clear `denial_reason` (`WORK_DAILY_CAP_EXCEEDED` or `WORK_DAILY_COUNT_EXCEEDED`). Use `POST /v1/work/loop/preview` to size goals before sending them.
 
+## Where a loop runs: the two transports
+
+A loop runs in one of two places, and which one is decided by the tier of the principal it runs for, at the moment it starts.
+
+- **In process.** Inside the daemon, sharing its memory with the provider credential, the operator's bearer and the store. This is the operator's transport on their own machine, where the operator is already the trust boundary.
+- **Sandboxed.** A separate process with no network, no view of the instance's home directory, a restricted set of system calls, limits on memory, processes, file size and CPU time, and one short-lived credential handed to it at start. Every tool call it wants to make is proposed to the kernel first and judged over the live permission rules. This is the default for every other tier.
+
+What a stranger's loop reaches, then, is exactly what the kernel hands it: the doors on a local socket, bounded by the run's credential (which threads it may read and write, which kinds it may author) and by the tool set its tier and its definition declared. It cannot reach the provider credential, the operator's bearer, the store, the network, or another run. What it cannot reach it is told about: a tool its tier granted but the sandbox cannot serve is withheld and named on the run (`narrowed`), never silently dropped.
+
+The preview reports which transport a start would take, and every run's outcome records the one it took. The operator can move any tier's default with one config record; see [The sandboxed transport](../operate/sandboxed-transport).
+
 ## Task budget
 
 A loop can carry an optional `task_budget` — a per-loop ceiling on turns, tokens, or USD cost that overlays the tier's daily limits. When set, the budget is **visible to the language model** in its system prompt, so the model can pace its own work and wrap up gracefully as the budget shrinks. When the budget is hit, the loop ends with `budget_exhausted` and the `budget_kind` field names which one.

@@ -265,7 +265,7 @@ If the instance runs under systemd, the same sequence is `systemctl --user stop 
 
 The daemon's process is protected, so a same-user shell cannot read its process entries; to confirm which binary a running daemon is, use `sudo -n readlink /proc/<pid>/exe`. The daemon also produces no core dump. Both are the hardening working, not a fault.
 
-If the instance has the sandboxed work-loop transport on, the rollback is one config record (`transport: in_process`); see [The sandboxed transport](./sandboxed-transport).
+Work loops for every non-operator principal run through the sandboxed transport. To stop one at its next step boundary, `POST /v1/runs/{thread}/events` with `{"type":"stop"}`; the run's next tool call is answered with a stop verdict, the run ends `cancelled`, and its worker is reaped. The rollback for the transport itself is one config record per tier (`work_loop_transport` for the operator, `work_loop_transport_members` for everyone else); see [The sandboxed transport](./sandboxed-transport).
 
 The Syncropel engine's SQLite schema has been backward-compatible across 0.8.x → 0.9.x. The startup path runs `CREATE TABLE IF NOT EXISTS` for any new tables; existing data is untouched. If a future release requires a non-backward-compatible migration, the release notes will say so explicitly and the instance will refuse to start until you run the migration.
 
