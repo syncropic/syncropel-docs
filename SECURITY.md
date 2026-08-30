@@ -22,7 +22,7 @@ This repo only contains the documentation source. Vulnerabilities in:
 
 - The Syncropel kernel (`spl` daemon)
 - The Syncropel SDKs (`@syncropel/sdk`, `syncropel` PyPI, `@syncropel/projections`, `@syncropel/react`, `@syncropel/extensions`, `@syncropel/config`, `@syncropel/workspace-templates`)
-- Hosted infrastructure (`syncropel.com`, `discovery.syncropel.com`, `relay.syncropel.com`, `releases.syncropic.com`)
+- Hosted infrastructure (`syncropel.com`, `graph.syncropel.com`, `discovery.syncropel.com`, `relay.syncropel.com`, `releases.syncropic.com`)
 
 …should be reported through the appropriate project's own security channel. For anything you're unsure of, `security@syncropic.com` is a safe default.
 

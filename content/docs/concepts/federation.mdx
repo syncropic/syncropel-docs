@@ -137,9 +137,7 @@ The whole flow is about a minute of setup. Once a pair exists, propagation is au
 
 Federation covers pair creation, signature verification, consent filtering, discovery (mDNS, DNS-based federation manifests, and `did:web` + `did:sync` actor identity), async relay for offline peers, and the pull loop with classified error codes. That's enough for "run two instances, pair them, share a thread" as a real workflow.
 
-One piece is designed but not yet shipped:
-
-- **MLS end-to-end encryption for pairs** — opt-in per pair. Today, pair traffic is TLS-secured point-to-point; MLS would add forward-secrecy and post-compromise security to the record bodies themselves. Opt-in per pair; on the near-term roadmap pending upstream library stabilization.
+Pair traffic is TLS-secured point-to-point; record bodies are not separately encrypted end to end.
 
 What's enforced today is the strict default: no consent, no crossing. An operator who pairs two instances and emits records on a shared thread sees them propagate; an operator who wants to sync across namespaces without an explicit consent grant sees nothing propagate. That's the intended behaviour, and it holds.
 

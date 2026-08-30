@@ -33,18 +33,21 @@ jobs:
       - name: Run vocabulary linter
         id: lint
         env:
-          VOCAB_LINT_MODE: warn
+          VOCAB_LINT_MODE: error
           VOCAB_LINT_REPO: ${{ github.repository }}
         run: |
           set -eu
+          rc=0
           python tools/lint-vocabulary.py \
             --mode "${VOCAB_LINT_MODE}" \
             --repo "${VOCAB_LINT_REPO}" \
-            . 2> /tmp/vocab-lint-summary.md
+            content/docs 2> /tmp/vocab-lint-summary.md || rc=$?
           echo "summary_exists=true" >> "${GITHUB_OUTPUT}"
+          cat /tmp/vocab-lint-summary.md >&2
+          exit "${rc}"
 
       - name: Post / update PR-comment summary
-        if: github.event_name == 'pull_request' && steps.lint.outputs.summary_exists == 'true'
+        if: always() && github.event_name == 'pull_request' && steps.lint.outputs.summary_exists == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

@@ -33,6 +33,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Vocabulary lint
+        run: python3 tools/lint-vocabulary.py --mode error content/docs
+
       - name: Build static site
         run: npm run build
 

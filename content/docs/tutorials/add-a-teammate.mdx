@@ -130,7 +130,7 @@ Three honest notes on that output:
 
 - **Bilateral.** Mora can revoke her own membership too — leaving is not something only the operator can do.
 - **Idempotent.** Revoking an already-revoked member reports success without erroring.
-- **`scope: local`.** The revocation is enforced on *this* instance's ledger. Credentials that live on other instances are outside its reach today — see the [honesty ledger](/docs/reference/honesty-ledger) for the measured bound and where the cross-instance story lives.
+- **`scope: local`.** The revocation is enforced on *this* instance's ledger. Credentials that live on other instances are outside its reach.
 
 The event lands as `member_revoked` on the same audit feed (`spl invite audit`).
 

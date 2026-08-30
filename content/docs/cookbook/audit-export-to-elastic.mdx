@@ -47,7 +47,7 @@ Where `export-audit.sh` wraps the command above with error handling + logging.
 The audit export filters the record log to security-relevant records. By default it includes:
 
 - **`system`** — records from `did:sync:system:engine` and related system actors (config reloads, notifications, governance events).
-- **`decision`** — pending and decided decision-gate records (ADR-139).
+- **`decision`** — pending and decided decision-gate records.
 - **`dispatch`** — dispatch outcomes, budget exhausted, timeout.
 - **`governance`** — namespace narrowing rejections, permission rule denials, kill-switch records.
 

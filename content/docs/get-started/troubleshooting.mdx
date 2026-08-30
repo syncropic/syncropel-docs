@@ -174,7 +174,7 @@ spl serve
 
 `spl doctor` detects stale PID files and prints the exact recovery command.
 
-## Corrupted hub.db or stuck locks
+## Corrupted record store or stuck locks
 
 If `hub.db` is corrupted beyond a simple lock issue — perhaps after a disk-full event or a mid-write kernel panic — the nuclear option is to wipe `~/.syncro/` and re-initialize:
 

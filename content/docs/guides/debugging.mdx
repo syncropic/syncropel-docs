@@ -63,7 +63,7 @@ This is suitable for cron — wire `spl doctor --json` into your monitoring pipe
 
 **pid file** — `~/.syncro/run/spl.pid` exists, points at a live process, and that process's `/proc/<pid>/cmdline` contains "spl serve". A WARN here means the instance is responding but the PID file is missing — `spl stop` will not be able to find it. See [recovering an orphaned instance](/docs/operate/runbook#when-spl-stop-says-not-running-but-the-instance-clearly-is).
 
-**store has records** — the store is non-empty. A WARN means it's empty (fresh install or just-deleted hub.db). A FAIL means the store query itself errored.
+**store has records** — the store is non-empty. A WARN means it's empty (fresh install or a just-deleted store). A FAIL means the store query itself errored.
 
 **store path agreement** — the instance's reported store URL matches what the config file says it should be. A WARN here means either the instance was started with an explicit `--store` override, or two instances are running against different stores and you're talking to the wrong one.
 
@@ -261,7 +261,7 @@ spl audit export --since 1h --categories decision                # decision-gate
 
 If you've locked yourself out, see [`spl config permissions-unlock`](/docs/reference/cli#emergency-recovery-v0100).
 
-### "I deleted hub.db by accident"
+### "I deleted the record store by accident"
 
 Don't restart the instance. The destructive backup gotcha will overwrite your good backup the moment a fresh instance starts. See [Backup discipline](/docs/operate/runbook#backup-discipline) — restore from off-host first.
 

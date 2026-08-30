@@ -1,6 +1,6 @@
 ---
 title: Publishing an Extension
-description: How to ship a Syncropel iframe extension today — naming, hosting, capability declarations, security expectations, versioning. What's available now versus the registry coming in future releases.
+description: How to ship a Syncropel iframe extension today — naming, hosting, capability declarations, security expectations, versioning. What is available now.
 ---
 
 <Callout type="info">
@@ -16,7 +16,7 @@ Today, Syncropel extensions are **published as static URLs** that hosts opt into
 | [Capability manifest](#capability-manifest) | What your extension declares it needs and why |
 | [Security expectations](#security-expectations) | The contract you keep with hosts that embed you |
 | [Versioning](#versioning) | Semver, record-shape compatibility, and how aliases handle breaking renames |
-| [Discovery](#discovery-today-and-tomorrow) | Today: opt-in URLs. Future: registry. |
+| [Discovery](#discovery-today-and-tomorrow) | Opt-in URLs. |
 
 ## Naming conventions
 
@@ -38,7 +38,7 @@ This is the same pattern Java packages, Android apps, and macOS bundle ids use, 
 
 - Lowercase, hyphenated for multi-word names: `weekly-review`, not `WeeklyReview`.
 - One identifier per extension. If you ship multiple extensions, use distinct names: `com.acme.inbox`, `com.acme.calendar`.
-- Don't squat. If you don't own the domain, don't use it as a publisher. Hosts may reject extensions whose publisher doesn't resolve to a real DNS name in future registry versions.
+- Don't squat. If you don't own the domain, don't use it as a publisher.
 
 ## Where to host extension bundles
 
@@ -101,7 +101,7 @@ Field meanings:
 | `version` | yes | Semver. Bump per the rules in [Versioning](#versioning). |
 | `publisher.name` | yes | Display name. |
 | `publisher.url` | yes | Where users can learn more about you. |
-| `publisher.did` | no | A `did:web:<domain>` if you're advertising one. Future registry will verify this matches your hosting domain. |
+| `publisher.did` | no | A `did:web:<domain>` if you're advertising one. |
 | `iframe.url` | yes | The actual iframe entry point. |
 | `iframe.width` | no | `responsive` or a fixed pixel width. Hosts default to `responsive`. |
 | `iframe.height` | no | `auto` (the extension calls `setHeight` to size itself) or a fixed pixel height. |
@@ -187,27 +187,7 @@ There is no central registry. Hosts add your extension by URL:
 2. The host's user pastes that URL into their workspace's "add extension" UI.
 3. The host fetches the manifest, shows the user the requested capabilities + publisher, and either embeds the extension or doesn't.
 
-This works. It scales to dozens of extensions per workspace. It does not scale to "browse 10,000 extensions." That's what the registry is for.
-
-### Future — registry (target: a future minor release)
-
-A central registry will let:
-
-- Users browse and install extensions by name without knowing the URL
-- Publishers prove ownership of their domain via `did:web:<domain>`
-- Hosts enforce minimum-version policies on declared capabilities
-- Auditors track extension provenance across hosts
-
-The registry is **not** a gatekeeper — extensions outside the registry will keep working via the URL flow. The registry is a discovery layer, not a deployment requirement.
-
-When the registry ships, the path to listing your extension will be:
-
-1. Set `publisher.did` in your manifest to a `did:web:<your-domain>`
-2. Serve a `did.json` at `https://<your-domain>/.well-known/did.json` proving control
-3. Submit your manifest URL to the registry
-4. Tag releases via the registry's CLI
-
-If you ship a manifest today with a valid `publisher.did`, you'll be eligible for one-click migration when the registry ships.
+This works. It scales to dozens of extensions per workspace.
 
 ## A worked publishing checklist
 

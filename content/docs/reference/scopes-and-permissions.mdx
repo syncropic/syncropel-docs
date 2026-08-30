@@ -66,7 +66,7 @@ The chain is what makes authority auditable ("walk the records") and what enforc
 
 For grant-parented credentials, every authenticated request consults grant liveness: a revoked grant (its own, or any chain ancestor's) answers `401 GRANT_REVOKED`; an expired one answers `401 GRANT_EXPIRED`. Legacy credentials with no parent grant answer to scope + actor claim alone — see the [authorization model](/docs/concepts/authorization-model) for this stated coverage bound.
 
-## Membership routes (ADR-194)
+## Membership routes
 
 | Method | Path | Scope | Notes |
 |---|---|---|---|
@@ -100,5 +100,4 @@ This is scoping, not filtering-as-error: a non-admin caller getting one row back
 
 - **[Authorization model](/docs/concepts/authorization-model)** — how scope composes with the other five deciders.
 - **[Principals & grants](/docs/concepts/principals-and-grants)** — the grant model.
-- **[Honesty ledger](/docs/reference/honesty-ledger)** — enforced-versus-declared boundaries.
 - **[API reference](/docs/reference/api)** — every route's full request/response shape.

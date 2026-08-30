@@ -203,7 +203,7 @@ cp ~/.local/share/syncropel/backups/<instance-key>/hub.db.bak ~/.syncro/hub.db
 
 But **only do this if the instance hasn't already started and overwritten the backup**. If the corrupt instance already ran, the auto-backup is now a snapshot of the corrupt state.
 
-### Symptom: hub.db deleted by accident
+### Symptom: the record store was deleted by accident
 
 Same procedure as above, minus step 2. Restore from off-host backup, restart.
 
@@ -306,7 +306,7 @@ The 4-loop engine holds working state in memory for active threads. If you're se
 
 ## Dispatch under memory pressure: read the warn log
 
-When you dispatch a worker — `spl task dispatch <SKL>`, `spl run <goal>`, or any other path that spawns a subprocess — the instance emits one of three log lines at spawn:
+When you dispatch a worker — `spl task dispatch <task>`, `spl run <goal>`, or any other path that spawns a subprocess — the instance emits one of three log lines at spawn:
 
 ```
 DEBUG dispatch pre-flight: host memory healthy avail_gb=8.1
@@ -314,22 +314,9 @@ INFO  dispatch pre-flight: host approaching memory pressure avail_gb=3.2
 WARN  dispatch pre-flight: host under memory pressure — OOM-kill risk; consider sequential dispatch avail_gb=1.4
 ```
 
-The lines are visible in `~/.syncro/logs/spl.log` (filter for `dispatch pre-flight`) and in `journalctl` if you're running under systemd. They're driven by `MemAvailable` from `/proc/meminfo`, classified into three bands:
+The lines are visible in `~/.syncro/logs/spl.log` (filter for `dispatch pre-flight`) and in `journalctl` if you're running under systemd. Watch host memory: when the instance reports memory pressure, do not start more parallel workers, free memory (idle browser tabs, idle agent sessions, anything not load-bearing), and drop to sequential dispatch (`max_concurrent = 1` on the adapter) before you spawn more. If a worker was killed during the pressure window, follow the salvage procedure below.
 
-| Band | Threshold | Meaning |
-|---|---|---|
-| Healthy | `≥ 4 GiB` available | Plenty of headroom. Parallel dispatch is fine. |
-| Approaching | `2-4 GiB` available | Workers may run, but you're trending toward pressure. Consider whether a second parallel worker is worth it. |
-| Critical | `< 2 GiB` available | OOM-kill risk. Drop to sequential dispatch (`max_concurrent = 1` on the adapter) **before** you spawn more workers. |
-
-The Critical line is the actionable one. When you see it:
-
-1. **Don't start more parallel workers.** The currently-spawning worker may already be at risk.
-2. **Free memory** — close idle browser tabs, idle agent sessions, anything not load-bearing. Each idle agent process commonly consumes 200-500 MB resident.
-3. **Verify free memory after cleanup** — `free -h` and check `available`.
-4. **If a worker was killed during the pressure window**, follow the salvage procedure below.
-
-Linux-only — the pre-flight check no-ops gracefully on macOS and Windows (no `/proc/meminfo`). On those platforms, watch the OS process monitor instead.
+The pre-flight check runs on Linux; on macOS and Windows, watch the OS process monitor instead.
 
 ## Dispatched worker died unexpectedly: salvage procedure
 
@@ -379,22 +366,9 @@ ls -la <new-directories-the-worker-created>
 Does the work look substantively complete (worker had finished, just hadn't committed)? Or partial (mid-flight)?
 
 - **Substantively complete** — proceed to Step 4.
-- **Partial** — read the task brief at `~/.syncro-data/tasks/<task-id>.md`, identify the missing acceptance-criteria items, complete them in the worktree, then proceed.
+- **Partial** — read the task brief (`spl task show <task-id>`), identify the missing acceptance-criteria items, complete them in the worktree, then proceed.
 
-### Step 4 — Run the worker end-of-task gate
-
-From the worktree, run whatever local-CI gate your project uses. For a Rust project:
-
-```bash
-cargo fmt --all -- --check          # if it complains, run `cargo fmt --all` to fix
-cargo check
-cargo clippy -- -D warnings
-cargo nextest run                    # or `cargo test` if you don't have nextest
-```
-
-Substitute the equivalent for your stack (`npm test`, `pytest`, `go test ./...`, etc.). All gates must pass — the salvage is only as trustworthy as the gate.
-
-### Step 5 — Commit on the task branch
+### Step 4 — Commit on the task branch
 
 The worktree is already on a task branch. Commit there:
 
@@ -406,19 +380,19 @@ git commit -m "feat(scope): <change> (<task-id>)
 
 Salvaged in-session after parallel-dispatch SIGKILL on the original
 worker (host OOM, signal=9 at ~Xmin). Worker had completed <work
-inventory>; only <missing-item> needed adding. Worker gate green."
+inventory>; only <missing-item> needed adding."
 ```
 
-### Step 6 — Merge to main + run merge-time gate
+### Step 5 — Merge to main
 
 ```bash
 cd /path/to/<your-project>   # main worktree
 git merge task/<task-id> --ff-only       # or `git cherry-pick <hash>` if main moved
-# Re-run your full-workspace gates
+# Run your project's own test suite here
 git push origin main
 ```
 
-### Step 7 — Reopen + done + approve
+### Step 6 — Reopen + done + approve
 
 The original worker's `dispatch_complete` left the task in `failed` status. Reopen and walk it through the lifecycle:
 
@@ -428,9 +402,9 @@ SPL_ACTOR=did:sync:agent:dev      spl task done    <task-id> --summary "..." --d
 SPL_ACTOR=did:sync:agent:reviewer spl task approve <task-id> --domain code --notes "..."
 ```
 
-Reference the salvage commit hash + workspace gate result in the reviewer's `--notes` so trust evidence accumulates correctly.
+Reference the salvage commit hash and test result in the reviewer's `--notes` so trust evidence accumulates correctly.
 
-### Step 8 — Clean up the worktree
+### Step 7 — Clean up the worktree
 
 ```bash
 cd /path/to/<your-project>
@@ -441,9 +415,8 @@ The task branch persists post-merge; that's fine, it's part of the git history.
 
 ### Avoiding the OOM kill in the first place
 
-- **Cap parallel dispatch by available memory.** On a 16GB host already running a few `claude` sessions and `spl serve`, even `max_concurrent = 2` may be too many. If `MemAvailable < 4GB × N_workers`, drop to `max_concurrent = 1`.
+- **Cap parallel dispatch by available memory.** On a host already running a few agent sessions and `spl serve`, even `max_concurrent = 2` may be too many. If host memory is tight, drop to `max_concurrent = 1`.
 - **Close idle agent sessions before dispatching parallel.** Each background agent-CLI session commonly consumes 200-500MB resident.
-- **Watch `dmesg` after a SIGKILL incident** — `dmesg | grep -i 'killed process'` confirms whether the OOM-killer was the culprit (vs. other SIGKILL sources like signal injection or container limits).
 - **Set generous timeouts.** OOM doesn't care about timeout, but a longer timeout gives the worker more chance to commit before any other failure mode fires.
 
 ## Multi-instance fleet operations
@@ -454,7 +427,7 @@ This section covers multi-instance deployments. If you're running a single insta
 
 A "fleet" is two or more `spl` instances that coordinate via the instance registry. One instance is the **coordinator** (holds the registry thread, receives heartbeats, processes fan-out barriers). The others are **workers** (execute dispatched work, report heartbeats, POST completion records back to the coordinator). Any instance can play either role; the distinction is config, not code.
 
-This section covers the operations you run day-2 on a fleet. For the first-time walkthrough, see the [Parallel Dev Tutorial](/docs/tutorials/parallel-dev).
+This section covers the operations you run day-2 on a fleet. For a first walkthrough, see [Your first fan-out](/docs/tutorials/first-fanout).
 
 ### Booting a fleet
 

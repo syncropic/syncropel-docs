@@ -27,7 +27,7 @@ absent to keep the L0 default for that field.
     "heading": "A working Syncropel instance for the Acme research team.",
     "subheading": "All artifacts are records. Browse the capabilities below.",
     "links": [
-      { "label": "Internal handbook", "href": "/w/handbook" },
+      { "label": "Team notes", "href": "/w/handbook" },
       { "label": "GitHub", "href": "https://github.com/acme", "external": true },
       { "label": "Status", "href": "/health", "indicator": "live" }
     ],
@@ -135,7 +135,7 @@ spl site set --unset name kind_label   # clear several at once
 # Append a link (max 6 total replace the L0 defaults)
 spl site link add --label "Status" --href "/health" --indicator live
 spl site link add --label "GitHub" --href "https://github.com/acme" --external
-spl site link add --label "Internal handbook" --href "/w/handbook"
+spl site link add --label "Team notes" --href "/w/handbook"
 
 # Remove the Nth link (0-indexed)
 spl site link remove 2

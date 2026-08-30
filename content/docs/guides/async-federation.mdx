@@ -94,9 +94,9 @@ Duplicate envelopes are idempotent — content-addressed IDs mean replaying has 
 
 ## What the relay does *not* protect
 
-- **Sender/receiver metadata**: the relay sees which DID is talking to which. If that pairing alone is sensitive, you need MLS (opt-in, on the near-term roadmap pending upstream library stabilization) plus an operator you trust, or run your own relay.
+- **Sender/receiver metadata**: the relay sees which DID is talking to which. If that pairing alone is sensitive, you need an operator you trust, or run your own relay.
 - **Envelope sizes and timing**: visible to the operator even when contents are encrypted.
-- **Record contents when `encoding: plain`**: cleartext envelopes let a curious operator read your records. Use MLS if that matters.
+- **Record contents when `encoding: plain`**: cleartext envelopes let a curious operator read your records.
 
 The relay is not an identity provider and not a trust anchor. If it disappeared tomorrow, your records would still be yours — senders retain local copies for ~7 days of retention, and direct delivery paths are independent.
 

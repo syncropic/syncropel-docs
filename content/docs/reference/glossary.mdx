@@ -15,7 +15,7 @@ One of 8 types that classify what a record represents: `INTEND`, `DO`, `KNOW`, `
 A bridge between the Syncropel engine and an external system. CLI adapters spawn subprocesses (any agent CLI binary — Claude Code, Codex CLI, OpenCode, Pi, etc. — plus `bash` and custom binaries). Proxy adapters make HTTP calls (Anthropic, OpenAI, and other providers; custom endpoints). An actor can be registered with an adapter so dispatches to the actor's DID route through the adapter.
 
 **AITL (Actor-in-the-Loop) — retired term; see the decision gate**
-The former name for what is now the **decision gate** (ADR-139, v0.107). A request for a decision from an actor, typically a human or trusted agent — the body kind is `core.work.decision_request.v1`, expressed as a `KNOW` with `body.awaits: "actor_decision"` and resolved by a `DO` with `body.fulfills` or `body.cancels`. Surfaced with `spl decisions list`; answered with `spl decisions approve` / `reject` / `choose` / `provide` / `ack` (the three response shapes CHOOSE, PROVIDE, ACKNOWLEDGE). Used by the engine's intelligence path to surface routing proposals for approval before acting.
+The former name for what is now the **decision gate**. A request for a decision from an actor, typically a human or trusted agent — the body kind is `core.work.decision_request.v1`, expressed as a `KNOW` with `body.awaits: "actor_decision"` and resolved by a `DO` with `body.fulfills` or `body.cancels`. Surfaced with `spl decisions list`; answered with `spl decisions approve` / `reject` / `choose` / `provide` / `ack` (the three response shapes CHOOSE, PROVIDE, ACKNOWLEDGE). Used by the engine's intelligence path to surface routing proposals for approval before acting.
 
 **Approval**
 A `KNOW` record with `body.verdict: "accept"` from an independent evaluator. Creates trust evidence. See [Trust](/docs/concepts/trust).
@@ -65,7 +65,7 @@ Cumulative sum drift detection. The trust loop runs CUSUM against each `(actor, 
 
 ## D
 
-**Decision gate** (ADR-139)
+**Decision gate**
 The path by which anything on the instance — the intelligence loop, a paused work loop, a `spl decompose` plan, or a federated peer — asks an actor to decide before proceeding. A proposal is a `core.work.decision_request.v1` record; the answer is a `DO` that fulfills or cancels it. Confidence ≥ 0.90 auto-applies; ≥ 0.60 asks a human; below that is logged and dropped. Surfaced with `spl decisions list` (and under NEEDS in `spl resume`); answered with `spl decisions approve` / `reject` / `choose` / `provide` / `ack`. Three response shapes: CHOOSE, PROVIDE, ACKNOWLEDGE. Retires the term "AITL." See [Your first decision gate](/docs/tutorials/your-first-decision).
 
 **DID (Decentralized Identifier)**
@@ -103,7 +103,7 @@ A parent `INTEND` that declares `body.subtasks` as a list of child descriptors a
 How two or more Syncropel instances share records while keeping trust boundaries intact. Pull-based, signed, consent-filtered. See [Federation](/docs/concepts/federation).
 
 **Fleet**
-Two or more `spl` instances coordinating via the instance registry. One is the coordinator; the others are workers. The distinction is config, not code — any instance can play either role. See [Fleet benchmarking](/docs/operate/fleet-benchmarking).
+Two or more `spl` instances coordinating via the instance registry. One is the coordinator; the others are workers. The distinction is config, not code — any instance can play either role.
 
 **Fleet Control Registry**
 The in-memory snapshot of freeze / emergency-stop LEARN records on `th_fleet_control`, queried by CEL permission rules at every record write. Same reload pattern as the namespace and permission registries.
