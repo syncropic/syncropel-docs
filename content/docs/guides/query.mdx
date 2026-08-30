@@ -138,7 +138,7 @@ So `body.kind`, `body.priority`, and `body._refs.music_artist` all work; `body` 
 - **`sort`** — single-key document; value is `1` for ascending, `-1` for descending. Example: `{ "clock": -1 }` (newest first), `{ "created_at": 1 }` (oldest first), `{ "body.priority": -1 }` (highest priority first — but see [Indexed Field Registry](./body-kind-manifest) for why you'll want to declare body fields first).
 - **`limit`**: default 100, clamped to 1000. Asking for more returns 1000 rows and `capped: true`; read `capped` to know a page is partial, and never compare `matched_total` (the filter's count before disclosure) with the number of rows you received.
 - **`offset`** — for pagination. Prefer `{ "clock": { "$gt": last_clock } }` as a cursor once you have one — cursor-style pagination is cheaper than deep offsets.
-- **`explain`** — when `true`, the response includes a `plan` describing the generated SQL, which fields used a top-level column (indexed), and which fields fell to the json-scan path.
+- **`explain`** — when `true`, the response includes a `plan` describing which fields used a top-level column (indexed), and which fields fell to the body-scan path.
 
 ## Using `explain`
 
@@ -158,14 +158,12 @@ Example response:
 
 ```json
 {
-  "sql": "SELECT * FROM records WHERE (thread = ? AND (json_extract(body, '$.kind') = ?)) LIMIT ?2 OFFSET ?3",
-  "bind_count": 2,
   "indexed_fields": ["thread"],
   "unindexed_fields": ["body.kind"]
 }
 ```
 
-The plan says `body.kind` went through `json_extract` — a full scan without the right index. To upgrade that to an expression index scan, declare a [body-kind manifest](./body-kind-manifest):
+The plan says `body.kind` was matched by scanning record bodies, a full scan without the right index. To upgrade that to an expression index scan, declare a [body-kind manifest](./body-kind-manifest):
 
 ```bash
 spl config add-body-kind-manifest \
@@ -174,17 +172,7 @@ spl config add-body-kind-manifest \
   --indexed-field body.title
 ```
 
-After the instance reloads config the `body.kind` column in the same query plan stays in `unindexed_fields` (SQLite's optimizer uses the new expression index transparently — the plan's `unindexed_fields` list is a conservative "this was a body.* path" marker, not a statement about actual plan choice). For the ground-truth check, use `EXPLAIN QUERY PLAN`:
-
-```bash
-sqlite3 ~/.syncro/hub.db "EXPLAIN QUERY PLAN \
-  SELECT * FROM records \
-  WHERE thread = 'th_abc' \
-    AND json_extract(body, '\$.kind') = 'music.catalog.track' \
-  LIMIT 1"
-```
-
-You'll see SQLite pick `idx_body_kind_music_catalog_track_kind` when the expression index exists.
+After the instance reloads config, queries on `body.kind` are served from the new index. The plan's `unindexed_fields` list still names `body.kind`, because that list is a conservative "this was a body.* path" marker rather than a statement about which index was chosen; measure the query time to confirm.
 
 ## Patterns
 
@@ -255,7 +243,7 @@ References stored via `Ref.*` constructors in the SDK live at `body._refs.<entit
 ## Limits & Failure Modes
 
 - **Filter depth**: parser handles arbitrarily nested `$and`/`$or`, but the generated SQL complexity grows with nesting. Keep filters under ~10 levels for predictability.
-- **Type mismatches**: comparing a body field that is sometimes a string and sometimes an object returns no match — SQLite's `json_extract` returns the stored JSON type, and `json_extract(body, '$.x') = 'foo'` will not match when the stored `$.x` is an object. Use `$exists: true` if you only need to check presence.
+- **Type mismatches**: comparing a body field that is sometimes a string and sometimes an object returns no match; the comparison uses the stored JSON type, so `$.x = "foo"` will not match when the stored `$.x` is an object. Use `$exists: true` if you only need to check presence.
 - **No joins**: the filter operates on one record at a time. For "records where another record referencing them exists", compose two queries client-side.
 - **Fail-open SDK transport**: both SDKs return an empty record list (not an exception) on network/5xx failures. Check `result.records.length` — zero is ambiguous between "no matches" and "transport failed". Use the `onEmit` hook or the raw HTTP call if you need to distinguish.
 

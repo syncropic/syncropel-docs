@@ -50,7 +50,7 @@ Emitted once, when the subprocess's first `system` init event arrives. Captures 
 }
 ```
 
-**Why it exists**: bridges Syncropel records to the agent CLI's own per-project state on disk. When an agent-side bug or unusual tool-use pattern needs diagnosis, you need the raw agent-side log. See [Correlating records with agent CLI session state](/docs/guides/cookbook-claude-session-correlation) for the full workflow.
+**Why it exists**: bridges Syncropel records to the agent CLI's own per-project state on disk. When an agent-side bug or unusual tool-use pattern needs diagnosis, you need the raw agent-side log.
 
 ### `syncropel.dispatch.subprocess_exit.v1`
 
@@ -181,13 +181,13 @@ The key win: `cost=$0.1847` with a definitive failure reason. Work did happen, w
 
 ## Querying the raw log lines with `spl logs --trace-id`
 
-Records give you the shape of what happened. Logs give you the line-by-line narrative. The two are linked by the **sub-thread id** that wraps every dispatch as a tracing span.
+Records give you the shape of what happened. Logs give you the line-by-line narrative. The two are linked by the **sub-thread id** of the dispatch.
 
 ```bash
 spl logs --trace-id th_8c51e9c8...
 ```
 
-This reads both the JSON-structured instance log (`~/.syncro/logs/spl.log`) and the rotated siblings (`spl.log.1`, `.2`), plus the legacy foreground `~/.syncro/serve.log` if present, filters to lines whose span context includes `sub_thread=th_8c51e9c8...`, merges them chronologically, and prints them pretty-formatted.
+This reads the instance log and its rotated siblings, keeps the lines that belong to that dispatch, merges them chronologically, and prints them pretty-formatted.
 
 Other selectors:
 
@@ -233,5 +233,4 @@ Set `days: 0` to disable retention (files will only be pruned by size rotation).
 1. **`spl task diagnose <alias>`** — human-readable summary. 80% of incidents are fully explained by the output.
 2. **`spl logs --trace-id <sub_thread>`** — pull the narrative lines for the dispatch.
 3. **`spl task dispatch --resume <alias>`** — re-run on the preserved worktree, with prior commits surfaced in the agent briefing.
-4. **[Recovery cookbook](/docs/guides/cookbook-dispatch-recovery)** — the full salvage workflow for a partially-completed task.
-5. **[Claude session correlation](/docs/guides/cookbook-claude-session-correlation)** — when the Syncropel-side records aren't enough and you need the raw Claude tool-use history.
+4. **[Operator runbook](/docs/operate/runbook#dispatched-worker-died-unexpectedly-salvage-procedure)** — the salvage procedure for a partially-completed task.

@@ -106,7 +106,7 @@ Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601
 | `--dry-run` | Print the plan + exit cleanly. No prompt, no backup, no deletes. Scriptable; useful as a CI gate that asks "what would reset touch right now" |
 | `--force` | Skip both the main confirmation prompt and (when combined with `--wipe-task-data`) the extra task-data prompt |
 | `--keep-config` | Preserve `config.toml` so API keys, routing rules, and CORS settings survive the reset |
-| `--keep-keys` | Preserve `keys/` so the actor DID stays the same after `spl init` (use when rolling back a corrupted hub.db without re-establishing identity) |
+| `--keep-keys` | Preserve `keys/` so the actor DID stays the same after `spl init` (use when rolling back a corrupted record store without re-establishing identity) |
 | `--keep-secrets` | Preserve `secrets/` (encrypted API keys + secret backend) |
 | `--wipe-task-data` | ALSO delete `~/.syncro-data/` — destructive, requires an additional `[y/N]` prompt unless paired with `--force` |
 | `--json` / `-o json` | Emit a `reset_outcome` JSON envelope with the plan, backup path, deleted/failed counts, and the OS-keyring caveat |
@@ -756,7 +756,7 @@ spl completion fish > ~/.config/fish/completions/spl.fish
 This section covers multi-instance deployments.
 </Callout>
 
-Multi-instance coordination primitives (instance registry + kill switch) and the task fan-out + barrier. See [Parallel Dev Tutorial](/docs/tutorials/parallel-dev) for a hands-on walkthrough and [Operator Runbook: Fleet Operations](/docs/operate/runbook#multi-instance-fleet-operations) for day-2 procedures.
+Multi-instance coordination primitives (instance registry + kill switch) and the task fan-out + barrier. See [Your first fan-out](/docs/tutorials/first-fanout) for a walkthrough and [Operator Runbook: Fleet Operations](/docs/operate/runbook#multi-instance-fleet-operations) for day-2 procedures.
 
 ### Fleet lifecycle
 

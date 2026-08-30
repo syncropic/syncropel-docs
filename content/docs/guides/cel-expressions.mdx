@@ -5,7 +5,7 @@ description: Write rules, gates, and predicates using Syncropel's canonical expr
 
 ## Overview
 
-Syncropel uses **CEL (Common Expression Language)** as its canonical decision language. Every decision point in the system — event triggers, routing rules, task preconditions, status fold, health checks, the decision gate (ADR-139; the `aitl` evaluation context), and permissions — accepts CEL expressions. Write the predicate once; it works the same way everywhere.
+Syncropel uses **CEL (Common Expression Language)** as its canonical decision language. Every decision point in the system — event triggers, routing rules, task preconditions, status fold, health checks, the decision gate (the `aitl` evaluation context), and permissions — accepts CEL expressions. Write the predicate once; it works the same way everywhere.
 
 CEL is Google's type-safe, sandboxed expression language, used in production by Kubernetes admission controllers, gRPC, Envoy, Tekton, and GCP IAM. Syncropel extends CEL with a standard library exposing records, tasks, threads, trust, and system state.
 

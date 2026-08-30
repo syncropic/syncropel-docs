@@ -58,7 +58,7 @@ curl -fsS http://localhost:8080/health
 
 ### systemd (manual binary install)
 
-Download the binary for your platform from [releases.syncropic.com](https://releases.syncropic.com/spl-rust/latest/) (Linux x86_64 and aarch64 are built; other platforms can build from source with `cargo build --release --bin syncropel-relay`).
+Download the binary for your platform from [releases.syncropic.com](https://releases.syncropic.com/spl/latest/) (Linux x86_64 and aarch64 are built).
 
 Install the binary and create a systemd unit:
 
@@ -119,11 +119,9 @@ The relay uses an in-memory queue (`MemoryQueue`). Process restart clears queued
 - **Rolling restarts lose in-flight envelopes.** Senders recover, but receivers see a gap until redelivery completes.
 - **Per-receiver cap** is 10,000 envelopes. Deposits past the cap return `507 Insufficient Storage` and hit `relay_rate_limit_hits_total{kind="queue_full"}`.
 
-The SQLite-backed durable queue lands in a roadmap continuation task; Redis support tracked in a future ADR if demand shows up.
-
 ### TTL
 
-Envelopes default to 30 days. Senders can override per-envelope via the `ttl_seconds` field. The relay's expiry sweep is not yet wired in this release (the `MemoryQueue.prune_expired` method exists but runs on demand only) — a background sweep task lands in the continuation task alongside SQLite.
+Envelopes default to 30 days. Senders can override per-envelope via the `ttl_seconds` field. Expired envelopes are pruned on demand rather than by a background sweep.
 
 ### Auth
 
@@ -255,10 +253,7 @@ If you have many distinct sender DIDs, the `{from_did, to_did}` label pair can p
 
 ## Backup and restore
 
-The in-memory queue has no durable state to back up. A persistent SQLite backend is planned for a future release; when that ships:
-
-- Snapshot with `sqlite3 <path> ".backup <dest>"` — online-safe.
-- Restore by stopping the relay, copying the backup file into place, and starting again.
+The in-memory queue has no durable state to back up. Back up the relay's configuration and unit files as you would any service.
 
 Senders retain outbound envelopes independently of the relay, so even total queue loss at the relay is recoverable from the sender side (within each sender's retention window).
 
@@ -272,7 +267,7 @@ docker run -d --name syncropel-relay --restart unless-stopped \
   -p 8080:8080 ghcr.io/syncropic/syncropel-relay:latest
 
 # systemd
-curl -fsSL https://releases.syncropic.com/spl-rust/latest/syncropel-relay-linux-x86_64 \
+curl -fsSL https://releases.syncropic.com/spl/latest/syncropel-relay-linux-x86_64 \
   -o /tmp/syncropel-relay
 sudo install -m 0755 /tmp/syncropel-relay /usr/local/bin/syncropel-relay
 sudo systemctl restart syncropel-relay

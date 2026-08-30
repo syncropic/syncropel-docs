@@ -3,16 +3,15 @@
 Vocabulary linter.
 
 Locks the canonical product vocabulary across docs by flagging retired
-terms ("Lens", "Console") in new prose. Skips citations, code, and
-provenance paths.
+terms and internal references in prose. Skips code and provenance paths.
 
 Usage:
     tools/lint-vocabulary.py [--mode warn|error] [--fix] [PATH ...]
 
 Exit codes:
-    0 — clean (or warn-mode with hits)
+    0 — clean
     1 — internal error
-    2 — error-mode with hits
+    2 — hits found (error mode, the default; --mode warn exits 0)
 
 Outputs:
     - Inline GitHub annotations (`::warning::` / `::error::`) on stdout
@@ -46,6 +45,18 @@ INTERNAL_PATTERNS = {
     r"\bTier [αβγ]\b": "(internal phase reference — describe behaviour instead)",
     r"\bWave [0-9]+\b": "(internal phase reference — describe behaviour instead)",
     r"\bsteward equivalence doctrine\b": "(internal vocabulary — say 'hosted and self-hosted are equivalent' or similar)",
+    r"\bcargo\b": "(build tooling — a reader holds a binary, not a build)",
+    r"sqlite3": "(store internals — describe behaviour instead)",
+    r"hub\.db": "(store internals — say 'the record store')",
+    r"spl_(dev|prod)_": "(token-shaped literal — use '<your token>')",
+    r"SPL_BOOTSTRAP_TOKEN": "(provisioning internals — not user-facing)",
+    r"syncropel-research": "(private repository name)",
+    r"syncropel-core": "(private repository name)",
+    r"\bFly\b": "(infrastructure name — say 'the hosted platform')",
+    r"flycast": "(infrastructure name)",
+    r"wrangler": "(infrastructure tooling)",
+    r"roadmap": "(no dated or future promises in public docs)",
+    r"open[- ]source (kernel|runtime|binar)": "(the runtime is not open source; the spec and SDKs are)",
 }
 
 # Path globs that are EXEMPT (provenance, history, changelog, research).
@@ -75,11 +86,13 @@ PATH_WHITELIST = [
     "docs/infrastructure/**",
     # UI-UX-spec provenance corner.
     "16-experience-vision/**",
-    # The glossary itself MUST cite the retired name (deprecation entry).
+    # Glossaries may cite a retired name in a deprecation entry.
     "**/07-glossary.md",
     "**/01-glossary.md",
     "14-reference/01-glossary.md",
     "09-content/07-glossary.md",
+    # Pages removed from the site, kept for the record and never served.
+    "internal-removed/**",
     # Docs site: built artefacts.
     "out/**",
     "**/out/**",
@@ -348,7 +361,7 @@ def print_gh_annotations(hits: list[Hit], mode: str) -> None:
     level = "error" if mode == "error" else "warning"
     for h in hits:
         msg = (
-            f"Retired term {h.term!r} found; replace with "
+            f"Disallowed term {h.term!r} found; replace with "
             f"{h.suggestion!r}. Suppress with "
             "`<!-- vocab-lint-disable-next-line -->` if intentional."
         )
@@ -369,7 +382,7 @@ def print_summary(report: Report, mode: str, repo: str) -> None:
     out: list[str] = []
     out.append(f"### Vocabulary lint ({mode}-mode) — {len(report.hits)} hit(s)")
     out.append("")
-    out.append("Retired vocabulary terms detected. Replace as suggested below.")
+    out.append("Disallowed vocabulary detected. Replace as suggested below.")
     out.append("")
     out.append("| File | Line | Term | Suggested |")
     out.append("|------|-----:|------|-----------|")
@@ -414,6 +427,8 @@ def print_diff(hits: list[Hit]) -> None:
         new_lines = old_text.splitlines()
         seen_lines: dict[int, str] = {}
         for h in file_hits:
+            if h.term not in RETIRED_TERMS:
+                continue
             line = seen_lines.get(h.line_no, new_lines[h.line_no - 1])
             replaced = re.sub(
                 r"\b" + re.escape(h.term) + r"\b", h.suggestion, line
@@ -457,8 +472,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--mode",
         choices=["warn", "error"],
-        default=os.environ.get("VOCAB_LINT_MODE", "warn"),
-        help="warn = exit 0; error = exit 2 on hits",
+        default=os.environ.get("VOCAB_LINT_MODE", "error"),
+        help="error (default) = exit 2 on hits; warn = exit 0",
     )
     parser.add_argument(
         "--fix",

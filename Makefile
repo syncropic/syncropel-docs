@@ -2,9 +2,9 @@
 
 .PHONY: lint-vocabulary lint-vocabulary-fix lint-vocabulary-test
 
-# Run the linter (warn-mode); same invocation as CI.
+# Run the linter (fails on hits); same invocation as CI.
 lint-vocabulary:
-	@python3 tools/lint-vocabulary.py --mode warn .
+	@python3 tools/lint-vocabulary.py --mode error content/docs
 
 # Auto-apply the suggested replacements via git apply.
 # Inspect the diff first if anything looks load-bearing:

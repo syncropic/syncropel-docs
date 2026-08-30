@@ -27,11 +27,11 @@ Where media types are open and grow by emitting records, the **primitives** a pl
 | Primitive | For | Status |
 |---|---|---|
 | **`stream-transport`** | audio, video — ranged byte streaming (HTTP `206`) | **Wired today** |
-| **`static-render`** | documents, reports, decks — presented, not executed | Named; on the roadmap |
-| **`iframe-embed`** | sandboxed embedded surfaces | Named; on the roadmap |
-| **`wasm-app`** | live apps, games, world-models — executable media | Named; gated on the sandbox work |
+| **`static-render`** | documents, reports, decks — presented, not executed | Named, not wired |
+| **`iframe-embed`** | sandboxed embedded surfaces | Named, not wired |
+| **`wasm-app`** | live apps, games, world-models — executable media | Named, not wired |
 
-Today the substrate **plays** (audio and video) end to end. The `render` / `run` / `simulate` modalities are the designed shape of the same rail; they are named so the model is whole, but the executable rungs land as the sandbox and orchestrator pieces do. A medium that maps onto `stream-transport` is pure data right now; the rest is the forward path.
+Today the substrate **plays** (audio and video) end to end. The `render` / `run` / `simulate` modalities are named so the model is whole; only `stream-transport` is wired. A medium that maps onto `stream-transport` is pure data right now.
 
 ## Playing it — for you, and for a stranger
 
@@ -47,9 +47,9 @@ The bespoke alternative — one hardcoded player per content type — is the exa
 
 ## In short
 
-- Audio, video — and, ahead, documents, decks, apps — are **one thing**: content a surface presents, resolved from records at play time.
+- Audio and video are **one thing**: content a surface presents, resolved from records at play time.
 - Two records model any medium: **`core.medium.v1`** (what) + **`core.medium.player.v1`** (how). A new medium type is a record, not new code.
-- The **playback primitives** are a small closed set; **`stream-transport`** (audio/video) is wired, the rest is the roadmap.
+- The **playback primitives** are a small closed set; **`stream-transport`** (audio/video) is the one that is wired.
 - **Anonymous playback** lets a public link *play* — grant-gated, grounded, token-metered — with no account.
 
 ## Related

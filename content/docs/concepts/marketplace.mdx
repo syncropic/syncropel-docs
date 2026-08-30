@@ -5,6 +5,10 @@ description: When several Faculties can do the same kind of work, the system rou
 
 ## Overview
 
+<Callout type="info">
+This page describes the direction of trust-based routing. Today, [routing rules](/docs/guides/routing-rules) and [trust](/docs/concepts/trust) are what you configure and read; the automatic ranking described here is where they are headed, not a switch you can turn on.
+</Callout>
+
 When more than one [Faculty](/docs/concepts/faculty) can handle the same kind of work, something has to decide which one actually gets it. Syncropel decides on **earned trust**: it routes the work to the candidate with the highest [trust](/docs/concepts/trust) for that domain, and it measures trust purely on outcomes that independent evaluators judged. We call this the **calibrated marketplace**.
 
 "Calibrated" is the load-bearing word. This is not a popularity contest, a price auction, or a hand-tuned preference list. The only currency is verified results. A Faculty that consistently produces work that independent evaluators accept rises; one whose work gets rejected falls. The marketplace is a measurement, continuously refreshed.
@@ -15,7 +19,7 @@ The marketplace never inspects what a Faculty is *made of*. When several candida
 
 This matters because it means a non-LLM mechanism competes on equal footing. There's no built-in assumption that "the smart thing to do is call the model." If a cheap exact solver produces better-judged results than a language model on a class of problems, the marketplace routes that class to the solver — not because anyone coded that preference, but because the evidence put the solver on top.
 
-Concretely: deploy two Faculties that both declare the same problem kind — say an exact optimization solver and a deliberately-weak greedy heuristic. Let them do real work. Independent verdicts grade their results. The solver's outcomes are accepted, the heuristic's are rejected, and their trust diverges. Now route a *fresh, unaddressed* problem of that kind, naming no specific Faculty: the system gathers every candidate that declared the capability, ranks them by trust, and sends it to the solver. The right answer wins because reliability was measured, not assumed.
+The intended shape: two Faculties declare the same problem kind, say an exact optimization solver and a weak greedy heuristic. Both do real work; independent verdicts grade their results; their trust diverges. A fresh problem of that kind, naming no specific Faculty, then goes to whichever candidate has earned the most trust. Reliability is measured, not assumed.
 
 ## How a winner is chosen
 
@@ -32,7 +36,7 @@ Two disciplines keep this honest:
 
 ## Why this is the economic payoff, not just a routing trick
 
-The marketplace is the mechanism by which Syncropel gets cheaper and more reliable over time *without anyone tuning it*. As evidence accumulates:
+The marketplace is the mechanism by which Syncropel would get cheaper and more reliable over time *without anyone tuning it*. As evidence accumulates:
 
 - Work gravitates to whichever mechanism is genuinely best at it — often a cheaper, more deterministic one than a language model.
 - Proven Faculties get more of the work, which produces more evidence, which sharpens the ranking further.

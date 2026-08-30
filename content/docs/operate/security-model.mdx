@@ -4,26 +4,15 @@ description: What spl serve protects against (default-secure auth + filesystem p
 ---
 
 <Callout type="warning">
-**Identity keypair + provider secrets are stored in plaintext on disk.** Filesystem permissions (0600, owner-only) protect against casual file enumeration. They do NOT protect against host compromise, cloud-sync to Dropbox / Time Machine / rsync, forensic disk imaging, or accidental commit to a dotfiles repo. Operators must maintain the discipline below.
+**Your identity keypair and provider secrets live as files on disk.** Filesystem permissions (0600, owner-only) protect against casual file enumeration. They do NOT protect against host compromise, cloud-sync to Dropbox / Time Machine / rsync, forensic disk imaging, or accidental commit to a dotfiles repo. Operators must maintain the discipline below.
 </Callout>
 
 ## TL;DR
 
-- `~/.syncro/keys/` and `~/.syncro/secrets/` contain **plaintext** identity + provider keys. Permissions are `0600` (owner-only).
-- `~/.syncro/hub.db` is an **unencrypted SQLite** carrying every record. Bearer-token plaintext is NOT stored — only `sha256(secret)` for validation.
+- `~/.syncro/keys/` and `~/.syncro/secrets/` hold your identity and provider keys. Keep the directory private (permissions are `0600`, owner-only) and back it up encrypted.
+- The record store carries every record. Bearer-token secrets are not stored in it; only a hash is kept for validation.
 - **Excluded from auto-backup**: the startup backup at `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` does NOT include the keys/ or secrets/ dirs.
-- **What you must do**: exclude `~/.syncro/keys/` and `~/.syncro/secrets/` from cloud-sync (Dropbox, iCloud, OneDrive, rsync, dotfiles repos). On hosted instances: rely on the platform's secret manager rather than mounting `~/.syncro/`.
-- **What's coming**: OS-keyring integration (macOS Keychain, Linux Secret Service, Windows Credential Manager) is planned for a future release. Until it ships, file-permission discipline is the only at-rest defense.
-
-## What's stored where
-
-| Asset | Location | Format | Permission | Encrypted at rest |
-|---|---|---|---|---|
-| Ed25519 identity seed (the DID's signing key) | `~/.syncro/keys/primary` | raw 32-byte seed | 0600 | **No** |
-| Provider API keys (Anthropic, OpenAI, etc.) | `~/.syncro/secrets/<provider>.key` | plaintext | 0600 | **No** |
-| Bearer tokens (issued + cached server-side) | `~/.syncro/hub.db` (`tokens` table) | `sha256(secret)` only — plaintext NEVER persisted | n/a (db) | n/a |
-| Operator session token (CLI) | `~/.syncro/token` | plaintext | 0600 | **No** |
-| Federation pair tokens (peer-issued) | `~/.syncro/hub.db` (`tokens` table) | as above (sha256) | n/a | n/a |
+- **What you must do**: exclude `~/.syncro/keys/` and `~/.syncro/secrets/` from cloud-sync (Dropbox, iCloud, OneDrive, rsync, dotfiles repos).
 
 ## What's protected
 
@@ -39,7 +28,7 @@ The audit runs against `~/.syncro/secrets/` and `~/.syncro/keys/`. A failed audi
 
 ### Token-at-rest format
 
-Bearer tokens are NEVER stored in plaintext in `hub.db`. Only `sha256(secret)` lands; the plaintext is shown ONCE at mint time and never persisted in the instance. If you misplace a token, mint a new one — no recovery from `hub.db`.
+Bearer tokens are never stored in the record store as issued. Only a hash lands; the token is shown ONCE at mint time and never persisted in the instance. If you misplace a token, mint a new one.
 
 ### Per-instance keypair scope
 
@@ -47,17 +36,17 @@ The identity keypair is per-instance, content-addressed via `did:key`. Rotating 
 
 ### Bootstrap discipline
 
-`spl serve` writes `hub.db` to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` automatically on every startup (the directory is keyed by the instance DID — see [Operator runbook → Backup discipline](/docs/operate/runbook#backup-discipline)). This backup deliberately does **NOT** include `~/.syncro/keys/` or `~/.syncro/secrets/` so a `cp` of the backup (e.g., to a different host for inspection) doesn't accidentally include identity material.
+`spl serve` writes a copy of the record store to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` automatically on every startup (the directory is keyed by the instance DID — see [Operator runbook → Backup discipline](/docs/operate/runbook#backup-discipline)). This backup deliberately does **NOT** include `~/.syncro/keys/` or `~/.syncro/secrets/` so a `cp` of the backup (e.g., to a different host for inspection) doesn't accidentally include identity material.
 
 ## What's NOT protected (operator must mitigate)
 
 ### Host compromise
 
-Root or the instance's user account can read every file in `~/.syncro/`. The plaintext identity seed lets an attacker:
+Root or the instance's user account can read every file in `~/.syncro/`. The identity seed lets an attacker:
 
 - Forge records under your DID
 - Decrypt federation pair traffic addressed to you
-- Issue bearer tokens that pass the instance's auth gate (after replacing `hub.db`)
+- Issue bearer tokens that pass the instance's auth gate (after replacing the record store)
 
 **Mitigation**: standard host hardening (disk encryption at the filesystem layer, restrict shell access, monitor for unauthorized SSH). For high-stakes tenants, run `spl serve` inside a dedicated VM or container with the keys/secrets dir on a separate filesystem volume.
 
@@ -66,7 +55,7 @@ Root or the instance's user account can read every file in `~/.syncro/`. The pla
 Dropbox, iCloud, OneDrive, Time Machine, rsync-to-NAS — all happily pick up `~/.syncro/keys/` and `~/.syncro/secrets/` by default. Once the contents are on a sync provider's servers:
 
 - The provider's logs may retain them indefinitely.
-- A subpoena to the provider yields your plaintext keys.
+- A subpoena to the provider yields your keys.
 - A breach of the provider's storage exposes them.
 
 **Mitigation**: explicitly exclude these paths from any sync tool you use. Examples:
@@ -98,15 +87,13 @@ Some operators commit `~/.syncro/config.toml` to a dotfiles repo. The default `.
 
 ### Forensic disk imaging
 
-A stolen laptop without full-disk encryption yields plaintext keys. A discarded SSD without secure-erase yields plaintext keys.
+A stolen laptop without full-disk encryption yields your keys. A discarded SSD without secure-erase yields your keys.
 
 **Mitigation**: full-disk encryption (FileVault on macOS, LUKS on Linux, BitLocker on Windows). Secure-erase before disposal.
 
-### Hosted instance multi-tenancy
+### Hosted instances
 
-A `*.syncropel.com` hosted instance runs `spl serve` with the instance's identity in the container's filesystem. Syncropic's hosted-instance provisioning generates a fresh keypair per tenant, but the **container's host** sees the keys in plaintext while the container is running.
-
-**Mitigation**: hosted-instance operators rely on the platform's volume encryption and tenant isolation. Self-hosting users on shared compute (e.g., a VM where another tenant has root) should treat the deployment as compromised by default.
+On a hosted instance the operator of the host can access the instance's keys, as with any hosted service; run locally if that is unacceptable. Self-hosting users on shared compute (a VM where another tenant has root) should treat the deployment as compromised by default.
 
 ### Audit-emission completeness for portability
 
@@ -125,7 +112,7 @@ This audit thread does NOT prevent the export from happening — auth scope (`Ad
 | Casual file enumeration on multi-user host | ✓ | 0600 file permissions |
 | Instance-user-only attacker (no root) | ✓ | 0600 file permissions |
 | Network-only attacker (over HTTP) | ✓ | Bearer-token auth (default-secure since v0.16) |
-| Replay of leaked bearer token | ✓ | Server-side validation against `sha256(secret)` lookup |
+| Replay of leaked bearer token | ✓ | Server-side validation against the stored hash |
 | Host root / instance-user compromise | ✗ | (mitigation: host hardening, full-disk encryption) |
 | Cloud-sync of identity dir | ✗ | (mitigation: explicit exclusion) |
 | Forensic disk imaging | ✗ | (mitigation: full-disk encryption) |
@@ -147,18 +134,6 @@ Three things a run cannot say about itself:
 - **What tools it has.** A defined actor's declared tool list bounds its runs on both transports; a declaration can narrow a tier and never widen one.
 
 Host tools (`bash` and the filesystem set) are wired for the operator's own machine only. The rollback for the whole transport is one config record; see [The sandboxed transport](./sandboxed-transport).
-
-## What's on the roadmap
-
-**OS-keyring integration**: planned support for the [`keyring` Rust crate](https://crates.io/crates/keyring) to optionally store identity keypair + provider keys in OS keyring services:
-
-- macOS: Keychain
-- Linux (with DBus): Secret Service (`gnome-keyring`, `kwallet`)
-- Windows: Credential Manager
-
-The integration will be opt-in and backwards-compatible — file-based fallback continues to work for headless/server contexts where no keyring service is available.
-
-**Decision criteria**: spec implications around key rotation semantics, backup/restore round-trip behavior, and federation pair re-establishment after key rotation are non-trivial. The integration ships when the spec questions resolve.
 
 ## See also
 

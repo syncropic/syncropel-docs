@@ -29,7 +29,7 @@ An **actor** is anyone who emits records — a human (`did:sync:user:alice`), an
 
 Three forms today:
 1. **CLI**: change which instance `spl` talks to via `SPL_DAEMON_URL=https://<other>.syncropel.com spl <cmd>` or persistently in `~/.syncro/config.toml`.
-2. **Web UI**: profile picker in the status bar — switches `useInstanceConnectionStore` to a different paired instance.
+2. **Web UI**: profile picker in the status bar switches to a different paired instance.
 3. **Browser**: navigate to `<other>.syncropel.com` directly — you'll need a bearer paired for that origin.
 
 The frontend treatment of multi-instance UX continues to evolve; the CLI and SDK paths are stable.
@@ -68,7 +68,7 @@ If you see the same symptom on a recent version, it's a different bug — open a
 
 ### Where does my data live in hosted mode?
 
-On your per-customer hosted instance, in a SQLite file (`~/.syncro/hub.db`) on a persistent per-customer volume. Snapshots are operator-managed; portability is via `spl export` (which you can run anytime against your hosted instance). See [Hosted instance signup](/docs/get-started/hosted).
+On your per-customer hosted instance, in its own record store on persistent storage. Snapshots are operator-managed; portability is via `spl export` (which you can run anytime against your hosted instance). See [Hosted instance signup](/docs/get-started/hosted).
 
 ### Can I federate hosted ↔ self-hosted?
 
@@ -76,7 +76,7 @@ Yes — federation is instance-agnostic. `spl federation pair` works regardless 
 
 ### Is there a free trial?
 
-Yes — every new hosted instance gets 30 days free. Card on file is required at provision time (so the transition to paid is automatic), no charge during trial, cancel any time. After day 30, billing is $25/month per instance. Self-hosted has no Syncropel-side cost ever. See the [pricing page](/docs/get-started/pricing) for the full breakdown.
+Yes. Every new hosted instance starts with a 30-day free trial, with no charge during the trial and cancellation at any time. After day 30, billing is $25 per month per instance. Local has no Syncropel-side cost ever. See the [pricing page](/docs/get-started/pricing) for the full breakdown.
 
 ## Federation
 
@@ -94,7 +94,7 @@ Yes — `spl federation revoke <peer-did | pair-id>`. Terminal state; no undo. R
 
 ## Troubleshooting
 
-### My provisioning failed with "image build or machine boot exceeded its timeout"
+### My provisioning failed with "provisioning did not complete"
 
 The instance boot took longer than the provisioning deadline. The underlying instance may already be live — wait 30-60 seconds and retry signup with the same label. If it persists, the page links to a fresh provision retry; the diagnostics carry everything support needs.
 

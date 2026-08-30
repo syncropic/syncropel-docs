@@ -53,4 +53,4 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the voice + structure conventions, 
 
 ## License
 
-[Apache-2.0](./LICENSE)
+The documentation in this repository is [Apache-2.0](./LICENSE). This license covers the docs source only; the Syncropel runtime is distributed under its own terms, the protocol specification is CC-BY-SA-4.0, and the SDKs are Apache-2.0.

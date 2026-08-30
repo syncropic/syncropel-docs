@@ -747,7 +747,7 @@ curl -X POST https://alice.syncropel.app/v1/recredential \
 
 No bearer: the proof is the credential. On success: `{token, principal, expires_at, label, sa_id, scopes, rebind_required}`. The new bearer is parented to the principal's **existing** live grant; nothing is renewed, revoked, or cascaded, so the person's other devices keep working. A recovery code is single-use: `rebind_required: true` tells the client to bind a fresh one at `POST /v1/self/bindings` with the new bearer. `account` and `passkey` proofs are reusable and answer `rebind_required: false`. A passkey whose sign count goes backwards is refused constant-shape.
 
-Refusals are constant-shape by contract. `401 RECREDENTIAL_REFUSED` is the one answer for a principal that does not exist, has no binding, or presented a wrong proof; only after a proof verifies can `409 NO_LIVE_GRANT` say that nothing here is granted to that principal any more. `429 RATE_LIMITED` (burst of 3, then one every 5 seconds, keyed per supplied principal string and proof kind, and per IP) is answered before any hashing work. Clients render the message verbatim and add no diagnosis, or they become the oracle the door refuses to be.
+Refusals are constant-shape by contract. `401 RECREDENTIAL_REFUSED` is the one answer for a principal that does not exist, has no binding, or presented a wrong proof; only after a proof verifies can `409 NO_LIVE_GRANT` say that nothing here is granted to that principal any more. `429 RATE_LIMITED` (the door is rate-limited per supplied principal string and per address) is answered before any hashing work. Clients render the message verbatim and add no diagnosis, or they become the oracle the door refuses to be.
 
 ## Instance
 
@@ -1070,7 +1070,7 @@ Response (`201`):
 
 The optional `scope_target` body field narrows the invite — `{"kind": "thread", "thread_id": "th_..."}` or `{"kind": "namespace", "namespace": "..."}` instead of the default `{"kind": "instance"}`.
 
-**Membership envelope (ADR-194).** An optional `membership` object turns the invite principal-creating — redemption mints an identity + membership grant instead of a bare credential:
+**Membership envelope.** An optional `membership` object turns the invite principal-creating — redemption mints an identity + membership grant instead of a bare credential:
 
 ```json
 {
@@ -1181,13 +1181,13 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 | `401` | `RECREDENTIAL_REFUSED` | The one constant-shape refusal of `POST /v1/recredential`: unknown principal, no binding, or wrong proof, indistinguishably |
 | `409` | `NO_LIVE_GRANT` | A proof verified, but nothing is granted to that principal any more; no bearer that reads nothing is minted |
 | `409` | `ROTATION_REQUIRES_PROOF` | A binding of that kind already exists; rotating it needs the current proof |
-| `429` | `RATE_LIMITED` | Re-credential attempts exceeded the burst (3) and refill (one per 5 s) for that principal string or address |
+| `429` | `RATE_LIMITED` | Re-credential attempts are rate-limited for that principal string or address |
 | `409` | `PASSKEY_NOT_ACCEPTED` | The instance declares no relying party, so it takes no passkey |
 | `404` | `CREDENTIAL_NOT_FOUND` | `DELETE /v1/self/credentials/{bearer_id}`: not yours and does not exist answer alike |
 
 ## Members
 
-The membership roster + offboarding surface (ADR-194). Concept: [Principals & grants](../concepts/principals-and-grants). Operator walkthrough: [Add a teammate](../tutorials/add-a-teammate).
+The membership roster + offboarding surface. Concept: [Principals & grants](../concepts/principals-and-grants). Operator walkthrough: [Add a teammate](../tutorials/add-a-teammate).
 
 | Method | Path | Scope | Description |
 |---|---|---|---|

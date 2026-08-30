@@ -1,11 +1,11 @@
 ---
 title: Hosted instance signup
-description: Skip the install — sign in at syncropel.com and have a fully-portable Syncropel instance running in about a minute, free. Self-hosted and hosted are first-class equals; this page walks through the hosted onboarding path end-to-end.
+description: Skip the install — sign in at syncropel.com and have a fully-portable Syncropel instance running in about a minute. Self-hosted and hosted are first-class equals; this page walks through the hosted onboarding path end-to-end.
 ---
 
 If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel instance for you. The instance is a full Syncropel runtime — the same binary, the same APIs, the same record store, the same federation surface as a self-hosted one. You can move freely between hosted and self-hosted at any time — `spl export` round-trips your data, and the same binary runs on both ends.
 
-Hosted instances are **free** — no credit card, no trial clock. Every account can run up to **three instances** at no charge. Paid plans for higher limits are planned; nothing about the free tier requires one.
+Hosted instances are **$25 per month per instance** with a **30-day free trial**; see [Pricing](/docs/get-started/pricing).
 
 This page covers the signup flow you'll see at syncropel.com, what each step does, and how to connect the CLI afterwards.
 
@@ -16,7 +16,7 @@ You need:
 - An email address that can receive verification mail (or a social login).
 - A choice of instance label — a subdomain under `syncropel.app`, e.g. `alice.syncropel.app`. Lowercase letters, digits, and `-`. 3–32 characters. The label is yours for the lifetime of your account.
 
-You do **not** need: a credit card, Docker, or a domain you control.
+You do **not** need: Docker, or a domain you control.
 
 ## The flow
 
@@ -57,11 +57,7 @@ The bare `<label>.syncropel.app` URL is your instance's public landing page — 
 
 [syncropel.com/account/instances](https://syncropel.com/account/instances) lists every instance your account owns — status, connect, and lifecycle actions. Sign in on a new device and the same list is there; one click connects Studio to any of them.
 
-Want another instance for a separate project? Provision again — up to three per account on the free tier. A fourth attempt is refused with a clear message; delete one you no longer need and retry.
-
-### Instances sleep when idle
-
-Free instances suspend automatically when idle and wake on the first request. If you hit your instance mid-wake you'll see a brief "waking up" page that retries automatically — you land in your workspace a few seconds later. Nothing is lost while an instance sleeps; the record store persists.
+Want another instance for a separate project? Provision again; each instance is billed on its own.
 
 ## What you can do once you're in
 
@@ -136,17 +132,16 @@ Both serve the same protocol. Pick by where you want the data and who manages up
 | Who handles uptime | Syncropic | You |
 | Backup story | Operator-managed snapshots | You — see [Backup discipline](/docs/operate/runbook#backup-discipline) |
 | Federation | Yes — full peer | Yes — full peer |
-| Cost | Free (up to 3 instances) | Whatever your machine costs |
+| Cost | $25 per month per instance after a 30-day trial | Whatever your machine costs |
 | Lock-in | None — `spl export` round-trips | None — same binary |
 
 Hosted is the path of least friction; self-hosted is the path of zero dependence on syncropel.com. Both are first-class.
 
 ## When provisioning fails
 
-Most provisioning failures fall into one of three buckets:
+Most provisioning failures fall into one of two buckets:
 
 - **Label collision.** Someone reserved that label first. Pick another.
-- **Instance limit reached.** The free tier covers three instances per account. The error names your current count and the fix: delete an instance you no longer need, then retry.
 - **Boot timeout.** Your instance took longer than the provisioning deadline. The page suggests waiting 30–60s and retrying — the underlying instance may already be live.
 
 For all of these, the signup page surfaces a structured error — no log scraping. If retries don't help, the diagnostics on the page contain everything support needs.

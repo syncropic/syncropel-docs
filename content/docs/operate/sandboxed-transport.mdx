@@ -93,7 +93,7 @@ spl thread records $THREAD -o json | jq -r '
 
 ## The admission ceiling
 
-The daemon admits a bounded number of concurrent sandboxed runs, derived from machine memory (one run per 512 MiB, at most 16). The slot is taken before a worker is started, so a saturated instance never starts a process it then has to refuse. A start past the ceiling answers HTTP 503 with the code `ADMISSION_CEILING` and the same two numbers that `/v1/engine/health` reports as `admission_capacity` and `admission_available`.
+Concurrent sandboxed runs are bounded by host memory. The slot is taken before a worker is started, so a saturated instance never starts a process it then has to refuse. A start past the ceiling answers HTTP 503 with the code `ADMISSION_CEILING`, and `/v1/engine/health` reports the ceiling and how much of it is free.
 
 ## What changes on your machine
 

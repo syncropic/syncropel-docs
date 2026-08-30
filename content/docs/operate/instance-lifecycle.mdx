@@ -103,65 +103,15 @@ spl status
 
 For an instance that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance) — `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
 
-### Hosted (Syncropic-provisioned)
+### Hosted
 
-The hosted-instance flow is the same engine as the self-hosted one — same binary, same record store, same APIs — running on Syncropic's managed platform. Customers don't manage the engine directly; the provisioning service stands the instance up from a signed-in session and an edge auth layer brokers requests to the right per-customer instance.
-
-<Mermaid
-  caption="Self-service hosted instance provisioning. Same engine, different boot ritual."
-  chart={`sequenceDiagram
-    autonumber
-    participant U as Customer browser
-    participant Site as syncropel.com
-    participant Prov as provisioning service
-    participant Auth as edge auth proxy
-    participant K as spl instance<br/>(hosted instance)
-
-    U->>Site: sign in
-    Site->>Prov: POST /provision<br/>(signed-in session, label)
-    Prov->>Prov: reserve label + generate bootstrap secret
-    Prov->>K: create instance + volume<br/>(SPL_BOOTSTRAP_TOKEN injected)
-    Prov-->>U: 202 Accepted (poll status)
-    K->>K: spl serve<br/>read SPL_BOOTSTRAP_TOKEN
-    K->>K: mint SA + token record<br/>(default namespace)
-    K-->>Prov: /health 200
-    U->>Site: poll provision status
-    Site-->>U: ready (label.syncropel.com)
-    U->>Auth: GET label.syncropel.com/v1/...
-    Auth->>Auth: verify session<br/>resolve label → instance bearer
-    Auth->>K: forward + Authorization: Bearer ...
-    K-->>Auth: 200 + records
-    Auth-->>U: 200`}
-/>
-
-You don't operate this stack as a self-hoster — but the same engine boot path runs underneath, so every recovery recipe in this page works on a hosted instance once you have shell access.
+Hosted instances are provisioned for you: sign in at syncropel.com and the instance comes up at `<label>.syncropel.app`. You connect with the code shown at sign-up, and every recipe on this page that uses the CLI works against it from there.
 
 ## 2. First-run bootstrap
 
-A fresh database has zero service accounts. The auth middleware rejects every unauthenticated request, including the request you'd use to mint your first SA. Three paths through the chicken-and-egg, in order of preference:
+A fresh database has zero service accounts. The auth middleware rejects every unauthenticated request, including the request you'd use to mint your first SA. Two paths through the chicken-and-egg:
 
-### Path A — environment-variable bootstrap (preferred)
-
-The engine reads `SPL_BOOTSTRAP_TOKEN` at startup, before the auth preflight. If the variable is set and the default namespace has zero service accounts, the engine programmatically mints an SA and a paired API token whose secret portion is the env-var value. The matching bearer is `spl_<env>_<sa>_<secret>`.
-
-```bash
-SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 32)
-export SPL_BOOTSTRAP_TOKEN="$SECRET"
-spl serve
-
-# Reconstruct the canonical bearer (defaults: env=prod, sa=sa-bootstrap-env)
-BEARER="spl_prod_sa-bootstrap-env_${SECRET}"
-
-# Save it for the CLI auto-injector
-spl token save "$BEARER"
-spl status
-```
-
-This is the path the hosted provisioner uses (the secret is delivered as a platform-managed secret), and it is the cleanest path for self-hosters because there is no insecure-bind window. The SA is minted once; subsequent restarts with `SPL_BOOTSTRAP_TOKEN` set are no-ops because the SA already exists.
-
-Validation rules: secret length 16–256 ASCII printable characters, no whitespace or control bytes. Out-of-range values fall through to the existing preflight (warn-and-continue), so a malformed env var will not lock the instance out.
-
-### Path B — `--insecure-localhost` (laptop dev)
+### Path A — `--insecure-localhost` (laptop dev)
 
 Restart the instance with `--insecure-localhost`. It binds 127.0.0.1 only and disables auth. Mint an SA via the bootstrap endpoint:
 
@@ -181,9 +131,9 @@ spl serve
 
 This is the path documented in [Authentication & Service Accounts](/docs/operate/keyring) and is fine for a single-user laptop. Avoid it on multi-tenant hosts: any local user can curl 127.0.0.1.
 
-### Path C — hosted Worker (no shell access)
+### Path B — hosted (no shell access)
 
-Sign in at syncropel.com, click Provision. The provisioner mints the bootstrap secret as a platform-managed secret, the instance reads it on boot, and a per-label bearer is resolved when forwarding requests. You receive a working `https://<label>.syncropel.app` URL; you do not see or store the bootstrap secret yourself.
+Sign in at syncropel.com and provision. The instance is bootstrapped for you and you receive a working `https://<label>.syncropel.app` URL; connect with the code shown at sign-up.
 
 ## 3. Auth posture for production
 
@@ -320,15 +270,9 @@ spl stop
 
 This sends `SIGTERM`. The instance flushes the SQLite WAL, closes the socket, and removes its PID file. If `--stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).
 
-### VACUUM (optional, but reclaims space)
+### Reclaim space (optional)
 
-```bash
-sqlite3 ~/.syncro/hub.db 'VACUUM;'
-```
-
-`VACUUM` rewrites the database file to its compact form. It is safe with the instance stopped; do not run it against a running instance.
-
-**After upgrading to v0.158+**: the schema migration drops a legacy column (`canonical_json`) that held a verbatim second copy of every record. SQLite reclaims that space lazily as pages are rewritten — the file does not shrink on its own. To reclaim it eagerly, stop the instance and run `VACUUM` once during a maintenance window. Budget roughly 2x the database size in free disk and expect an exclusive lock for the duration (minutes on multi-gigabyte ledgers). On a large ledger the reclaimed space can approach half the file.
+The record store reclaims freed pages lazily, so the store file does not shrink on its own after an upgrade migration or a large deletion. With the instance stopped, compact the store file with your database tooling to reclaim it. Budget roughly twice the file size in free disk and expect an exclusive lock for the duration (minutes on multi-gigabyte ledgers). Do not compact a running instance.
 
 ### Archive
 

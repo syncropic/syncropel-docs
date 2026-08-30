@@ -122,7 +122,7 @@ room — a thread id, a thread prefix, or a task alias — for its
 five-bucket re-entry brief:
 
 ```bash
-spl resume SKL-1234
+spl resume <task>
 ```
 
 `spl resume` reads the annotation `spl session save --draft` landed, so
@@ -159,8 +159,7 @@ const latest = checkpoints[checkpoints.length - 1];
 
 The dev agent (`did:sync:agent:dev`) prompt template expects a
 checkpoint at the end of every session. See
-[`~/.syncro/dev-prompt.md`](/docs/guides/agent-integration) for the
-contract. Humans reviewing an agent's work read the checkpoints as the
+[Agent integration](/docs/guides/agent-integration) for the contract. Humans reviewing an agent's work read the checkpoints as the
 first signal of progress.
 
 ## When NOT to use checkpoints

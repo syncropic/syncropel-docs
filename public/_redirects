@@ -1,19 +1,22 @@
 # Cloudflare Workers Static Assets _redirects
-# Generated for v0.40 Web Summit docs trim (per syncropel-research/docs/web-summit-trim/02-docs-audit-and-trim-plan.md §N.3)
 # Format: <source>  <destination>  <status>
 # Sources match exact paths (with trailing slash due to next.config.mjs trailingSlash: true).
 
-# get-started/ — 5 UNPUBLISH → nearest sibling
+# get-started/ — retired pages → nearest sibling
 /docs/get-started/daemon/            /docs/get-started/first-run/    301
 /docs/get-started/service-accounts/  /docs/get-started/pairing/      301
-/docs/get-started/exposing/          /docs/get-started/troubleshooting/  301
-/docs/get-started/windows/           /docs/get-started/install/      301
-/docs/get-started/linux-macos/       /docs/get-started/install/      301
 
 # tutorials/ — restored to nav 2026-05-30; renamed slugs keep a redirect.
-/docs/tutorials/from-dogfood-to-ops/  /docs/tutorials/from-local-to-hosted/  301
-# your-first-aitl-approval → your-first-decision (2026-07-23, AITL retired per ADR-139)
+# your-first-aitl-approval → your-first-decision (renamed)
 /docs/tutorials/your-first-aitl-approval/  /docs/tutorials/your-first-decision/  301
+
+# removed pages
+/docs/tutorials/parallel-dev/                      /docs/tutorials/first-fanout/   301
+/docs/guides/cookbook-dispatch-recovery/           /docs/operate/runbook/          301
+/docs/guides/cookbook-claude-session-correlation/  /docs/guides/dispatch-observability/  301
+/docs/reference/honesty-ledger/                    /docs/concepts/authorization-model/   301
+/docs/operate/backup-restore-drill/                /docs/guides/backup-restore/    301
+/docs/operate/rollback-procedure/                  /docs/guides/backup-restore/    301
 
 # templates/ — 1 UNPUBLISH → guides
 /docs/templates/  /docs/guides/task-management/  301
@@ -42,21 +45,6 @@
 
 # integrate/ — programmatic-agents restored for v0.54
 
-# operate/ — 12 UNPUBLISH; 3 restored (instance-lifecycle, workspace/lifecycle, workspace/sharing) for v0.54
-/docs/operate/actor-portability/         /docs/operate/runbook/  301
-/docs/operate/audit-export/              /docs/operate/runbook/  301
-/docs/operate/audit-threads/             /docs/operate/runbook/  301
-/docs/operate/extension-publishing/      /docs/operate/runbook/  301
-/docs/operate/federation-pairing/        /docs/operate/runbook/  301
+# operate/ — retired pages
 /docs/operate/fleet-benchmarking/        /docs/operate/runbook/  301
-/docs/operate/keyring/                   /docs/operate/runbook/  301
-/docs/operate/persist-instance/          /docs/operate/runbook/  301
-/docs/operate/relay/                     /docs/operate/runbook/  301
-/docs/operate/troubleshooting-connection/  /docs/operate/runbook/  301
-/docs/operate/windows-service/           /docs/operate/runbook/  301
 /docs/operate/workspace/testing/         /docs/operate/runbook/  301
-
-# reference/ — 3 UNPUBLISH; body-kinds restored for v0.54
-/docs/reference/record-format/        /docs/reference/cli/  301
-/docs/reference/infer-query-schema/   /docs/reference/cli/  301
-/docs/reference/iframe-host-snippet/  /docs/reference/cli/  301

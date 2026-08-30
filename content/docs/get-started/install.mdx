@@ -55,10 +55,10 @@ for every tagged release. Install by downloading the binary directly:
 
 ```bash
 # Apple Silicon (M1/M2/M3/M4):
-curl -fsSL https://releases.syncropic.com/spl-rust/latest/spl-darwin-aarch64 -o spl
+curl -fsSL https://releases.syncropic.com/spl/latest/spl-darwin-aarch64 -o spl
 
 # Intel Mac:
-curl -fsSL https://releases.syncropic.com/spl-rust/latest/spl-darwin-x86_64 -o spl
+curl -fsSL https://releases.syncropic.com/spl/latest/spl-darwin-x86_64 -o spl
 
 # Then make it executable and put it on your PATH:
 chmod +x spl
@@ -70,18 +70,18 @@ spl version
 ```
 
 To pin a specific release, swap `latest` for the version, e.g.
-`.../spl-rust/0.79.0/spl-darwin-aarch64`.
+`.../spl/0.79.0/spl-darwin-aarch64`.
 
 On first run, macOS Gatekeeper may quarantine a binary downloaded via
 `curl`. If macOS refuses to run it, clear the quarantine attribute:
 `xattr -d com.apple.quarantine ~/.local/bin/spl`.
 
 Browse all published builds at the
-[releases page](https://releases.syncropic.com/spl-rust/).
+[releases page](https://releases.syncropic.com/spl/).
 
 ## Pinning to a specific version
 
-The default install scripts fetch the version listed at `https://releases.syncropic.com/spl-rust/latest/version.json`. To pin to a specific release, set `SPL_VERSION`:
+The default install scripts fetch the version listed at `https://releases.syncropic.com/spl/latest/version.json`. To pin to a specific release, set `SPL_VERSION`:
 
 ```bash
 # Linux

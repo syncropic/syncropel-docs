@@ -30,20 +30,7 @@ spl config add-body-kind-manifest \
   --description "Music catalog — indexed for lookup and chronology"
 ```
 
-Within ~1 second the instance's config reload handler runs, applies the manifest to the store, and `CREATE INDEX IF NOT EXISTS` runs for each declared field. The index names follow a stable pattern so you can inspect them directly:
-
-```bash
-sqlite3 ~/.syncro/hub.db "SELECT name FROM sqlite_master \
-  WHERE type = 'index' AND name LIKE 'idx_body_kind_%'"
-```
-
-Output on the example above:
-
-```
-idx_body_kind_music_catalog_track_title
-idx_body_kind_music_catalog_track_artist_id
-idx_body_kind_music_catalog_track_year
-```
+Within about a second the instance reloads its configuration and creates an index for each declared field. Queries that filter on those fields are served from the index from then on.
 
 ## Listing Manifests
 
@@ -72,13 +59,9 @@ spl config add-body-kind-manifest \
   --disable
 ```
 
-A disabled manifest is stored but its fields are NOT applied to the store — the indexes that already exist stay (SQLite does not auto-drop), but new ones are not created. To actually drop indexes, go through SQLite directly:
+A disabled manifest is stored but its fields are not applied: indexes that already exist stay in place, and new ones are not created.
 
-```bash
-sqlite3 ~/.syncro/hub.db "DROP INDEX IF EXISTS idx_body_kind_music_catalog_track_year"
-```
-
-This is intentional: expression indexes have no ongoing cost at read time, they're cheap to keep around, and the failure mode of "dropped an index an operator actually wanted" is worse than "left an index declared long ago." Treat `--disable` as "stop creating new ones" rather than "undo the last one."
+This is intentional: an index has no ongoing cost at read time, it is cheap to keep around, and the failure mode of "dropped an index an operator actually wanted" is worse than "left an index declared long ago." Treat `--disable` as "stop creating new ones" rather than "undo the last one."
 
 ## Field Path Rules
 
