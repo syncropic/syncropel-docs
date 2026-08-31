@@ -265,6 +265,9 @@ Pointers to the rest of the kind surface — full schemas live in their own refe
 - **`core.runtime.v1`** — pluggable runtime descriptor for extensions. See [Extensions](/docs/guides/extensions).
 - **`core.artifact.v1`** — published artifact records.
 - **`infer.query.v1`** — inference query records. Documented in detail at [infer.query.v1 schema reference](/docs/reference/infer-query-schema).
+- **`core.trigger.outcome.v1`** — the completion of one governed trigger dispatch, on the dispatch thread. Carries `trigger`, `target`, `success`, `cost_usd`, `error`, and (when the dispatch hit its deadline while the loop still ran) `disposition: "pending"`. The trigger governor frees the concurrency slot, folds daily spend and feeds the circuit breaker from exactly this record.
+- **`core.eval.case.v1`** — one eval case: a `request`, its established `answer`, a closed `quartile` naming how the case was obtained (`mined` / `held-out` / `adversarial` / `unknown` / `misdirected`), an optional `citation` (the record id of the primary evidence), and the `scope` / `subject` / `predicate` supersede key.
+- **`core.eval.run.v1`** — one scoring of one definition (its 64-hex content address as `subject`) against its `suite`. Carries `structure_score` and `substance_score` separately, both in `[0, 1]`; a blended `score` field is refused at the door, because a well-formatted wrong answer must not pass on style.
 
 ## What's next
 
