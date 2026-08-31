@@ -163,6 +163,73 @@ member may declare reads only over threads its own credential could read
 (an uncovered thread refuses with the thread named), and revoking the
 member cascades to everything the definition minted.
 
+## How an actor reads
+
+Reading the substrate has three rungs, and an actor is never expected to
+guess at any of them.
+
+`search_records` and `list_threads` find where data lives, so an actor never
+has to invent a thread id. `query_thread` reads a thread it has found and
+prints one line per record; each line ends with `+fields:` naming the body
+fields the preview did not show, so the actor can ask for them by name rather
+than guessing at a schema. When a preview is not enough, `read_record` takes
+that row's thread and clock and returns one record whole, along with the
+record's `version` so the actor can cite exactly what it read.
+
+An actor can also ask instead of paging. `query_thread` takes a `filter` over
+body field paths and a `count_only` flag:
+
+```json
+{"thread": "th_library", "filter": {"body.kind": "track.v1", "body.labeled": false}, "count_only": true}
+```
+
+The filter runs through the same governed read door as every other query, so
+it discloses exactly what the run's credential could see anyway, and the
+sandboxed transport takes the identical path.
+
+Three answers that look alike are kept apart on purpose, because an actor
+that confuses them draws a confident wrong conclusion:
+
+- a field **no record carries** renders `(absent)`, and a request where *no*
+  named field exists anywhere is an error naming the fields that do
+- a field carried as **null** renders `null`, which is a fact about the record
+- an **empty answer** always names its bound: nothing visible to this run's
+  credential is not the same as nothing anywhere
+
+## When an actor asks a person to act
+
+An actor that cannot meet its goal calls `request_decision`, which is the only
+correct way to stop short. If the reason is `decision_required`, the refusal
+also becomes a real question: a `core.work.decision_request.v1` a person can
+answer from the decisions door, the your-call lane, or the run's own row.
+
+A proposal may carry `claims` about the records it depends on:
+
+```json
+{"thread": "th_library", "clock": 12, "field": "body.labeled", "equals": false, "version": "<record id>"}
+```
+
+The kernel re-derives each claim from the log **before** anybody is asked to
+act on it. A claim that does not hold comes back to the actor as an error
+naming what the record actually says, so it corrects its own proposal rather
+than a person being handed something untrue. An optional `version` is the
+record id the actor read; citing one that has since changed says re-read
+rather than re-think.
+
+## When the environment corrects an actor
+
+An actor is not left alone with its own reasoning. After every tool call the
+kernel may add an observation, which the actor sees on its next turn beside
+the tool's own result, never in place of it. An actor repeating the same call
+with identical arguments is told so; an actor circling a thread that keeps
+coming back empty is told that too; and a tool call from a reply that hit the
+output limit is never executed at all, because arguments cut off mid-write
+can parse cleanly and still be incomplete.
+
+Every one of those interventions is a `core.work.observation.v1` record
+naming the rule that fired, so a run that changed course for a reason the
+model did not choose says so, and you can read why.
+
 ## An actor that defines actors
 
 Every work-loop actor holds three read-and-propose tools beside the
