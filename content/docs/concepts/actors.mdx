@@ -147,6 +147,22 @@ the record; there is no silent fallback to a default prompt.
 Write it as a record on any thread, then point the actor at it with
 `"system_prompt_ref": "record:<id>"` in its definition.
 
+## The threads an actor may read
+
+A defined work-loop actor can declare the threads that are its domain:
+
+```json
+{"work_loop": {"tools": ["query_thread", "record_note"], "reads": ["th_library"]}}
+```
+
+Each declared thread lands on the run's credential as standing read
+authority, so a sandboxed run opens with its domain visible instead of
+discovering, one refusal at a time, that it was born blind. The declaration
+is a grant, which means it is bounded, revocable and reviewable: a bounded
+member may declare reads only over threads its own credential could read
+(an uncovered thread refuses with the thread named), and revoking the
+member cascades to everything the definition minted.
+
 ## An actor that defines actors
 
 Every work-loop actor holds three read-and-propose tools beside the
