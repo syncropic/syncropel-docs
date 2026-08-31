@@ -122,6 +122,28 @@ Exempt routes (always unauthenticated): `GET /health`, `POST /v1/bootstrap/servi
 
 The instance reloads `th_engine_config` on broadcast, so new records take effect on the next request — no restart needed.
 
+**Per-actor tier assignment** — one LEARN record gives a defined actor a
+real tier rung (a defined actor has no invite stamp and otherwise runs at
+Trial, whose daily loop cap cannot carry an hourly schedule):
+
+```json
+{"topic":"actor_tier","actor":"did:sync:agent:director","tier":"team"}
+```
+
+Write it to `th_engine_config` as the engine actor (the config thread is
+kernel-authority; owner or admin scope required).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `topic` | string | — | Must be `"actor_tier"` |
+| `actor` | string | — | The actor DID the assignment applies to |
+| `tier` | string | — | `"paid"` or `"team"`; an assignment can never mint an operator (values above team are clamped). An empty or absent `tier` clears the assignment. |
+
+Latest record per actor wins. Assignments are applied when the resolver is
+rebuilt, which happens at boot and on any actor definition write; a bare
+assignment write alone takes effect at the next rebuild or restart. Tier
+resolution takes the higher of the invite-stamped tier and the assignment.
+
 **2. CORS allow-list** — a separate LEARN record:
 
 ```bash

@@ -380,6 +380,8 @@ curl "http://localhost:9100/v1/graph/query?op=shared_context&a=did:sync:user:ali
 | GET | `/v1/actors/lookup?did=X` | Get actor detail by DID |
 | GET | `/v1/actors/roster` | Every defined actor with its definition record id, adapter kind, enabled state, model, tools, prompt reference, who proposed it, and trust standing per domain (`{object: actor_roster, count, data: [...]}`). |
 | GET | `/v1/runs?state=&actor=&since=&limit=` | Every run across actors, newest first, filtered by state, principal or executor, and start time; a bounded scan with `capped` on the wire. |
+| GET | `/v1/actors/{did}/usage` | The actor's whole daily usage fold: loop count, input and output tokens, cost in USD for today's window (`{object: actor_usage, ...}`). Zeros when the actor has not run today. |
+| GET | `/v1/runs/{thread}/provenance` | The definition, prompt and frame records a run row names, served under the run row's own read posture, so a run's participant can read the exact words their run ran under. |
 | POST | `/v1/blueprints/materialize` | Install a blueprint. Body: `{blueprint, extends?[], regime?, accept_plan?}`. The instance authors the records; the caller's own grant bounds any actor the blueprint declares (`403 TOOL_NOT_IN_REACH` / `WRITE_KIND_NOT_ADMITTED`); a signed blueprint needs the reviewed plan hash (`428 PLAN_CONSENT_REQUIRED`); an unsigned or untrusted one is `403 BLUEPRINT_UNSIGNED`. |
 
 A run row (`GET /v1/runs/{thread}`) carries `definition` (the actor
