@@ -1226,6 +1226,16 @@ curl -X DELETE http://localhost:9100/v1/members/mora \
 
 The JSON body is optional; `note` is signed into the revocation record. The response reports `grant_id`, `credentials_revoked`, `sub_grants_invalidated`, and `scope` — honestly `"local"`: cross-instance credentials are outside this ledger's reach. The revoked member's bearer answers `401 GRANT_REVOKED` on its next request; the event lands as `member_revoked` on the invite audit feed (`GET /v1/invites/audit`).
 
+## Ledgers
+
+A ledger is a read face you declare beside your data: rows are acts of the kinds you name on a thread, joined to their responses through record parentage; columns are expressions over each row; verbs are the acts a viewer may take on a row. The declaration is a configuration record; the rows are always folded live from the thread.
+
+- `GET /v1/threads/{thread}/ledgers` lists the ledgers declared on this instance with the row count this viewer is admitted to see, and says `capped` when a ceiling bit.
+- `GET /v1/threads/{thread}/ledgers/{id}` serves a page of evaluated rows (cells, groups, and the `may:` list of verbs this caller's write authority admits), the declared stats computed only over what this viewer was served, and a `next_before` cursor; `?before=<clock>` continues older, `?limit=` bounds the page.
+- `GET /v1/threads/{thread}/ledgers/{id}/encoding` returns the compact text form an assistant is handed, with the same per-row `may:` list, so it can never propose an act its holder cannot take.
+
+Rows pass the viewer's disclosure resolution before anything is computed over them, so a count or a stat never reveals the existence of a record the viewer cannot read. A declaration whose expressions do not compile, or that names an undeclared record kind, is refused when configuration loads and says so in the log; it never loads as something quieter.
+
 ## CORS
 
 All `/v1/*` + `/.well-known/*` + `/directory/*` endpoints include CORS headers (`tower-http::CorsLayer` with permissive defaults). The instance at `localhost:9100` is reachable from web UI origins without proxy configuration.
