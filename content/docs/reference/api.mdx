@@ -151,7 +151,11 @@ Request body:
 | `offset` | int | 0 | Pagination offset |
 | `explain` | bool | `false` | When `true`, response includes a `plan` block describing the translated SQL, bind count, and which fields used the indexed fast path vs. `json_extract` |
 
-Two response fields are easy to misread. `capped: true` means more disclosable rows may exist beyond this page, whatever `limit` you asked for; it is the only truthful signal that a page is partial. `matched_total` is the filter's count before disclosure, so it is not comparable with `data.length` and must not be used to decide whether you have everything; an authorized reader can receive fewer rows than `matched_total` on a complete read.
+Two response fields are easy to misread. `capped: true` means more disclosable rows may exist beyond this page, whatever `limit` you asked for; it is the only truthful signal that a page is partial.
+
+`matched_total` **is disclosure-aware**, and has been since v0.174. It was once the store's count taken before the disclosure filter ran, which made it a measured existence oracle: a narrowed caller could ask about a name it was not allowed to see and learn from the denominator whether anything by that name existed, while `data` came back empty. It is now served only when nothing was withheld from you; when something was, you are told how many rows *you* may see instead. An unrestricted reader is unaffected.
+
+So `matched_total` is a count over your own view, not over the instance. Two callers with different grants can both receive honest and different totals for the same filter, and neither number is evidence about what the other can see. It is still not a substitute for `capped` when deciding whether you have the whole answer.
 
 Response:
 

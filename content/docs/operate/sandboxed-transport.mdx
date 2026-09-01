@@ -83,6 +83,39 @@ spl config add-permission-rule --name stop-that --action deny --priority 100 \
 
 The verdict is authored by the kernel, and so is the run's outcome. The run credential cannot write either kind, so a run cannot declare that it was allowed to act or that it succeeded. The outcome's `success` is also checked against what the tools did: a run whose every call failed is not a success whatever its final answer says, and the outcome carries `tool_calls_ok` and `tool_calls_failed` so a reader has the evidence beside the verdict.
 
+## After a call, not just before it
+
+The permission rules above run *before* a tool call. After one returns, the
+kernel may add an **observation**: something the environment noticed about the
+run, put in front of the model on its next turn beside the tool's own result,
+never in place of it.
+
+Three of them ship today. An actor calling the same tool with identical
+arguments three times in a row is told so, and told to change something or
+stop; the count is kept *after* execution, so a call the permission plane
+denied counts too, because an actor hammering a refused call is exactly the
+loop worth breaking. An actor whose second read of the same thread comes back
+empty is told that it has already looked, rather than being handed the same
+sentence twice. And a tool call arriving on a reply that hit the output limit
+is never executed at all: arguments cut off mid-write can parse cleanly and
+still be incomplete.
+
+Each one is a `core.work.observation.v1` record on the run's thread naming the
+`rule` that fired and carrying the exact text the actor was shown. Hooks in
+other agent harnesses are configuration files and leave nothing behind, so
+nobody can ask afterwards why a run changed course. Here you can:
+
+```bash
+spl thread records $THREAD -o json | jq -r '
+  .data[] | select(.body.kind == "core.work.observation.v1") |
+  "\(.body.rule): \(.body.text)"'
+```
+
+Observations compose forbid-wins: a rule may only *add* one, never suppress
+another, so no ordering of rules can quietly disarm the system. And they work
+on both transports, because the hooks are attached where the loop is
+assembled, which the worker shares.
+
 To read what a run was allowed to do, walk its thread:
 
 ```bash

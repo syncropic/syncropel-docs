@@ -136,9 +136,33 @@ So `body.kind`, `body.priority`, and `body._refs.music_artist` all work; `body` 
 
 - **`thread`** — optional thread-scope. Shorthand for adding `{ "thread": "th_..." }` to the filter. Uses the thread index directly.
 - **`sort`** — single-key document; value is `1` for ascending, `-1` for descending. Example: `{ "clock": -1 }` (newest first), `{ "created_at": 1 }` (oldest first), `{ "body.priority": -1 }` (highest priority first — but see [Indexed Field Registry](./body-kind-manifest) for why you'll want to declare body fields first).
-- **`limit`**: default 100, clamped to 1000. Asking for more returns 1000 rows and `capped: true`; read `capped` to know a page is partial, and never compare `matched_total` (the filter's count before disclosure) with the number of rows you received.
+- **`limit`**: default 100, clamped to 1000. Asking for more returns 1000 rows and `capped: true`; read `capped` to know a page is partial. `matched_total` is disclosure-aware (it is served only when nothing was withheld from you, and otherwise counts the rows *you* may see), so it is a count over your own view rather than over the instance, and it is still not a substitute for `capped` when deciding whether you have the whole answer.
 - **`offset`** — for pagination. Prefer `{ "clock": { "$gt": last_clock } }` as a cursor once you have one — cursor-style pagination is cheaper than deep offsets.
 - **`explain`** — when `true`, the response includes a `plan` describing which fields used a top-level column (indexed), and which fields fell to the body-scan path.
+
+## The same grammar, from inside an actor
+
+A work-loop actor reaches this filter language through its `query_thread`
+tool rather than over HTTP, and it is the same grammar running through the
+same governed door:
+
+```json
+{"thread": "th_library", "filter": {"body.kind": "track.v1", "body.labeled": false}, "count_only": true}
+```
+
+`count_only` answers how many without returning the rows, which is how an
+actor counts a large thread inside its budget instead of paging it into
+context. Because it is the same door, a sandboxed run takes the identical
+path and discloses exactly what its credential could read anyway.
+
+Two refusals are worth knowing. A field path that is not addressable comes
+back named (`unknown field path: kind` — body fields are `body.<path>`), and
+it is named the same way on both transports rather than degrading into a
+storage error in the sandbox. And a filter that matched nothing is reported
+differently from a thread the run cannot see: the first says the filter is
+valid and matched nothing here, the second says the thread may hold records
+outside this run's view. Neither is proof of absence, and an actor that
+confuses them will state one as the other.
 
 ## Using `explain`
 
