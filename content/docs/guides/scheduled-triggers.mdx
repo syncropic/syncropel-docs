@@ -58,6 +58,32 @@ spl config trigger-history --limit 10
 Each row shows the trigger name, firing time, thread id produced, and
 cost.
 
+## Pause, resume, remove
+
+`spl trigger` is the verb group for a trigger's life after it exists.
+`list` and `show` read the LIVE loaded set, which is not always the same as
+the records: a trigger whose schedule, timezone or idempotency declaration is
+invalid is REFUSED at load and marked `REFUSED` in the listing rather than
+silently behaving like a live one.
+
+```bash
+spl trigger list                 # the live set, with refusals marked
+spl trigger show <name>          # the whole definition
+spl trigger pause <name>         # stops firing; keeps the whole definition
+spl trigger resume <name>        # puts it back exactly as it was
+spl trigger remove <name>        # removes it for good
+```
+
+`remove` writes a TOMBSTONE record rather than deleting anything: the ledger is
+append-only, so the removal is a fact on it like every other, and the original
+declaration stays as history. That has one consequence worth knowing before you
+reach for it: **declaring the same name again brings the trigger back**, which
+is what latest-wins means on an append-only log.
+
+Removing a trigger that was REFUSED at load works too, and is the reason the
+verb exists: before it, a trigger that could not load also could not be taken
+out of the listing.
+
 ## Common patterns
 
 ### Stale-task reminder
