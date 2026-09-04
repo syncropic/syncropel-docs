@@ -101,17 +101,26 @@ A self-hosted instance starts **deliberately blank**: it reacts to nothing
 until you choose what runs on it. Two ways to give it a voice:
 
 ```bash
-spl init --preset personal     # at init: seed a ready-to-use setup
-                               # (presets: personal · team · research · builder · blank)
+spl init --preset recommended  # at init: seed a ready-to-use setup
+                               # (presets: recommended · blank)
 
-spl config scribe enable       # any time later: enable the conversational
-                               # agent on an already-initialized instance
+spl blueprint install chief-of-staff   # any time later: install the
+                                       # conversational actor on an
+                                       # already-initialized instance
 ```
 
-`spl config scribe enable` shows a short privacy disclosure and turns the
-assistant on for new conversations; `spl config scribe status` shows what's
-configured, and `disable` turns it back off. If you initialized bare and
+Every preset except `blank` installs the **chief of staff**, the actor that
+answers on a new thread. On an instance that was initialized bare, install it
+through the blueprint door with the command above. If you initialized bare and
 the assistant seems silent, this is why — nothing is broken.
+
+<Callout type="info">
+Instances before v0.216 had a separate built-in assistant, configured with
+`spl config scribe`. That verb is gone: the conversational default is now an
+ordinary actor, defined by a blueprint like any other, so what answers you is
+something you can read, change and replace. Old configuration records are still
+readable as history.
+</Callout>
 
 (Hosted instances come with the assistant already on.)
 
