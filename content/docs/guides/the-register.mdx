@@ -1,0 +1,106 @@
+---
+title: The register
+description: Your open asks, ranked. Blocking asks first, then oldest, then your own weights, with duplicates folded and open proposals beside them. Reorder with a weight, say one thing to the listener, and get a re-entry brief with resume.
+---
+
+## Overview
+
+The register is the one place to see everything that is waiting on **you**:
+the open asks addressed to you, ranked so the most pressing sit at the top,
+with the open proposals shown beside them.
+
+```bash
+spl register
+```
+
+The ranking is fixed and honest:
+
+1. **Blocking asks first** (an ask something is stuck behind).
+2. **Then oldest**, by the ask's own clock.
+3. **Then your weights**, the manual overrides you set.
+
+Duplicate asks are **folded** into one row, so a question asked in three
+places shows once. Use `--limit` to change how many rows print per list
+(default 30).
+
+## Reordering with a weight
+
+When the automatic ranking is not the order you want to work in, pin one
+ask above another:
+
+```bash
+spl register weight <above> <below>
+```
+
+Both arguments are ask ids (prefixes are accepted). The weight moves the
+`above` ask above the `below` one and persists as your own preference. To
+remove a weight you set:
+
+```bash
+spl register weight <above> <below> --withdraw
+```
+
+## Turning your listener on or off
+
+Your conversational listener is the actor that answers when you say
+something to the instance. It is your own preference, and you can turn it
+off (and back on):
+
+```bash
+spl register listener off
+spl register listener on
+```
+
+## Saying one thing: `spl say`
+
+`spl say` sends one message to your listener on a fresh thread and prints
+its reply. It is the typed equivalent of the Studio's first message:
+
+```bash
+spl say "What changed on the roster today?"
+```
+
+Options:
+
+| Flag | Effect |
+|---|---|
+| `--thread <THREAD>` | Continue an existing thread instead of opening a new one |
+| `--wait <SEC>` | Seconds to wait for the reply (default `90`) |
+
+`spl say` is one round trip. For a goal you want to sit with, run, and see
+to completion, use [`spl run`](./running-a-goal) instead.
+
+## Getting back in: `spl resume`
+
+After time away, `spl resume` gives you one re-entry payload answering three
+questions: where was I, what changed, and what needs me.
+
+```bash
+spl resume
+```
+
+Point it at a specific room (a thread id, a thread prefix, or a task alias)
+to get the re-entry brief for just that room:
+
+```bash
+spl resume th_auth_refactor_abc123
+spl resume SKL-3699
+```
+
+With a room, `resume` returns the five-bucket re-entry brief for it; without
+one, it returns the instance-wide descent.
+
+## Machine-readable output
+
+Every command here takes `--json` (or `-o json` / `-o stream-json`) for
+scripting:
+
+```bash
+spl register --json | jq '.data'
+spl resume --json
+```
+
+## Related
+
+- [Running a goal](./running-a-goal): start a governed run and sit with it.
+- [Task management](./task-management): the task lifecycle behind many asks.

@@ -1,0 +1,127 @@
+---
+title: Evaluating actors
+description: Score an eval suite against an actor and judge one record over another. The improvement loop scores structure and substance apart, treats a definition's facet as its identity, and compares regressions per axis.
+---
+
+## Overview
+
+Two commands let you measure how well an actor does its work and record a
+preference between two results:
+
+- **`spl eval`** scores an eval suite against an actor and reads that
+  actor's graded history.
+- **`spl judge`** records that one record beat another, writing a
+  `core.verdict.pair.v1` that names the features that differed.
+
+Together they are the improvement loop: you measure a candidate actor
+definition, compare it against the one it succeeds, and keep a durable
+record of which was better and why.
+
+## Scoring a suite: `spl eval score`
+
+An eval suite is a thread of `core.eval.case.v1` records. Scoring folds
+those cases against an actor's runs and writes **one** kernel-authored
+`core.eval.run.v1`.
+
+```bash
+spl eval score <suite> \
+  --actor <did> \
+  --definition <64-hex>
+```
+
+| Argument / flag | Meaning |
+|---|---|
+| `<suite>` | The eval thread holding the `core.eval.case.v1` records |
+| `--actor <did>` | The actor whose runs are scored |
+| `--definition <64-hex>` | The content address of the definition being graded |
+
+The definition is required: a grade with no definition names nothing. The
+scorer matches the runs against that definition's own id (or its facet, see
+below) and refuses to grade over zero matching runs, so a grade always
+measures work that actually ran under the named definition.
+
+### Execution is a separate step
+
+`spl eval score` does not run the cases. A suite is N runs of 30 to 60
+seconds each, so you run the cases first, with `spl` against the actor, and
+then score what the log already holds. Scoring reads the run log; it does
+not produce it.
+
+### Structure and substance are scored apart
+
+The score keeps two axes separate and **never averages them**:
+
+- **Structure** is whether the run was well-formed (for example, terminal
+  with no failed tool calls).
+- **Substance** is whether it did the right thing.
+
+A case that has **no run** is **excluded** from the substance figure rather
+than counted as a failure, and every substance figure carries its own
+denominator so two scores are only compared when they cover the same cases.
+
+## Reading the history: `spl eval history`
+
+```bash
+spl eval history <actor>
+```
+
+This shows an actor's graded history by definition: is it getting better,
+and on which axis. Because the two axes are never blended, a candidate that
+fixed every failed tool call but started answering the wrong question shows
+structure up and substance down, instead of a single blended number that
+moves by zero and hides the regression.
+
+## The definition's identity is its facet
+
+A definition's identity is its **facet**, not its record id. Who installed
+it, where it came from, and how much it is trusted all move the record's id
+without changing how the actor behaves. The eval anchor stamps the facet
+beside the definition, so a candidate measured **before** approval and the
+same candidate **after** it are recognized as one definition. That is what
+makes scoring a candidate worth doing.
+
+A **trial** applies a candidate definition to a single run and installs
+nothing: it is bounded by the same define-door checks as a real install,
+with the incumbent's record id cleared and the run marked, so you can
+measure a candidate against the incumbent without changing the instance.
+
+## Judging one record over another: `spl judge`
+
+`spl judge` records a preference between two records by content address:
+
+```bash
+spl judge <winner> over <loser> \
+  --feature "cited its sources" \
+  --loser-feature "faster" \
+  --basis "the winner grounded every claim"
+```
+
+The literal word `over` sits between the two 64-hex ids. Options:
+
+| Flag | Meaning |
+|---|---|
+| `--feature <TEXT>` | A feature the winner has and the loser lacks (repeatable) |
+| `--loser-feature <TEXT>` | A feature the loser has and the winner lacks (repeatable) |
+| `--basis <TEXT>` | One sentence of why |
+| `--thread <THREAD>` | The thread the verdict lands on (default: the winner's thread) |
+| `--actor <ACTOR>` | The judging actor (default from `SPL_ACTOR` or config) |
+
+This writes a `core.verdict.pair.v1` naming the features that differed. A
+regression fold compares each definition against the one it succeeded, per
+axis, so a pair verdict is a durable, per-axis record of which result was
+better and on what grounds.
+
+## Machine-readable output
+
+Both commands emit raw results with `--json`:
+
+```bash
+spl eval score <suite> --actor <did> --definition <64-hex> --json
+spl eval history <actor> --json
+spl judge <winner> over <loser> --json
+```
+
+## Related
+
+- [Running a goal](./running-a-goal): produce the runs an eval suite scores.
+- [Actors and adapters](./actors-and-adapters): define the actors you evaluate.

@@ -1,0 +1,131 @@
+---
+title: The run_code tool
+description: A member run can write a small JavaScript program that calls its own granted tools, run it on the instance's JavaScript runtime, and get structured data back. What it is, when a model reaches for it, and its bounds.
+---
+
+## What it is
+
+`run_code` is a tool a work-loop run can be granted. Instead of making one
+tool call per step, the run writes a short JavaScript program that calls its
+other granted tools, and the instance runs that program on its JavaScript
+runtime. The program's tool calls go through the same governance every direct
+call does: the program cannot reach a tool the run was not granted.
+
+The point is throughput over structure. When a task means "read sixty records,
+count the ones that match, and report the total", the discrete path is sixty
+tool calls the model has to shepherd one at a time. The program does it in one
+call and hands back a number.
+
+`run_code` is member-reachable, but only when the run owns the capability. A
+definition has to declare `run_code` in its tools for a run to see it, and the
+instance has to have the tool switched on (see [When it is offered](#when-it-is-offered)).
+
+## When a model reaches for it, vs discrete calls
+
+A model uses `run_code` when the work is a loop over many items, and discrete
+calls when the work is a handful of distinct steps. Measured behaviour: a task
+over twelve records tends to draw twelve to fifteen discrete calls; the same
+shape over sixty records draws one program in a few calls. The model decides;
+you do not route this.
+
+Two facts make programs reliable rather than clever:
+
+- **A program receives data, not prose.** A tool answer carries a `data`
+  field beside the rendered text. `run_code` hands the program the JSON for
+  the tools that hold structure, so a program reads `records[i].body`, not a
+  paragraph it has to parse. `query_thread` gives
+  `{thread, total, shown, truncated, records: [...]}`, `read_record` gives one
+  such record, `search_records` gives `{total, records}`.
+- **Each of those answers is bounded at 256 KiB.** A program that asks for
+  more gets a truncated, `truncated: true` result, not a runtime that runs out
+  of memory.
+
+Early on, a model that did not know tools hand back data wrote
+`result.records`, got a `TypeError`, and then answered from its own
+recollection of the rows: a confident wrong answer. The data field is the fix,
+and it is why the honest advice is that a program is for structured throughput,
+not for anything you cannot check against the records afterward.
+
+## The runtime it runs on
+
+Programs run on the compute substrate: a WebAssembly-sandboxed JavaScript
+runtime the instance installs once. Inspect what your instance runs on:
+
+```bash
+spl runtime status
+```
+
+```
+pinned:    StarlingMonkey 0.3.0 (ecef7726...)
+path:      /home/you/.syncro/runtimes/javascript.wasm
+installed: yes, and it matches the pin
+
+Programs run on the compute substrate.
+
+offered:   yes (config topic run_code enabled)
+```
+
+The runtime is pinned by a content address baked into the binary. `install`
+fetches exactly those bytes (the published URL contains the hash, and the hash
+is checked again after download), so a fetch can only succeed at the bytes it
+asked for:
+
+```bash
+spl runtime install            # fetch and install the pinned runtime
+spl runtime install --from ./javascript.wasm   # from a local file, still pin-checked
+spl runtime remove             # fall back to the embedded interpreter
+```
+
+If no runtime is installed, programs fall back to an embedded interpreter,
+which is weaker and works. A tool result names the engine it ran on
+(`ran on the compute substrate` or `embedded interpreter`), so a thread reader
+can tell which one answered without reading a log.
+
+## When it is offered
+
+`run_code` is a config switch, off until turned on, and a run only sees it
+when three things all hold:
+
+1. The instance has the `run_code` config topic enabled (`offered: yes` in
+   `spl runtime status`).
+2. The run's definition declares `run_code` in its tools.
+3. The run is on a tier whose reach includes it.
+
+If the switch is off, or the definition never declared it, the tool is simply
+absent from the run's reach. Nothing fails loudly; the model works with the
+discrete tools it has.
+
+## What the instance can reach
+
+A program can only call tools the instance actually declares and the run was
+granted. To see what an instance can reach, without making a call to find out:
+
+```bash
+spl tool list
+```
+
+Each row reports whether the tool's credential resolves and whether its breaker
+is open, so you can tell a tool that cannot run right now from one that is
+simply not declared. For one tool in full:
+
+```bash
+spl tool show <tool_id>
+```
+
+## Bounds, in one place
+
+- A program runs inside the same sandbox the run does; on the sandboxed
+  transport that is a separate process with no network and no view of the
+  home directory.
+- Its tool calls are governed exactly as direct calls are: no tool the run
+  lacks, and every call still passes the kernel's per-call verdict.
+- Each structured tool answer is capped at 256 KiB.
+- The program's compute is bounded by the run's own budget and turn ceiling,
+  not by a separate machine limit, so a program cannot outspend the run that
+  wrote it.
+
+## See also
+
+- [The sandboxed transport](/docs/operate/sandboxed-transport): where a member
+  run and its programs actually execute.
+- [Tiers and entitlements](/docs/guides/tiers): which tier reaches which tools.

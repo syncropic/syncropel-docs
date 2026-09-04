@@ -1,0 +1,131 @@
+---
+title: Running a goal
+description: Start a goal as a governed run and sit with it. The run starts as you, its events stream to your terminal, an ask is answered in place, and the outcome prints with its diff.
+---
+
+## Overview
+
+`spl run` is the developer's seat. You give it a goal, and it starts a
+governed run, streams the run's events to your terminal as they happen,
+pauses to ask you a question when the actor needs one answered, and prints
+the outcome (with the diff, if the run produced one) when it finishes.
+
+A run is not a fire-and-forget dispatch. It is something you sit inside:
+the run acts as **you** (the caller is the run's principal), its budget and
+turn ceilings are enforced by the kernel, and every turn lands as a record
+on the run's own thread.
+
+```bash
+spl run "Summarize the open decisions on th_engine_config"
+```
+
+The command blocks until the run reaches a terminal state, printing events
+as it goes.
+
+## What a run does, start to finish
+
+1. **Starts as you.** The run's principal is the caller. The actor it runs
+   as defaults to the chief (else the first work-loop actor on the roster);
+   pass `--actor` to pick another.
+2. **Streams its events.** Each turn, tool call, and observation prints as
+   it lands.
+3. **Answers an ask in place.** If the run needs a decision from you, it
+   pauses and prompts on your terminal. You answer, and the run resumes
+   with its context (and its worktree, if it has one) re-bound.
+4. **Prints the outcome.** When the run is terminal, the outcome prints,
+   including the diff artifact if the run produced one.
+
+## Run states
+
+A run ends in one of these states:
+
+| State | Meaning |
+|---|---|
+| `running` | Still working |
+| `waiting_on_you` | Paused on an ask it needs you to answer |
+| `done` | Finished and reported a completion |
+| `stopped` | Halted (for example, by you) |
+| `stopped_short` | Ran out of budget or turns before completing |
+
+## Bounding a run
+
+The kernel clamps a run to the actor's tier ceilings. You can narrow those
+further for a single run, never widen them:
+
+| Flag | Effect |
+|---|---|
+| `--max-turns <N>` | Turn ceiling for this run |
+| `--budget <USD>` | Spend ceiling in USD for this run |
+| `--timeout <SEC>` | Seconds to wait for the outcome (default `600`) |
+| `--actor <ACTOR>` | Run as a specific actor (a DID or `@handle`) |
+
+## Giving the actor a repository
+
+`--repo <name>` gives the run a git worktree of a declared repository. The
+actor works inside that worktree, and the daemon records the diff on the
+outcome:
+
+```bash
+spl run "Fix the failing test in the stats module" --repo my-service
+```
+
+The name must be a repository the instance has **declared** (its name,
+path, and optional check). An undeclared name is refused with
+`REPO_UNKNOWN` rather than guessed at, so a run never touches a path it was
+not handed. The declaration is an instance-config record; ask your operator
+which repository names are declared on your instance.
+
+When the repository declares a check, a run that claims completion **owes**
+a green check: a claimed completion whose check has not passed comes back
+`blocked`, naming the check.
+
+## Scripting a run
+
+For CI or an unattended run, answer every ask with a fixed response and
+suppress the diff:
+
+```bash
+spl run "Regenerate the manifest" --answer "yes" --no-diff --json
+```
+
+- `--answer <TEXT>` answers every ask with that text instead of prompting.
+- `--json` (or `-o json` / `-o stream-json`) emits machine-readable output.
+- `--no-diff` skips printing the diff artifact.
+
+## Watching runs across actors
+
+`spl run` sits with one run. `spl runs` lists and inspects runs across every
+actor on the instance.
+
+```bash
+# The most recent runs, newest first
+spl runs list
+
+# Only the runs still waiting on a person
+spl runs list --state waiting_on_you
+
+# Runs by one actor, since an instant
+spl runs list --actor @chief --since 2026-09-01T00:00:00Z
+
+# One run's row
+spl runs show th_run_abc123
+
+# Tail a run's typed events live (optionally replaying from a clock)
+spl runs tail th_run_abc123 --since-clock 0
+```
+
+`spl runs list` accepts `--state`, `--actor`, `--since` (an RFC 3339
+instant), and `--limit` (default 50, at most 500).
+
+## The legacy path
+
+`--legacy` runs the pre-v0.217 goal path: an INTEND routed to an actor and
+polled, rather than the streamed seat described above. Prefer the default
+path; `--legacy` exists only for callers that still depend on the old shape.
+
+## Related
+
+- [Evaluating actors](./evaluating-actors): score and judge the actors your
+  runs use.
+- [Session checkpoints](./session-checkpoints): persist state between
+  long-running agent sessions.

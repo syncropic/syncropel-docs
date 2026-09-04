@@ -23,7 +23,7 @@ The most common way to start an agent is from a conversation. In any thread, ope
 @agent count the open tasks in this workspace and tell me how many are blocked
 ```
 
-When you send the message, the chat-actor (typically [Scribe](/docs/get-started/scribe)) hands control to a new work loop **running as you, not as Scribe** — your DID, your tier, your permissions. Scribe steps aside for the duration. Two records open the handoff: a `core.user.message.v1` that carries your message, and a `core.work.delegation.v1` that opens the loop. When the loop ends, an outcome record closes it.
+When you send the message, the chat-actor (typically [the chief of staff](/docs/get-started/the-assistant)) hands control to a new work loop **running as you, not as the chief**: your DID, your tier, your permissions. The chief steps aside for the duration. Two records open the handoff: a `core.user.message.v1` that carries your message, and a `core.work.delegation.v1` that opens the loop. When the loop ends, an outcome record closes it.
 
 You can also start a loop without going through chat — `spl work-loop "..."` from the CLI, or a direct `POST /v1/work/loop`. The [work-loop concept page](/docs/concepts/work-loop) documents the full surface. The `@agent` flow is the conversational entry; everything else is the same primitive.
 
@@ -106,4 +106,4 @@ The broader family of automated participants is covered on the [helpers](/docs/c
 - **[Work loop](/docs/concepts/work-loop)** — the plan/act/check cycle agents run under, with the tier-shaped guardrails and structured outcomes.
 - **[Threads](/docs/concepts/threads)** — the coordination context a loop lives on.
 - **[Trust](/docs/concepts/trust)** — how the records a loop emits feed the trust signal.
-- **[Scribe](/docs/get-started/scribe)** — the default conversational agent that hands off to a loop via `@agent`.
+- **[The chief of staff](/docs/get-started/the-assistant)** is the default conversational assistant; a turn that needs tools escalates to a loop.

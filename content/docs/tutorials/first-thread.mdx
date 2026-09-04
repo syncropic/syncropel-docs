@@ -53,13 +53,20 @@ Shows all active threads with their latest activity, participant count, and reco
 
 ## Close a thread
 
-A thread closes when a KNOW record fulfills the original intent:
+A thread closes when a KNOW fulfills its opening intent (frozen foundation
+F13). Pass `--fulfills` on the closing KNOW: bare, it resolves and fulfills
+this thread's opening INTEND for you.
 
 ```bash
 spl know "Migration complete, all services verified" --thread th_7f3a... --fulfills
 ```
 
-The thread is now closed. Its complete record chain — from intent through execution to fulfillment — is preserved as an immutable history.
+To fulfill a specific record rather than the thread's opening intent, name it:
+`--fulfills <record-id>`. Either way the KNOW carries `body.fulfills`, and the
+thread's state is a fold over its records: folds and status views read that
+`fulfills` link to mark the thread's work done. The complete record chain, from
+intent through execution to the fulfilling observation, is preserved as an
+immutable history.
 
 ## Capture insights
 

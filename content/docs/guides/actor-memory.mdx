@@ -1,0 +1,93 @@
+---
+title: Actor memory
+description: Give an actor durable memory. A memory is a record about a thread, private by default on the principal's own memory thread, and shown when that thread is touched. Managed with spl memory and written by a run through the remember tool.
+---
+
+## What it is
+
+Actor memory lets an actor carry a durable fact across runs and sessions. A
+memory is a `core.actor.memory.v1` record. Two things make it more than a note:
+
+- **It is about a thread.** A memory lands on the thread it describes, so a
+  fact about a piece of work is attached to that work, not filed away
+  somewhere separate.
+- **It is private by default.** A memory lives on the principal's own memory
+  thread, which is private, so an actor's memories are the actor's own unless
+  it says otherwise.
+
+When a thread is touched, the memories about it are folded in and shown
+(latest per key, attributed), so an actor sees what it learned last time it
+worked here without going to look for it.
+
+## The CLI surface: spl memory
+
+`spl memory` is the human surface for reading and writing memories.
+
+List an actor's memories:
+
+```bash
+spl memory list
+spl memory list --actor did:sync:agent:dev
+spl memory list --verbose        # full descriptions, not truncated
+```
+
+Show one in full:
+
+```bash
+spl memory show <name>
+```
+
+Add a memory. A memory has a name (unique per actor), a type, and a
+description:
+
+```bash
+spl memory add project-context \
+  --type project \
+  --description "This instance dogfoods spl task for its own work tracking; th_tasks is the task thread." \
+  --confidence 0.9 \
+  --tag onboarding
+```
+
+The type is one of `user`, `feedback`, `project`, `reference`, `skill`, or
+`insight`. Confidence defaults to `0.8`. Tags are repeatable.
+
+Search and remove:
+
+```bash
+spl memory search "task tracking"
+spl memory remove project-context
+```
+
+`remove` cancels the memory (it writes a cancellation, keeping the ledger
+honest) rather than deleting a row.
+
+Every subcommand takes `--actor <did>`; without it, the actor is the one in
+your config identity.
+
+## The remember tool: memory written by a run
+
+A work-loop run does not call `spl memory`. It reaches a member tool,
+`remember`, which writes a `core.actor.memory.v1` record about the thread it is
+working on. This is how an actor records something it learned in the middle of
+doing the work, so the next run over the same thread starts with it.
+
+`remember` is a run tool, not a CLI verb: there is no `spl remember`. A run has
+it only when its definition grants it, and what it writes lands on the same
+private memory thread `spl memory` reads, so a fact a run remembers shows up in
+`spl memory list` for that actor and is folded in the next time its thread is
+touched.
+
+## A note on visibility
+
+A memory is private to the principal's memory thread by default. A private
+memory about a thread is shown when that thread is touched by the same
+principal; it is not published onto the thread itself. If you write a memory
+and do not see it on a shared thread, that is the private-by-default posture
+working, not a lost record: read it with `spl memory list` for that actor.
+
+## See also
+
+- [Task management](/docs/guides/task-management): the work an actor's memories
+  most often attach to.
+- [Actors and adapters](/docs/guides/actors-and-adapters): defining the actors
+  that carry memory.

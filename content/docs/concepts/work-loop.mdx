@@ -167,7 +167,7 @@ Importantly, compensation records are **not punishment** — they are observabil
 
 ## Chat-actor delegation — `@agent`
 
-A conversation with [Scribe](/docs/get-started/scribe) or the Syncropic Guide is one-shot: you ask, it answers. For multi-step work, open the message with `@agent <goal>` and the chat-actor delegates to a real loop.
+A conversation with [the chief of staff](/docs/get-started/the-assistant) is single-shot by default: you ask, it answers. A turn that needs tools escalates to a real loop automatically, and you can also start a governed run explicitly with `spl run`.
 
 Two things change when delegation happens:
 
@@ -205,7 +205,7 @@ See the [CLI reference](/docs/reference/cli#work-loop--spl-work-loop) and [API r
 ## What's next
 
 - [Agents](/docs/concepts/agents) — the user-facing view of LLM actors driving loops, including `@agent` invocation and outcome interpretation.
-- [Scribe](/docs/get-started/scribe) — the default conversational agent that delegates to a loop via `@agent`.
+- [The chief of staff](/docs/get-started/the-assistant) is the default conversational assistant; a turn that needs tools escalates to a loop.
 - [Actors](/docs/concepts/actors) — the DIDs records (and loops) are attributed to.
 - [Threads](/docs/concepts/threads) — the coordination context a loop lives on.
 - [Trust](/docs/concepts/trust) — how the records a loop emits feed the trust signal.

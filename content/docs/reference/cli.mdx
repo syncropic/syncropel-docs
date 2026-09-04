@@ -117,16 +117,23 @@ The full reset/uninstall guide is at [Reset and Uninstall](/docs/get-started/res
 
 ```bash
 spl intend "goal" [--thread ID] [--actor DID]
-spl do "action" [--thread ID]
-spl know "observation" [--thread ID]
-spl learn "insight" [--thread ID]
+spl do "action" [--thread ID] [--fulfills [RECORD_ID]]
+spl know "observation" [--thread ID] [--fulfills [RECORD_ID]]
+spl learn "insight" [--thread ID] [--fulfills [RECORD_ID]]
 ```
+
+Omitting `--thread` mints a fresh thread (a `th_` + SHA-256 id, printed on the
+record). `--fulfills` closes a thread (frozen foundation F13): bare, it
+resolves and fulfills the thread's opening INTEND; with an explicit
+`--fulfills <record-id>`, it fulfills that record. Either way the record
+carries `body.fulfills`, which folds and the pattern index read to mark work
+done.
 
 | Command | Creates | Purpose |
 |---|---|---|
-| `intend` | INTEND record | State a goal or plan |
+| `intend` | INTEND record | State a goal or plan (opens a thread) |
 | `do` | DO record | Record an action |
-| `know` | KNOW record | Record an observation |
+| `know` | KNOW record | Record an observation; `--fulfills` closes the thread |
 | `learn` | LEARN record | Record an insight or decision |
 
 ## Find

@@ -1,0 +1,142 @@
+---
+title: Tiers and entitlements
+description: Every run is clamped by the tier of the principal it runs for. Tiers are records you can edit without a release, per-actor ceilings only ever tighten, and a subscription status maps to a tier through one kernel decision. A self-hoster and operator guide.
+---
+
+## Why tiers exist
+
+Every work-loop run is bounded before it starts. The bound comes from the tier
+of the principal the run is for: how many turns it may take, how long it may
+run, how much it may spend, how many it may run at once, and how deep it may
+spawn. There are four tiers, in order of increasing capability:
+
+- **Trial**: the safe-by-default floor for a multi-tenant instance.
+- **Paid**: the working tier.
+- **Team**: multi-user accounts, higher concurrency and depth.
+- **Operator**: the daemon's own owner, on their own machine.
+
+The operator is the trust boundary on their own instance, so the Operator tier
+is effectively unbounded on the capability axes. It is not unbounded on the
+fan-out axes, deliberately: a runaway tree spends the operator's money as fast
+as a malicious one, so `max_children` and the tree-loop count stay finite even
+there, to bound a mistake rather than the operator's authority.
+
+## The ceilings
+
+These are the built-in defaults, seeded from the binary at boot. They are the
+upper bound on each axis: a run gets the lower of its tier's ceiling and
+anything narrower it declares.
+
+| axis | Trial | Paid | Team | Operator |
+|---|---|---|---|---|
+| max turns | 5 | 16 | 50 | unbounded |
+| wall clock (s) | 120 | 600 | 1,800 | unbounded |
+| token budget | 20,000 | 200,000 | 1,000,000 | none |
+| default per-run budget (USD) | 0.25 | 1.00 | 2.00 | 5.00 |
+| daily cost cap (USD) | 0.50 | 5.00 | 50.00 | unbounded |
+| daily loop cap | 10 | 200 | 2,000 | unbounded |
+| concurrency | 1 | 5 | 20 | unbounded |
+
+Trial also forbids `bash`, `write_file` and sub-agent spawning outright; Paid
+and Team forbid `bash` and `write_file`. The forbidden-tool set is fixed in the
+binary and is not editable through a tier record.
+
+## Tiers are data
+
+Each tier's numeric ceilings are also a `core.engine.tier.v1` record on
+`th_engine_config`, seeded from the constant at boot and read live at the
+run-start clamp. Editing a record changes the next run's ceilings without a
+release. A record only ever sets the numbers; it never widens the reach, and
+the forbidden-tool set stays the binary's.
+
+A tier record names only the fields it changes; every field it omits keeps the
+constant. To lower Trial's daily spend and raise its turn ceiling, for example:
+
+```bash
+spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
+  --body '{"kind":"core.engine.tier.v1","tier":"trial","max_turns":9,"daily_cost_cap_usd":2.5}'
+```
+
+An instance with no tier record for a tier yields the constant, byte-identical
+to the pre-record clamp. Editable fields are `max_turns`, `wall_clock_secs`,
+`token_budget`, `daily_loop_cap`, `concurrency`, `max_depth`, `max_children`,
+`max_tree_loops`, `daily_cost_cap_usd`, and `default_budget_usd`.
+
+## Assigning an actor to a tier
+
+By default a defined actor resolves to Trial. To put an actor on a higher rung,
+write an `actor_tier` assignment (also a config LEARN on `th_engine_config`):
+
+```bash
+spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
+  --body '{"kind":"core.engine.config.v1","topic":"actor_tier","actor":"did:sync:agent:dev","tier":"paid"}'
+```
+
+Latest wins; an empty `tier` clears the assignment. Resolution takes the higher
+of an invite stamp and an assignment, under a clamp to at most Team. Data can
+never mint the Operator tier: that is the daemon owner's own identity, not
+something a config record confers.
+
+## Per-actor daily ceilings
+
+A definition may declare its own `daily_cost_cap_usd` and `daily_loop_cap`. The
+admission clamp takes the minimum of the actor's declared caps and the tier's,
+so a per-actor cap only ever tightens, never widens. A bounded member whose
+declared cap exceeds the Trial tier's is refused at the define door, so a
+member cannot buy itself headroom by asking for it.
+
+## The entitlement door
+
+A subscription status becomes a tier through one HTTP call:
+
+```
+POST /v1/entitlement
+```
+
+The caller says what the subscription status is; the kernel decides what that
+status entitles. There is one decider, not two, and the effect is an ordinary
+`actor_tier` assignment that the existing clamps enforce with no new code. The
+record it writes carries its own reason, so "why did my caps change" is
+answerable from the ledger.
+
+The ceiling is the load-bearing part:
+
+- `active` and `trialing` map to **Paid**. Everything else, including
+  `past_due` and any status the kernel does not recognise, reads as **Trial**.
+- An entitlement moves an actor between **Trial and Paid and nothing else**. A
+  billing signal can never mint Team or Operator, whatever it says: those are
+  the operator's own assignments on their own instance, and a payment processor
+  is not the operator.
+- An unrecognised status reads as Trial. That is the fail-closed direction: an
+  unknown word from a payment processor must not buy capacity.
+- `past_due` is not a cut-off. A failed card narrows what an instance may
+  spend; it does not take the instance away. The person keeps their records,
+  the door keeps answering, and the caps come down until they fix it.
+
+This is deliberately not a per-run call into the billing worker: that would put
+a network hop in the admission path and make two deciders of one question.
+
+## Promotion is surfaced, never automatic
+
+A tier's resolution can surface the next tier up as eligible, but only above a
+trust bar with enough graded outcomes, and it never applies it. A tier never
+widens by itself; moving an actor up a rung is always an explicit assignment or
+an entitlement.
+
+## Verify what is in force
+
+The tier clamps and the authorization state are on engine health:
+
+```bash
+curl -s -H "Authorization: Bearer $ADMIN" localhost:9100/v1/engine/health | jq .
+```
+
+Because tiers are read live, check what the running service resolved, not only
+what you wrote.
+
+## See also
+
+- [The sandboxed transport](/docs/operate/sandboxed-transport): the transport a
+  non-operator tier runs under.
+- [Actors and adapters](/docs/guides/actors-and-adapters): defining the actors
+  a tier clamps.

@@ -76,19 +76,10 @@ Loosening the threshold means fewer escalations to Alice but higher false-agreem
 With a local instance and the sonnet + gpt-4 providers configured, register Alice as an actor:
 
 ```bash
-spl actor register \
-  --did did:example:alice \
-  --kind actor \
-  --capability "translation:en-es" \
-  --trust-hint 0.9
+spl actor register did:example:alice --category agent --display-name "Alice (en-es translator)"
 ```
 
-Then run the infer command above. If Alice isn't responding (no session, no webhook configured), the executor will emit `latency_timeout` after 1800s. You can point Alice at a webhook in test:
-
-```bash
-spl actor update did:example:alice \
-  --webhook-url https://webhook.site/your-test-id
-```
+Then run the infer command above. If Alice isn't responding, the executor emits `latency_timeout` after 1800s. To simulate Alice's reply during a test, emit her DO directly with `spl do` (a `core.translation.v1` DO on the same thread), the same way the executor would commit it.
 
 ## See also
 

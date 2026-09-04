@@ -127,21 +127,10 @@ If you want the LLM's best-effort answer preserved even on human timeout, use `r
 Register Priya:
 
 ```bash
-spl actor register \
-  --did did:example:priya \
-  --kind actor \
-  --capability "support:triage" \
-  --trust-hint 0.9
+spl actor register did:example:priya --category agent --display-name "Priya (support triage)"
 ```
 
-Optionally wire a webhook so you can manually reply from `webhook.site`:
-
-```bash
-spl actor update did:example:priya \
-  --webhook-url https://webhook.site/your-test-id
-```
-
-Emit the query as above. Watch the thread. If Priya doesn't respond and you want to simulate her DO, you can `spl do` directly:
+Trust is earned from verdicts, not set at registration: Priya accrues trust in the `support` domain as her judgments are approved, which is what a fold like `best_of` reads. Emit the query as above. Watch the thread. If Priya doesn't respond and you want to simulate her DO, you can `spl do` directly:
 
 ```bash
 spl do "triage response" \

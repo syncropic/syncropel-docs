@@ -5,9 +5,108 @@ description: A plain-language summary of recent Syncropel releases — intellige
 
 ## Overview
 
-This page summarizes recent releases in plain language — what changed and why it matters for using Syncropel day to day. For the exhaustive, version-by-version technical record, see the changelog in the source repository.
+This page summarizes recent releases in plain language: what changed and why it matters for using Syncropel day to day. For the exhaustive, version-by-version technical record, see the changelog in the source repository.
 
 ---
+
+## The Door
+
+The sandbox now does real repository work end to end. A member actor takes a
+private git worktree, edits and tests the code through the governed seam, and
+hands back a diff the run names, while the rest of the host filesystem stays
+read-only and every attempt to write outside the worktree is refused by name. A
+run can also declare what it consumes and what it promises, so a record landing
+on a thread a live run watches wakes that run. Paid entitlement now reaches the
+instance: a caller reports what a subscription did and the kernel decides the
+tier it grants, under a ceiling no status can exceed.
+
+## The Developer's Day
+
+A person can now sit at the terminal with a run. A member actor gets a git
+worktree it owns, runs the repository's declared check, makes the fix, turns the
+check green, and `spl run` streams the whole thing and prints the diff. The
+writable surface of a sandboxed non-operator run is its own worktree or nothing,
+verified before its credential is minted, and a run names a repository rather
+than a path.
+
+## The Honest Builder
+
+The words a run works by are now editable records. The guiding frame is resolved
+from a stored prompt at the start of every run, so an operator override reaches
+the next run instead of sitting unused. A failed run says why in one line, a
+turn may not both ask a question and quietly write, and two general tools
+(`query_records` and `emit_record`) let a bounded member read and write records
+directly. The spend and turn ceilings for each tier are now data you can edit
+rather than constants baked into the binary.
+
+## The Governed Session
+
+Dispatched engines like Claude Code are now first-class runs on the same ledger.
+A dispatched task records its start, its questions, and a kernel-authored report
+with clear outcome verbs, exactly like a native run. A new register
+(`spl register`) ranks your open questions blocking-first so you can see what
+needs you, and an answer you give can become standing policy: a permission rule,
+a hook, or a remembered fact.
+
+## The Measured Actor
+
+This release acts on the first honest measurement of how close the loop is to
+replacing Claude Code, fixing what a real-user battery turned up one failure at
+a time. Actor memory arrives: a run can `remember` a fact on the thread it is
+about, private by default, and those notes are shown the next time that thread
+is touched. Record search now returns the newest matches first instead of
+scanning the oldest, and an installed actor runs at its installer's tier rather
+than being throttled to trial limits.
+
+## The Record That Steers
+
+A post-tool hook is now a record you can write. `core.hook.v1` lets an operator
+add a short lesson that a running actor is shown after a matching tool call,
+authored as a config record and live on the next call with no restart and no
+code change. A hook can only add an observation, never silence or reorder
+anything, which keeps its effect easy to reason about.
+
+## The Turn That Escalates
+
+Conversational turns can now escalate to run code and use tools when the work
+needs it, instead of replying that they cannot. A single reply can carry an
+escalation that the kernel runs through the full tool loop, and the answer
+records whether it ran, was refused, or was unavailable. This closed a
+long-standing gap where Studio agents said they could not run code even after
+the tools had shipped. Two same-day patches, The Second Block and The Offered
+Program, fixed reply parsing and turned the `run_code` switch on end to end.
+
+## The Improvement Loop
+
+The actors can now be measured getting better. A run is graded against an eval
+suite, an actor is defined by what it makes the actor do, and this release wires
+those together so a new definition is compared against the one it succeeded, per
+axis, and "it improved" becomes a number rather than a claim. `spl eval history`
+reads that graded history for an actor.
+
+## The Self-Configuring Actor
+
+When an actor needs an integration nobody set up, it now reaches a person with a
+complete proposal naming the service, the operations, and the credential it
+needs, instead of failing quietly. A person provides the key and the key becomes
+a stored secret, never a record. A new `spl tool` surface shows what the
+instance can reach and whether each tool's credential resolves.
+
+## The Program That Calls
+
+A JavaScript program run by an actor can now call a granted tool through the
+governed network edge, and the same gate can refuse it mid-flight; every other
+host is refused at that one edge. The JavaScript runtime is published and
+installable with `spl runtime install`, content-addressed and version-pinned.
+
+## The Kind Decides
+
+The compute substrate gains its capability model, keeping what a program may
+reach separate from what it may spend, plus a governed egress seam, so a
+program's network access is a decision rather than an open door. A decision
+request that is valid by its own contract is answerable again across the pending
+queue, and the records door now refuses a field it would previously have dropped
+silently, naming the fields it accepts.
 
 ## The second principal
 

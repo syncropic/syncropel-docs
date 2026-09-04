@@ -1,0 +1,139 @@
+---
+title: Hooks
+description: A post-tool hook is a record. Add a lesson a running actor is shown after a tool returns, using CEL over the call, without a release. Plus spl session hooks for governing an external agent's lifecycle.
+---
+
+## Two things called hooks
+
+Syncropel has two hook mechanisms, and they solve different problems:
+
+1. **Post-tool hooks** (`core.hook.v1`): a lesson shown to a work-loop actor
+   after one of its own tool calls returns. This is the record on
+   `th_engine_config` covered first below.
+2. **Session hooks** (`spl session`): a way to make an external agent's
+   lifecycle (a Claude Code session, for instance) into governed records on
+   your instance. Covered in [Session hooks](#session-hooks).
+
+## Post-tool hooks: a lesson as a record
+
+A post-tool hook watches the call that just returned and, if a predicate
+matches, puts a sentence in front of the actor on its next turn. Before this
+was a record, teaching a running actor a new lesson meant shipping a release.
+Now it is one write.
+
+A hook is a `core.hook.v1` record on `th_engine_config`, folded from config
+under `topic: "hook"`, exactly as a permission rule is. Its fields:
+
+| field | meaning |
+|---|---|
+| `name` | the observation's rule name, shown to the reader |
+| `when` | a CEL predicate (Permission context) over the call that returned |
+| `text` | what the actor is shown next turn, with `${tool}` and `${status}` substituted |
+| `max_fires_per_run` | how many times it may fire in one run (default 3) |
+| `enabled` | whether it loads |
+| `namespace` | the namespace it applies in |
+
+The `when` predicate evaluates against a synthetic record whose body is
+`{tool, args, status, content}` for the call that just returned, plus
+`resource = tool:<name>`, `current_actor()` and `trust()`. Inside a hook,
+`trust()` answers the run's own folded score for its own actor and domain, and
+`0.0` for any other pair. The predicate reads the first 4,096 characters of a
+tool's answer: a hook is a predicate over a call, not a search over a corpus.
+
+### The shape is monotonic
+
+A hook can only add an observation. There is deliberately no `priority`, no
+`action`, no `suppress`, no `replace`, no `order`, and no `instead_of`. A hook
+cannot block a call, override another hook, or change what a tool does; it can
+only return more words for the next turn. A record carrying one of those six
+forbidden fields is refused by name, at the records door, at config load, and
+at blueprint materialization. An unknown field is refused rather than silently
+dropped.
+
+This is by design: a hook puts words in front of every run on the instance, so
+writing one is owner-gated. A non-operator-class caller writing `core.hook.v1`
+through the records door is refused `CONFIG_WRITE_DENIED`.
+
+### Writing a hook
+
+A hook is a config LEARN on `th_engine_config`, the same pattern every engine
+config record uses. There is no dedicated `spl config add-hook` verb; you write
+the record:
+
+```bash
+spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
+  --body '{
+    "kind": "core.hook.v1",
+    "topic": "hook",
+    "name": "note-empty-search",
+    "when": "record.body.tool == \"search_records\" && record.body.status == \"ok\"",
+    "text": "The ${tool} call returned ${status}. If the result is empty, widen the query before concluding the record is absent.",
+    "max_fires_per_run": 2,
+    "enabled": true
+  }'
+```
+
+The instance ships two built-in hooks compiled into the binary (a repeat guard
+and an absence guard); a `core.hook.v1` record is how you add a third without a
+release.
+
+### When it takes effect
+
+- **In-process runs** read the live hook set on every tool call, and the config
+  handler fills that set the moment a record lands, so a hook written mid-run
+  speaks on that run's next call with no restart.
+- **Sandboxed runs** carry their hooks in the run spec at start, so a hook
+  written after a sandboxed run has started reaches that run at its next start,
+  not mid-flight.
+
+`max_fires_per_run` counts within one run's life; a resumed run starts its
+counts again.
+
+### Verify what loaded
+
+The enabled hooks the live service holds are reported on engine health:
+
+```bash
+curl -s -H "Authorization: Bearer $ADMIN" localhost:9100/v1/engine/health \
+  | jq '.work_loop.hooks_loaded'
+```
+
+A hook refused at load keeps its record but does not move this number, so
+`hooks_loaded` is what is actually in force, not what was written.
+
+### What a hook cannot do
+
+A hook is observation-only. It cannot write a record, raise a decision request,
+or take any action. The seam returns words and nothing else.
+
+## Session hooks
+
+`spl session hook` and `spl session install-hooks` are a different mechanism:
+they make an external agent's session (a Claude Code session) into records on
+your instance, so the session is a governed node with a charter, a log, its
+turns, and a report the kernel writes at the end.
+
+Install the hook pack into the harness settings, idempotently:
+
+```bash
+spl session install-hooks
+```
+
+By default this writes into `~/.claude/settings.json`; pass `--settings` to
+target another file, and `--env KEY=VALUE` (repeatable) to set the environment
+the hook command runs with, for example `--env SYNCROPEL_HOME=/path`.
+
+Once installed, the harness invokes `spl session hook` on its lifecycle events;
+that command reads the hook payload on stdin and records the session. You do not
+usually call `spl session hook` by hand. The related session-state verbs
+(`context`, `capture`, `forget`) are covered in
+[Session checkpoints](/docs/guides/session-checkpoints).
+
+## See also
+
+- [CEL expressions](/docs/guides/cel-expressions): the Permission context a
+  hook's `when` predicate is written in.
+- [Routing rules](/docs/guides/routing-rules): the other config records folded
+  from `th_engine_config`.
+- [Session checkpoints](/docs/guides/session-checkpoints): the rest of the
+  `spl session` surface.
