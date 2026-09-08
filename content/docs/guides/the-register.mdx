@@ -1,99 +1,147 @@
 ---
-title: The register
-description: Your open asks, ranked. Blocking asks first, then oldest, then your own weights, with duplicates folded and open proposals beside them. Reorder with a weight, say one thing to the listener, and get a re-entry brief with resume.
+title: Your call
+description: The one place that shows what is waiting on you. Decisions need an answer, heads-ups need only a nod, and suggestions from your workspace sit apart so they cannot outrank a person.
 ---
 
-## Overview
+## What it is
 
-The register is the one place to see everything that is waiting on **you**:
-the open asks addressed to you, ranked so the most pressing sit at the top,
-with the open proposals shown beside them.
+**Your call** is the one place that shows what is waiting on you: the things
+someone or something in your workspace needs you to settle, ranked so the most
+pressing sit at the top.
+
+It exists because the alternative is worse. Work that needs a person tends to
+scatter across threads, and anything scattered is eventually missed. One place
+means one thing to check.
+
+## Two kinds of item, and they are not the same
+
+Everything in your call is one of two shapes, and the difference matters more
+than it looks.
+
+**A decision** needs an answer from you. Someone asked which of two ways to go,
+or asked you to supply something only you have. A run may be stopped and waiting
+on it right now, which is why decisions are what the count counts.
+
+**A heads-up** needs only a nod. Something happened that you should know about.
+Nothing is being asked and nothing is stuck behind it.
+
+They are drawn differently and counted differently on purpose. A number that
+folds in everything you could look at will always read heavier than the work
+that actually needs you, and a badge that overstates is a badge you learn to
+ignore.
+
+<Callout type="info">
+If your call says three, three things need an answer. Heads-ups are still
+there to read; they are just not part of that number.
+</Callout>
+
+## Suggestions sit apart
+
+Your workspace also proposes things: a rule it thinks would help, a pattern it
+noticed. These are worth seeing and they are **not** the same as a person asking
+you something, so they sit in their own band below rather than in the same
+ranked order.
+
+The reason is arithmetic. A workspace can produce hundreds of near-identical
+suggestions from ordinary activity, and if they shared a queue with real
+questions they would outrank people on volume alone.
+
+Identical suggestions are **folded into one row** with a count, because a
+suggestion made two hundred times is one suggestion. Settling any one of them
+settles the whole group.
+
+## The order
+
+1. **Anything blocking comes first**, meaning work is stopped until you answer.
+2. **Then the longest waiting.**
+3. **Then your own order**, if you have set one.
+
+When there is more waiting than can be counted exactly, you will see a figure
+with a plus on it. That is a floor, not an estimate: there are at least that
+many.
+
+## Answering
+
+Answer a decision where you find it. You do not open anything first, and you do
+not go somewhere else to do it, because answering ten things through ten
+detours is how a queue stops being read.
+
+Answering can also start work rather than only finish it. The first question a
+new workspace asks you is an ordinary decision in this lane, and answering it
+opens your first thread, titled with what you typed. If a run was parked waiting
+on your answer, it picks up where it stopped.
+
+## From the command line
+
+The same lane, from a terminal. The command is named `register`, which is the
+internal name for this list:
 
 ```bash
 spl register
 ```
 
-The ranking is fixed and honest:
+Change how many rows print with `--limit` (30 by default).
 
-1. **Blocking asks first** (an ask something is stuck behind).
-2. **Then oldest**, by the ask's own clock.
-3. **Then your weights**, the manual overrides you set.
+### Putting one thing above another
 
-Duplicate asks are **folded** into one row, so a question asked in three
-places shows once. Use `--limit` to change how many rows print per list
-(default 30).
-
-## Reordering with a weight
-
-When the automatic ranking is not the order you want to work in, pin one
-ask above another:
+When the automatic order is not the order you want to work in:
 
 ```bash
 spl register weight <above> <below>
 ```
 
-Both arguments are ask ids (prefixes are accepted). The weight moves the
-`above` ask above the `below` one and persists as your own preference. To
-remove a weight you set:
+Both arguments are item ids, and a prefix is enough. It persists as your own
+preference. To take it back:
 
 ```bash
 spl register weight <above> <below> --withdraw
 ```
 
-## Turning your listener on or off
+### Turning your assistant off
 
-Your conversational listener is the actor that answers when you say
-something to the instance. It is your own preference, and you can turn it
-off (and back on):
+Your assistant is the member that answers when you say something to your
+workspace. It is your preference and you can turn it off:
 
 ```bash
 spl register listener off
 spl register listener on
 ```
 
-## Saying one thing: `spl say`
+### Saying one thing
 
-`spl say` sends one message to your listener on a fresh thread and prints
-its reply. It is the typed equivalent of the Studio's first message:
+`spl say` sends one message to your assistant on a fresh thread and prints the
+reply. It is the typed equivalent of the first message in the app:
 
 ```bash
 spl say "What changed on the roster today?"
 ```
-
-Options:
 
 | Flag | Effect |
 |---|---|
 | `--thread <THREAD>` | Continue an existing thread instead of opening a new one |
 | `--wait <SEC>` | Seconds to wait for the reply (default `90`) |
 
-`spl say` is one round trip. For a goal you want to sit with, run, and see
-to completion, use [`spl run`](./running-a-goal) instead.
+`spl say` is one round trip. For work you want to sit with, use
+[`spl run`](./running-a-goal).
 
-## Getting back in: `spl resume`
-
-After time away, `spl resume` gives you one re-entry payload answering three
-questions: where was I, what changed, and what needs me.
+### Getting back in after time away
 
 ```bash
 spl resume
 ```
 
-Point it at a specific room (a thread id, a thread prefix, or a task alias)
-to get the re-entry brief for just that room:
+One re-entry summary answering three questions: where you were, what changed,
+and what needs you. Point it at one place to get the summary for just that
+place:
 
 ```bash
 spl resume th_auth_refactor_abc123
 spl resume SKL-3699
 ```
 
-With a room, `resume` returns the five-bucket re-entry brief for it; without
-one, it returns the instance-wide descent.
+## For scripts
 
-## Machine-readable output
-
-Every command here takes `--json` (or `-o json` / `-o stream-json`) for
-scripting:
+Every command here takes `--json` (or `-o json` / `-o stream-json`):
 
 ```bash
 spl register --json | jq '.data'
@@ -102,5 +150,5 @@ spl resume --json
 
 ## Related
 
-- [Running a goal](./running-a-goal): start a governed run and sit with it.
-- [Task management](./task-management): the task lifecycle behind many asks.
+- [Running a goal](./running-a-goal): start a run and sit with it.
+- [Task management](./task-management): the task lifecycle behind many decisions.
