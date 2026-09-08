@@ -29,6 +29,9 @@
 
 # guides/ — all 22 guides pages + the inference subsection restored to nav
 # 2026-05-30; their unpublish redirects removed so the real pages serve.
+# the-register → your-call (renamed 2026-09-08: the page is about the place a
+# person answers from, and "register" is the internal name for the list).
+/docs/guides/the-register/  /docs/guides/your-call/  301
 
 # cookbook/ — 11 UNPUBLISH (including section index) → guides
 /docs/cookbook/                                          /docs/guides/task-management/  301

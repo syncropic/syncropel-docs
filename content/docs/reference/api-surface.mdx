@@ -134,9 +134,9 @@ The lane of things waiting on a person. A **decision** needs an answer; a
 
 | Method | Path | What it is for | Documented |
 |---|---|---|---|
-| GET | `/v1/register` | Everything waiting on you, ranked, with open proposals beside it; `?limit=` caps each list | [The register](/docs/guides/the-register) |
-| POST | `/v1/register/weight` | Rank one item above another: `{above, below}`; `withdrawn: true` removes the weight | [The register](/docs/guides/the-register) |
-| POST | `/v1/register/listener` | Turn your listener on or off: `{enabled}` | [The register](/docs/guides/the-register) |
+| GET | `/v1/register` | Everything waiting on you, ranked, with open proposals beside it; `?limit=` caps each list | [Your call](/docs/guides/your-call) |
+| POST | `/v1/register/weight` | Rank one item above another: `{above, below}`; `withdrawn: true` removes the weight | [Your call](/docs/guides/your-call) |
+| POST | `/v1/register/listener` | Turn your listener on or off: `{enabled}` | [Your call](/docs/guides/your-call) |
 | GET | `/v1/decisions` | The open decisions, unranked | [API reference](/docs/reference/api#decisions) |
 | POST | `/v1/decisions/{id}/decide` | Answer one item | [Your first decision](/docs/tutorials/your-first-decision) |
 | GET | `/v1/governance/decisions` | Same as `/v1/decisions` | |
