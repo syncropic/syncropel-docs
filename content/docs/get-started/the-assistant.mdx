@@ -1,10 +1,10 @@
 ---
 title: The assistant
-description: Every Syncropel instance can answer when you type. The conversational default is the chief of staff, an ordinary actor you can read, change, and replace. This page explains what it is, how a conversation actually works underneath, and how to turn it on when you self-host.
+description: Every Syncropel workspace can answer when you type. The conversational default is the chief of staff, an ordinary actor you can read, change, and replace. This page explains what it is, how a conversation actually works underneath, and how to turn it on when you self-host.
 ---
 
-When you open a thread on a Syncropel instance and type a message, something
-answers. On a hosted instance that something is there from your first thread.
+When you open a thread on a Syncropel workspace and type a message, something
+answers. On a hosted workspace that something is there from your first thread.
 It is the **chief of staff**, an actor named "the chief", and it is the
 conversational default on every deployment profile except `blank`.
 
@@ -18,14 +18,14 @@ Instances before v0.216 had a separate built-in assistant called Scribe (and a
 sibling orientation agent, the Guide), configured with `spl config scribe`.
 Those are retired. The conversational default is now the chief of staff, a
 normal actor. Old Scribe and Guide records stay readable as history, and an
-instance that already ran the old assistant keeps answering across upgrades.
+workspace that already ran the old assistant keeps answering across upgrades.
 </Callout>
 
 ## What the chief is
 
 The chief reads everything you may read, holds nothing, decides nothing, and
 writes only the asks that deserve to reach you. It is your chief of staff, not
-an oracle: its job is to answer from what is actually on your instance, and to
+an oracle: its job is to answer from what is actually on your workspace, and to
 raise a real question when it needs one, rather than to guess.
 
 ## How a conversation works
@@ -35,8 +35,8 @@ A conversation is just records. Nothing about a chat is special or ephemeral.
 1. **You type a message.** Your client emits a `core.user.message.v1` record
    onto a thread: a new thread if you are starting fresh, or an existing one to
    continue.
-2. **The instance routes it to the chief.** The chief is registered as an actor
-   on your instance; a message on a conversational thread is dispatched to it.
+2. **The workspace routes it to the chief.** The chief is registered as an actor
+   on your workspace; a message on a conversational thread is dispatched to it.
 3. **The chief reads the thread and responds.** It folds the thread so far into
    context, calls a language model, and emits a reply record back onto the same
    thread.
@@ -78,7 +78,7 @@ that actor then only ever replies single-shot.
 
 ## Turning the assistant on when you self-host
 
-A self-hosted instance starts deliberately blank: it reacts to nothing until you
+A self-hosted workspace starts deliberately blank: it reacts to nothing until you
 choose what runs on it. Two ways to give it a voice.
 
 ```bash
@@ -93,11 +93,11 @@ Every preset except `blank` installs the chief. If you initialized bare and the
 assistant seems silent, this is why, and nothing is broken: install the chief
 through the blueprint door with the command above.
 
-<Callout type="info" title="Your instance can already use a model out of the box">
+<Callout type="info" title="Your workspace can already use a model out of the box">
 A hosted workspace arrives with managed model access, so the chief answers from your first message. A workspace on your own machine has no model until you give it a key (`spl config set-key anthropic <your key>`, then restart the daemon); until then the chief is installed but silent, and `spl run` says so rather than failing quietly.
 </Callout>
 
-Hosted instances come with the chief already on.
+Hosted workspaces come with the chief already on.
 
 ## Troubleshooting: the assistant is silent
 
@@ -123,4 +123,4 @@ If you send a message and nothing comes back, work through this in order:
 - [Tiers](/docs/guides/tiers): what a loop is allowed to spend, by tier.
 - [Blueprints](/docs/concepts/blueprints): how the chief is defined, and how you
   would define your own conversational actor.
-- [Hosted instance signup](/docs/get-started/hosted): get an instance in under a minute.
+- [Hosted workspace signup](/docs/get-started/hosted): get a workspace in under a minute.

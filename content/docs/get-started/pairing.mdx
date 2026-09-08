@@ -1,13 +1,13 @@
 ---
 title: Pairing a Browser or Phone
-description: Use `spl pair` to attach a browser, phone, or other device to your instance with its own scoped service account and token. One-click URL, QR-code flow, manual pairing for headless hosts, and revocation.
+description: Use `spl pair` to attach a browser, phone, or other device to your workspace with its own scoped service account and token. One-click URL, QR-code flow, manual pairing for headless hosts, and revocation.
 ---
 
-Your CLI talks to your instance via `~/.syncro/token`. Browsers and phones can't read that file, so they need their own service account and token. `spl pair` wraps the whole "mint a scoped account, render a token, show it in a form the other device can consume" flow in one command.
+Your CLI talks to your workspace via `~/.syncro/token`. Browsers and phones can't read that file, so they need their own service account and token. `spl pair` wraps the whole "mint a scoped account, render a token, show it in a form the other device can consume" flow in one command.
 
 ## Why pairing exists
 
-A fresh browser pointed at `syncropel.com` has no way to authenticate to your local instance. It doesn't know what instance URL to hit, and even if it did, it has no token. Three ways to solve this:
+A fresh browser pointed at `syncropel.com` has no way to authenticate to your local workspace. It doesn't know what instance URL to hit, and even if it did, it has no token. Three ways to solve this:
 
 1. **Paste the token manually.** Works, but painful — tokens are 40-plus characters and typing them on a phone keyboard is error-prone.
 2. **Share the CLI's token with the browser.** Bad — the CLI's token is usually `admin`-scoped and the browser doesn't need that.
@@ -40,7 +40,7 @@ The CLI prints all three in order of friction. Pick whichever is easiest for the
 https://syncropel.com/pair#<encoded-payload>
 ```
 
-Click it (or copy it into the browser you want to pair). The page reads the encoded payload, verifies the token against your instance, stores the credential in the browser, and drops you on `/tasks` — no typing, no scanning, no copy/paste.
+Click it (or copy it into the browser you want to pair). The page reads the encoded payload, verifies the token against your workspace, stores the credential in the browser, and drops you on `/tasks` — no typing, no scanning, no copy/paste.
 
 The token rides in the URL fragment (the part after `#`), which never reaches any server. After the credential is stored, the browser replaces the URL bar with `/tasks` so the token doesn't sit in browser history either.
 
@@ -52,13 +52,13 @@ All three end at the same place: the device stores the URL and token in encrypte
 
 ### What the dashboard shows at each stage
 
-`syncropel.com` distinguishes a small set of connection states so you can tell at a glance what your instance wants from you:
+`syncropel.com` distinguishes a small set of connection states so you can tell at a glance what your workspace wants from you:
 
 | State | Dot | What it means |
 |---|---|---|
 | No instance reachable | gray | `localhost:9100` isn't responding. Start `spl serve`. |
 | Connected, insecure mode | amber `DEV MODE` | `--insecure-localhost` — auth bypassed, fine for solo dev. |
-| Pair required | amber | Your instance wants a token; this browser has none. Run `spl pair` and click the printed URL. |
+| Pair required | amber | Your workspace wants a token; this browser has none. Run `spl pair` and click the printed URL. |
 | Connected, secure | green | Paired, token valid, records stream normally. |
 | Token expired or revoked | red | Your token was nuked. Click **Re-pair** to run through pairing again. |
 | Browser blocked the connection | gray | Chrome's local-network protection refused the fetch. The dashboard explains recovery. |
@@ -67,25 +67,25 @@ For the full set of failure modes, see [Troubleshooting](/docs/get-started/troub
 
 ### On a phone or iPad
 
-`syncropel.com` on mobile no longer probes `localhost:9100` — phones can't reach an instance there, and the resulting browser-blocked error confused more than it helped. Mobile users now land on a welcome screen with three explicit paths:
+`syncropel.com` on mobile no longer probes `localhost:9100` — phones can't reach a workspace there, and the resulting browser-blocked error confused more than it helped. Mobile users now land on a welcome screen with three explicit paths:
 
 | Action | When to use |
 |---|---|
 | **Scan pairing QR** | You're standing next to your laptop and just ran `spl pair --device browser-mobile`. Point the phone camera at the printed QR. |
-| **Enter instance URL** | Your instance is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
+| **Enter instance URL** | Your workspace is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
 | **Browse public records** | Placeholder for a future release — read federation-published feeds without pairing. |
 
-The mobile entry deliberately omits the localhost probe. If you previously paired this phone and the instance URL is stored, the dashboard probes it directly and skips the welcome screen.
+The mobile entry deliberately omits the localhost probe. If you previously paired this phone and the workspace URL is stored, the dashboard probes it directly and skips the welcome screen.
 
-If you're seeing this welcome screen on a desktop and you do have an instance at localhost, your viewport may be narrower than 640px or Chrome DevTools touch-emulation is on — widen the window or disable emulation.
+If you're seeing this welcome screen on a desktop and you do have a workspace at localhost, your viewport may be narrower than 640px or Chrome DevTools touch-emulation is on — widen the window or disable emulation.
 
 ### Choose `--url` carefully
 
-`--url` is the address the **target device** will call — not your instance's view of itself.
+`--url` is the address the **target device** will call — not your workspace's view of itself.
 
 | Situation | URL to pass |
 |---|---|
-| Browser on the same machine as your instance | `http://127.0.0.1:9100` |
+| Browser on the same machine as your workspace | `http://127.0.0.1:9100` |
 | Phone or iPad on the same home Wi-Fi | `http://192.168.1.50:9100` (the LAN IP of the host) |
 | Phone or iPad on the same private network (Tailscale, VPN) | `http://100.x.y.z:9100` (the private network address of the host) |
 | Over the public internet via reverse proxy | `https://your-host.example.com` (the proxy's public URL) |
@@ -100,7 +100,7 @@ The `--device` label sets a sensible default scope for you, so you usually don't
 |---|---|---|
 | `browser-*` (e.g. `browser-chrome`) | `admin` | Pairing a browser to drive the full dashboard. Most common case. |
 | `viewer-*` (e.g. `viewer-bigscreen`) | `records:read` | Read-only display surface (a screen, a status board). |
-| `emitter-*` (e.g. `emitter-linear`) | `records:read,records:write` | An integration that writes records but doesn't need to administer your instance. |
+| `emitter-*` (e.g. `emitter-linear`) | `records:read,records:write` | An integration that writes records but doesn't need to administer your workspace. |
 | Anything else | `records:read,records:write` | Conservative default with a hint suggesting one of the prefixes above. |
 
 If the default isn't what you want, override with `--scopes` (comma-separated list). For example, `--scopes records:read` mints a viewer-only token regardless of device prefix.
@@ -135,9 +135,9 @@ Copy-paste that into the target device's config file, environment, or secret man
 
 Exactly three fields:
 
-- **`url`** — the instance URL the device will call.
+- **`url`** — the workspace URL the device will call.
 - **`token`** — the bearer token. Used as `Authorization: Bearer <token>` on every request.
-- **`device`** — the display name you chose. Surfaced by the device so the user can tell one paired instance from another.
+- **`device`** — the display name you chose. Surfaced by the device so the user can tell one paired workspace from another.
 
 Nothing else is transmitted. The token itself is the authentication proof; the URL tells the device where to send requests; the device name is presentation only.
 
@@ -158,7 +158,7 @@ spl service-account list                       # find the SA by device name
 spl service-account revoke <sa_id>             # irreversible; every token for this SA dies
 ```
 
-The device continues to hit your instance with its old token and every request now returns `401 AUTH_INVALID`. Your other paired devices are unaffected.
+The device continues to hit your workspace with its old token and every request now returns `401 AUTH_INVALID`. Your other paired devices are unaffected.
 
 If you want to give the device a fresh token without retiring the whole service account — for example, when rolling tokens quarterly:
 
@@ -174,10 +174,10 @@ Then re-pair that device with the new token. The old token dies; the service acc
 
 **"The QR code doesn't scan."** Most terminals render blocky Unicode. If your terminal doesn't support it, use `--no-qr` and copy the payload. Alternatively, widen the terminal and re-run — some QR libraries need a minimum cell size.
 
-**"I paired my phone but it can't reach my instance over Wi-Fi."** `--url 127.0.0.1:9100` only reaches the host itself. Your phone needs the host's LAN IP. Check `ip addr` or `ifconfig` on the host and re-pair.
+**"I paired my phone but it can't reach my workspace over Wi-Fi."** `--url 127.0.0.1:9100` only reaches the host itself. Your phone needs the host's LAN IP. Check `ip addr` or `ifconfig` on the host and re-pair.
 
 ## See also
 
 - [Security model](/docs/operate/security-model) — bearer tokens, service accounts, what's on-disk
 - [Troubleshooting](/docs/get-started/troubleshooting) — diagnostic tree for the most common failure modes
-- [Operator runbook](/docs/operate/runbook) — day-2 operations once your instance is doing real work
+- [Operator runbook](/docs/operate/runbook) — day-2 operations once your workspace is doing real work

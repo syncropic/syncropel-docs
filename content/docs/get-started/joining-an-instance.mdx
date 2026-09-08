@@ -1,9 +1,9 @@
 ---
-title: Joining an Instance
+title: Joining an Workspace
 description: Someone sent you a membership invite link. What the page will ask, what name to pick, what custodial custody means for you, and where your credential goes.
 ---
 
-You've been sent a link that looks like `https://<instance>/i/inv_...`. Someone who runs a Syncropel instance is inviting you to join it as a **member** — not just handing you an access token, but creating an identity for you on their instance: something your reviews are signed with, something trust attaches to, something you can walk away from at any time.
+You've been sent a link that looks like `https://<instance>/i/inv_...`. Someone who runs a Syncropel workspace is inviting you to join it as a **member** — not just handing you an access token, but creating an identity for you on their workspace: something your reviews are signed with, something trust attaches to, something you can walk away from at any time.
 
 This page is for you, the invitee. The operator's side is the [Add a teammate tutorial](/docs/tutorials/add-a-teammate).
 
@@ -11,7 +11,7 @@ This page is for you, the invitee. The operator's side is the [Add a teammate tu
 
 The invite page displays, before you commit to anything:
 
-- **Who issued the invite** — the instance and the issuing identity.
+- **Who issued the invite** — the workspace and the issuing identity.
 - **What you'd be granted** — the scope set (typically read + write access to records) and how long the membership lasts.
 - **When the link expires** — invite links are short-lived (hours to a day); if it has expired, ask for a fresh one.
 
@@ -21,19 +21,19 @@ Nothing happens until you confirm. If the invite has been revoked or already use
 
 The page asks you to pick a name: lowercase letters, digits, and hyphens, starting with a letter or digit, up to 63 characters. `mora`, `dan-k`, `ops2` are all fine.
 
-The name becomes your DID on this instance — `did:sync:user:<name>` — and it is the handle everything else refers to: the roster, your signed reviews, your accumulated trust, and eventually your offboarding. Pick something you're happy to see in an audit log for years.
+The name becomes your DID on this workspace — `did:sync:user:<name>` — and it is the handle everything else refers to: the roster, your signed reviews, your accumulated trust, and eventually your offboarding. Pick something you're happy to see in an audit log for years.
 
 If the name is already taken by an existing member, redemption is refused — an invite link alone can never take over someone else's identity. (The one exception is deliberate: an admin can issue an invite *pinned to your name* so you can renew your own membership. If you were told "this link renews your access", that's what's happening.)
 
 ## What custodial custody means for you
 
-Today, membership custody is **custodial**: the instance generates and holds your signing key, and signs on your behalf. Stated plainly, that means:
+Today, membership custody is **custodial**: the workspace generates and holds your signing key, and signs on your behalf. Stated plainly, that means:
 
-- **The instance operator holds your signing key.** Your identity on this instance is only as trustworthy as the operator running it. This is the honest state of the system — asking for device custody (you hold your own key) is not silently downgraded; it is refused as not-yet-implemented.
+- **The workspace operator holds your signing key.** Your identity on this workspace is only as trustworthy as the operator running it. This is the honest state of the system — asking for device custody (you hold your own key) is not silently downgraded; it is refused as not-yet-implemented.
 - **Your membership is bilateral.** The acceptance record that creates it is counter-signed, and revocation works in both directions — the operator can offboard you, and **you can revoke your own membership at any time**. You are not locked in.
-- **Everything is on the record.** Your joining, your grant, your reviews, and any revocation are ordinary records on the instance's log — inspectable, not implied.
+- **Everything is on the record.** Your joining, your grant, your reviews, and any revocation are ordinary records on the workspace's log — inspectable, not implied.
 
-If that tradeoff is unacceptable for your situation, don't redeem — a membership on someone's instance is a relationship with its operator.
+If that tradeoff is unacceptable for your situation, don't redeem — a membership on someone's workspace is a relationship with its operator.
 
 ## Where your credential goes
 
@@ -45,7 +45,7 @@ For the CLI:
 spl token save spl_prod_sa_XXXXXXXX_YYYYYYYYYYYY
 ```
 
-That writes `~/.syncro/token` (mode 0600), and every `spl` command targeting the instance sends it automatically. For SDK or HTTP use, pass it as the `Authorization: Bearer` header the way you would any bearer — see [Service accounts and tokens](/docs/get-started/service-accounts) for the discovery precedence (`--token` flag, `SPL_TOKEN` env, saved file).
+That writes `~/.syncro/token` (mode 0600), and every `spl` command targeting the workspace sends it automatically. For SDK or HTTP use, pass it as the `Authorization: Bearer` header the way you would any bearer — see [Service accounts and tokens](/docs/get-started/service-accounts) for the discovery precedence (`--token` flag, `SPL_TOKEN` env, saved file).
 
 ## "Parented to your membership" — what that means
 

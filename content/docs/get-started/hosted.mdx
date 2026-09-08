@@ -1,11 +1,11 @@
 ---
-title: Hosted instance signup
-description: Skip the install — sign in at syncropel.com and have a fully-portable Syncropel instance running in about a minute. Self-hosted and hosted are first-class equals; this page walks through the hosted onboarding path end-to-end.
+title: Hosted workspace signup
+description: Skip the install — sign in at syncropel.com and have a fully-portable Syncropel workspace running in about a minute. Self-hosted and hosted are first-class equals; this page walks through the hosted onboarding path end-to-end.
 ---
 
-If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel instance for you. The instance is a full Syncropel runtime — the same binary, the same APIs, the same record store, the same federation surface as a self-hosted one. You can move freely between hosted and self-hosted at any time — `spl export` round-trips your data, and the same binary runs on both ends.
+If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel workspace for you. The workspace is a full Syncropel runtime — the same binary, the same APIs, the same record store, the same federation surface as a self-hosted one. You can move freely between hosted and self-hosted at any time — `spl export` round-trips your data, and the same binary runs on both ends.
 
-Hosted instances are **$25 per month per instance** with a **30-day free trial**; see [Pricing](/docs/get-started/pricing).
+Hosted workspaces are **$25 per month per workspace** with a **30-day free trial**; see [Pricing](/docs/get-started/pricing).
 
 This page covers the signup flow you'll see at syncropel.com, what each step does, and how to connect the CLI afterwards.
 
@@ -14,7 +14,7 @@ This page covers the signup flow you'll see at syncropel.com, what each step doe
 You need:
 
 - An email address that can receive verification mail (or a social login).
-- A choice of instance label — a subdomain under `syncropel.app`, e.g. `alice.syncropel.app`. Lowercase letters, digits, and `-`. 3–32 characters. The label is yours for the lifetime of your account.
+- A choice of workspace label — a subdomain under `syncropel.app`, e.g. `alice.syncropel.app`. Lowercase letters, digits, and `-`. 3–32 characters. The label is yours for the lifetime of your account.
 
 You do **not** need: Docker, or a domain you control.
 
@@ -22,11 +22,11 @@ You do **not** need: Docker, or a domain you control.
 
 ### 1. Sign in
 
-Visit [syncropel.com](https://syncropel.com) and sign in. Account creation is email-verified, with optional social login. Your account is the identity that owns every instance you create — sign in from any device and your instances follow you.
+Visit [syncropel.com](https://syncropel.com) and sign in. Account creation is email-verified, with optional social login. Your account is the identity that owns every workspace you create — sign in from any device and your workspaces follow you.
 
 ### 2. Pick a label
 
-The signup page asks for a label. The label becomes both your subdomain and your default namespace prefix. If you pick `alice`, your instance lives at `alice.syncropel.app` and your records land under namespace `alice` by default.
+The signup page asks for a label. The label becomes both your subdomain and your default namespace prefix. If you pick `alice`, your workspace lives at `alice.syncropel.app` and your records land under namespace `alice` by default.
 
 Reserved labels (`api`, `docs`, `www`, `app`, `admin`, etc.) are rejected with an inline error. Pick something specific to you or your project.
 
@@ -37,9 +37,9 @@ Submitting the form starts the provisioning sequence and streams progress live. 
 | Phase | What's happening | Typical time |
 |---|---|---|
 | `reserve` | Label reserved against the global registry; a fresh `instance_id` minted. | < 1s |
-| `app_create` | Your instance is created on the hosted platform. | 1-2s |
+| `app_create` | Your workspace is created on the hosted platform. | 1-2s |
 | `volume_create` | Per-customer persistent volume allocated for your record store. | 1-2s |
-| `dns` | `<label>.syncropel.app` routed to your new instance. | 5-15s |
+| `dns` | `<label>.syncropel.app` routed to your new workspace. | 5-15s |
 | `image_build` / `deploy` | Instance boots from the current `spl serve` release image. | 20-40s |
 | `bootstrap` | Instance initializes its first admin credential, ready for auth. | 1-2s |
 | `dns_propagate` | The new DNS record propagates. | up to ~30s |
@@ -49,21 +49,21 @@ Total time to `ready` is typically 60–120 seconds. The form streams progress; 
 
 ### 4. Land in your workspace
 
-When provisioning finishes you land in **Syncropel Studio**, already connected to your new instance — no token juggling. Your browser session carries your identity, and the instance recognizes you as its owner. The ready screen also offers a CLI pairing option if you work from a terminal (see below).
+When provisioning finishes you land in **Syncropel Studio**, already connected to your new workspace — no token juggling. Your browser session carries your identity, and the workspace recognizes you as its owner. The ready screen also offers a CLI pairing option if you work from a terminal (see below).
 
-The bare `<label>.syncropel.app` URL is your instance's public landing page — an identity card, not where you work day-to-day.
+The bare `<label>.syncropel.app` URL is your workspace's public landing page — an identity card, not where you work day-to-day.
 
-### Your instances, from any device
+### Your workspaces, from any device
 
-[syncropel.com/account/instances](https://syncropel.com/account/instances) lists every instance your account owns — status, connect, and lifecycle actions. Sign in on a new device and the same list is there; one click connects Studio to any of them.
+[syncropel.com/account/instances](https://syncropel.com/account/workspaces) lists every workspace your account owns — status, connect, and lifecycle actions. Sign in on a new device and the same list is there; one click connects Studio to any of them.
 
-Want another instance for a separate project? Provision again; each instance is billed on its own.
+Want another workspace for a separate project? Provision again; each workspace is billed on its own.
 
 ## What you can do once you're in
 
 The same things any Syncropel user can do, with the same CLI and SDK surface as a self-hosted operator:
 
-- **Use Syncropel Studio** — workspace, threads, tasks, search. `<label>.syncropel.app` itself is the instance's public landing page ([customizable per-instance](/docs/operate/site)); Studio at syncropel.com is where you actually work.
+- **Use Syncropel Studio** — workspace, threads, tasks, search. `<label>.syncropel.app` itself is the workspace's public landing page ([customizable per-instance](/docs/operate/site)); Studio at syncropel.com is where you actually work.
 - **Use the CLI or SDKs** instead if you prefer to work programmatically against the API — see the next section.
 - **Pair more devices** via `spl pair --device <label> --url https://<label>.syncropel.app`, or without the CLI at all: on any thread press **keep this access**, and paste the key it shows into **+ add a connection** on the other device (see [Keeping your access](/docs/guides/keeping-your-access)).
 - **Federate** with another Syncropel instance via `spl federation pair <peer-url>` — see the [federation pair guide](/docs/guides/federation-pair).
@@ -71,9 +71,9 @@ The same things any Syncropel user can do, with the same CLI and SDK surface as 
 
 You don't manage the runtime — the hosted platform handles restart-on-crash, edge proxying, and TLS. You can still see instance health via `<label>.syncropel.app/health` and rich state via `<label>.syncropel.app/v1/health` (auth-protected).
 
-## Connect your CLI to the hosted instance
+## Connect your CLI to the hosted workspace
 
-The CLI defaults to a local instance on `127.0.0.1:9100`. To make it talk to your hosted instance instead, you tell it two things: **where the instance lives** (`SPL_SERVE_URL`) and **which bearer to attach** (`spl token save`).
+The CLI defaults to a local instance on `127.0.0.1:9100`. To make it talk to your hosted workspace instead, you tell it two things: **where the workspace lives** (`SPL_SERVE_URL`) and **which bearer to attach** (`spl token save`).
 
 ### One-time setup
 
@@ -108,7 +108,7 @@ spl task list
 
 `spl status` prints which URL it resolved and whether the bearer authenticates. `spl thread list` and `spl task list` should return your account's view (empty if you haven't emitted anything yet).
 
-If you get a `401`, re-pair and re-save the token (`spl token save <bearer>`) and verify `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, check `<label>.syncropel.app/health` directly in a browser — the instance may be waking from idle; give it a few seconds.
+If you get a `401`, re-pair and re-save the token (`spl token save <bearer>`) and verify `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, check `<label>.syncropel.app/health` directly in a browser — the workspace may be waking from idle; give it a few seconds.
 
 ### Device-specific tokens (recommended)
 
@@ -128,11 +128,11 @@ Both serve the same protocol. Pick by where you want the data and who manages up
 
 | | Hosted (syncropel.com) | Self-hosted (`spl serve`) |
 |---|---|---|
-| Where the data lives | Per-customer hosted instance + persistent volume | Your `~/.syncro/hub.db` |
+| Where the data lives | Per-customer hosted workspace + persistent volume | Your `~/.syncro/hub.db` |
 | Who handles uptime | Syncropic | You |
 | Backup story | Operator-managed snapshots | You — see [Backup discipline](/docs/operate/runbook#backup-discipline) |
 | Federation | Yes — full peer | Yes — full peer |
-| Cost | $25 per month per instance after a 30-day trial | Whatever your machine costs |
+| Cost | $25 per month per workspace after a 30-day trial | Whatever your machine costs |
 | Lock-in | None — `spl export` round-trips | None — same binary |
 
 Hosted is the path of least friction; self-hosted is the path of zero dependence on syncropel.com. Both are first-class.
@@ -142,13 +142,13 @@ Hosted is the path of least friction; self-hosted is the path of zero dependence
 Most provisioning failures fall into one of two buckets:
 
 - **Label collision.** Someone reserved that label first. Pick another.
-- **Boot timeout.** Your instance took longer than the provisioning deadline. The page suggests waiting 30–60s and retrying — the underlying instance may already be live.
+- **Boot timeout.** Your workspace took longer than the provisioning deadline. The page suggests waiting 30–60s and retrying — the underlying instance may already be live.
 
 For all of these, the signup page surfaces a structured error — no log scraping. If retries don't help, the diagnostics on the page contain everything support needs.
 
 ## What's next
 
-- **[Pairing a browser or phone](/docs/get-started/pairing)** — get a second device onto the same instance.
+- **[Pairing a browser or phone](/docs/get-started/pairing)** — get a second device onto the same workspace.
 - **[First run](/docs/get-started/first-run)** — the same first-day walkthrough applies once you have any working instance, hosted or self-hosted.
 - **[Your first task](/docs/tutorials/first-task)** — five-minute end-to-end walkthrough — create, complete, and earn trust evidence.
 - **[Security model](/docs/operate/security-model)** — bearer tokens, service accounts, what's on-disk.

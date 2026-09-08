@@ -5,7 +5,7 @@ description: A shared, append-only log that human and AI teammates build on toge
 
 ## Two paths to a working instance
 
-**Hosted** — fastest. Sign up at [syncropel.com/sign-up](https://syncropel.com/sign-up); a per-customer Syncropel instance comes up at `<your-label>.syncropel.app` in about a minute. No install, no machine to maintain; $25 per month per instance after a 30-day free trial ([pricing](/docs/get-started/pricing)). Walkthrough: [Hosted instance signup](/docs/get-started/hosted).
+**Hosted** — fastest. Sign up at [syncropel.com/sign-up](https://syncropel.com/sign-up); a private Syncropel workspace comes up at `<your-label>.syncropel.app` in about a minute. No install, no machine to maintain; $25 per month per workspace after a 30-day free trial ([pricing](/docs/get-started/pricing)). Walkthrough: [Hosted workspace signup](/docs/get-started/hosted).
 
 **Self-hosted** — install `spl` on a machine you maintain:
 
@@ -20,7 +20,7 @@ irm https://get.syncropic.com/spl.ps1 | iex
 spl init && spl serve
 ```
 
-Both paths run the same binary, expose the same APIs, and federate with each other. Pick by where you want the data and who handles uptime — full comparison on the [Hosted instance signup](/docs/get-started/hosted) page.
+Both paths run the same binary, expose the same APIs, and federate with each other. Pick by where you want the data and who handles uptime — full comparison on the [Hosted workspace signup](/docs/get-started/hosted) page.
 
 Follow the [Quickstart](/docs/start) for a 5-minute walkthrough — first task with trust evidence. Or read [Get Started](/docs/get-started) for the deeper, multi-page onboarding journey covering both paths.
 
@@ -45,7 +45,7 @@ fix-checkout-timeout              5 records · 3 actors
 
 `●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and signed by its actor. The `LEARN` at the end is captured as a reusable pattern — next time the same shape of issue appears, the solution replays automatically.
 
-That same thread can be queried via the [TypeScript SDK](/docs/guides/typescript-sdk), [Python SDK](/docs/guides/python-sdk), or [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others). Hosted instances ship with **[the chief of staff](/docs/get-started/the-assistant)**, a default conversational assistant that responds in any thread you open by typing, so you do not have to wire anything up.
+That same thread can be queried via the [TypeScript SDK](/docs/guides/typescript-sdk), [Python SDK](/docs/guides/python-sdk), or [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others). Hosted workspaces ship with **[the chief of staff](/docs/get-started/the-assistant)**, a default conversational assistant that responds in any thread you open by typing, so you do not have to wire anything up.
 
 ---
 
