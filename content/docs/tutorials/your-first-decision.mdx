@@ -16,9 +16,9 @@ After this, you'll understand why Syncropel is described as "self-improving" —
 ## Before you start
 
 - `spl 0.107.0` or later (`spl --version`)
-- A running instance — either local (`spl serve`) or hosted (`<label>.syncropel.app`).
+- A running workspace — either local (`spl serve`) or hosted (`<label>.syncropel.app`).
 - `spl status` returns `healthy`.
-- An LLM provider key configured (`spl config set-key anthropic <key>`) — the engine's intelligence loop needs a model to reason about new routing. On a hosted instance the key is already wired.
+- An LLM provider key configured (`spl config set-key anthropic <key>`) — the engine's intelligence loop needs a model to reason about new routing. On a hosted workspace the key is already wired.
 
 If you've never emitted a record before, do [Your first thread](./first-thread) first. This tutorial assumes you can read `spl thread records <id>` output.
 
@@ -41,7 +41,7 @@ The engine hot-reloads on the next config broadcast — no restart.
 
 ## 2. Emit a record with no matching routing rule
 
-Pick a body kind the instance hasn't seen. The simplest is a fresh thread with a do-something intent:
+Pick a body kind the workspace hasn't seen. The simplest is a fresh thread with a do-something intent:
 
 ```bash
 spl intend "Translate the README.md to French" --thread th_fr_translate
@@ -84,7 +84,7 @@ The request carries a structured body: the match expression the engine synthesiz
 spl decisions list --json | jq '.[0]'
 ```
 
-Until you act, no rule exists in `th_engine_config` and no future record will route differently. The same pending decision also shows up in `spl resume` under **NEEDS** — the decision gate is the one queue for "anything on the instance is waiting on you."
+Until you act, no rule exists in `th_engine_config` and no future record will route differently. The same pending decision also shows up in `spl resume` under **NEEDS** — the decision gate is the one queue for "anything on the workspace is waiting on you."
 
 ## 4. Approve the proposal
 
@@ -103,7 +103,7 @@ Output:
   result:   routing_rule_added (name: routing_translator_v1)
 ```
 
-What happened mechanically: your approval is itself a record — a DO with `body.fulfills` pointing at the `core.work.decision_request.v1`. The engine reads the answered request, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the instance's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
+What happened mechanically: your approval is itself a record — a DO with `body.fulfills` pointing at the `core.work.decision_request.v1`. The engine reads the answered request, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the workspace's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
 
 Verify the rule landed:
 
@@ -172,8 +172,8 @@ This is the smallest example of why the decision gate is Syncropel's self-improv
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `spl decisions list` always returns empty | Intelligence is disabled, so the engine never proposed anything. | Confirm `spl config show` reports a model + provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. The instance hot-reloads on the next broadcast. |
-| A decision stays pending forever | You're reading from a paired peer, not the originating instance. Decision state is per-instance until the resulting rule federates. | Run `spl decisions list` against the instance that *emitted* the original record. Check `spl actor list` to confirm which DID is the active actor. |
-| `spl decisions approve` returns `403 forbidden` | Default-secure auth on a hosted instance — answering a decision emits a record, and the bearer token lacks write scope. | Mint a service account with write scope: `spl service-account create --name "Decider" --scopes records:write --with-token`, then `spl token save <token>`. |
+| `spl decisions list` always returns empty | Intelligence is disabled, so the engine never proposed anything. | Confirm `spl config show` reports a model + provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. The workspace hot-reloads on the next broadcast. |
+| A decision stays pending forever | You're reading from a paired peer, not the originating instance. Decision state is per-instance until the resulting rule federates. | Run `spl decisions list` against the workspace that *emitted* the original record. Check `spl actor list` to confirm which DID is the active actor. |
+| `spl decisions approve` returns `403 forbidden` | Default-secure auth on a hosted workspace — answering a decision emits a record, and the bearer token lacks write scope. | Mint a service account with write scope: `spl service-account create --name "Decider" --scopes records:write --with-token`, then `spl token save <token>`. |
 | Approved rule didn't fire on the next similar record | The proposal generalized too narrowly (matches L0 only) — the second record differs at L0. | Inspect with `spl config list-rules`, find the rule, and broaden its CEL `match` expression. The pattern layer will eventually crystallize the broader shape on its own; manual editing is the fast path. |
 | `spl audit` shows no decision records after approving | The approve command ran against a different namespace from the one you're reading. | Pass `--namespace <ns>` to match the namespace the original record was emitted into. |

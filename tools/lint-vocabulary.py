@@ -44,7 +44,7 @@ INTERNAL_PATTERNS = {
     r"\bFU-\d+\b": "(internal follow-up reference — describe behaviour instead)",
     r"\bTier [αβγ]\b": "(internal phase reference — describe behaviour instead)",
     r"\bWave [0-9]+\b": "(internal phase reference — describe behaviour instead)",
-    r"\bsteward equivalence doctrine\b": "(internal vocabulary — say 'hosted and self-hosted are equivalent' or similar)",
+    r"\bsteward equivalence\b": "(internal vocabulary — say 'hosted and self-hosted are equivalent' or similar)",
     r"\bcargo\b": "(build tooling — a reader holds a binary, not a build)",
     r"sqlite3": "(store internals — describe behaviour instead)",
     r"hub\.db": "(store internals — say 'the record store')",
@@ -214,6 +214,18 @@ def load_repo_ignore_file(cwd: Path) -> list[str]:
 # ----- Line-level filtering -------------------------------------------------
 
 
+def _strip_emphasis(line: str) -> str:
+    """Blank out `**`, `__`, `*` and `_` emphasis markers, preserving length.
+
+    ⚠ Found 2026-09-08: the rule for "steward equivalence doctrine" never fired
+    on the one page that used it, because the page writes
+    `**steward equivalence** doctrine` and the asterisks sit inside the phrase.
+    A multi-word rule is defeated by any emphasis a writer puts in the middle
+    of it, which is exactly where a writer puts emphasis.
+    """
+    return re.sub(r"(\*\*|__|\*|_)", lambda m: " " * len(m.group(0)), line)
+
+
 def _strip_inline_code(line: str) -> str:
     """Replace inline-code spans `...` with placeholders so they don't match."""
     return re.sub(r"`[^`\n]*`", lambda m: " " * len(m.group(0)), line)
@@ -296,7 +308,7 @@ def scan_file(path: Path, rel_path: str) -> list[Hit]:
             continue
 
         # Strip inline code + link targets before matching.
-        line_for_match = _strip_inline_code(raw_line)
+        line_for_match = _strip_emphasis(_strip_inline_code(raw_line))
         if is_md:
             line_for_match = _strip_link_targets(line_for_match)
 

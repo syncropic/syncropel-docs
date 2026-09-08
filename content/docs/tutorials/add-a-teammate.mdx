@@ -5,7 +5,7 @@ description: The golden path for membership — issue a principal-creating invit
 
 ## What you'll do
 
-You run an instance. A teammate — call her Mora — needs to work on it. In this tutorial you will:
+You run a workspace. A teammate — call her Mora — needs to work on it. In this tutorial you will:
 
 1. Issue a **membership invite** and send her the link.
 2. Watch her redeem it in the browser and appear on the roster.
@@ -15,7 +15,7 @@ You run an instance. A teammate — call her Mora — needs to work on it. In th
 
 This is different from [pairing a device](/docs/guides/pair-share-invite): a plain invite mints a credential; a membership invite mints a **principal** — an identity with a key, a membership grant, and a credential parented to that grant. The concept page is [Principals & grants](/docs/concepts/principals-and-grants); this page is the walkthrough.
 
-**Prerequisites**: a running instance you hold an `admin` bearer for, reachable at a URL your teammate's browser can open.
+**Prerequisites**: a running workspace you hold an `admin` bearer for, reachable at a URL your teammate's browser can open.
 
 ## 1. Issue the invite
 
@@ -42,10 +42,10 @@ Send Mora the link over whatever channel you trust. The URL is signed, so it is 
 
 Mora opens the link. The invite page shows who issued it, what scopes it grants, and asks her to:
 
-- **Choose a member name** — lowercase letters, digits, and hyphens, up to 63 characters (`mora`, `mora-k`). It becomes her DID on your instance: `did:sync:user:mora`.
-- **Accept custodial custody** — the page states plainly that your instance will hold her signing key and sign on her behalf. That is the only custody mode today; [Joining an instance](/docs/get-started/joining-an-instance) covers what it means from her side.
+- **Choose a member name** — lowercase letters, digits, and hyphens, up to 63 characters (`mora`, `mora-k`). It becomes her DID on your workspace: `did:sync:user:mora`.
+- **Accept custodial custody** — the page states plainly that your workspace will hold her signing key and sign on her behalf. That is the only custody mode today; [Joining a workspace](/docs/get-started/joining-an-instance) covers what it means from her side.
 
-She confirms. Behind the button, the browser calls `POST /v1/invites/inv_9f2c41d0b8a7/redeem` with her `member_label` and `custody: "custodial"`, and your instance writes the record spine — identity genesis, the label binding, the membership grant, and the custodian-signed acceptance — then mints her a service account and bearer parented to the grant. The page hands her the bearer once.
+She confirms. Behind the button, the browser calls `POST /v1/invites/inv_9f2c41d0b8a7/redeem` with her `member_label` and `custody: "custodial"`, and your workspace writes the record spine — identity genesis, the label binding, the membership grant, and the custodian-signed acceptance — then mints her a service account and bearer parented to the grant. The page hands her the bearer once.
 
 ## 3. Confirm the roster
 
@@ -69,7 +69,7 @@ spl invite audit
 2026-08-14T09:14:02Z     redeemed         inv_9f2c41d0b8a7
 ```
 
-Note the visibility rule: **you see every row because you are admin.** When Mora runs `spl member list` against your instance, she sees only her own row. The grant graph at `GET /v1/folds/grant` scopes the same way — admin sees everything, everyone else sees only grants where they are the issuer or the audience.
+Note the visibility rule: **you see every row because you are admin.** When Mora runs `spl member list` against your workspace, she sees only her own row. The grant graph at `GET /v1/folds/grant` scopes the same way — admin sees everything, everyone else sees only grants where they are the issuer or the audience.
 
 ## 4. Your teammate works
 
@@ -86,7 +86,7 @@ From here she works like anyone else — with one difference that matters: when 
 spl task approve TASK-0041 --grade 0.75
 ```
 
-The verdict record names her as the evaluator, carries her signature, and the instance verifies it because her label binding resolves to a key it knows. A verdict with a wrong signature is refused. And she cannot approve her own work through an alias — self-judgment is refused by resolving both parties to their principals through the grant chain, not by comparing DID strings.
+The verdict record names her as the evaluator, carries her signature, and the workspace verifies it because her label binding resolves to a key it knows. A verdict with a wrong signature is refused. And she cannot approve her own work through an alias — self-judgment is refused by resolving both parties to their principals through the grant chain, not by comparing DID strings.
 
 Her bearer has its own expiry (30 days by default) and can be rotated ahead of time — the membership grant is the long-lived thing; the bearer is a renewable credential under it.
 
@@ -104,7 +104,7 @@ Renewal is for an **expired** grant. While her grant is live she never needs you
 spl invite create --member --label mora
 ```
 
-She redeems the new link exactly as before. Because the invite is pinned to a label your instance holds custody for, redemption becomes a **renewal**: the same principal — same DID, same history, same trust — gets a fresh grant and a fresh bearer, and the old grant is revoked with reason `membership-renewed`.
+She redeems the new link exactly as before. Because the invite is pinned to a label your workspace holds custody for, redemption becomes a **renewal**: the same principal — same DID, same history, same trust — gets a fresh grant and a fresh bearer, and the old grant is revoked with reason `membership-renewed`.
 
 The pin is also the takeover guard: an *unpinned* membership invite can never claim an existing label. If someone redeems a generic invite and types `mora`, they get `409 MEMBER_LABEL_TAKEN`. Owning an invite link is not enough to become an existing member; that requires an admin deliberately pinning the invite.
 
@@ -130,7 +130,7 @@ Three honest notes on that output:
 
 - **Bilateral.** Mora can revoke her own membership too — leaving is not something only the operator can do.
 - **Idempotent.** Revoking an already-revoked member reports success without erroring.
-- **`scope: local`.** The revocation is enforced on *this* instance's ledger. Credentials that live on other instances are outside its reach.
+- **`scope: local`.** The revocation is enforced on *this* instance's ledger. Credentials that live on other workspaces are outside its reach.
 
 The event lands as `member_revoked` on the same audit feed (`spl invite audit`).
 
@@ -151,6 +151,6 @@ That is the whole model: membership is a grant between principals, and one recor
 ## What's next
 
 - **[Principals & grants](/docs/concepts/principals-and-grants)** — why this is a grant, not a group entry.
-- **[Joining an instance](/docs/get-started/joining-an-instance)** — the page to send your teammate alongside the link.
+- **[Joining a workspace](/docs/get-started/joining-an-instance)** — the page to send your teammate alongside the link.
 - **[Agent credentials](/docs/guides/agent-credentials)** — giving an agent a slice of a member's authority.
 - **[Scopes & permissions](/docs/reference/scopes-and-permissions)** — presets, wire grains, caveats, and the membership routes.
