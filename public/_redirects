@@ -1,53 +1,85 @@
 # Cloudflare Workers Static Assets _redirects
 # Format: <source>  <destination>  <status>
 # Sources match exact paths (with trailing slash due to next.config.mjs trailingSlash: true).
+#
+# ⚠ AND THAT IS WHY EVERY RULE IS WRITTEN TWICE. Measured 2026-09-08 against the
+# live site: /docs/concepts/catalog returned 404 while /docs/concepts/catalog/
+# returned 200, and the same held for every retired URL here. A link that omits
+# the trailing slash is the normal shape of a link somebody typed, pasted from
+# a search result, or wrote in another document, so a rule with only the
+# slashed form is a redirect that half works.
 
 # get-started/ — retired pages → nearest sibling
 /docs/get-started/daemon/            /docs/get-started/first-run/    301
+/docs/get-started/daemon            /docs/get-started/first-run/    301
 /docs/get-started/service-accounts/  /docs/get-started/pairing/      301
+/docs/get-started/service-accounts  /docs/get-started/pairing/      301
 
 # tutorials/ — restored to nav 2026-05-30; renamed slugs keep a redirect.
 # your-first-aitl-approval → your-first-decision (renamed)
 /docs/tutorials/your-first-aitl-approval/  /docs/tutorials/your-first-decision/  301
+/docs/tutorials/your-first-aitl-approval  /docs/tutorials/your-first-decision/  301
 
 # removed pages
 /docs/tutorials/parallel-dev/                      /docs/tutorials/first-fanout/   301
+/docs/tutorials/parallel-dev                      /docs/tutorials/first-fanout/   301
 /docs/guides/cookbook-dispatch-recovery/           /docs/operate/runbook/          301
+/docs/guides/cookbook-dispatch-recovery           /docs/operate/runbook/          301
 /docs/guides/cookbook-claude-session-correlation/  /docs/guides/dispatch-observability/  301
+/docs/guides/cookbook-claude-session-correlation  /docs/guides/dispatch-observability/  301
 /docs/reference/honesty-ledger/                    /docs/concepts/authorization-model/   301
+/docs/reference/honesty-ledger                    /docs/concepts/authorization-model/   301
 /docs/operate/backup-restore-drill/                /docs/guides/backup-restore/    301
+/docs/operate/backup-restore-drill                /docs/guides/backup-restore/    301
 /docs/operate/rollback-procedure/                  /docs/guides/backup-restore/    301
+/docs/operate/rollback-procedure                  /docs/guides/backup-restore/    301
 
 # templates/ — 1 UNPUBLISH → guides
 /docs/templates/  /docs/guides/task-management/  301
+/docs/templates  /docs/guides/task-management/  301
 
 # concepts/ — all concept pages are now in nav (concepts/meta.json lists
 # all 17, incl. engine/namespaces/governance/secrets restored 2026-05-30,
 # so their old unpublish redirects are removed and the real pages serve).
 # Only the renamed catalog → graph redirect remains.
 /docs/concepts/catalog/      /docs/concepts/graph/    301
+/docs/concepts/catalog      /docs/concepts/graph/    301
 
 # guides/ — all 22 guides pages + the inference subsection restored to nav
 # 2026-05-30; their unpublish redirects removed so the real pages serve.
 # the-register → your-call (renamed 2026-09-08: the page is about the place a
 # person answers from, and "register" is the internal name for the list).
 /docs/guides/the-register/  /docs/guides/your-call/  301
+/docs/guides/the-register  /docs/guides/your-call/  301
 
 # cookbook/ — 11 UNPUBLISH (including section index) → guides
 /docs/cookbook/                                          /docs/guides/task-management/  301
+/docs/cookbook                                          /docs/guides/task-management/  301
 /docs/cookbook/route-by-domain/                          /docs/guides/task-management/  301
+/docs/cookbook/route-by-domain                          /docs/guides/task-management/  301
 /docs/cookbook/trust-gated-auto-approval/                /docs/guides/task-management/  301
+/docs/cookbook/trust-gated-auto-approval                /docs/guides/task-management/  301
 /docs/cookbook/federate-one-thread/                      /docs/guides/task-management/  301
+/docs/cookbook/federate-one-thread                      /docs/guides/task-management/  301
 /docs/cookbook/scheduled-daily-digest/                   /docs/guides/task-management/  301
+/docs/cookbook/scheduled-daily-digest                   /docs/guides/task-management/  301
 /docs/cookbook/audit-export-to-elastic/                  /docs/guides/task-management/  301
+/docs/cookbook/audit-export-to-elastic                  /docs/guides/task-management/  301
 /docs/cookbook/summarize-research-paper-consensus/       /docs/guides/task-management/  301
+/docs/cookbook/summarize-research-paper-consensus       /docs/guides/task-management/  301
 /docs/cookbook/translate-with-human-verification/        /docs/guides/task-management/  301
+/docs/cookbook/translate-with-human-verification        /docs/guides/task-management/  301
 /docs/cookbook/cost-bounded-query-waterfall/             /docs/guides/task-management/  301
+/docs/cookbook/cost-bounded-query-waterfall             /docs/guides/task-management/  301
 /docs/cookbook/audit-critical-with-ensemble-audit/       /docs/guides/task-management/  301
+/docs/cookbook/audit-critical-with-ensemble-audit       /docs/guides/task-management/  301
 /docs/cookbook/escalate-to-human-on-low-confidence/      /docs/guides/task-management/  301
+/docs/cookbook/escalate-to-human-on-low-confidence      /docs/guides/task-management/  301
 
 # integrate/ — programmatic-agents restored for v0.54
 
 # operate/ — retired pages
 /docs/operate/fleet-benchmarking/        /docs/operate/runbook/  301
+/docs/operate/fleet-benchmarking        /docs/operate/runbook/  301
 /docs/operate/workspace/testing/         /docs/operate/runbook/  301
+/docs/operate/workspace/testing         /docs/operate/runbook/  301
