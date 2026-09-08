@@ -1,0 +1,215 @@
+---
+title: "Working with members: the doors"
+description: An integrator reference for the doors a person holds over the members they define. Defining and retiring a member, starting and reading its runs, its evaluation history, its daily usage, its memories, and moving it between workspaces, with the fields that matter and the refusals by name.
+---
+
+A member is anyone or anything that works in a workspace: a person, or an
+automated agent a person defined. The doors on this page are the ones a person
+holds over the members they define. Every door takes an authenticated caller
+(a bearer token, or the local socket) and answers refusals in the standard
+envelope `{object: "error", code, message}`. The `{did}` in a path is the
+member's id, the `actor_did` the define door returns.
+
+Two rules hold across all of them:
+
+- **You can only give what you have.** A member you define is bounded by your
+  own authority, and revoking your access revokes every member you defined.
+- **A violation writes nothing.** Every bound is checked before the first
+  write, so a refused request leaves the workspace exactly as it was.
+
+## Define a member
+
+`POST /v1/actors/define` creates (or updates) a member that runs on a language
+model under your authority.
+
+**Request fields**
+
+| Field | Meaning |
+|---|---|
+| `label` | Required. The human name. The member's id is derived from your id and this label, so the same label from you updates the same member (newest wins) while another person's identical label is a different member. |
+| `mechanism` | Defaults to `"llm"`. |
+| `trust_domain` | The domain its trust is scored under. |
+| `brief` | What the member is for, in words. Kept on the definition. |
+| `stands_on` | Definitions this one builds on. Kept on the definition. |
+| `declares_kinds` | The record kinds it declares it writes. |
+| `default_on_new_threads` | `true` makes this member the one that answers on a new thread. |
+| `write_admit` | The kinds the member may write, as a list of clauses. Must be within what you may write yourself. |
+| `work_loop.model` | The model it runs on. |
+| `work_loop.system_prompt_ref` | Its prompt, as `record:<id>` of a prompt record. No other scheme is accepted. |
+| `work_loop.tools` | The tools it may use. Must be within your own reach. |
+| `work_loop.reads` | The threads it may read in every run. Must be threads you can read. |
+| `work_loop.budget_usd`, `work_loop.max_turns` | Per-run ceilings. |
+| `work_loop.daily_cost_cap_usd`, `work_loop.daily_loop_cap` | Per-day ceilings. A declared cap can only narrow your tier's. |
+| `work_loop.conversation_loop` | Whether a conversational turn may act, not just answer. |
+| `work_loop.verification` | The verification mode for its runs. |
+
+**Response**: `201` with `{actor_did, definition}`, where `definition` is the
+id of the definition record. A run stamps this id, which is what makes the
+evaluation history below meaningful.
+
+**Refusals**
+
+| Code | When |
+|---|---|
+| `422 INVALID_BODY` | The body does not parse as a define request. |
+| `400 MISSING_FIELD` | `label` is absent or blank. |
+| `400 DEFINE_FIELD_INERT` | You sent `work_loop.reach` (a run's reach is its tier's, narrowed by `tools`) or `admit` (a read bound belongs on a credential, not a definition). Remove the field. |
+| `422 WORK_PROMPT_UNRESOLVED` | `system_prompt_ref` is not a `record:<id>` reference. |
+| `403 READS_NOT_COVERED` | `work_loop.reads` names a thread your credential cannot read. |
+| `403 DAILY_CAP_TOO_WIDE` | A daily cap wider than a bounded member's tier allows; a declared cap may only narrow. |
+| `403 TOOL_NOT_IN_REACH` | A tool your own tier forbids. |
+| `403 WRITE_KIND_NOT_ADMITTED` | A `write_admit` kind beyond what you may write. |
+| `422 GRANT_REFUSED` | The member's derived permission failed validation. |
+
+The `403` bounds apply to a bounded member (a caller whose credential
+carries a write bound). The workspace's operator is unbounded and may define
+freely; runs are still clamped by tier at start.
+
+### Retire a member
+
+`DELETE /v1/actors/{did}/definition` retires it: its permission is revoked, it
+stops being a thread default, and its definition is disabled, in that order,
+so there is never a moment when it is runnable without its bound. Answers
+`{object: "actor", did, retired: true}`.
+
+| Code | When |
+|---|---|
+| `404 NO_SUCH_ACTOR` | No definition exists for `{did}`. |
+| `403 RETIRE_FORBIDDEN` | Only the person who defined it, or an operator, may retire it. |
+
+A retired member can no longer be run as (see `RUN_ACTOR_NOT_COVERED` below).
+
+## Start and read its runs
+
+`POST /v1/actors/{did}/runs` starts a run as the member `{did}`, so the run
+uses that member's model, prompt and tools.
+
+**Request fields**: `goal` (what to do), and optionally `source_thread` (the
+thread the run works on behalf of), `repo` (a declared repository, which
+gives the run a working tree), `consumes` and `promises` (the threads it reads
+from and lands on), `contract`, `verdict`, `revert` (its declared terms),
+`budget_usd`, `max_turns`, `verification` and `model_override`. Ceilings you
+supply only ever narrow the member's own.
+
+**A trial**: pass `definition` (a `work_loop` object in the shape above) to
+run a candidate definition once without installing it. The trial is bounded by
+the same checks as the define door, and refused with the same codes followed by
+"No trial ran." A trial's run is marked so the evaluation history can tell a
+candidate from the live member.
+
+**Response**: `201` with the run row (below).
+
+| Code | When |
+|---|---|
+| `403 RUN_ACTOR_NOT_COVERED` | You may run as yourself, as a member you defined, or as anyone if you are the operator. Anything else, including a member you retired, is refused. |
+| `422 INVALID_DEFINITION` | `definition` is not a `work_loop` object. |
+| `422 WORK_PROMPT_UNRESOLVED` | The member's prompt reference does not resolve to a record. |
+| `400 REPO_UNKNOWN` | `repo` names a repository the workspace has not declared. |
+| `503 ADMISSION_CEILING` | The workspace is at its concurrent-run ceiling; the message carries both numbers. |
+
+`GET /v1/actors/{did}/runs` lists every run the member owns or executed,
+newest first, as `{object: "run_list", actor, count, truncated, data}`. The
+scan is bounded at 2,000 runs; `truncated: true` means the window may be
+incomplete.
+
+**The run row** (also served by `GET /v1/runs/{thread}`):
+
+| Field | Meaning |
+|---|---|
+| `thread` | The run's own thread. |
+| `actor`, `actor_name`, `model` | Who ran and on what. |
+| `goal`, `source_thread`, `domain` | What it was asked, for which thread, in which domain. |
+| `definition`, `prompt`, `frame` | The definition, prompt and opening words it ran under. |
+| `state` | `running`, `waiting_on_you` (an open decision), `done`, `stopped` (cancelled), or `stopped_short` (ended without completing). |
+| `turns`, `max_turns`, `spent_usd`, `ceiling_usd` | Progress against its ceilings. |
+| `started_at`, `ended_at`, `summary` | Its lifetime and its closing words. |
+| `ask` | The open decision on the run, if any. |
+| `tools`, `narrowed`, `transport` | What it was granted, what was withheld, and how it ran. |
+| `tool_calls_ok`, `tool_calls_failed` | The tally, so a `done` with every call failed is visible. |
+| `verb`, `needs`, `reason`, `evidence`, `candidates`, `reported_by` | The run's report: what it says it did, what it needs from you, and why it ended. |
+
+To steer, answer or stop a live run, see
+[Running a goal](/docs/guides/running-a-goal).
+
+## Evaluation history
+
+`GET /v1/actors/{did}/evals` returns the member's graded history:
+`{object: "actor_evals", actor, grades, comparisons, scan_ceiling, capped}`.
+
+- `grades` are newest first, one per scoring (each call to the score door
+  below writes one). Each carries
+  `structure_score` and `substance_score` apart, never blended, and every
+  substance figure carries `substance_scored` beside it, because a perfect
+  score over two of ninety cases is not a measurement of ninety.
+- `comparisons` set each definition against the one it succeeded, per axis.
+- `scan_ceiling` is 5,000 and `capped: true` means the history is partial.
+
+Grades are produced by `POST /v1/evals/score` with `{suite, actor,
+definition}` (`definition` is the id the define door returned), which scores the runs already on record against a suite's cases
+and writes one grade. It refuses `400 MISSING_FIELD` (any of the three
+absent), `400 NO_CASES` (the suite holds no cases) and
+`400 NO_RUNS_UNDER_DEFINITION` (no run by that member ran under that
+definition). It answers `201` with the grade and `runs_scored`, the number of
+runs the grade rests on. The commands over these doors are in
+[Evaluating actors](/docs/guides/evaluating-actors).
+
+## Usage
+
+`GET /v1/actors/{did}/usage` answers today's numbers for one member:
+`{object: "actor_usage", actor, window_kind: "daily", loop_count,
+input_tokens, output_tokens, cost_usd}`. A member that has not run today
+answers zeros rather than an error.
+
+## Memory
+
+A member's memories are what it carries between runs. The doors:
+
+- `GET /v1/actors/{did}/memories` lists them as `{object: "list", data}`.
+  Optional filters: `search` (matches name, description or tags), `domain`
+  (a tag), `type` (one of `user`, `feedback`, `project`, `reference`,
+  `skill`, `insight`) and `limit`.
+- `POST /v1/actors/{did}/memories` adds one. Fields: `name`, `memory_type`,
+  `description` (all required), `confidence` (defaults to `0.8`), `tags`,
+  `source_thread`. Answers `201` with `{object: "memory", name, status:
+  "created", thread}`.
+- `DELETE /v1/actors/{did}/memories/{name}` removes one and answers
+  `{status: "cancelled"}`; `404 MEMORY_NOT_FOUND` when there is no such
+  memory.
+
+What a memory is, how a run writes one for itself, and how memories are shown
+when a thread is touched are in [Actor memory](/docs/guides/actor-memory).
+
+## Moving a member between workspaces
+
+`GET /v1/actors/{did}/export` returns the member as a bundle: its identity
+(`did`, `display_name`, `category`, `status`), its trust profile by domain,
+its memories (only with `?include_memories=true`), its skills and its
+patterns. A failed export answers `500`.
+
+`POST /v1/actors/{did}/import` takes `{bundle, trust_discount, merge,
+dry_run}`. `trust_discount` (default `0.5`) scales the imported trust, so a
+member arrives with a track record to rebuild rather than one to be taken on
+faith; `merge` (default `false`) combines with an existing member instead of
+replacing; `dry_run` (default `false`) reports without writing and answers
+`200` instead of `201`. The result carries `memories_imported`,
+`skills_imported`, `trust_domains_imported`, `pattern_count`,
+`memory_type_counts`, `trust_summaries`, the identity fields and `dry_run`. A
+bundle that cannot be applied answers `400 IMPORT_FAILED`.
+
+<Callout type="info">
+The bundle carries the member's identity, trust, memories, skills and
+patterns. It does not carry the definition the define door wrote (model,
+prompt, tools, bounds), because a definition is bounded by whoever defines it
+in the receiving workspace. To move a defined member, import the bundle, then
+define it again with the same request; the label gives it a stable id.
+</Callout>
+
+The command-line form and what does and does not move are in
+[Actor portability](/docs/operate/actor-portability).
+
+## See also
+
+- [Actors and adapters](/docs/guides/actors-and-adapters): the concepts behind a member's definition.
+- [Tiers and entitlements](/docs/guides/tiers): the ceilings a run is clamped by.
+- [Running a goal](/docs/guides/running-a-goal): sitting inside a run from the command line.
+- [API reference](/docs/reference/api): every other door.

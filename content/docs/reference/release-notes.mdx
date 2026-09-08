@@ -1,11 +1,131 @@
 ---
-title: Release Notes
-description: A plain-language summary of recent Syncropel releases — intelligent task tooling, mechanism-independent intelligence, and a friction-free local start. Newest first.
+title: "Release Notes"
+description: "A plain-language summary of recent Syncropel releases: intelligent task tooling, mechanism-independent intelligence, and a friction-free local start. Newest first."
 ---
 
 ## Overview
 
 This page summarizes recent releases in plain language: what changed and why it matters for using Syncropel day to day. For the exhaustive, version-by-version technical record, see the changelog in the source repository.
+
+---
+
+## The First Question
+
+A fresh workspace now greets you with one real question in your call: "What
+are you working on?" It is an ordinary item in the lane, not a welcome card,
+and answering it opens your first thread, titled with exactly what you typed,
+and puts you inside it. Answering twice lands you in the same thread, never a
+second empty one, and a failure part way through leaves you with a thread and
+the question still open rather than an answer pointing at nothing. The question
+seeds only when a workspace is first set up with a preset other than `blank`,
+so a workspace that already existed gains nothing on upgrade. If you self-host,
+the wording is yours: set `SPL_FIRST_RUN_ASK` before the workspace is first
+configured.
+
+Your call can now be read honestly. It says whether the workspace has been
+configured at all, so an empty lane means "nothing needs you" and not "never
+set up". It counts decisions (which need an answer) apart from heads-ups
+(which need only a nod), so a badge never overstates what needs a person, and
+it says whether its count is exact or a floor.
+
+## The Stranger
+
+A record you send is stored exactly as you sent it, and the name you get back
+is the name of what was stored. Previously a number with many decimal places
+could be stored with slightly different digits than you wrote, so a client that
+computed its own record name disagreed with the workspace about the same
+record. That is fixed for anything sent to the workspace directly; a copy
+arriving from a paired workspace is not yet covered.
+
+Your call reduces noise to what you can act on. When an automated member
+proposes the same thing over and over (one workspace held nearly two hundred
+identical suggestions), you see one row with the count, and deciding it once
+settles the whole group. A genuinely new proposal with the same wording later
+is shown again rather than silently absorbed.
+
+A workspace can now say what fills its disk (the records, each cache, and the
+rest, measured: three quarters of a busy workspace's disk is derived data, not
+your records) and hold its caches under a declared bound. A declared disk
+ceiling refuses ordinary writes above it while never refusing a configuration
+change, so a ceiling set too low can always be lifted. Every bound defaults to
+none, so an existing workspace behaves as before. `spl doctor` names the eight
+frame acts available on any open thread instead of reporting an empty
+vocabulary. The assistant was measured answering a stranger's first
+message on a fresh workspace in about eleven seconds.
+
+## The Proven Copy
+
+Recovery from the off-machine copy is now proven rather than assumed. A fresh
+workspace was rebuilt from the live copy of a busy workspace with every record
+coming back under its own name, none renamed, the copy current to the second,
+and the signing keys byte-identical. What you read from a workspace is now the
+exact bytes it stores, on every reading surface, so a name you compute from
+what you read matches the name the workspace holds.
+
+A restore now names what it refused and why, and distinguishes a record whose
+parent was already missing at the source (which no restore can invent and is
+not loss) from a record the workspace turned away. `spl repo drift` decides by
+who the workspace is: a copy taken from a live writer is expected to run
+slightly behind and is no longer reported as drifted, while a missing flush is
+always reported.
+
+Two defects on the very first path a new operator walks are closed. A
+credential request with no credential could close the workspace's first-boot
+door and lock everyone out; it is refused before anything is written. And on a
+brand-new local workspace, `spl run` died on its first turn; it runs. A local
+workspace with no model now says what to do next (`spl config set-key`) instead
+of printing an internal sentence, and every release is now walked through a
+fresh workspace the way this documentation describes before it ships. A run is
+told to ask rather than guess when its goal is ambiguous, and a question it asks
+pauses the run until you answer.
+
+## The Seat
+
+A run that asks you a question now pauses and resumes when you answer, by
+default. An ask whose run had already ended says so ("an answer records your
+decision and resumes nothing") and is counted apart in your call, so you always
+know whether answering will move anything. A member working in its own copy of
+a repository can delete a file there, one named file at a time, never a
+directory and never anything outside its own copy.
+
+`spl doctor` gains rows that say when nothing is happening: whether this
+workspace replicates anywhere (and if not, that it is bound to no repository),
+and whether an enabled scheduled trigger has a target that is unavailable or
+has tripped its own breaker. Your task briefs join the daily backup. `spl repo
+drift` no longer reports a faithful copy as drifted, and a thread snapshot now
+carries each record's name so a restore cannot rename it. A built-in routing
+rule that had been erroring on most records is fixed.
+
+## The Faithful Round Trip
+
+A copy of your workspace is a faithful copy. Export and import, publish and
+restore, and the continuous off-machine copy all keep every record under the
+name it was stored under: on a busy workspace, over a hundred thousand records
+were published and restored with none renamed, where more than a thousand had
+been renamed before. Import now verifies that every record's contents match
+the name it claims, so a bundle cannot smuggle a record under another name.
+A workspace holding records with no thread can be exported again.
+
+Every request with a malformed body gets the same error shape, whichever door
+you sent it to. `spl adapter remove` actually removes, and `spl repo publish`
+says plainly when it only staged and did not publish. The first-boot door is
+decided by one rule, so the documented recovery flow on a fresh workspace works
+again. Known issue, deliberately not rushed: a workspace that has ever retired
+a member cannot yet be exported; the fix is a design decision and is tracked.
+
+## The First Hour
+
+The release after The Door, built from an audit of the surface a stranger
+touches first. The first-boot credential door now closes after first boot, so
+nobody can mint a credential on an already-running workspace without one.
+Writing a record no longer crashes on the second call, the command line no
+longer talks to a different workspace silently when the one you named is down,
+`spl health check` stops calling a healthy workspace unhealthy, and
+`spl token rotate` actually revokes the old token. `spl know`, `spl do` and
+`spl learn` gain `--fulfills`, the command-line way to close a thread. The
+documentation was rewritten to match the software: the retired assistants are
+gone from it, ten releases of capability got guide pages, and the Quickstart
+was tested end to end.
 
 ---
 
@@ -188,18 +308,18 @@ and [Actors](/docs/concepts/actors#the-words-an-actor-runs-under).
 The system now turns its own activity log into proactive help.
 
 - **`spl task suggest`** ranks your open tasks by relevance to what you've been working on and tells you what to pick up next. It understands the *meaning* of your recent work (run `spl embed --loop` to enable that), and falls back to a priority-and-recency ranking when the backlog hasn't been embedded yet.
-- **`spl task triage`** finds stale open tasks that newer or completed work has likely superseded, pairs each one with its probable replacement, and hands you a reviewable close-list. It never closes anything itself — you decide.
+- **`spl task triage`** finds stale open tasks that newer or completed work has likely superseded, pairs each one with its probable replacement, and hands you a reviewable close-list. It never closes anything itself; you decide.
 - **`spl insights`** surfaces observations the system noticed on its own: shifts in an actor's recent review outcomes (trust drift) and open work that's been lingering. Run it alongside `spl status` to catch problems before you go looking.
 
 See [Task suggestions & triage](/docs/guides/task-suggestions) and [Insights & observability](/docs/guides/insights-observability).
 
 ---
 
-## Mechanism-independent intelligence — Faculties and the marketplace
+## Mechanism-independent intelligence: Faculties and the marketplace
 
-Intelligence in Syncropel is no longer assumed to mean "call a language model." A **Faculty** is a deployable unit of intelligence addressed by *what it does*, not *what it's made of* — an LLM, a deterministic solver, a classifier, an external service, or a script can all serve the same capability. Deploy and manage them with `spl faculty deploy / list / show / retire`.
+Intelligence in Syncropel is no longer assumed to mean "call a language model." A **Faculty** is a deployable unit of intelligence addressed by *what it does*, not *what it's made of*: an LLM, a deterministic solver, a classifier, an external service, or a script can all serve the same capability. Deploy and manage them with `spl faculty deploy / list / show / retire`.
 
-When several Faculties can do the same kind of work, the **calibrated marketplace** routes the work to whichever has earned the most trust at it — measured purely on independently-judged outcomes, blind to mechanism. A non-LLM solver competes on equal footing with a language model, and a fresh candidate has to earn its standing before it can displace a proven one. This was proven end to end: an exact solver and a deliberately-weak heuristic competed for the same capability, their trust diverged on real verdicts, and the system routed new work to the one that actually produced the right answers.
+When several Faculties can do the same kind of work, the **calibrated marketplace** routes the work to whichever has earned the most trust at it, measured purely on independently-judged outcomes, blind to mechanism. A non-LLM solver competes on equal footing with a language model, and a fresh candidate has to earn its standing before it can displace a proven one. This was proven end to end: an exact solver and a deliberately-weak heuristic competed for the same capability, their trust diverged on real verdicts, and the system routed new work to the one that actually produced the right answers.
 
 See [Faculties](/docs/concepts/faculty) and [The calibrated marketplace](/docs/concepts/marketplace).
 
@@ -207,7 +327,7 @@ See [Faculties](/docs/concepts/faculty) and [The calibrated marketplace](/docs/c
 
 ## Intelligence out of the box
 
-Fresh instances now come with a working intelligence path configured automatically — there's no manual provider setup before the conversational agent and work loops can run. The instance is recognized as a metered, audited participant against the shared gateway, governed by its own permission model.
+Fresh instances now come with a working intelligence path configured automatically: there's no manual provider setup before the conversational agent and work loops can run. The instance is recognized as a metered, audited participant against the shared gateway, governed by its own permission model.
 
 ---
 
@@ -218,10 +338,10 @@ Getting a local instance running is three short verbs, with no credential to man
 ```bash
 spl init    # generate your identity + config
 spl serve   # start the instance in the background
-spl task add "Try out Syncropel"   # works immediately — no token needed
+spl task add "Try out Syncropel"   # works immediately, no token needed
 ```
 
-The local CLI talks to the instance over a private socket on your machine; filesystem permissions are the authentication, so there's nothing to paste. Bearer tokens are still the right tool when you want to *delegate* scoped access — pairing a browser, a phone, an MCP client, or a remote CLI — but they're no longer in the way of just trying things locally.
+The local CLI talks to the instance over a private socket on your machine; filesystem permissions are the authentication, so there's nothing to paste. Bearer tokens are still the right tool when you want to *delegate* scoped access (pairing a browser, a phone, an MCP client, or a remote CLI), but they're no longer in the way of just trying things locally.
 
 See [First run](/docs/get-started/first-run).
 
@@ -229,6 +349,6 @@ See [First run](/docs/get-started/first-run).
 
 ## What's next
 
-- **[Get started](/docs/get-started)** — install and run your first instance.
-- **[Concepts](/docs/concepts/records)** — the ideas behind the protocol.
-- **[CLI reference](/docs/reference/cli)** — the full command surface.
+- **[Get started](/docs/get-started)**: install and run your first instance.
+- **[Concepts](/docs/concepts/records)**: the ideas behind the protocol.
+- **[CLI reference](/docs/reference/cli)**: the full command surface.

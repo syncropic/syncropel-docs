@@ -1,6 +1,6 @@
 ---
 title: Workspaces
-description: A workspace is a record that carries a complete interactive surface — what to show, how to lay it out, and what it is allowed to do. Install one, use it, write your own.
+description: A workspace is a record that carries a complete interactive surface, what to show, how to lay it out, and what it is allowed to do. Install one, use it, write your own.
 ---
 
 A **workspace** is a record that carries a complete interactive surface. It
@@ -10,13 +10,13 @@ instance interprets that description at render time and shows you a working
 page.
 
 Because a workspace *is* a record, you do not install software to get one.
-You emit the record — or someone shares it with you — and the surface is
+You emit the record, or someone shares it with you, and the surface is
 live. There is no build step, no plugin to compile, no runtime to restart.
 A new workspace is one `core.workspace.v1` record away.
 
 Every fresh instance boots with a **Tasks** workspace already installed, so
-your instance is never a blank screen. Everything below — the shape, the
-catalog, the lifecycle — is the same whether you are looking at that starter
+your instance is never a blank screen. Everything below, the shape, the
+catalog, the lifecycle, is the same whether you are looking at that starter
 workspace or one you wrote yourself.
 
 ## The shape
@@ -49,7 +49,7 @@ parts: `meta` (what the workspace is), `regions` (what it shows), and
 }
 ```
 
-### `meta` — what the workspace is
+### `meta`, what the workspace is
 
 | Field | What it does |
 |---|---|
@@ -58,13 +58,13 @@ parts: `meta` (what the workspace is), `regions` (what it shows), and
 | `icon` | An icon name used wherever the workspace is listed. |
 | `rail` | When `true`, the workspace is pinned to the navigation rail. |
 | `shell` | The layout archetype the regions are arranged into. |
-| `defaults` | Optional starting state — initial filter, selected tab, and so on. |
+| `defaults` | Optional starting state, initial filter, selected tab, and so on. |
 | `capabilities` | What the workspace is allowed to do. See [Capabilities](#capabilities). |
 
-### `regions` — what it shows
+### `regions`, what it shows
 
-`regions` is a map. Each key is a slot in the layout — `header`, `body`,
-`rail`, `browse`, `status`, `aside` — and each value is a **projection
+`regions` is a map. Each key is a slot in the layout, `header`, `body`,
+`rail`, `browse`, `status`, `aside`, and each value is a **projection
 document**: a declarative description of UI built from a small set of
 nodes (tables, forms, text, charts, and so on). See
 [Projections](/docs/guides/projections) for the document format and
@@ -72,32 +72,32 @@ nodes (tables, forms, text, charts, and so on). See
 renders.
 
 A projection document carries **query bindings, not baked-in data**. The
-workspace record stays static and content-addressed; the live records it
+workspace record stays static and verifiable; the live records it
 displays are resolved when the surface renders. The same workspace, opened
 by two different people, shows each of them their own records folded the
 same way.
 
-### `lifecycle` — where it is in its life
+### `lifecycle`, where it is in its life
 
 One of `draft`, `published`, or `archived`. Lifecycle is declared by
-whoever emits the record. Changing it means emitting a new record — see
+whoever emits the record. Changing it means emitting a new record, see
 [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle).
 
 ## Viewing in Studio
 
-Open a workspace — or any content thread, such as a note — in Studio and
+Open a workspace, or any content thread, such as a note, in Studio and
 it renders its content directly. A view switcher lets you read the same
 thread three ways without changing anything:
 
-- **Document** — the rendered document: the workspace's regions, or a
+- **Document**: the rendered document: the workspace's regions, or a
   note's formatted text. This is the default.
-- **Outline** — just the heading hierarchy, for jumping around a long
+- **Outline**: just the heading hierarchy, for jumping around a long
   document.
-- **Records** — the underlying records the document is folded from, shown
+- **Records**: the underlying records the document is folded from, shown
   unreduced. The document is a view *of* these records; this lens shows
   the ground truth behind it.
 
-Switching views never edits the thread — each is a different reading of
+Switching views never edits the thread, each is a different reading of
 the same records. A thread someone else has [made
 public](/docs/guides/federation-discovery#make-your-work-public) renders
 the same way for you, read-only.
@@ -105,8 +105,8 @@ the same way for you, read-only.
 ## Capabilities
 
 `meta.capabilities` is the ceiling on what a workspace may do. It is part
-of the record body, so it is fixed the moment the workspace is content-
-addressed — a workspace cannot quietly grant itself new powers.
+of the record body, so it is fixed the moment the workspace record is
+written: a workspace cannot quietly grant itself new powers.
 
 | Field | What it controls |
 |---|---|
@@ -121,37 +121,37 @@ know exactly what it can touch.
 ## How workspaces relate to records
 
 Records are the foundation. Threads are coordination contexts. **Workspaces
-sit on top** — a workspace says "gather records like this, lay them out
+sit on top**, a workspace says "gather records like this, lay them out
 like that, and let me do these things."
 
 A workspace does not store data. It describes how to view and act on data.
-This is why a workspace is content-addressed: its identity is the SHA-256
-of its canonical JSON. Two people running the "same" workspace are running
-literally the same description, byte-for-byte verified.
+This is why a workspace's identity is its description and nothing else.
+Two people running the "same" workspace are running literally the same
+description, byte-for-byte verified.
 
 What is deliberately **not** in a workspace body:
 
-- **A process model** — a workspace does not run; your instance interprets it.
-- **Storage configuration** — your records live wherever you keep them.
-- **Authentication wiring** — handled by the instance's identity layer.
-- **Secrets** — a workspace never carries keys.
+- **A process model**: a workspace does not run; your instance interprets it.
+- **Storage configuration**: your records live wherever you keep them.
+- **Authentication wiring**: handled by the instance's identity layer.
+- **Secrets**: a workspace never carries keys.
 
 ## The catalog
 
-Every instance keeps its workspaces on a single well-known thread — the
+Every instance keeps its workspaces on a single well-known thread, the
 **workspace catalog**. Installing a workspace emits its record there;
 listing your workspaces folds that thread.
 
 Discovery is an ordinary query: ask your instance for records of kind
 `core.workspace.v1`. The catalog is not a separate service or a gatekept
-app store — it is records, queried like any other records.
+app store, it is records, queried like any other records.
 
 ```bash
 spl workspace list
 ```
 
 A workspace published on *another* instance reaches yours over
-[the Graph](/docs/concepts/graph) — Syncropel's cross-instance discovery
+[the Graph](/docs/concepts/graph), Syncropel's cross-instance discovery
 pattern. The Graph carries a workspace between instances; your catalog is
 where it lands once you install it.
 
@@ -160,15 +160,15 @@ for the full command surface.
 
 ## What's next
 
-- [Instance chrome](/docs/concepts/instance-chrome) — the navigation rail,
+- [Instance chrome](/docs/concepts/instance-chrome): the navigation rail,
   side panels, and footer that frame your workspaces, also carried as a record.
-- [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle) —
+- [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle) , 
   `install`, `list`, `show`, `update`, `archive`, and the lifecycle field.
-- [Authoring a workspace](/docs/operate/workspace/authoring) — write your
+- [Authoring a workspace](/docs/operate/workspace/authoring): write your
   own `core.workspace.v1` document from scratch.
-- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) —
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) , 
   install the starter, then write and install one of your own.
-- [Projections](/docs/guides/projections) — the projection-document format
+- [Projections](/docs/guides/projections): the projection-document format
   the `regions` are written in.
 - [`core.workspace.v1` schema](https://syncropel.com/schemas/config/core-workspace.v1.schema.json)
-  — the machine-readable body schema.
+ , the machine-readable body schema.

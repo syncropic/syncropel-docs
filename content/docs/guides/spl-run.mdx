@@ -1,0 +1,227 @@
+---
+title: Running work with spl run
+description: Start a run as yourself, watch it stream to your terminal, answer the question it parks on, and read the outcome (with its diff when it changed a repository). How a run is bounded, and how one stops.
+---
+
+`spl run` is a seat, not a launcher. You give it a goal, it starts a run as
+you, and then it stays with the run: every turn prints as it happens, a
+question the run needs answered is put to you in place, and when the run ends
+the outcome prints, with the diff if the run changed a repository.
+
+```bash
+spl run "Record one note saying the walkthrough works, then stop."
+```
+
+The command returns when the run reaches an end, or when your own waiting time
+runs out (`--timeout`, default 600 seconds).
+
+## What a run is
+
+A run is one bounded piece of work done by a member of your workspace on your
+behalf. It runs **as you**: it uses your permissions and your spending
+ceilings, and everything it does lands on its own thread, where you and anyone
+you share the thread with can read it later. A run is not fire-and-forget; it
+is something you sit inside.
+
+By default the run is carried out by the chief. If the chief is not installed,
+`spl run` picks the first member on the roster that can run work, and if there
+is none it refuses and tells you to pass `--actor`. To run as a specific
+member, pass `--actor` with the member's handle (with or without a leading
+`@`) or its full identifier.
+
+## What prints
+
+The first two lines name the run and who is doing it. The member is printed
+by its full identifier, not its handle:
+
+```text
+run th_9f2c...
+  as <member id>, repo my-service
+```
+
+Then the run streams. Each line is one thing that happened:
+
+| Line | Meaning |
+|---|---|
+| `turn 3` | A new turn began |
+| `  -> edit {"path":"README",...}` | The run called a tool, with its arguments (truncated) |
+| `  <- ok hello world` | The tool answered: its status and the first line of its result |
+| `  ! ...` | The model or a tool reported an error |
+| `ASK: ...` | The run needs something from you (see below) |
+| `outcome: done` | The run ended |
+
+Pass `--json` for one JSON object per event instead, for scripts.
+
+## When a run needs a decision
+
+A run can stop and ask. When it does, it **parks**: nothing more happens until
+you answer, and the run's state reads `waiting_on_you`. The seat renders the
+question inline:
+
+```text
+ASK: Which greeting should README carry: hello world, or hello there?
+  [approve] hello world
+  [reject] hello there
+answer>
+```
+
+Type an option's id or its label (a question that wants a free-text value
+shows a hint in parentheses; a question that only needs a nod takes any
+answer). The seat sends your answer through the ordinary decision door, prints
+`answered: approve (the run resumes)`, and the run picks up where it parked,
+with its repository checkout re-attached if it has one.
+
+If the seat cannot take an answer, because it is not attached to a terminal
+and you gave it no `--answer`, it exits with code 3 and names the question:
+
+```text
+the run asked and no answer could be taken; rerun with --answer, or answer it with: spl decisions decide <id> <choice>
+```
+
+The run is still parked at that point. Answer it from another terminal with
+`spl decisions choose <id> <option>` (or `provide --value`, or `ack`), or from
+[your call](/docs/guides/the-register) in the app, and it resumes.
+
+For scripts and CI, `--answer <text>` answers every question with that text
+instead of prompting.
+
+## The outcome
+
+When the run ends, the seat prints its outcome:
+
+```text
+outcome: done
+  artifact: 4c1e...
+
+diff --git a/README b/README
+-hello
++hello world
+```
+
+`outcome:` carries one of five words. `done` means the run finished what it
+claimed. `blocked` means it could not, and the next line, `needs:`, says what
+would unblock it: `more turns`, `more budget (usd)`, a named tool, or a green
+check (see [Giving the run a repository](#giving-the-run-a-repository)).
+`needs_you` is the parked state above. `surprised` and `rejected` are honest
+reports that the work was not what the goal asked for or that the run declined
+it; the summary line explains.
+
+When the run produced an artifact, the seat names it, and when that artifact
+is a diff, prints it. `--no-diff` skips the diff.
+
+Exit codes: `0` the run read `done`; `1` it ended any other way (blocked,
+stopped, or your `--timeout` elapsed while it was still running); `2` the
+workspace or the event stream refused; `3` a question needed an answer and none
+could be taken.
+
+## Run states
+
+Across `spl runs list` and `spl runs show`, a run is always in one of these
+states:
+
+| State | Meaning |
+|---|---|
+| `running` | Still working |
+| `waiting_on_you` | Parked on a question it needs you to answer |
+| `done` | Finished and reported completion |
+| `stopped` | Stopped by a person |
+| `stopped_short` | Ended before completing (out of turns, out of budget, out of time, blocked, or failed) |
+
+```bash
+spl runs list                          # newest first, every member
+spl runs list --state waiting_on_you   # only what is waiting on a person
+spl runs show th_9f2c...               # one run's row: turns, spend, ceilings, the open question
+spl runs tail th_9f2c... --since-clock 0   # re-attach to a run's live events
+```
+
+## How a run is bounded
+
+Every run is bounded before it starts, and the bounds come from the
+[tier](/docs/guides/tiers) of the person it runs for, never from the goal
+text. Four things bound a run:
+
+- **Turns.** The number of model turns it may take.
+- **Budget.** How much it may spend, in USD.
+- **Time.** How long it may run on the clock.
+- **Tools.** Only the tools the member's definition declares, and never a tool
+  the tier forbids. A run cannot reach a tool nobody gave it.
+
+The ceilings per tier:
+
+| Tier | Turns | Time | Default budget |
+|---|---|---|---|
+| Trial | 5 | 2 minutes | USD 0.25 |
+| Paid | 16 | 10 minutes | USD 1.00 |
+| Team | 50 | 30 minutes | USD 2.00 |
+| Operator (self-hosted owner) | no ceiling | no ceiling | USD 5.00 |
+
+`--max-turns <N>` and `--budget <USD>` narrow a single run below its tier. They
+never widen it: a request above the tier's ceiling is clamped down silently,
+and `spl runs show` reports the effective `max_turns` and `ceiling_usd`.
+
+`--timeout <SEC>` is different: it bounds how long the **seat** waits, not the
+run. If it elapses, the seat prints `error: no outcome after 600s; the run is
+still on th_...` and exits 1; the run keeps going under its own bounds, and you can
+re-attach with `spl runs tail`.
+
+<Callout type="info">
+A workspace with no model configured refuses to start a run and says what to
+do next. On a self-hosted workspace that message is `spl config set-key
+<provider> <key>`, then a restart. Hosted workspaces arrive with model access.
+</Callout>
+
+## Giving the run a repository
+
+`--repo <name>` hands the run its own checkout of a repository the workspace
+has **declared** (a name, a path, and optionally a check command). Inside that
+checkout the run has file tools, a `test` tool that runs the repository's
+declared check and nothing else, and its edits are captured as a diff on the
+outcome once the run ends. The checkout itself is removed after the diff is
+recorded.
+
+```bash
+spl run "Fix the failing test in the stats module" --repo my-service
+```
+
+A name nobody declared is refused before anything starts, with `REPO_UNKNOWN`
+and a message naming the repository and saying it is not declared. Nothing is
+written and no run begins. Ask whoever operates the workspace which repository
+names are declared.
+
+When the repository declares a check, a run that claims to be done **owes a
+green one**. A run that never ran the check, or whose check failed, comes back
+`blocked` with `needs:` naming the check command, not `done`. This holds for
+every run on that repository, whether or not it edited anything: the check is
+what proves the claim.
+
+## Stopping a run
+
+Closing the seat does not stop the run. Pressing Ctrl-C, or letting
+`--timeout` elapse, only detaches you; the run continues on the workspace
+until it ends on its own bounds, and `spl runs list` still shows it.
+
+A run ends on its own when it reports done, when it runs out of turns, budget
+or time (then `stopped_short`), or when it parks on a question nobody answers
+(then `waiting_on_you`, until someone does).
+
+To stop a run outright, post a stop event to its thread through the runs door,
+`POST /v1/runs/{thread}/events` with body `{"type": "stop"}`. The run's state
+reads `stopped`, and its own record says it was stopped by a person rather than
+that it crashed. There is no `spl` verb for this yet; a run started from a task
+with `spl task dispatch` can be stopped with `spl task interrupt <alias>`.
+
+The same door takes `{"type": "message", "text": "..."}` to steer a running
+run with a message it reads on its next turn.
+
+## The old goal path
+
+`--legacy` runs the pre-v0.217 path: the goal is filed as an intent, routed to
+a member, and polled until something closes it. It exists only for callers
+that depend on that shape. Prefer the seat.
+
+## Related
+
+- [The register](/docs/guides/the-register): everything waiting on you, including parked runs.
+- [Tiers and entitlements](/docs/guides/tiers): where the ceilings come from.
+- [Evaluating members](/docs/guides/evaluating-actors): judging the runs a member did.
+- [The run_code tool](/docs/guides/run-code): a tool a run can be given to write a small program.

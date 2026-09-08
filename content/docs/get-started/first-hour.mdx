@@ -1,0 +1,178 @@
+---
+title: Your first hour
+description: What a fresh workspace does the moment it exists, hosted or local. One question is waiting on you, answering it opens your first thread, the assistant answers there, and there are four useful things to do next.
+---
+
+You have a workspace. Maybe you signed up for a hosted one, maybe you ran
+`spl init --preset recommended` and `spl serve` on your own machine. Either
+way, this page is what happens next, described exactly as the software does
+it.
+
+## One question is waiting on you
+
+A fresh workspace set up with any preset except `blank` puts exactly one item
+in **your call**, the lane of things waiting on a person:
+
+> What are you working on?
+
+It is a **decision**: an item that needs an answer, in your own words. It is
+not a welcome card and it is not styled apart from anything else. It is an
+ordinary item in the lane, on purpose: the first thing you do in the product
+is the thing you will keep doing, reading what is waiting on you and answering
+it.
+
+In the Studio it appears in your call. On the command line,
+`spl register` lists it, and `spl decisions list` lists it with the verb that
+answers it.
+
+- It has no expiry. Leave without answering and it is still there when you
+  come back; it never nags.
+- It appears once. A workspace that existed before this behaviour shipped
+  gains no question on upgrade, and a `blank` workspace never gets one.
+- When you self-host, the wording is yours: set the `SPL_FIRST_RUN_ASK`
+  environment variable for the command that first configures the workspace
+  (`spl init --preset ...` on your machine, or the serving process when a
+  preset is applied to a running workspace). It is read once, at that moment.
+
+## Answering it opens your first thread
+
+Type what you are working on. Say you type "the Meridian rebrand". Then:
+
+1. **A thread opens, titled exactly what you typed.** Not a summary, not a
+   cleaned-up version. Leading and trailing spaces are trimmed; otherwise the
+   title is your words.
+2. **You are put inside it.** The Studio navigates into the new thread. On the
+   command line, `spl decisions provide <id> --value "the Meridian rebrand"`
+   answers it, and `spl decisions provide <id> --value "..." -o json` names
+   the thread it opened so a script can follow. `spl thread list` shows it
+   either way.
+3. **The question leaves your call.** The lane is empty again, which now means
+   what it says: nothing needs you.
+
+Two more guarantees, because a first step should not be able to go wrong in a
+confusing way:
+
+- **Answering twice lands you in the same thread.** If your connection drops
+  and you answer again, you get the thread that already exists, never a second
+  empty one with the same name.
+- **A failure part way through leaves you with a thread and the question still
+  open.** The thread is opened first, the answer recorded second, so the worst
+  case is that you are inside your thread and the question is still in your
+  call. You can never end up with an answer pointing at a thread that was
+  never made.
+
+An empty answer opens nothing.
+
+## The assistant answers in that thread
+
+Type a message in your new thread and **the chief** answers. The chief is the
+assistant every non-blank workspace comes with, an ordinary member you can
+read, change or replace (see [The assistant](/docs/get-started/the-assistant)).
+Its reply lands on the same thread, and so does every message after it: the
+thread is the conversation, and it is still there tomorrow.
+
+From the command line, `spl say "..."` opens a fresh thread and prints the
+reply; `spl say "..." --thread <id>` continues an existing one, including the
+one you just opened.
+
+<Callout type="warn" title="A local workspace needs a model before the chief can answer">
+A hosted workspace arrives with managed model access, so the chief answers
+from your first message. A workspace on your own machine has no model until
+you give it a key: run `spl config set-key anthropic <your key>`, then
+`spl stop` and `spl serve --daemon`. Until then the chief is installed but
+silent, and `spl run` tells you the same thing rather than failing quietly.
+</Callout>
+
+## Reading your call honestly
+
+Your call's numbers mean something.
+
+- **Decisions and heads-ups are counted apart.** A decision needs an answer
+  from you (choose an option, or provide a value). A heads-up needs only a
+  nod: you acknowledge it and it goes away. A badge that says "2 decisions"
+  counts only what actually needs you, never the notices.
+- **A count is exact or it says it is a floor.** Your call scans up to a fixed
+  number of open items; past that, the count is marked as a floor rather than
+  presented as the whole number (`spl register` prints `(capped)`).
+- **Empty means one of two things, and you can tell which.** An empty lane on
+  a workspace that was set up with a preset means nothing needs you. An empty
+  lane on a workspace that was never set up (a bare workspace with no preset)
+  means it has not been configured yet, and the workspace reports which of
+  the two it is rather than leaving a surface to guess.
+- **Repeated proposals collapse into one row.** If an automated member proposes the
+  same thing two hundred times, you see it once with the count, and deciding
+  it once settles the whole group.
+
+If you are calling the API directly, the same distinctions are on the wire:
+the answer to the question comes back naming the thread it opened, and the
+counts come back already split. See the [API reference](/docs/reference/api)
+and [The register](/docs/guides/the-register) for the rest, including asks
+whose run already ended.
+
+## Four useful things to do now
+
+**1. Write your first record.** In the Studio, type in your thread. On the
+command line, a note on the thread you just opened:
+
+```bash
+spl know "kickoff call is Thursday" --thread <thread-id>
+spl thread records <thread-id>
+```
+
+The second command reads it back, and still does after `spl stop` and
+`spl serve --daemon`.
+
+**2. Ask the chief something about your workspace.** It answers from what is
+actually in the workspace, and raises a real question when it needs one
+instead of guessing:
+
+```bash
+spl say "What is on my register right now?"
+```
+
+**3. Look at your call.** `spl register` prints the open items, blocking ones
+first, then the oldest. Empty on a configured workspace means nothing needs
+you.
+
+**4. Run something (local workspaces).** `spl run` starts a governed run as
+you, streams it to your terminal, pauses to ask if the member running it needs
+a decision, and prints the outcome:
+
+```bash
+spl run "List the threads on this workspace and write a one-line summary of each as a note."
+```
+
+By default the run uses the chief. It exits `0` when the run finished; if it
+asked a question nobody could answer (no terminal, no `--answer`), it exits
+`3` and names the ask so you can answer it with `spl decisions choose` or
+`spl decisions provide`. See
+[Running a goal](/docs/guides/running-a-goal) for budgets, turn ceilings, and
+giving a run a repository to work in.
+
+## If nothing is waiting
+
+- **Your workspace existed before the question shipped.** It is already
+  configured, so it gets no question. Start a thread with `spl say` or in the
+  Studio.
+- **You ran `spl init` with no `--preset`.** The workspace is unconfigured:
+  no assistant, no question, and your call says it was never set up. Re-run
+  `spl init --force --preset recommended` on a workspace you have not used for
+  real work yet (`--force` also regenerates your identity, which is why it is
+  only for a workspace with nothing on it), or apply a preset from the
+  Studio's first-run card.
+- **You chose the `blank` preset.** A blank workspace asks nothing and has no
+  assistant. Adding the chief later means installing its blueprint
+  (`spl blueprint install <file> --accept-plan <hash>`, see
+  [Blueprints](/docs/concepts/blueprints)), or, on a workspace with nothing
+  on it yet, re-running `spl init --force --preset recommended`. The question
+  only ever seeds at first configuration, so open your first thread by hand.
+- **Your call is empty and the workspace is configured.** Nothing needs you.
+
+## Where to go next
+
+- [The assistant](/docs/get-started/the-assistant): what the chief is.
+- [The register](/docs/guides/the-register): everything your call can do.
+- [Running a goal](/docs/guides/running-a-goal): `spl run` in full.
+- [First run](/docs/get-started/first-run): what `spl init` created locally.
+- [Troubleshooting](/docs/get-started/troubleshooting): when something on this
+  page did not happen.

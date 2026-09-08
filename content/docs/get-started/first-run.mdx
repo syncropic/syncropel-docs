@@ -1,18 +1,22 @@
 ---
-title: First Run — init, identity, keys
-description: What `spl init` creates, how to inspect your identity and config, and when to re-initialize. Covers the `~/.syncro/` directory tree and how identities work.
+title: First run on your own machine
+description: What `spl init` creates on a local install, how to inspect your identity and config, and when to re-initialize. Once the workspace is up, Your first hour describes what it does next.
 ---
 
 <Callout type="info" title="First run on Linux/macOS is three short verbs">
 ```bash
-spl init           # generate identity + config
-spl serve          # start the instance in the background
-spl task add "..." # everything works immediately — no service account, no bearer
+spl init --preset recommended   # generate identity + config, install the assistant
+spl serve          # start the workspace in the background
+spl task add "..." # everything works immediately: no service account, no bearer
 ```
 
-The local CLI talks to the instance over a Unix socket at `~/.syncro/run/spl.sock`; filesystem permissions (the socket is mode 0700 owned by your user) are the authentication. Bearer tokens are still the right primitive for **delegating** scoped access — see [Service accounts and tokens](/docs/get-started/service-accounts) when you need to pair a browser, phone, MCP client, remote CLI, or another instance.
+Once it is up, read [Your first hour](/docs/get-started/first-hour): a fresh
+workspace set up with a preset asks you one question, and answering it opens
+your first thread.
 
-`spl serve` / `spl stop` / `spl restart` are the convenience verbs for interactive operator use; the full `spl serve` form (foreground) is the canonical entry point used by systemd units, Docker containers, Kubernetes pods, managed cloud platforms, and other process supervisors.
+The local CLI talks to the workspace over a Unix socket at `~/.syncro/run/spl.sock`; filesystem permissions (the socket is mode 0700 owned by your user) are the authentication. Bearer tokens are still the right primitive for **delegating** scoped access: see [Service accounts and tokens](/docs/get-started/service-accounts) when you need to pair a browser, phone, MCP client, remote CLI, or another workspace.
+
+`spl serve` / `spl stop` / `spl restart` are the convenience verbs for interactive use; the full `spl serve` form (foreground) is the canonical entry point used by systemd units, Docker containers, Kubernetes pods, managed cloud platforms, and other process supervisors.
 </Callout>
 
 After `spl version` prints cleanly, run `spl init` once to create your local state directory.
@@ -20,22 +24,29 @@ After `spl version` prints cleanly, run `spl init` once to create your local sta
 ## `spl init`
 
 ```bash
-spl init
+spl init --preset recommended
 ```
 
-This creates `~/.syncro/` with default contents and a fresh identity.
+This creates `~/.syncro/` with default contents and a fresh identity, and
+applies the `recommended` preset: the assistant is installed, and one question
+("What are you working on?") is placed in your call, waiting for you when the
+workspace starts. Pass `--preset blank` for a workspace with nothing installed
+and no question. A bare `spl init` with no `--preset` applies none: the
+workspace starts unconfigured, with no assistant and no question, until a
+preset is applied (the Studio's first-run card offers them). An unknown preset
+name is refused before anything is written.
 
 The new directory tree:
 
 ```
 ~/.syncro/
 ├── config.toml              Identity, default model, server settings
-├── token                    Bearer token for the CLI (created later; see page 4)
-├── keys/                    Ed25519 signing keys for your identity
+├── token                    Bearer token for the CLI (created later; see Service accounts and tokens)
+├── keys/                    Signing keys for your identity
 │   ├── primary.pub                    Public key
-│   └── did_sync_user_<name>.priv     Private key (mode 0600), named after your actor DID
-├── logs/                    Instance logs (populated on first instance start)
-├── run/                     PID file + Unix socket (populated on first instance start)
+│   └── did_sync_user_<name>.priv     Private key (mode 0600), named after your `actor` value
+├── logs/                    Workspace logs (populated on first start)
+├── run/                     PID file + Unix socket (populated on first start)
 ├── secrets/                 API keys for upstream providers (empty until you add)
 └── hub.db                   Main record store (created at init; grows from first start)
 ```
@@ -54,10 +65,10 @@ method = "key"
 key_path = "/home/you/.syncro/keys/primary"
 ```
 
-- **`actor`** is the human-readable DID you'll see attached to every record you emit. It defaults to `did:sync:user:<your-username>` — the same username your OS reports.
-- **`did`** is the cryptographic identity. A fresh Ed25519 keypair is generated and the public half is encoded into a `did:key:` string. The private half is stored under `~/.syncro/keys/` (named after your actor DID) with mode `0600`.
-- **`method`** names the DID method (`key` on a fresh install; `web` or `sync` after an [upgrade](#identity-types)).
-- **`key_path`** points at the keypair the instance signs with.
+- **`actor`** is the human-readable name you'll see attached to every record you emit. It defaults to `did:sync:user:<your-username>`, the same username your OS reports.
+- **`did`** is the cryptographic identity. A fresh keypair is generated and the public half becomes the `did:key:` string. The private half is stored under `~/.syncro/keys/` (named after your `actor` value) with mode `0600`.
+- **`method`** names the identity method (`key` on a fresh install; `web` or `sync` after an [upgrade](#identity-types)).
+- **`key_path`** points at the keypair the workspace signs with.
 
 Inspect the result:
 
@@ -81,50 +92,58 @@ Identity:
 cat ~/.syncro/config.toml
 ```
 
-The default file is small — tens of lines. The blocks you'll see:
+The default file is small, tens of lines. The blocks you'll see:
 
-- **`[identity]`** — the DID + keypair above.
-- **`[server]`** — bind address (`127.0.0.1`), port (`9100`), data dir, backup dir.
-- **`[intelligence]`** — an optional override for which language model your instance uses (and your own provider key, if you bring one). You usually do not need to touch this — see the note below.
-- **`[fleet]`** — advertised endpoint for fleet mode (not relevant for single-machine use).
+- **`[identity]`**: the identity and keypair above.
+- **`[server]`**: bind address (`127.0.0.1`), port (`9100`), data dir, backup dir.
+- **`[intelligence]`**: which language model your workspace uses, and your own provider key. On a local workspace you will need this; see the note below.
+- **`[fleet]`**: advertised endpoint for fleet mode (not relevant for single-machine use).
 
-<Callout type="info" title="Your instance can already use a model out of the box">
-A fresh instance ships with **managed model access** built in — you do
-**not** have to supply a provider API key just to get the assistant
-responding. Setting a provider key in `[intelligence]` is an **optional
-override**, for when you want to use your own account or a specific model.
+<Callout type="warn" title="A local workspace has no model until you give it a key">
+A hosted workspace arrives with managed model access. A workspace on your own
+machine does not: the assistant is installed by the preset but has nothing to
+answer with until you supply a provider key. Run
+`spl config set-key anthropic <your key>`, then `spl stop` and
+`spl serve --daemon`. Until then the assistant is silent, and `spl run` says
+so rather than failing quietly.
 </Callout>
 
-### Turning the assistant on (self-host)
+### The assistant and the first question (self-host)
 
-A self-hosted instance starts **deliberately blank**: it reacts to nothing
-until you choose what runs on it. Two ways to give it a voice:
+Every preset except `blank` installs the **chief of staff** (the chief), the
+member that answers when you type in a thread, and seeds the one question a
+fresh workspace asks: "What are you working on?" Answering it opens your first
+thread, titled by your words. [Your first hour](/docs/get-started/first-hour)
+walks through it.
+
+A `blank` workspace starts deliberately empty: nothing answers and nothing is
+asked until you choose what runs on it. To add the assistant later:
 
 ```bash
-spl init --preset recommended  # at init: seed a ready-to-use setup
-                               # (presets: recommended · blank)
-
-spl blueprint install chief-of-staff   # any time later: install the
-                                       # conversational actor on an
-                                       # already-initialized instance
+spl blueprint plan <blueprint.json>                        # review what it installs, get the plan hash
+spl blueprint install <blueprint.json> --accept-plan <hash> # any time, on an already-initialized workspace
 ```
 
-Every preset except `blank` installs the **chief of staff**, the actor that
-answers on a new thread. On an instance that was initialized bare, install it
-through the blueprint door with the command above. If you initialized bare and
-the assistant seems silent, this is why — nothing is broken.
+The source repository ships the chief-of-staff blueprint together with an
+install script that signs, plans and installs it; see
+[Blueprints](/docs/concepts/blueprints) for the verbs.
+
+Installing the chief later does not add the question; it only ever seeds when
+the workspace is first configured with a preset. On a blank workspace, open
+your first thread yourself. If you initialized blank and the assistant seems
+silent, this is why, and nothing is broken.
 
 <Callout type="info">
-Instances before v0.216 had a separate built-in assistant, configured with
+Workspaces before v0.216 had a separate built-in assistant, configured with
 `spl config scribe`. That verb is gone: the conversational default is now an
-ordinary actor, defined by a blueprint like any other, so what answers you is
+ordinary member, defined by a blueprint like any other, so what answers you is
 something you can read, change and replace. Old configuration records are still
 readable as history.
 </Callout>
 
-(Hosted instances come with the assistant already on.)
+(Hosted workspaces come with the assistant already on.)
 
-Editing `config.toml` by hand is supported. Changes take effect on the next instance start. For **runtime** config (routing rules, fold rules, permissions, embedding providers), use `spl config …` commands instead — those changes hot-reload without a restart.
+Editing `config.toml` by hand is supported. Changes take effect on the next start. For **runtime** config (routing rules, permissions, embedding providers), use `spl config …` commands instead: those changes hot-reload without a restart.
 
 ## When to re-initialize
 
@@ -134,7 +153,7 @@ Almost never. `spl init` is a one-time operation; running it again against an ex
 spl init --force
 ```
 
-`--force` overwrites `config.toml` and regenerates the keypair. **The existing `hub.db` is left alone** — your records survive. But the new keypair will sign records under the same actor DID as before, which means verification of old records against the new public key will fail. For practical purposes, `--force` is only appropriate on a machine that has never been used for real work.
+`--force` overwrites `config.toml` and regenerates the keypair. **The existing `hub.db` is left alone**: your records survive. But the new keypair will sign records under the same `actor` value as before, which means verification of old records against the new public key will fail. For practical purposes, `--force` is only appropriate on a machine that has never been used for real work.
 
 If you want a fully clean state (new identity and new data), see [Reset and uninstall](/docs/get-started/reset-uninstall).
 
@@ -144,21 +163,22 @@ If you want a fully clean state (new identity and new data), see [Reset and unin
 
 What `spl init` creates: an identity whose private key lives on this one machine. If you set up another machine the same way, it gets its own, separate identity. This is the right default for a single-machine installation.
 
-Note this is different from **signing in** on the web or to a hosted instance: there, your content is owned by your sign-in identity, which is the same on every device. See [Your identity & recovery](/docs/get-started/identity) for how that works.
+Note this is different from **signing in** on the web or to a hosted workspace: there, your content is owned by your sign-in identity, which is the same on every device. See [Your identity & recovery](/docs/get-started/identity) for how that works.
 
 ### One identity across your machines
 
-For machines you maintain yourself, **master identity mode** gives every device the same root identity — each machine's key is derived from one root you hold, and a 24-word recovery phrase can rebuild it anywhere. Start a fresh install with:
+For machines you maintain yourself, **master identity mode** gives every device the same root identity: each machine's key is derived from one root you hold, and a 24-word recovery phrase can rebuild it anywhere. Start a fresh install with:
 
 ```bash
 spl init --master
 ```
 
-Master mode is an **init-time decision** — there is no migration from a
+Master mode is an **init-time decision**: there is no migration from a
 per-machine identity to master mode later. (`spl identity upgrade` does
-something different: it moves an existing identity to a more capable **DID
-method** — `key` → `web` or `sync` — the identity itself stays the same.)
-Either way, portability is optional — you can run Syncropel for years on a
+something different: it moves an existing identity to a more capable
+**identity method**, `key` to `web` or `sync`, and the identity itself stays
+the same.)
+Either way, portability is optional: you can run Syncropel for years on a
 single machine without it.
 
 ## Permissions
@@ -181,6 +201,7 @@ off, `spl doctor` will flag it with the exact `chmod` fix.
 
 ## See also
 
-- [Pairing a browser or phone](/docs/get-started/pairing) — get a second device onto the same instance
-- [`spl doctor`](/docs/operate/doctor) — audit your `~/.syncro/` state at any time
-- [Quickstart](/docs/start) — five-minute happy path if you haven't done it yet
+- [Your first hour](/docs/get-started/first-hour): what the workspace does once it is running, and the first things to do
+- [Pairing a browser or phone](/docs/get-started/pairing): get a second device onto the same workspace
+- [`spl doctor`](/docs/operate/doctor): audit your `~/.syncro/` state at any time
+- [Quickstart](/docs/start): five-minute happy path if you haven't done it yet

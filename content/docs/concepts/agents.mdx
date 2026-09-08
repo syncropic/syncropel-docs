@@ -1,13 +1,13 @@
 ---
 title: Agents
-description: An agent is an actor that drives a work loop using a language model. It is the same actor primitive as a person — same DID, same trust profile, same record audit trail — and the work it does is plain records on a thread.
+description: An agent is an actor that drives a work loop using a language model. It is the same actor primitive as a person, same DID, same trust profile, same record audit trail, and the work it does is plain records on a thread.
 ---
 
 ## Overview
 
 An **agent** in Syncropel is an actor that drives a work loop using a language model. There is no second identity model for AI: agents are [actors](/docs/concepts/actors) like any other, with a DID, a trust profile, a tier, and an audit trail of records on the threads they operate on.
 
-What distinguishes an agent from a person typing at a terminal is the *mechanism* by which it acts. A person reads a thread and emits records by hand; an agent reads a thread through a [work loop](/docs/concepts/work-loop) and emits records through tool calls a language model decided to make. Both produce the same 8-field records, both accumulate trust the same way, and both can be audited identically.
+What distinguishes an agent from a person typing at a terminal is the *mechanism* by which it acts. A person reads a thread and emits records by hand; an agent reads a thread through a [work loop](/docs/concepts/work-loop) and emits records through tool calls a language model decided to make. Both produce the same records, both accumulate trust the same way, and both can be audited identically.
 
 ```
 person  ─── emits records by hand ──┐
@@ -25,17 +25,17 @@ The most common way to start an agent is from a conversation. In any thread, ope
 
 When you send the message, the chat-actor (typically [the chief of staff](/docs/get-started/the-assistant)) hands control to a new work loop **running as you, not as the chief**: your DID, your tier, your permissions. The chief steps aside for the duration. Two records open the handoff: a `core.user.message.v1` that carries your message, and a `core.work.delegation.v1` that opens the loop. When the loop ends, an outcome record closes it.
 
-You can also start a loop without going through chat — `spl work-loop "..."` from the CLI, or a direct `POST /v1/work/loop`. The [work-loop concept page](/docs/concepts/work-loop) documents the full surface. The `@agent` flow is the conversational entry; everything else is the same primitive.
+You can also start a loop without going through chat, `spl work-loop "..."` from the CLI, or a direct `POST /v1/work/loop`. The [work-loop concept page](/docs/concepts/work-loop) documents the full surface. The `@agent` flow is the conversational entry; everything else is the same primitive.
 
 ## What an agent can actually do
 
-Every agent has a **capability** — what tools it can call, what budget it has. Capability is shaped by the actor's tier, not chosen at launch time:
+Every agent has a **capability**, what tools it can call, what budget it has. Capability is shaped by the actor's tier, not chosen at launch time:
 
-- The **granted** set is what the agent can call without asking — typically reading and writing records on threads.
+- The **granted** set is what the agent can call without asking, typically reading and writing records on threads.
 - The **requestable** set is what the agent can ask the operator to grant for a specific loop, through a structured decision request. The operator approves or declines; either way the request is a record.
 - The **budget** is the wall-clock and token ceiling the loop runs under. Loops that exceed the budget are halted with a clear reason.
 
-The launch surface (when you type `@agent <goal>` in Compose) shows the capability before the loop starts, so you know what the agent can do *before* it tries. If a goal needs something not in the grant — a tool the actor's tier doesn't have, a thread it doesn't have permission to read — the loop blocks cleanly rather than guessing.
+The launch surface (when you type `@agent <goal>` in Compose) shows the capability before the loop starts, so you know what the agent can do *before* it tries. If a goal needs something not in the grant, a tool the actor's tier doesn't have, a thread it doesn't have permission to read, the loop blocks cleanly rather than guessing.
 
 ## How to read what an agent did
 
@@ -45,19 +45,19 @@ Every action an agent takes is a record on the loop's thread. The thread carries
 - Each turn the agent took (`core.work.turn.v1`), with the tool calls and results that turn made.
 - A final outcome record (`core.work.loop_outcome.v1`).
 
-You don't have to read the records directly — the workspace surface renders them as a timeline. But the records are the source of truth, so anyone with access to the thread sees the same picture.
+You don't have to read the records directly, the workspace surface renders them as a timeline. But the records are the source of truth, so anyone with access to the thread sees the same picture.
 
 The outcome of a loop is one of:
 
 | Outcome | What it means |
 |---|---|
-| **completed** | The loop finished — the agent ran to a turn with no tool calls. |
-| **blocked** | The agent halted because it could not proceed — typically because it lacks a tool, the goal is ambiguous, or it needs a decision from you. A paired `core.work.coercion.v1` record explains the reason. |
+| **completed** | The loop finished, the agent ran to a turn with no tool calls. |
+| **blocked** | The agent halted because it could not proceed, typically because it lacks a tool, the goal is ambiguous, or it needs a decision from you. A paired `core.work.coercion.v1` record explains the reason. |
 | **cancelled** | Someone explicitly cancelled the loop while it was running. |
 | **max_turns** | The loop hit its turn ceiling before finishing. |
-| **budget_exhausted** | A token, USD, or wall-clock budget ran out — a `budget_kind` field names which one. |
+| **budget_exhausted** | A token, USD, or wall-clock budget ran out, a `budget_kind` field names which one. |
 | **guardrail_halt** | The same tool call with the same arguments failed enough times in a row that the system stopped the loop to prevent thrashing. |
-| **failed** | The loop crashed unrecoverably — typically an infrastructure error, not an agent decision. |
+| **failed** | The loop crashed unrecoverably, typically an infrastructure error, not an agent decision. |
 
 Blocked outcomes are the most common honest failure mode and the most worth understanding. The coercion reasons are:
 
@@ -65,22 +65,22 @@ Blocked outcomes are the most common honest failure mode and the most worth unde
 |---|---|
 | `tool_unavailable` | The agent identified a tool it would need (e.g. shell execution, file read) but the tool is not in its grant. The agent can request the tool through a decision request if it is in the requestable set. |
 | `ambiguous_goal` | The goal has more than one reasonable interpretation. The agent surfaces the alternatives so you can pick. |
-| `precondition_failed` | The goal assumed something that turned out not to hold — for example, "summarise the records on this thread" when the thread is empty. |
+| `precondition_failed` | The goal assumed something that turned out not to hold, for example, "summarise the records on this thread" when the thread is empty. |
 | `decision_required` | The agent reached a fork that needs a human call. It raises a `core.work.decision_request.v1` for you to respond to. |
 | `input_invalid` | A goal parameter could not be parsed into something concrete (e.g. an unparseable date range). |
 | `internal_error` | The language model or an upstream service returned an unexpected error after retry. |
 
-A blocked loop is not a bad outcome — it is the agent being honest about what it could not do. The alternative — guessing — is worse.
+A blocked loop is not a bad outcome, it is the agent being honest about what it could not do. The alternative, guessing, is worse.
 
 ## What an agent can do on your instance
 
-An agent running on your own instance can do real work, not just shuffle records. A loop has a **workspace tool set** — it can run commands, and read, write, and edit files — confined to a workspace directory you point it at. That is how an agent on your machine actually builds something: it edits files, runs a test, reads the output, and tries again, with every step landing as a record on the loop's thread.
+An agent running on your own instance can do real work, not just shuffle records. A loop has a **workspace tool set**, it can run commands, and read, write, and edit files, confined to a workspace directory you point it at. That is how an agent on your machine actually builds something: it edits files, runs a test, reads the output, and tries again, with every step landing as a record on the loop's thread.
 
-This power is gated by *who the agent runs as*. The host tool set — running shell commands and touching the filesystem — is reserved for the instance owner's own loops (the operator tier). It is enabled deliberately, not by default, and only when the owner has set up a workspace for the loop to work in. Loops on a shared, multi-tenant instance do **not** get a host shell; their world is the records and the workspace storage the instance gives them, never the underlying machine.
+This power is gated by *who the agent runs as*. The host tool set, running shell commands and touching the filesystem, is reserved for the instance owner's own loops (the operator tier). It is enabled deliberately, not by default, and only when the owner has set up a workspace for the loop to work in. Loops on a shared, multi-tenant instance do **not** get a host shell; their world is the records and the workspace storage the instance gives them, never the underlying machine.
 
 So the honest summary is two-sided:
 
-- On **your own instance**, with a workspace configured, an agent does focused, real work — runs commands, reads and writes files — and every action it takes is an auditable record.
+- On **your own instance**, with a workspace configured, an agent does focused, real work, runs commands, reads and writes files, and every action it takes is an auditable record.
 - On a **shared instance**, agents are deliberately confined to records-native work and their own isolated storage. They never reach the host machine, because someone else's tenant is running on the same hardware.
 
 In both cases the same discipline holds: every tool call is a record, every halt has a structured reason, and every loop runs under a budget shaped by the actor's tier. An agent does work it can stand behind and stops cleanly when it cannot, rather than confidently producing noise on tasks outside its reach. See the [work loop](/docs/concepts/work-loop) for the full mechanics of the two run modes.
@@ -89,21 +89,21 @@ In both cases the same discipline holds: every tool call is a record, every halt
 
 Because an agent is an actor, the records its loops emit accumulate trust against its DID, just like a person's records do. An agent that consistently produces approved work earns trust; one whose loops are routinely overridden by a human reviewer does not. Trust is domain-scoped, so an agent that is reliable at one kind of work and unreliable at another is reflected correctly.
 
-The audit trail is the loop's thread. Any reviewer with thread access can see the goal, every turn the agent took, every tool call it made, every result it got, and the final outcome. The thread is the source of truth — there is no separate "agent log" the agent could have written selectively.
+The audit trail is the loop's thread. Any reviewer with thread access can see the goal, every turn the agent took, every tool call it made, every result it got, and the final outcome. The thread is the source of truth, there is no separate "agent log" the agent could have written selectively.
 
 ## Beyond language models
 
-An agent drives its work loop with a language model — that is what makes it an *agent* specifically. But a language model is not the only kind of automated participant Syncropel coordinates. A scheduling solver, a classifier that tags incoming records, a validator that checks data against rules — none of these is a language model, yet each does real work and returns a result.
+An agent drives its work loop with a language model, that is what makes it an *agent* specifically. But a language model is not the only kind of automated participant Syncropel coordinates. A scheduling solver, a classifier that tags incoming records, a validator that checks data against rules, none of these is a language model, yet each does real work and returns a result.
 
-Syncropel treats all of them the way it treats an agent: as an [actor](/docs/concepts/actors) with a DID, a [trust](/docs/concepts/trust) profile, and an audit trail of records. What a participant *is* on the inside — a language model, a mathematical solver, a trained classifier, an ensemble of several — does not change how it joins a thread or how it earns trust. It produces records, stays auditable, and is accountable to review, just like everyone else. Syncropel routes each kind of work to the participant with the strongest track record at it.
+Syncropel treats all of them the way it treats an agent: as an [actor](/docs/concepts/actors) with a DID, a [trust](/docs/concepts/trust) profile, and an audit trail of records. What a participant *is* on the inside, a language model, a mathematical solver, a trained classifier, an ensemble of several, does not change how it joins a thread or how it earns trust. It produces records, stays auditable, and is accountable to review, just like everyone else. Syncropel routes each kind of work to the participant with the strongest track record at it.
 
 The broader family of automated participants is covered on the [helpers](/docs/concepts/helpers) page. An agent is the language-model member of that family; helpers are the rest.
 
 ## Where it fits
 
-- **[Actors](/docs/concepts/actors)** — the identity primitive every agent inherits.
-- **[Helpers](/docs/concepts/helpers)** — the broader family of automated participants; an agent is the language-model member.
-- **[Work loop](/docs/concepts/work-loop)** — the plan/act/check cycle agents run under, with the tier-shaped guardrails and structured outcomes.
-- **[Threads](/docs/concepts/threads)** — the coordination context a loop lives on.
-- **[Trust](/docs/concepts/trust)** — how the records a loop emits feed the trust signal.
+- **[Actors](/docs/concepts/actors)**: the identity primitive every agent inherits.
+- **[Helpers](/docs/concepts/helpers)**: the broader family of automated participants; an agent is the language-model member.
+- **[Work loop](/docs/concepts/work-loop)**: the plan/act/check cycle agents run under, with the tier-shaped guardrails and structured outcomes.
+- **[Threads](/docs/concepts/threads)**: the coordination context a loop lives on.
+- **[Trust](/docs/concepts/trust)**: how the records a loop emits feed the trust signal.
 - **[The chief of staff](/docs/get-started/the-assistant)** is the default conversational assistant; a turn that needs tools escalates to a loop.

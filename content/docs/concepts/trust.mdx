@@ -1,139 +1,90 @@
 ---
 title: Trust
-description: Evidence-based reputation computed from outcomes reviewed by independent evaluators — domain-scoped, statistically honest, and decaying over time. Not a policy, not a vote, not an opinion.
+description: What trust means in a workspace. A standing earned from reviewed work, scoped to an area of work, that grows with good outcomes, fades when unused, and decides how much a member is allowed to do on their own.
 ---
 
 ## Overview
 
-Syncropel computes trust from what actually happened. An actor completes work. An independent evaluator reviews it. The verdict creates a data point. Thousands of data points produce a score that tracks the actor's empirical success rate in that domain. That's trust.
+A workspace works out trust from what actually happened. A member completes a piece of work. A different member reviews it. The verdict counts. Many verdicts add up to a standing that tracks how reliably that member does that kind of work. That standing is trust.
 
-The contrast is deliberate. Trust is **not** a policy ("Alice is approved for prod") because policies stay fixed while reality changes. Trust is **not** a vote ("the team voted Alice in") because votes don't compound. Trust is **not** an opinion because opinions are cheap. Trust is the statistical lower bound on a success rate, maintained by continuous evidence, with an honest answer when evidence is thin.
+The contrast is deliberate. Trust is **not** a policy ("Alice is approved for production") because policies stay fixed while reality changes. Trust is **not** a vote, because votes do not compound. Trust is **not** an opinion, because opinions are cheap. Trust is a record of reviewed outcomes, kept current by continuous evidence, and when the evidence is thin the workspace says so rather than guessing high.
 
-This is the foundation that lets Syncropel automate more work over time. As trust in an actor on a domain accumulates, their work becomes cheaper to dispatch, more of it can be pre-approved via routing rules, and proven patterns can be replayed without re-computation. Nothing moves faster than the evidence allows.
+This is what lets a workspace automate more work over time. As a member's trust in an area grows, their work becomes cheaper to hand to them, more of it can be pre-approved by [routing rules](/docs/guides/routing-rules), and the [patterns](/docs/concepts/patterns) their work produces can become permanent. Nothing moves faster than the evidence allows.
 
-## Trust is computed, not a stored number
+## Trust is derived, never set
 
-A trust score is never written down and looked up. It is **computed on demand** from the log of outcomes and verdicts every time it's asked for. The records (an actor's work, and the verdicts on that work) are the source of truth; the score is a derived view over them.
+A trust score is not a number somebody writes down. It is derived, every time it is asked for, from the history of work and verdicts in your workspace. That has three practical consequences:
 
-This matters in practice:
+- **It cannot drift.** If a workspace is restarted or restored from a backup, trust is rebuilt from history and comes out the same. There is nothing to repair.
+- **It cannot be edited.** You do not raise or lower a member's trust. You review their work, and the standing reflects the review. The only way to move trust is to produce evidence.
+- **It survives a move.** A workspace restored onto new hardware ages its evidence by how old the evidence really is, not by when the restore happened.
 
-- **Restart rebuilds it.** Trust is not a database value that could drift out of sync with reality. On startup, the instance replays the verdict records and rebuilds every score from scratch. A corrupted or deleted score cache is fixed by recomputing — there is nothing to "repair".
-- **History is queryable.** Because the score is a function of the log, you can ask what it *was* on a past date by recomputing it against a reference clock, the same way you'd inspect any other historical state.
-- **The number can't be tampered with directly.** You don't edit a trust score; you add a verdict record, and the computed score reflects it. The only way to move trust is to produce evidence.
+## Trust is scoped
 
-The rest of this page describes what goes into that computation — the verdict records, the Wilson lower bound, decay — and how the score it produces feeds routing and the dial.
+Trust is always about a **member**, in an **area of work**, as judged by a **reviewer**. It is never one number per member.
 
-## Three dimensions
+A member can be strongly trusted for code, barely trusted for operations because only two of their operations tasks have ever been reviewed, and trusted as a reviewer of research in their own right. Each of those is tracked apart and none of them leaks into the others.
 
-Trust is a three-valued function:
+Areas of work are named by whoever gives the verdict (code, ops, data, research and so on); there is no fixed list to choose from.
 
+The reviewer matters too. Two reviewers can legitimately disagree about the same member's work, and the workspace keeps both views instead of averaging them into noise. Most of the time you only care about "how good is this member at this kind of work" and let the views combine (that combined standing is what a routing rule reads), but when you need it, the standing as judged by one particular reviewer can be read on its own, and an audit can ask what a particular reviewer approved.
+
+## Where trust comes from: the review
+
+Trust is produced in exactly one place, the review of finished work.
+
+1. **A member says the work is done**, with `spl task done` or its equivalent. This is a claim. **It produces no trust.**
+2. **A different member reviews the outcome.** For tasks that is `spl task approve` or `spl task reject`. Add `--grade <0..1>` to record how good the work was, not just whether it passed (1.0 flawless, 0.75 solid with rough edges, 0.55 barely passed; on a rejection, how far from acceptable). **This is one piece of evidence.**
+3. **The member's trust in that area reflects the verdict** the next time anyone reads it.
+
+The rule is: **no review, no trust.** Self-reported success, "this looks like it worked" guesses and automated heuristics contribute nothing.
+
+The same rule governs [runs](/docs/concepts/work-loop). A run ends by reporting its own outcome, and that report is a claim, never evidence. A run cannot grade itself. Its trust moves only when another member reviews the outcome with `spl work-loop-review <thread> --accept` (or `--reject`); add `--domain <area>` to say which area of work the verdict counts toward, otherwise it counts toward `general`. That external verdict counts exactly like a task approval does.
+
+## Nobody grades their own work
+
+The reviewer must be a different member from the one who did the work. If Alice approves her own work, the record is kept, but it earns no trust. The workspace treats it as a note, not as evidence.
+
+This has teeth day to day. An automated member that closes a task cannot approve its own work; the evidence that counts comes from a reviewing member or from the person who reads the result. Devices linked to one person count as that person, so approving from a second device does not count either. And a member who proposed another member's definition may not grade that member's runs: the workspace refuses the verdict outright.
+
+For one automated member reviewing another, independence holds naturally: two members, two separate standings. The reviewer's own trust as a reviewer accumulates apart, so you can ask how reliable a reviewer is, just as you can ask how reliable a builder is.
+
+## How trust behaves
+
+**It grows slowly and honestly.** One approval out of one is not the same as a hundred out of a hundred, and the workspace does not pretend it is. A handful of lucky approvals cannot bootstrap high trust; a member has to keep producing. Occasional misses weigh a standing down more than a raw pass rate would suggest, on purpose.
+
+**It fades when it is not exercised.** Evidence goes stale. A member who was excellent a year ago and has not worked since drifts back toward neutral, and any renewed work has to prove itself again. Teams that rotate responsibilities, automated members whose underlying model has changed, areas whose requirements have moved: all are rescored continuously with no manual reset. The records themselves never change as they age; only the standing derived from them does.
+
+**A sudden change is noticed.** A string of failures after a long run of success is noticed as a change in quality, not quietly averaged away into a still-good number. Today that change shows in `spl insights`; it is not yet raised as a heads-up in your call.
+
+## What trust decides
+
+- **What can be pre-approved.** A [routing rule](/docs/guides/routing-rules) can refer to a member's trust in an area, so routine work from a well-trusted member passes without waiting on a person, while the same work from a newcomer waits in your call.
+- **What can be reused.** A [pattern](/docs/concepts/patterns) becomes permanent (settled, and shareable with paired workspaces) only when the member who produced it is well trusted in that area, and it is set aside if a sudden change in quality is noticed and that trust falls.
+- **What it costs.** A well-trusted member's routine work is increasingly reused rather than reasoned out again. Genuinely new work still gets full reasoning, whoever does it: trust changes how much of the familiar can be skipped, not whether the unfamiliar is thought through.
+
+## Reading trust
+
+```bash
+spl trust
 ```
-trust(actor, domain, judged_by)
-```
 
-- **`actor`** — the DID of the participant whose work we're scoring.
-- **`domain`** — the category of work: `code`, `ops`, `data`, `research`, `shell`, `api`, `spec`, `agent`, `meta`, `browser`, `workflow`. Domains are declared by whoever emits the verdict; the system doesn't enforce a fixed list.
-- **`judged_by`** — the DID of the evaluator who produced the verdict. This matters because two evaluators can legitimately disagree, and the system preserves both perspectives instead of averaging them into noise.
-
-So a single actor can have many trust entries:
-
-```
-trust(did:sync:agent:dev, code, did:sync:user:alice)      = 0.82  ← 47 reviews
-trust(did:sync:agent:dev, code, did:sync:agent:reviewer)      = 0.76  ← 31 reviews
-trust(did:sync:agent:dev, ops,  did:sync:user:alice)      = 0.05  ← 2 reviews
-trust(did:sync:agent:reviewer, research, did:sync:user:alice) = 0.64
-```
-
-The agent is strongly trusted in `code` by two independent evaluators; weakly trusted in `ops` because only two reviews exist; and its review trust is tracked separately from its execution trust.
-
-In most deployments, the `judged_by` dimension is mostly-invisible — you typically care about "how good is this actor in this domain?" and let the score aggregate across evaluators. But the dimension is there when you need it. Routing rules can ask for trust scored by a specific reviewer; audit can ask "what did *this* reviewer approve?" without double-counting.
-
-## The evaluation gate
-
-Trust is produced at exactly one place: the evaluation gate. The flow:
-
-1. An actor claims work is complete — `spl task done` or equivalent. This emits a `KNOW` with `body.topic: "task_done_claim"`. **This does not produce trust.**
-2. An evaluator reviews the outcome. For the built-in task workflow, that's `spl task approve` or `spl task reject`, which emits a `KNOW` with `body.verdict: "accept"` (or `"reject"`) and `body.judged_by: <completer_did>`. **This produces one trust observation.**
-3. The trust computation (on `TICK` loop) ingests the verdict and updates `(actor, domain, judged_by)` evidence.
-4. The next query of `trust(actor, domain)` returns the updated Wilson score.
-
-The approve/reject records are the observations. Nothing else generates trust evidence. Self-reported success, heuristic judgments, computed "this looks like it worked" guesses — none of these contribute. The rule is: **no verdict record, no trust delta**.
-
-The same gate governs [work loops](/docs/concepts/work-loop). A loop ends by emitting its own outcome record — but that self-narrated "done, succeeded" is explicitly *not* trust evidence. A loop cannot grade itself. Trust moves only when a different actor reviews the loop's outcome and records a verdict with `spl work-loop-review <thread> --accept` (or `--reject`). That external verdict is the observation; it counts toward `trust(loop_actor, domain, evaluator)` exactly like a task approval does. The loop's outcome → an external verdict → the updated trust score: that chain is the only path by which a loop earns standing.
-
-## Independence is structural, not advisory
-
-The evaluator must be a different DID than the executor. If Alice approves her own work, the record is accepted into the log (Syncropel doesn't reject it), but the trust computation structurally discards self-verdicts. No trust is earned from self-approval.
-
-This has teeth in day-to-day use: the dev agent that closes a task cannot approve its own work. Its evidence is its claim of completion; the evidence that produces trust comes from the reviewer agent or the human reviewing the PR.
-
-For agent-to-agent review (`did:sync:agent:dev` reviewed by `did:sync:agent:reviewer`), independence holds trivially — two different DIDs, two separate trust chains. The evaluator's trust itself accumulates independently, which is why `trust(did:sync:agent:reviewer, review)` is a legitimate score you can query.
-
-## The Wilson lower bound
-
-The raw success rate (`successes / total`) is the wrong aggregator. With 1 success out of 1 observation, `1.0` looks perfect but carries almost no information. With 100 out of 100, `1.0` looks identical but is far more reliable.
-
-Syncropel uses the Wilson score lower bound at 95% confidence. This gives a statistically honest answer that rises with evidence:
-
-| Success / Total | Wilson LB (95%) | What it means |
-|---|---|---|
-| 1 / 1  | 0.05 | Almost no evidence; score stays near zero. |
-| 5 / 5  | 0.57 | Promising; worth routing simple work to. |
-| 10 / 10 | 0.72 | Strong; routing rules can pre-approve. |
-| 50 / 50 | 0.93 | Crystallization territory. |
-| 10 / 12 | 0.57 | Same ceiling as 5/5, accounting for the 2 failures. |
-| 45 / 50 | 0.79 | High but not perfect — occasional misses weigh down the lower bound. |
-
-The lower bound under-counts on purpose. You cannot bootstrap high trust from a handful of lucky approvals; you have to keep producing.
-
-## The dial and the cost curve
-
-Trust feeds the dial — a continuous value in `[0, 1]` that maps into four zones:
-
-| Zone | Dial range | What it means | Typical cost |
-|---|---|---|---|
-| **REPLAY** | 0.00 – 0.33 | A proven pattern is replaying. | Near zero. |
-| **ADAPT** | 0.33 – 0.50 | Known pattern, minor adaptation. | Low. |
-| **EXPLORE** | 0.50 – 0.67 | Moderate novelty, iterative approach. | Moderate. |
-| **CREATE** | 0.67 – 1.00 | Genuinely novel; full reasoning required. | Higher. |
-
-The dial is derived from trust *and* pattern match strength — a well-trusted actor doing novel work still lands in EXPLORE/CREATE, and an untrusted actor touching a well-matched pattern lands in REPLAY. Trust shifts where on the curve a task sits; pattern match determines which curve.
-
-Over time, a domain dominated by a high-trust actor and a well-matched pattern shifts most of the distribution into REPLAY. That's the economic payoff — not cheaper LLM calls, but *fewer LLM calls*, because replay doesn't call the model at all.
-
-## Decay
-
-Evidence gets stale. The default decay half-life is 90 days: an approval from three months ago counts as 0.5 of an approval from today; one from six months ago counts as 0.25. The Wilson computation runs over the decayed counts, so the score drifts downward as evidence ages unless refreshed.
-
-This is what keeps the model honest. An actor who was great a year ago but hasn't worked recently returns to a neutral score, and any renewed work has to re-prove itself. Teams that rotate responsibilities, agents whose underlying model has changed, domains whose requirements have drifted — all of them get rescored continuously without needing a manual reset.
-
-Decay is applied at computation time, not when records are ingested. Nothing happens to the underlying records as they age; only the computed score reflects decay. You can query "what was the trust score on 2025-11-01?" by recomputing it against a reference date.
-
-## What's enforced today vs the spec
-
-Current implementation covers the core trust loop end-to-end: verdict records produce evidence, Wilson LB computes scores, self-verdicts are discarded, decay runs on schedule, scores are exposed via `spl trust` and the `trust()` CEL function in all 7 CEL contexts.
-
-Two pieces are partially implemented and tracked as follow-ups:
-
-- **CUSUM drift detection** runs in the trust engine but the alert surface isn't wired to push notifications yet. The counters are observable at `GET /v1/governance/cusum-alerts`.
-- **Crystallization of patterns from trusted actors** works — a pattern from an actor with trust ≥ 0.90 and 100+ observations crystallizes per the C1-C4 criteria — but the REPLAY path doesn't yet fully bypass the LLM for crystallized patterns in all 7 decision points; it short-circuits in routing but not yet in the decision gate.
-
-Both are bounded gaps. The trust layer is statistically honest and domain-scoped today; the full payoff (automatic replay everywhere) lands as the remaining consumers are wired.
+lists, for each member and area, how many reviewed pieces of work succeeded, how many were reviewed in total, and the resulting trust. A fresh workspace reports that there are no trust scores yet, until the first review lands. For a member's evaluation history over time, see [Evaluating a member](/docs/guides/evaluating-actors).
 
 ## When trust won't help you
 
-Worth flagging up front — trust is not a universal solvent.
+**Cold start.** A brand-new member has no reviewed work and therefore no trust. Their first pieces of work are handled the expensive way, because nothing is proven and nothing routes on trust. This is intentional; manufacturing trust would defeat the point.
 
-**Cold start.** A brand-new actor has zero observations and therefore zero trust. The first few dispatches are expensive because nothing has crystallized and nothing routes via trust. This is unavoidable and intentional — artificially bootstrapping trust defeats the purpose.
+**Area mismatch.** A member with high trust in code has none in operations. Handing them an operations task produces a low-evidence verdict that does not draw on their code standing. Name the area correctly or accept the weaker evidence.
 
-**Domain mismatch.** An actor with high trust in `code` has none in `ops`. Routing an ops task to them produces a low-evidence verdict that doesn't leverage their code trust. Either tag the domain correctly or accept the lower confidence.
+**Rare work.** If a kind of task happens once a year you will never accumulate enough reviews to build trust in it. Such work stays expensive, and the workspace is telling the truth when it does.
 
-**Rare-event tasks.** If a task type happens once per year, you won't accumulate observations fast enough to build trust. These are legitimately EXPLORE/CREATE; the model is telling the truth when it stays expensive.
-
-**Evaluator disagreement.** If two evaluators give consistently opposite verdicts on the same actor's work, the aggregated trust score is misleading. Look at `trust(actor, domain, judged_by)` separately per evaluator before making routing decisions.
+**Reviewer disagreement.** If two reviewers consistently give opposite verdicts on the same member's work, the combined view is misleading. Look at trust per reviewer before relying on it.
 
 ## What's next
 
-- **[Actors](/docs/concepts/actors)** — the DID model trust is keyed on.
-- **[Records](/docs/concepts/records)** — the 8-field unit that records verdicts.
-- **[Task management guide](/docs/guides/task-management)** — the evaluation gate in practice.
+- **[Members](/docs/concepts/actors)**: the people and automated members trust is about.
+- **[Records](/docs/concepts/records)**: the unit a verdict is kept as.
+- **[Patterns](/docs/concepts/patterns)**: what proven, trusted work turns into.
+- **[Task Management](/docs/guides/task-management)**: the review in practice.
+- **[Evaluating a member](/docs/guides/evaluating-actors)**: grades, comparisons and history for a member.

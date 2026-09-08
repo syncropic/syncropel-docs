@@ -1,113 +1,290 @@
 ---
-title: spl doctor
-description: Top-down diagnostic that audits an instance's filesystem state, PID files, ports, config, and permissions. Run this first when something feels wrong.
+title: What spl doctor tells you
+description: Every row spl doctor prints today, quoted as it prints, with what a warning on it means and what to do. Run it first when something feels wrong, after an upgrade, and before filing a report.
 ---
 
-## What it does
-
-`spl doctor` is the "something's wrong, where do I start?" command. It
-runs 7 sanity checks against a running or intended instance and reports
-pass / warn / fail per check. Exit code reflects the worst finding:
-
-- `0` — all checks pass
-- `1` — one or more warnings (non-fatal; instance likely works but is
-  misconfigured)
-- `2` — one or more failures (instance likely broken)
-
-Run it before opening an issue, after a suspicious restart, or after
-any upgrade.
-
-## Quickstart
+`spl doctor` reads your workspace from the outside and prints one row per
+check: a green tick, a yellow `!` for a warning, or a red cross for a failure,
+each with a sentence saying what it found. It never changes anything, and it
+never starts a workspace that is not running.
 
 ```bash
-# Human-readable output
-spl doctor
-
-# JSON for scripting / dashboards
-spl doctor --json
+spl doctor            # human-readable rows
+spl doctor --json     # {"object":"doctor_report","checks":[{name,status,detail},...]}
 ```
 
-## What it checks
+The exit code is the worst row: `0` when every row passes, `1` when at least
+one warns, `2` when at least one fails. To point it at a workspace on another
+port, set `SPL_SERVE_URL=http://127.0.0.1:9200`.
 
-| # | Check | Pass criterion | Common fix |
-|---|---|---|---|
-| 1 | **spl binary is on PATH** | `which spl` resolves | Install or re-source shell |
-| 2 | **`~/.syncro/` exists + readable** | Dir present, current user can read | `mkdir -p ~/.syncro && chmod 0700 ~/.syncro` |
-| 3 | **PID file sanity** | If present, the PID belongs to a running `spl serve` | Recover orphan per [runbook](/docs/operate/runbook) |
-| 4 | **Bind port reachable** | `curl /health` on configured port returns 200 | Restart instance; check firewall |
-| 5 | **Config file parses** | `~/.syncro/config.toml` is valid TOML | Repair or restore from backup |
-| 6 | **Auth state sanity** | Either `auth.required = false` OR at least one SA exists | Bootstrap an SA via `spl service-account create --bootstrap` |
-| 7 | **File mode audit** | `~/.syncro/token` is `0600`, `config.toml` not world-readable, `secrets/*` is `0600` | `chmod 0600 <file>` |
+The rows below are in the order they print. Rows that can only run against a
+reachable workspace are skipped when it is down, so a down workspace prints a
+short report. Where a row prints a dash between two clauses, this page shows a
+colon; every other word is quoted as the binary prints it.
 
-## Typical output
+## instance reachable
 
-```text
-spl doctor — instance diagnostic
-====================================
-✓ spl binary on PATH (/usr/local/bin/spl)
-✓ ~/.syncro directory exists and is readable
-✓ PID file clean (pid 12847, process alive)
-✓ /health reachable on 127.0.0.1:9100
-✓ ~/.syncro/config.toml parses
-✓ Auth sane (1 service account; auth.required = true)
-✓ File modes OK (token = 0600, config = 0644, secrets/*)
+Passes with `vX.Y.Z on <store>`. Fails with the connection error when nothing
+answers at all: start the workspace (`spl serve --daemon`) or check the port.
+Warns with `daemon up but unauthenticated; pair this device with ...` when the
+workspace answers but this terminal holds no credential for it: the remaining
+rows that need one will be thin until you pair.
 
-all checks passed (7/7)
-```
+## pid file
 
-Or on an instance with issues:
+Passes with `<path> → live spl serve (pid N)`. Fails with `pid N does not exist
+(orphaned PID file)` or warns with `pid N exists but cmdline is not 'spl serve'
+(stale PID file?)`: a previous workspace process left its marker behind, or the
+number was recycled. Warns with `missing: spl serve --stop will not be able to
+find the running instance` when the workspace is up but nothing recorded which
+process it is. The recovery in each case is in the
+[runbook](/docs/operate/runbook): find the real process, stop it cleanly,
+start again.
 
-```text
-spl doctor — instance diagnostic
-====================================
-✓ spl binary on PATH
-✓ ~/.syncro directory exists
-⚠ PID file references pid 12847, but no such process is alive.
-  Recovery:
-    pgrep -af "spl serve"
-    kill <pid>      # if an instance is running
-    spl serve   # restart cleanly
-✗ /health not reachable on 127.0.0.1:9100 (connection refused)
-✓ ~/.syncro/config.toml parses
-✗ Auth required but no service accounts found
-  Fix: spl service-account create --bootstrap --name admin --scopes admin --with-token
-⚠ ~/.syncro/token mode 0644 (expected 0600)
-  Fix: chmod 0600 ~/.syncro/token
+## store has records, store path agreement, intelligence
 
-2 failures, 2 warnings, 3 passes
-```
+`store has records` passes with `N records across M threads` and warns with
+`store is empty (fresh install?)`, which on a new workspace is expected.
 
-## Running against a non-default port
+`store path agreement` warns with `daemon reports X, config says Y (daemon was
+started with --store override, or two daemons are running)`: your terminal and
+the running workspace may be looking at different data. Decide which is real
+before writing anything.
 
-```bash
-# Check a dev instance on 9200 instead of prod on 9100
-SPL_SERVE_URL=http://127.0.0.1:9200 spl doctor
-```
+`intelligence` always passes; it reports `enabled, model=...` or `disabled (no
+API key or explicitly off)` so you know whether the workspace's own routing
+intelligence is on.
 
-## JSON mode for monitoring
+## engine config thread, migrations, expression cache
 
-```bash
-spl doctor --json | jq '.checks[] | select(.status != "pass")'
-```
+`engine config thread` warns with `th_engine_config is empty (config_loader had
+nothing to load)` on a workspace that has never been configured, or with
+`could not fetch ...` when your credential cannot read configuration.
 
-Each check object has `name`, `status` (`pass` / `warn` / `fail`),
-`message`, and optionally `fix` with the exact recovery command.
+`DDL schema` warns with `store at version N, binary expects M: restart spl
+serve to run migrations` after an upgrade whose migration has not run: restart
+the workspace. `body-kind indexes` warns only on a small, drift-shaped gap
+(queries on those kinds are slower, never wrong). `config records` warns with
+`N orphan LEARN(s) on th_engine_config: silently skipped by config-loader`
+when a configuration record was written without the field that says what it
+configures: re-emit it with the topic the row names.
 
-## When to reach past doctor
+`expression cache` warns with `hit rate suspiciously low` when rules are being
+recompiled constantly; on a workspace that has evaluated nothing yet it passes
+with `cache cold`.
 
-`spl doctor` is designed as the fast triage. If all 7 checks pass but
-behavior is still wrong, escalate to:
+## federation bind host
 
-- **[`spl debug replay <thread>`](/docs/reference/cli)** — step through
-  a specific thread's records
-- **[`spl debug thread-diff <a> <b>`](/docs/reference/cli)** — side-by-side
-  structural diff
-- **[`spl audit export`](/docs/operate/audit-export)** — dump recent
-  security-relevant events and eyeball them
+Printed only when the workspace has sync partners. Warns with `N sync pair(s)
+configured but daemon is bound to 127.0.0.1. Remote peers cannot reach this
+instance. Restart with spl serve --host 0.0.0.0 --daemon.`
 
-## Pairs with
+## identity posture, public namespaces, data plane
 
-- **[Runbook](/docs/operate/runbook)** — operational procedures for
-  instance orphans, data-dir recovery, and upgrade drills
-- **[Keyring](/docs/operate/keyring)** — authentication + service
-  account management
+`identity posture` fails with `config declares a master whose secret is NOT in
+the key store: principal bindings are suppressed` (recover with `spl identity
+recover --phrase "<24 words>"`) and warns with `master mode with NO confirmed
+backup` (run `spl identity backup --i-understand` and store the phrase
+offline). A per-machine identity passes with `independent mode`.
+
+`public namespaces` warns with `ANONYMOUS readers can read: <names>:
+deliberate showcase?` naming every part of your workspace that is readable
+without signing in. If that is not deliberate, re-emit the policy with
+`read_visibility=authenticated`.
+
+`data plane` warns with `absent: /v1/data/* not served` when the files
+surface failed to start; the library and files pages will be empty until the
+workspace is restarted and the log read.
+
+## run_code switch
+
+Whether any run is offered the [run_code](/docs/guides/run-code) tool at all.
+It is a switch, default off. Three shapes:
+
+- `offered: yes (config topic run_code enabled); runs may call run_code`.
+- `offered: no (default off; a run that got it would use the embedded
+  interpreter). A LEARN with topic run_code and enabled true turns it on`. A
+  pass: nothing is installed and nothing is offered, which is consistent.
+- A warning, `offered: NO (...), and the runtime IS installed: no run is given
+  run_code, so nothing runs on the substrate`. You installed a runtime and
+  believe programs run on it, and none can: write the configuration record the
+  row names, with `topic` `run_code` and `enabled` `true`.
+
+## entitlement wire
+
+Whether a subscription status has ever reached this workspace. Warns with
+`dark: no subscription status has ever reached this instance. The door is built
+(POST /v1/entitlement) but nothing posts to it, so a failed card narrows
+nothing here.` On a self-hosted workspace this is the normal state: your
+[tiers](/docs/guides/tiers) are assigned by hand and no billing status will
+ever arrive. On a hosted workspace it means billing changes are not reaching
+the machine, and a lapsed subscription would not narrow anything until it
+does. Passes with `N status(es) received; last 5h ago: 'active' for <member>
+via subscriptions`.
+
+## act vocabulary
+
+What verbs a person has when they open the app. The row always starts by
+naming the eight acts every open thread carries, `8 frame acts on any open
+thread (invite, attach, replace, remove, declare, let, nudge, judge)`, so a
+warning here never means "no verbs". It warns with `no venture vocabulary
+declared: no *.registry.v1 record on this instance, so the locator at rest
+offers nothing until a thread is open`. That is the state of every fresh
+workspace: before a thread is open, the search box has nothing to offer. A
+blueprint that carries a vocabulary, or a registry record for your own domain,
+adds one, and the row then passes naming each vocabulary it found.
+
+## content addresses
+
+Whether every record is served under the name it was stored with. Passes with
+`N records, every one served under the id it was stored with (0.4s)`. Warns
+with `N of M records re-hash to a different id than they were stored under
+(historical canonicalizer drift, an earlier release's canonicalizer). The doors serve the STORED id, so
+reads are correct; a count that GROWS across releases would mean the
+canonicalizer moved again.`
+
+A nonzero count is history, not corruption. Older releases named some records
+slightly differently from how the current release would name them; nothing was
+lost, every record is still served under its original name, and every read is
+correct. The number is worth writing down once. What would matter is the
+number growing from one release to the next, which is the one thing this row
+exists to catch. The sweep stops at 250,000 records and says `capped` when it
+did.
+
+## javascript runtime
+
+What a program would run on, if a run were given one (see the
+`run_code switch` row for whether any is). Not installed is a pass: `not
+installed, so programs run on the embedded interpreter. spl runtime install
+moves them to the compute substrate (...)`. Installed and matching passes with
+`<version> installed and matching the pin`.
+
+It warns in three cases. `... holds <hash>, and this kernel pins <hash>. It
+will be REFUSED and programs fall back to the embedded interpreter. Re-install
+with spl runtime install --force`: the file on disk is not the one this release
+vouches for. `<version> installed and pinned, but <reason>`: the machine cannot
+compile it (usually memory), so programs fall back to the embedded interpreter
+with the artifact sitting there. And a warning naming an environment variable
+that points at an `UNPINNED runtime this kernel cannot vouch for`.
+
+## token file mode, config file mode, secrets dir mode
+
+Warns with `<path> has mode 0644: recommended 0600. Run chmod 600 <path>.`
+when a credential or key file is readable by other users on the machine. Run
+the command the row prints. On Windows one row, `file mode audit`, reports
+`skipped`.
+
+## identity backend, identity handle, keyring reachable, file residue
+
+These describe where your signing key lives. `keyring reachable` passes with
+`no: ... (file backend in use; supported configuration on headless / WSL2
+hosts)` on a machine with no system keyring, which is fine. `file residue`
+warns with `<path> still present despite keyring backend: run spl identity
+migrate-to-keyring to clear, or chmod 600 it` when a key file was left behind
+after moving to the keyring.
+
+## daily backup
+
+Warns with `master switch is OFF: daemon will not snapshot the record store daily.
+Enable with spl backup --auto enable.`, with `no successful backup on file yet
+(may be a fresh enable)`, or with `... older than 48h, the CRON loop may be
+suppressed. Check spl backup --auto status.` Passes with `enabled, daily at
+03:00, retention 7d, last success 5h ago, task briefs covered (2351 files)`.
+When the last backup did not cover the task briefs, the row says `task briefs
+NOT covered:` with the reason. See [Backup and
+recovery](/docs/guides/backup-restore).
+
+## replication
+
+Whether records are leaving this machine, and how far behind the copy is. This
+row is the difference between having an off-machine copy and not, and it fails
+loudly when there is none:
+
+- `this instance is bound to no repository: nothing replicates anywhere, and a
+  total loss of this machine loses everything since the last local backup.
+  Bind with spl repo mount <locator> on a stopped home.` A failure, on
+  purpose. See [Publishing a repository](/docs/operate/publish-repository).
+- `bound to <locator> but read-only: the write-back loop did not start, so no
+  record written since boot has left this machine.` Also a failure. The row
+  lists the causes in the order they are checked; the workspace log carries the
+  one that applied, prefixed `write-back:`.
+- `bound to <locator>; another body holds the write lease, so this one
+  defers.` A pass: correct when several machines share one repository and
+  another is the writer, wrong if this one was meant to be the only writer.
+- `writing to <locator>; last flush 7s ago, 3 records pending, 12 in the open
+  tail. A crash now loses at most the pending set.` A pass, and the sentence
+  states your durability window exactly. With nothing pending it reads
+  `nothing pending, last flush Ns ago`.
+- A warning, `holding the write lease but the last flush was 61s ago against a
+  10s cadence, with 4 records pending: the durability window is wider than
+  configured.` Records are waiting and not leaving. Read the log.
+
+## triggers
+
+Whether scheduled work would actually happen. Passes with `N configured, none
+enabled: no autonomous work is scheduled on this instance` or with `N enabled
+of M configured, every enabled target reachable`. Warns with `... but these
+fire nothing: <name>: target <member> unavailable (...)`, or `<name>: N
+consecutive failures, its breaker skips every occurrence`, or `<name>: last
+fired 47h ago, 3 occurrence(s) skipped since (circuit_breaker)`, and points you
+at `spl trigger history <name>`. An enabled schedule that is quietly skipping
+every occurrence looks healthy everywhere else; this row is where it does not.
+
+## store size
+
+How much disk your workspace takes, what fills it, and whether it is bounded.
+The full sentence, on an unbounded workspace, reads:
+
+`2576 MB, no ceiling declared (unbounded, which is the default); records 722 MB
+(28%), embeddings 843 MB (32%), telemetry 954 MB (37%), other 57 MB, semantic
+search covers 2026-03-01 to 2026-09-05`
+
+Read it in three parts.
+
+**The size and the ceiling.** `no ceiling declared` is the default: nothing
+stops the file growing. A ceiling is declared with a configuration record
+whose `topic` is `store_bounds`, carrying `max_total_bytes` for the whole
+store and `max_embedding_bytes` for the search cache; absent or null means
+unbounded, and the newest record replaces the whole policy, so a ceiling can
+always be lifted. With a ceiling the row reads `N MB of a M MB ceiling`.
+
+**The share that is records against derived data.** `records` is the part
+that is your actual history. `embeddings` is the cache behind semantic
+search, and the date range says how far back a search can see; `telemetry` is
+the workspace's own measurements. Both are derived: they can be regenerated or
+let go, and on a measured reference workspace they were three quarters of the
+file. If the disk is filling, that split tells you whether the answer is
+"delete things" (rarely) or "bound the caches" (usually).
+
+**The warning, and why deleting does not shrink the file.** Above 90% of a
+declared ceiling the row warns: `N MB of a M MB ceiling, over 90%. Eviction
+and retention sweeps stop the file GROWING but do not give disk back (only a
+full VACUUM does, and it needs the file's size again in free space), so act
+before this fills`. Space freed inside the file is reused by new writes but
+never returned to the disk; only a full rewrite of the file returns it, and
+that rewrite needs as much free space again as the file already occupies. A
+workspace that has actually filled its disk therefore cannot free itself, which
+is why the warning fires with headroom. Act while there is still room: raise
+the ceiling, bound the embedding cache, or move the workspace to a larger
+volume.
+
+Over the ceiling the row fails: `N MB, OVER the declared ceiling of M MB:
+ordinary writes are being refused. Config writes are still accepted, so the
+ceiling can be raised from here`. Ordinary records are refused until you lift
+the bound; the record that lifts it is always accepted.
+
+Two more shapes: `this store cannot report its size, so a ceiling cannot be
+enforced on it and the write path fails open by design` (a warning, expected
+on a non-SQLite backend), and `could not read engine health, so the store's
+size is UNKNOWN (not "empty")` when the row could not run at all.
+
+## When every row passes and something is still wrong
+
+`spl doctor` is the fast triage. Past it:
+
+- `spl runs list` and `spl runs show <thread>` for a run that misbehaved.
+- `spl debug replay <thread>` to step through a thread's records.
+- [`spl audit export`](/docs/operate/audit-export) for recent
+  security-relevant events.
+- [Runbook](/docs/operate/runbook) for orphaned processes, data-directory
+  recovery and upgrade drills.

@@ -1,0 +1,451 @@
+---
+title: The API surface
+description: Which doors on a workspace are public (a person or an integrator meets them on purpose) and which are internal, with one line per public door, grouped by what you do with them, and the page that explains each one when there is one.
+---
+
+Every workspace serves one HTTP API. Locally it listens on port 9100; a
+hosted workspace serves the same API at its own origin. This page is the map
+of that API: every public door in one place, grouped by what a person does
+with it, and a short list of the prefixes that belong to the machinery and
+are not part of the public surface.
+
+It was read from the source of version 0.224.0. Where a door has a page of its
+own, the last column links to it; the [API reference](/docs/reference/api)
+carries request and response shapes for many of them.
+
+## How to read this page
+
+A **public door** is one you, your client, or a program you write calls on
+purpose. It takes an ordinary credential (a bearer token, or the local socket
+when you are on the machine that runs the workspace), answers JSON, and refuses
+with a small envelope: `{"object": "error", "code": "...", "message": "..."}`.
+A few doors are open without any credential, on purpose: the liveness probe,
+the capability manifest, the sign-in doors, invite preview and redemption, and
+public links. Those are marked **open** below.
+
+An **internal door** is one the workspace's own moving parts use to talk to
+each other: a run's worker asking whether it may make a call, the model relay a
+worker speaks through, the feeds two workspaces exchange when they sync, the
+pairing handshake, the identity directory. They are listed by prefix at the end
+and are not documented as an API. Their shape can change between releases
+without notice.
+
+Paths say `actors` in several places. On screen, and everywhere else in these
+docs, those are **members**: people and automated agents alike. A `{did}` in a
+path is a member's id, the one `spl actor list` prints.
+
+## Workspace and records
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/v1/records` | List records by thread, by member, or by clock window (one filter is required) | [API reference](/docs/reference/api#records) |
+| POST | `/v1/records` | Write one record | [API reference](/docs/reference/api#records) |
+| GET | `/v1/records/{id}` | Read one record by id | [API reference](/docs/reference/api#records) |
+| POST | `/v1/records/query` | A structured query over records, with cursors | [Query](/docs/guides/query) |
+| POST | `/v1/records/subscribe` | The same query held open as a live stream | |
+| POST | `/v1/records/search` | Search records by meaning | [Semantic search](/docs/guides/search) |
+| POST | `/v1/records/embed` | Index existing records for search by meaning | [Semantic search](/docs/guides/search) |
+| GET | `/v1/events/stream` | A live stream of new records, filtered by type and thread | |
+| GET | `/v1/find` | Search files and threads by plain text | [Find](/docs/guides/find) |
+| GET | `/v1/search/stats` | Health of the text index | [Find](/docs/guides/find) |
+| POST | `/v1/search/rebuild` | Rebuild the text index | [Find](/docs/guides/find) |
+| GET | `/v1/folds` | The computed views this workspace offers, and which are live | [API reference](/docs/reference/api#folds) |
+| GET | `/v1/folds/{name}` | A computed view across the whole workspace | [API reference](/docs/reference/api#folds) |
+| GET | `/v1/folds/{name}/{key}` | A computed view over one thread | [API reference](/docs/reference/api#folds) |
+| GET | `/v1/folds/frame/{key}` | The renderable frame for a thread | [API reference](/docs/reference/api#folds) |
+| GET | `/v1/folds/rollup` | A digest of everything you can reach | [API reference](/docs/reference/api#folds) |
+| GET | `/v1/folds/principal_trust` | Trust per person, unified across their workspaces | [API reference](/docs/reference/api#folds) |
+| GET | `/v1/folds/composite/{subject}` | The joined view of one subject | |
+| GET | `/v1/graph/query` | Ask the graph: a path, shared context, a neighbourhood, centrality | [API reference](/docs/reference/api#graph) |
+| POST | `/v1/graph/query` | Start a longer traversal that reports as it goes | [API reference](/docs/reference/api#graph) |
+| GET | `/v1/graph/query/{query_id}/diagnose` | Hop-by-hop diagnostics for one traversal | |
+| GET | `/v1/graph/facets` | The kinds, people and threads you can see | [API reference](/docs/reference/api#graph) |
+| GET | `/v1/trust` | Every member's trust standing | [API reference](/docs/reference/api#trust) |
+| GET | `/v1/governance/trust` | Same as `/v1/trust` | |
+| GET | `/v1/governance/trust/{actor}/{domain}` | One member's standing in one domain, with history | |
+| GET | `/v1/governance/cusum-alerts` | Recent drift alerts on a member's standing | |
+| GET | `/v1/governance/audit` | The governance dashboard | |
+| GET | `/v1/dashboard` | Same as `/v1/governance/audit` | |
+| GET | `/v1/namespaces` | List the spaces within the workspace | [Spaces](/docs/guides/namespaces) |
+| POST | `/v1/namespaces` | Create a space | [Spaces](/docs/guides/namespaces) |
+| GET | `/v1/namespaces/{id}` | Read one space | [Spaces](/docs/guides/namespaces) |
+| PATCH | `/v1/namespaces/{id}` | Edit a space | [Spaces](/docs/guides/namespaces) |
+| DELETE | `/v1/namespaces/{id}` | Archive a space | [Spaces](/docs/guides/namespaces) |
+| POST | `/v1/erasure` | Erase content that must be forgotten | |
+| GET | `/v1/telemetry` | Read the workspace's own log and console output | |
+| GET | `/v1/substrate/layer-stats` | How quickly queries were answered over a window (`?window=1h`, `6h`, `24h` or `7d`), for operators | |
+
+## Threads and runs
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/v1/threads` | List threads, paged | [API reference](/docs/reference/api#threads) |
+| GET | `/v1/threads/{id}` | One thread | [API reference](/docs/reference/api#threads) |
+| GET | `/v1/threads/{id}/records` | The records on a thread (honours `limit`) | [API reference](/docs/reference/api#threads) |
+| GET | `/v1/threads/{id}/state` | The thread's current state | [API reference](/docs/reference/api#threads) |
+| GET | `/v1/threads/{id}/project` | A formatted view of the thread | [API reference](/docs/reference/api#threads) |
+| GET | `/v1/threads/{id}/participants` | Who has written on the thread | [API reference](/docs/reference/api#threads) |
+| GET | `/v1/threads/{id}/children` | Threads this thread spawned | |
+| GET | `/v1/threads/{id}/parents` | Threads this thread came from | |
+| GET | `/v1/threads/{id}/thinking` | The runs a conversation on this thread started | |
+| GET | `/v1/threads/{id}/watch` | A live stream of the thread | [API reference](/docs/reference/api#threads) |
+| POST | `/v1/threads/{id}/cancel` | Cancel a reply that is still being written | |
+| GET | `/v1/threads/{id}/checkpoints` | Saved checkpoints on a thread | [Session checkpoints](/docs/guides/session-checkpoints) |
+| POST | `/v1/threads/{id}/checkpoint` | Save a checkpoint | [Session checkpoints](/docs/guides/session-checkpoints) |
+| GET | `/v1/threads/{id}/resume` | The resume brief for a thread | [Session checkpoints](/docs/guides/session-checkpoints) |
+| POST | `/v1/threads/{id}/resume` | The same brief, for clients that post | [Session checkpoints](/docs/guides/session-checkpoints) |
+| GET | `/v1/threads/snapshot` | Export chosen threads as a snapshot (`?threads=`) | |
+| POST | `/v1/threads/restore` | Restore threads from a snapshot | |
+| GET | `/v1/presence/{thread}` | Who is on the thread right now (a websocket) | |
+| GET | `/v1/threads/{thread}/ledgers` | The ledgers declared on a thread | [API reference](/docs/reference/api#ledgers) |
+| GET | `/v1/threads/{thread}/ledgers/{id}` | One ledger's rows | [API reference](/docs/reference/api#ledgers) |
+| GET | `/v1/threads/{thread}/ledgers/{id}/encoding` | The compact text form of a ledger | [API reference](/docs/reference/api#ledgers) |
+| POST | `/v1/actors/{did}/runs` | Start a run as a member; this is what `spl run` calls | [Running a goal](/docs/guides/running-a-goal) |
+| GET | `/v1/actors/{did}/runs` | A member's runs | [Running a goal](/docs/guides/running-a-goal) |
+| GET | `/v1/runs` | Every run, newest first, filtered by state, member, or start time | [Running a goal](/docs/guides/running-a-goal) |
+| GET | `/v1/runs/{thread}` | One run: goal, state, turns, spend, the open question | [Running a goal](/docs/guides/running-a-goal) |
+| GET | `/v1/runs/{thread}/events` | The run's events as a live stream; `?replay=true` sends history first | [Running a goal](/docs/guides/running-a-goal) |
+| POST | `/v1/runs/{thread}/events` | Act on a run: `{type: "message"}` steers, `{type: "decision"}` answers its question, `{type: "stop"}` cancels | [Running a goal](/docs/guides/running-a-goal) |
+| GET | `/v1/runs/{thread}/provenance` | The definition, prompt and frame the run ran under | [API reference](/docs/reference/api#actors) |
+| GET | `/v1/actors/{did}/usage` | A member's spend, runs and tokens today | [API reference](/docs/reference/api#actors) |
+| POST | `/v1/work/loop` | Start a run the older way, by goal alone | [API reference](/docs/reference/api#work-loops) |
+| POST | `/v1/work/loop/preview` | What a run would be allowed to spend, before starting it | [API reference](/docs/reference/api#work-loops) |
+| GET | `/v1/work/loop/{thread}` | A run's status | [API reference](/docs/reference/api#work-loops) |
+| POST | `/v1/work/loop/{thread}/cancel` | Cancel a run | [API reference](/docs/reference/api#work-loops) |
+| GET | `/v1/work/loop/{thread}/stream` | The same live stream as `/v1/runs/{thread}/events` | [API reference](/docs/reference/api#work-loops) |
+| GET | `/v1/work/compensation/review` | How often a member's runs had to be corrected (operator only) | [API reference](/docs/reference/api#work-loops) |
+| GET | `/v1/work/compensation/review/top` | The members corrected most often (operator only) | [API reference](/docs/reference/api#work-loops) |
+| POST | `/v1/decompose` | Ask for a goal to be broken into steps before it runs | |
+| POST | `/v1/dispatch` | Hand a task to a member's adapter | [AI clients](/docs/integrate/ai-clients) |
+| GET | `/v1/dispatch` | List dispatches by state | |
+| GET | `/v1/dispatch/{id}` | One dispatch | |
+| GET | `/v1/dispatch/{id}/records` | The records a dispatch produced | [Dispatch observability](/docs/guides/dispatch-observability) |
+| POST | `/v1/sessions/start` | Register a captured session (what `spl session hook` calls) | [Hooks](/docs/guides/hooks) |
+| POST | `/v1/sessions/{thread}/tool` | One tool use in a captured session | [Hooks](/docs/guides/hooks) |
+| POST | `/v1/sessions/{thread}/turn` | One turn's closing words | [Hooks](/docs/guides/hooks) |
+| POST | `/v1/sessions/{thread}/end` | End the session; the workspace writes its report | [Hooks](/docs/guides/hooks) |
+| POST | `/v1/sessions/{thread}/retain` | Keep the scrubbed transcript | [Hooks](/docs/guides/hooks) |
+| DELETE | `/v1/sessions/{thread}/source` | Forget the transcript | [Hooks](/docs/guides/hooks) |
+
+## Your call
+
+The lane of things waiting on a person. A **decision** needs an answer; a
+**heads-up** needs only a nod.
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/v1/register` | Everything waiting on you, ranked, with open proposals beside it; `?limit=` caps each list | [The register](/docs/guides/the-register) |
+| POST | `/v1/register/weight` | Rank one item above another: `{above, below}`; `withdrawn: true` removes the weight | [The register](/docs/guides/the-register) |
+| POST | `/v1/register/listener` | Turn your listener on or off: `{enabled}` | [The register](/docs/guides/the-register) |
+| GET | `/v1/decisions` | The open decisions, unranked | [API reference](/docs/reference/api#decisions) |
+| POST | `/v1/decisions/{id}/decide` | Answer one item | [Your first decision](/docs/tutorials/your-first-decision) |
+| GET | `/v1/governance/decisions` | Same as `/v1/decisions` | |
+| POST | `/v1/governance/decisions/{id}/decide` | Same as `/v1/decisions/{id}/decide` | |
+| GET | `/v1/lanes/{lane}` | Every thread where the lane holds, longest-waiting first: `your-call`, or `waiting-on-people` for questions you asked others | |
+| GET | `/v1/attention/home` | The one-payload Home digest | |
+| GET | `/v1/attention/brief` | Your re-entry brief | |
+| GET | `/v1/attention/queue` | What has been delivered to you and what is waiting | |
+| GET | `/v1/attention/annotation` | Your current where-was-I note | |
+| POST | `/v1/attention/annotation` | Save that note | |
+| GET | `/v1/attention/annotation/draft` | A drafted note to edit | |
+
+### The register door
+
+`GET /v1/register` answers one object. The fields a client renders from:
+
+- `configured`: whether this workspace has been set up at all. An empty
+  register with `configured: false` is a bare workspace, not a quiet one.
+- `asks`: the ranked rows, duplicates merged. `asks_open` counts every open
+  item before folding, `asks_distinct` after.
+- `asks_decisions` and `asks_notices`: the split of those rows into decisions
+  (an answer is needed) and heads-ups (a nod is enough). A badge that counts
+  what needs a person reads `asks_decisions`.
+- `asks_receivable` and `asks_unreceivable`: how many of the rows a run can
+  still take the answer to, and how many nothing can receive any more.
+- `asks_capped` and `ask_scan_ceiling`: whether the ask counts are exact or a
+  floor, and the ceiling they were measured under. `capped` is the combined
+  signal for asks and proposals together.
+- `proposal_groups`: open proposals grouped by identical text, each with its
+  `summary`, `count`, `confidence`, `latest_clock` and `decision_ids`.
+  Deciding any one member of a group settles the group. `proposals` and
+  `proposals_open` are the ungrouped list and its count.
+- `rules`, `rules_live`, `rules_re_asked`: the answers that became standing
+  policy, and which of them have come back as a question.
+- `weights`, `oldest_ask_unix`, `viewer`, `root_thread`.
+
+### The decide door
+
+`POST /v1/decisions/{id}/decide` takes `{decision, reason?, provided_value?,
+becomes_policy?}`. For an item that offers options, `decision` is the chosen
+option's id (`approve` or `reject` for the plain pair). For an item that asks
+you to provide something, `decision` is `"provide"` and `provided_value`
+carries the answer. For a heads-up, `decision` is `"acknowledge"`.
+`becomes_policy` turns the answer into a standing rule with an expiry.
+
+The answer is `{object: "decision", id, request_id, decision, policy,
+opened_thread}`, plus `fulfills` (an answer) or `cancels` (a rejection) naming
+the request id again. `opened_thread` is the thread this answer opened, when it
+opened one; it is `null` for an ordinary item. A fresh workspace set up with any
+preset other than `blank` seeds one question in the register, "What are you
+working on?", and answering it opens your first thread, titled with exactly what
+you typed, and returns its id here so your client can take you into it.
+Answering the same question twice returns the same thread. See
+[First run](/docs/get-started/first-run).
+
+## Members
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/v1/actors` | List members | [API reference](/docs/reference/api#actors) |
+| POST | `/v1/actors` | Register a member | |
+| GET | `/v1/actors/lookup` | One member by id (`?did=`) | [API reference](/docs/reference/api#actors) |
+| GET | `/v1/actors/roster` | Every defined member with its definition, model, tools and standing | [API reference](/docs/reference/api#actors) |
+| GET | `/v1/actors/threads` | The threads a member takes part in (`?did=`) | |
+| GET | `/v1/actors/{did}/threads` | The same, by path, with thread details | |
+| POST | `/v1/actors/define` | Define an automated member that runs as itself, within your own bounds | [Members and adapters](/docs/guides/actors-and-adapters) |
+| DELETE | `/v1/actors/{did}/definition` | Retire a member you defined | [Members and adapters](/docs/guides/actors-and-adapters) |
+| POST | `/v1/blueprints/materialize` | Install a blueprint, which can define members, tools and rules together | [Blueprints](/docs/concepts/blueprints) |
+| GET | `/v1/actors/{did}/memories` | What a member remembers | [Member memory](/docs/guides/actor-memory) |
+| POST | `/v1/actors/{did}/memories` | Give a member something to remember | [Member memory](/docs/guides/actor-memory) |
+| DELETE | `/v1/actors/{did}/memories/{name}` | Forget one memory | [Member memory](/docs/guides/actor-memory) |
+| GET | `/v1/actors/{did}/evals` | A member's graded history, by definition | [Evaluating members](/docs/guides/evaluating-actors) |
+| POST | `/v1/evals/score` | Grade a member's runs against a suite | [Evaluating members](/docs/guides/evaluating-actors) |
+| GET | `/v1/actors/{did}/export` | Export a member, memories included | [Member portability](/docs/operate/actor-portability) |
+| POST | `/v1/actors/{did}/import` | Import a member | [Member portability](/docs/operate/actor-portability) |
+| GET | `/v1/actors/{did}/active-namespace` | The space a member is currently working in | |
+| PUT | `/v1/actors/{did}/active-namespace` | Move a member to a space | |
+| POST | `/v1/actors/{did}/active-namespace` | Same as PUT | |
+| GET | `/v1/adapters` | The adapters that connect members to models and tools | [API reference](/docs/reference/api#engine) |
+| GET | `/v1/adapters/circuit` | Whether each adapter is currently allowed to run | |
+| GET | `/v1/adapters/{did}/circuit` | One adapter's state | |
+| POST | `/v1/adapters/{did}/circuit/reset` | Let a paused adapter run again | |
+| POST | `/v1/adapters/{did}/enable` | Enable an adapter | |
+| POST | `/v1/adapters/{did}/disable` | Disable an adapter | |
+| GET | `/v1/members` | The membership roster with each grant's status | [Joining a workspace](/docs/get-started/joining-an-instance) |
+| POST | `/v1/members/adopt` | Turn a label that has been writing records into a real member | [API reference](/docs/reference/api#members) |
+| DELETE | `/v1/members/{label}` | Remove a member; every credential they held stops working | [Agent credentials](/docs/guides/agent-credentials) |
+| POST | `/v1/members/{label}/grants` | Give an agent a narrower grant under a member | [Agent credentials](/docs/guides/agent-credentials) |
+| DELETE | `/v1/members/{label}/grants/{grant_id}` | Revoke that grant | [Agent credentials](/docs/guides/agent-credentials) |
+| GET | `/v1/faculties/catalog` | The standard assistants an owner can deploy | |
+| POST | `/v1/faculties/deploy` | Deploy one (owner only) | |
+| GET | `/v1/me/faculty-prefs` | Your own assistant preferences | |
+| PUT | `/v1/me/faculty-prefs` | Change them | |
+| POST | `/v1/faculties/prefs/reset` | Clear one person's preferences (owner only) | |
+
+## Permissions, rules and tools
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/v1/config/rules` | The routing rules in force | [Routing rules](/docs/guides/routing-rules) |
+| GET | `/v1/config/permission-rules` | The permission rules in force, and whether the permission plane is on | [CEL expressions](/docs/guides/cel-expressions) |
+| GET | `/v1/config/fold-rules` | The status rules in force | |
+| GET | `/v1/config/health-checks` | The health checks in force | |
+| GET | `/v1/config/decision-policies` | The decision policies in force | |
+| GET | `/v1/triggers` | The scheduled triggers actually loaded, refused ones marked | [Scheduled triggers](/docs/guides/scheduled-triggers) |
+| POST | `/v1/triggers/{name}/test` | Dry-run a trigger without dispatching | [Scheduled triggers](/docs/guides/scheduled-triggers) |
+| POST | `/v1/expr/eval` | Evaluate an expression against the workspace | [CEL expressions](/docs/guides/cel-expressions) |
+| GET | `/v1/system/snapshot` | The workspace-state values an expression can read | |
+| GET | `/v1/tasks/snapshot` | The task-board values an expression can read | |
+| GET | `/v1/tools` | The tools members may reach | [The run_code tool](/docs/guides/run-code) |
+| GET | `/v1/tools/{tool_id}` | One tool | [The run_code tool](/docs/guides/run-code) |
+| POST | `/v1/tools/{tool_id}/probe` | Try a tool once, outside a run | |
+| POST | `/v1/secrets/set` | Store a secret | [Secrets](/docs/concepts/secrets) |
+| POST | `/v1/secrets/get` | Read a secret you may read | [Secrets](/docs/concepts/secrets) |
+| POST | `/v1/secrets/list` | List the secrets you may see | [Secrets](/docs/concepts/secrets) |
+| POST | `/v1/secrets/delete` | Delete a secret | [Secrets](/docs/concepts/secrets) |
+| POST | `/v1/secrets/promote` | Move a secret to a more durable store | [Secrets](/docs/concepts/secrets) |
+| POST | `/v1/entitlement` | Report what a subscription did; the workspace decides the tier it grants | [Tiers and entitlements](/docs/guides/tiers) |
+
+## Sharing and public links
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/v1/consent/grants` | The grants that let others read a thread | [Consent management](/docs/guides/consent) |
+| POST | `/v1/consent/grants` | Share a thread with a person, a whole space, or the public | [Consent management](/docs/guides/consent) |
+| DELETE | `/v1/consent/grants` | Un-share a thread: every grant of that scope on it | [Consent management](/docs/guides/consent) |
+| GET | `/v1/consent/grants/{id}` | One grant | [Consent management](/docs/guides/consent) |
+| DELETE | `/v1/consent/grants/{id}` | Revoke one grant | [Consent management](/docs/guides/consent) |
+| GET | `/v1/connections` | Your connections to other workspaces and services | |
+| POST | `/v1/connections` | Add one | |
+| GET | `/v1/connections/{id}` | One connection | |
+| PATCH | `/v1/connections/{id}` | Change it | |
+| DELETE | `/v1/connections/{id}` | End it | |
+| GET | `/v1/public/thread/{thread_id}` | Read a publicly shared thread (**open**) | [Media that plays](/docs/concepts/media) |
+| GET | `/v1/public/folds/{name}/{thread_id}` | A computed view of a publicly shared thread (**open**) | |
+| GET | `/v1/public/media_token` | A short-lived token to play media from a shared thread (**open**) | |
+| GET | `/v1/public/medium/resolve` | How to present a shared piece of media (**open**) | [Media that plays](/docs/concepts/media) |
+| GET | `/l/{*rest}` | A shareable link; redirects to the viewer (**open**) | [Media that plays](/docs/concepts/media) |
+| GET | `/i/{id}` | The invite preview page (**open**) | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| POST | `/v1/invites` | Issue an invite: a device, a guest, another workspace, or a new member | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| GET | `/v1/invites` | Your outstanding invites | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| GET | `/v1/invites/{id}` | Preview an invite before redeeming it (**open**) | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| POST | `/v1/invites/{id}/redeem` | Redeem an invite (**open**: the invite is the credential) | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| POST | `/v1/invites/{id}/revoke` | Revoke one | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| POST | `/v1/invites/bulk-revoke` | Revoke many | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| GET | `/v1/invites/audit` | Recent invite activity | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| POST | `/v1/invites/sign-attestation` | Have this workspace vouch for you when you redeem another workspace's invite (signed in here first) | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| GET | `/v1/invite-templates` | Saved invite templates | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| POST | `/v1/invite-templates` | Save one | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| GET | `/v1/scope_presets` | The built-in access presets an invite can carry (**open**) | [Scopes and permissions](/docs/reference/scopes-and-permissions) |
+| POST | `/v1/directory/listing` | Publish or refresh your listing in the directory | |
+| GET | `/v1/directory/search` | Search the directory (**open**) | [API reference](/docs/reference/api) |
+| GET | `/v1/directory/resolve` | Find where a member's workspace lives (**open**) | |
+| GET | `/v1/directory/recommendations` | Listings suggested for you | |
+| POST | `/v1/directory/recommendations/dismiss` | Never suggest one again | |
+| POST | `/v1/directory/block` | Block a listing, or unblock it | |
+| POST | `/v1/directory/report` | Report a listing for abuse | |
+| POST | `/v1/directory/delist` | Remove a listing (operator moderation) | |
+| POST | `/v1/repo/publish` | Publish this workspace as a repository | [Publishing a repository](/docs/operate/publish-repository) |
+| POST | `/v1/repo/fork` | Fork a repository | |
+| POST | `/v1/repo/unlist` | Retract a repository's directory listing | |
+| POST | `/v1/repo/keys` | Mint a deploy key for a repository | |
+| GET | `/.well-known/repositories` | The live repository listings (**open**) | |
+| GET | `/` | The workspace's public front page (**open**) | [The workspace site](/docs/operate/site) |
+| GET | `/v1/site` | The published site record | [The workspace site](/docs/operate/site) |
+| GET | `/v1/site/preview` | Your draft site, rendered | [The workspace site](/docs/operate/site) |
+| POST | `/v1/site/assets` | Upload an image for the site (owner only) | [The workspace site](/docs/operate/site) |
+| GET | `/site/assets/{version}/{id}` | A published site asset (**open**) | |
+| GET | `/site/local/{name}` | A site asset from the workspace's own folder (**open**) | [Filesystem overlay](/docs/operate/site/filesystem-overlay) |
+| GET | `/site/copy.js` | The front page's copy-button script (**open**) | |
+| GET | `/site/glyph.svg` | The workspace's glyph (**open**) | |
+| GET | `/v1/instance/shell` | The chrome that frames every screen | [Workspace chrome](/docs/concepts/instance-chrome) |
+
+## Files
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/v1/data/list` | List a folder | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/data/stat` | One file or folder's details | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/data/materials` | Search files by name | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/data/node` | Resolve one file by id or path | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/data/history` | The versions of one path, newest first | |
+| POST | `/v1/data/mkdir` | Make a folder | [Files and blobs](/docs/guides/sdk-data-plane) |
+| POST | `/v1/data/mv` | Move or rename | [Files and blobs](/docs/guides/sdk-data-plane) |
+| POST | `/v1/data/rm` | Remove | [Files and blobs](/docs/guides/sdk-data-plane) |
+| POST | `/v1/data/write/init` | Begin a write | [Files and blobs](/docs/guides/sdk-data-plane) |
+| PUT | `/v1/blobs/upload/{upload_id}` | Upload a chunk | [Files and blobs](/docs/guides/sdk-data-plane) |
+| POST | `/v1/data/write/complete` | Commit the write | [Files and blobs](/docs/guides/sdk-data-plane) |
+| POST | `/v1/data/read-url` | Get a URL to read a file's bytes | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/blobs/{hash}` | Read a file's bytes | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/data/read` | Read a mounted file's bytes | [Files](/docs/concepts/files) |
+| POST | `/v1/data/publish` | Keep a file as a durable artifact | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/data/medium/resolve` | How to present a piece of your own media | [Media that plays](/docs/concepts/media) |
+| GET | `/v1/data/mounts` | Mounted external storage | [Files](/docs/concepts/files) |
+| GET | `/v1/data/drivers` | The storage drivers trusted here | [Files](/docs/concepts/files) |
+| GET | `/v1/data/usage` | Storage used against the quota | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/data/capabilities` | Whether the file surface is present, and its limits | [Files and blobs](/docs/guides/sdk-data-plane) |
+| GET | `/v1/data/events` | A live stream of file changes | |
+| GET | `/v1/data/provenance` | Files written by automated members, newest first | [Files and blobs](/docs/guides/sdk-data-plane) |
+
+## Identity and sign-in
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/v1/identity` | The workspace's identity, and who your credential is | [API reference](/docs/reference/api#identity) |
+| POST | `/v1/identity/rotate` | Rotate the workspace's signing key | |
+| GET | `/v1/self` | Who this credential is, and what recovery proofs it has bound | [Keeping your access](/docs/guides/keeping-your-access) |
+| GET | `/v1/self/bindings` | Your recovery proofs (never the secret) | [Keeping your access](/docs/guides/keeping-your-access) |
+| POST | `/v1/self/bindings` | Bind a recovery code, passkey, or account | [Keeping your access](/docs/guides/keeping-your-access) |
+| POST | `/v1/self/bindings/challenge` | Start binding a passkey | [Keeping your access](/docs/guides/keeping-your-access) |
+| DELETE | `/v1/self/bindings/{id}` | Remove one proof | [Keeping your access](/docs/guides/keeping-your-access) |
+| GET | `/v1/self/credentials` | Every live credential that opens this workspace as you | [Keeping your access](/docs/guides/keeping-your-access) |
+| DELETE | `/v1/self/credentials/{bearer_id}` | Revoke one of them | [Keeping your access](/docs/guides/keeping-your-access) |
+| POST | `/v1/recredential/challenge` | Start signing in with a passkey (**open**) | [Keeping your access](/docs/guides/keeping-your-access) |
+| POST | `/v1/recredential` | Get a new credential from a proof: the proof is the credential (**open**) | [Keeping your access](/docs/guides/keeping-your-access) |
+| GET | `/v1/auth/challenge` | A signed challenge for key-based sign-in (**open**; refused unless that mode is enabled) | |
+| POST | `/v1/bootstrap/service-account` | Mint the first credential on a workspace that has none yet; refused afterwards (**open** only until then) | [Workspace lifecycle](/docs/operate/instance-lifecycle) |
+| GET | `/v1/service-accounts` | List service accounts | [Service accounts and tokens](/docs/get-started/service-accounts) |
+| POST | `/v1/service-accounts` | Create one, with its scopes | [Service accounts and tokens](/docs/get-started/service-accounts) |
+| DELETE | `/v1/service-accounts/{id}` | Revoke one and every token under it | [Service accounts and tokens](/docs/get-started/service-accounts) |
+| POST | `/v1/service-accounts/{id}/rotate-key` | Rotate: a new token first, then the old ones revoked | [Service accounts and tokens](/docs/get-started/service-accounts) |
+| GET | `/v1/tokens` | List tokens | [Service accounts and tokens](/docs/get-started/service-accounts) |
+| POST | `/v1/tokens` | Mint a token | [Service accounts and tokens](/docs/get-started/service-accounts) |
+| DELETE | `/v1/tokens/{token_id}` | Revoke a token | [Service accounts and tokens](/docs/get-started/service-accounts) |
+| POST | `/v1/tokens/{token_id}/rotate` | Rotate your own token | [Pair, share, invite](/docs/guides/pair-share-invite) |
+| GET | `/.well-known/openid-configuration` | "Log in with Syncropel" discovery (**open**; only when the provider is enabled) | |
+| GET | `/oauth/jwks` | The workspace's public signing key (**open**) | |
+| GET | `/oauth/authorize` | Begin a login (**open**) | |
+| GET | `/oauth/authorize/{request_id}` | The consent screen's context (**open**) | |
+| POST | `/oauth/authorize/{request_id}/decide` | Approve or refuse a login (**open**) | |
+| POST | `/oauth/token` | Exchange the code for tokens (**open**) | |
+| GET | `/oauth/userinfo` | The signed-in person's claims (**open**) | |
+| GET | `/oauth/logout` | End a login session (**open**) | |
+| POST | `/oauth/revoke` | Revoke a login token (**open**) | |
+| POST | `/oauth/introspect` | Check whether a login token is live (**open**) | |
+
+## Operations and health
+
+| Method | Path | What it is for | Documented |
+|---|---|---|---|
+| GET | `/health` | Is the workspace up (**open**) | [Workspace lifecycle](/docs/operate/instance-lifecycle) |
+| GET | `/health/ready` | Is it ready to take traffic (**open**) | |
+| GET | `/v1/health` | The full health report | [API reference](/docs/reference/api#health) |
+| GET | `/metrics` | Health counters in a scrape-friendly form | |
+| GET | `/v1/engine/health` | The engine's counters | [Workspace lifecycle](/docs/operate/instance-lifecycle) |
+| GET | `/v1/engine/expression_cache/stats` | Expression cache statistics, read by `spl doctor` | [API reference](/docs/reference/api#engine) |
+| GET | `/v1/engine/revocation_cache/stats` | Invite revocation cache statistics | |
+| GET | `/v1/engine/reconcile-queue` | Backlog in the processing pipeline | |
+| GET | `/v1/engine/migrations` | Whether stored data is at the current layout | |
+| POST | `/v1/engine/migrations/apply` | Re-apply the layout | |
+| POST | `/v1/engine/sweep` | Expire standing rules that have reached their expiry, now | |
+| POST | `/v1/drain/start` | Stop taking new work ahead of a shutdown | |
+| GET | `/v1/drain/status` | Whether a drain is in progress | |
+| POST | `/v1/drain/cancel` | Cancel the drain | |
+| POST | `/v1/lifecycle/drain/start` | Same as `/v1/drain/start` | |
+| GET | `/v1/lifecycle/drain/status` | Same as `/v1/drain/status` | |
+| POST | `/v1/lifecycle/drain/cancel` | Same as `/v1/drain/cancel` | |
+| GET | `/v1/fleet/status` | The fleet this workspace belongs to: which workspaces are live, frozen or stopped | [API reference](/docs/reference/api) |
+| GET | `/v1/lifecycle/fleet/status` | Same as `/v1/fleet/status` | |
+| POST | `/v1/admin/backup` | Take a backup now | |
+| POST | `/v1/portability/export` | Export the whole workspace as a signed bundle | [Portability](/docs/guides/portability) |
+| POST | `/v1/portability/import` | Import one | [Portability](/docs/guides/portability) |
+| GET | `/v1/instance/bootstrap` | Everything a client needs to draw its first screen (**open**) | [API reference](/docs/reference/api#instance) |
+| POST | `/v1/instance/configure` | Apply a setup preset to a bare workspace | [First run](/docs/get-started/first-run) |
+| GET | `/v1/capabilities` | What this workspace can do, machine-readable (**open**) | [API reference](/docs/reference/api#capability-discovery) |
+| GET | `/.well-known/syncropel` | The same, for a workspace that has not signed in yet (**open**) | [API reference](/docs/reference/api#capability-discovery) |
+| GET | `/openapi.json` | The OpenAPI document (**open**) | |
+| GET | `/docs/api` | A rendered view of it (**open**) | |
+| GET | `/v1/console/manifest` | Which commands the operator console may run | |
+| POST | `/v1/corpus/promote` | Promote graded runs into the training corpus (a deliberate act, never automatic) | |
+| POST | `/v1/corpus/backfill` | Capture runs that finished before the corpus existed | |
+| POST | `/v1/proxy/messages` | Talk to a member through a messages-style API | [API reference](/docs/reference/api#proxy) |
+| POST | `/v1/messages` | Same as `/v1/proxy/messages` | |
+| POST | `/v1/mcp` | The MCP door for AI clients | [AI clients](/docs/integrate/ai-clients) |
+
+## Internal doors
+
+These prefixes belong to the workspace's own machinery. They are not the
+public surface, they are not documented here, and their shape can change
+between releases without notice.
+
+- `/v1/work/tool-verdict` and `/v1/work/tool-call`: the seam between a run's
+  worker and the workspace that judges each of its tool calls.
+- `/v1/broker/`: the model relay a worker speaks through, so the worker never
+  holds a model credential.
+- `/v1/sync/` and `/v1/federation/`: the feeds and pairing handshake two
+  workspaces use to exchange records and files. You drive them with
+  `spl federation pair` and `spl sync`; see [Federation](/docs/guides/federation).
+- `/v1/discovery/`: finding peers on the local network.
+- `/directory/` and `/v1/directory/publish`, `/v1/directory/self-delist`: the
+  identity directory service and the doors other workspaces and the
+  provisioning service push into.
+- `/v1/admin/provisioning-worker-restore`: the provisioning service's own door.
+- `/v1/patterns/`: cross-workspace pattern evaluation.
+- The relay, which carries messages between workspaces that cannot reach each
+  other directly, is a separate service with its own doors; see
+  [Relay](/docs/operate/relay).
+
+## Stability
+
+Doors are added, and fields are added to existing answers, in ordinary
+releases without notice; a client that ignores fields it does not know keeps
+working. A **breaking change** is a door renamed or removed, a field whose
+meaning changes, or a call that used to succeed and now refuses. Breaking
+changes are called out in the [release notes](/docs/reference/release-notes)
+and in the source changelog, with the migration; a removed path answers `404`
+from the release that removes it, the way the older `/v1/agent/*` paths did
+when they became `/v1/work/*`. The capability manifest at `GET /v1/capabilities`
+carries a `manifest_version` that changes only when the manifest's own shape
+breaks, so a client can detect that before it parses.
+
+Internal doors carry no such promise.

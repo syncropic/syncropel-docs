@@ -1,154 +1,86 @@
 ---
 title: The Engine
-description: Four loops at four timescales — from sub-millisecond record ingest through minute-level drift detection to daily maintenance. This is the engine that turns records into action, action into evidence, and evidence into learning.
+description: The part of your workspace that is always on. It takes in what members write, notices what needs a decision, keeps trust and patterns current, and runs the work you scheduled, all from the same record log.
 ---
 
-## Overview
+## What the engine is for
 
-The Syncropel engine is not a monolithic processor. It's four loops, each running at a different timescale, each solving a different kind of problem, all cooperating through the record log as a shared data structure.
+Every workspace has an engine running behind it. Nothing on screen is labelled "engine", but it is why a workspace does anything on its own: a message gets an answer, a task lands with the right member, a heads-up appears in your call. It has four jobs:
 
-This separation isn't incidental. Coordination work spans timescales that range over seven orders of magnitude — an INGEST decision takes under 100µs, a daily pattern-crystallization sweep takes hours. Trying to handle all of it in one loop either slows the fast path to match the slow one, or loses the slow work in the fast one's noise. Four loops running independently on their natural tempos avoids both.
+1. It **takes in what members write** and keeps it, once and forever.
+2. It **notices what needs a decision** and puts it in front of the right person.
+3. It **keeps trust and patterns current**, so the workspace learns from what actually worked.
+4. It **runs scheduled work**, and tells you when it could not.
 
-The engine itself is small — roughly 200 lines per loop, with the rest being data (records on `th_engine_config`, CEL expressions, CRUD over the store). Most of what looks like engine "logic" is actually config. Change a routing rule, a trigger, a fold rule, a permission predicate — you emit a record, the engine reloads, the new behaviour takes effect on the next ingest. No restart, no redeploy.
+Everything the engine knows comes from the [records](/docs/concepts/records) members have written; every figure it shows you is worked out from them.
 
-## Immutable log → folds → live state
+## Taking in what members write
 
-Before the four loops, hold one mental model: the engine has exactly one source of truth — the **immutable [record](/docs/concepts/records) log** — and everything else is *folded* from it.
+When a member writes a record (a person typing, an assistant answering, an automated member reporting a result), the engine accepts it at once. From that moment:
 
-```
-   immutable record log   ──fold──▶   live state
-   (the only truth)                   (trust, patterns, task status,
-                                        config, calibration — all derived)
-```
+- **It is kept as written.** No one, the engine included, edits a record afterwards. A correction or a change of mind is a new record that points at the old one.
+- **The same record sent twice is one record.** A client that loses its connection mid-write can simply send again.
+- **Everyone sees it at once.** A member waiting on the thread and any open screen are told the moment the record lands; a paired workspace that has permission to see it picks it up on its next sync, within seconds.
+- **Slow work never blocks fast writes.** Accepting a record and acting on it are separate, so a busy workspace stays responsive.
 
-The engine doesn't keep trust scores, the pattern library, task status, routing config, or its own calibration in separate editable stores. Each of those is a **fold** — a pure replay of the relevant records that produces the current value on demand. Records only ever get appended; live state is recomputed from them. That is why a corrupted cache is never a crisis (replay rebuilds it), why two instances with the same records agree (the fold is deterministic), and why crash recovery is not a special path (it's just the normal startup fold). Keep this in mind as you read the loops below: the loops *append records and recompute folds* — they never mutate state in place.
+The engine checks only that a record is well formed and that the writer may write there; meaning is worked out afterwards.
 
-## The four loops
+## Noticing what needs a decision
 
-### INGEST (microseconds)
+After a record lands, the engine asks whether anything needs to happen because of it, in a fixed order that prefers what you said over what it inferred:
 
-The hot path. One record comes in, the loop runs to completion, the next record is ready to be received. Budget: under 100 microseconds in the steady state.
+1. **The record names who it is for.** It goes there, and nothing else is consulted.
+2. **A rule you wrote matches.** Rules say what should happen when a certain kind of record appears: send it to a member, start a run, raise a heads-up ([Routing rules](/docs/guides/routing-rules)).
+3. **A proven pattern matches.** When the workspace has seen this shape of work succeed before, it can reuse that outcome. A rule you wrote always beats a pattern it inferred.
+4. **Nothing matches.** The engine does not guess. It writes a proposal for you: a decision in your call describing what it thinks should happen, which you can approve into a standing rule or decline. Where proposals are switched off, you get a heads-up naming the record and offering to create a rule for it.
 
-```
-INGEST:  receive → validate → canonical_json → SHA-256 → store → broadcast
-```
+Whatever the engine puts in front of a person lands in one place, [the register](/docs/guides/the-register), read with `spl register` or from the workspace screen. It keeps two kinds of item apart: **a decision** needs an answer (choose an option, or provide something); **a heads-up** needs only a nod. Near-identical proposals appear as one group with a count, and answering any one clears the group. A decision with a time limit that goes unanswered is resolved rather than left hanging. A workspace set up with the recommended preset starts with one decision waiting, a question about what you are working on: answering it opens your first thread, titled by what you typed, and a repeated answer after a dropped connection lands in that same thread, never a second one.
 
-Steps:
-- **receive** the record from HTTP, Unix socket, or internal emit.
-- **validate** the 8-field shape and namespace narrowing. Narrowing is the only semantic check in the hot path; everything else is deferred.
-- **canonical_json** serialize for hashing.
-- **SHA-256** compute the content-addressed ID.
-- **store** insert into SQLite. Duplicate IDs are silent no-ops (idempotent retry).
-- **broadcast** publish the record to in-process subscribers (RECONCILE, TICK, CRON, federation pairs, SSE listeners).
+## Keeping trust and patterns current
 
-INGEST does not reason. It does not route. It does not call out to anything. It validates, hashes, stores, and publishes. This is what keeps p99 ingest latency flat regardless of downstream load — a blocked reconciler cannot back-pressure into ingest.
+Members earn trust by having their work judged. A verdict is a record like any other, and the engine takes every new verdict into account:
 
-### RECONCILE (seconds)
+- **A member's standing reflects the verdicts on their work,** per area of work. Being good at one kind of work does not make a member trusted at another.
+- **Recent results count for more than old ones.** A member coasting on year-old approvals drifts down; one whose recent work is judged well rises.
+- **A sudden change is noticed.** If a member's results shift meaningfully from their track record, the engine writes a note of the drift on the thread where it happened, so the change is visible.
+- **Ways of working that keep succeeding become the default** for that kind of work, and drop out of use if they stop succeeding. The workspace gets cheaper at the things it has done many times.
 
-The work loop. When a record broadcast arrives, the reconciler decides what should happen next. If it needs to dispatch work — to a human, an agent, a CI pipeline, a service — this is the loop that does it.
+None of this is a stored opinion: read the verdicts and you can see why a member stands where they stand. [Trust](/docs/concepts/trust) explains what the score is for.
 
-```
-RECONCILE:  for each broadcast record:
-              match_rules → intelligence (if unmatched) → execute → ingest results
-```
+## Running scheduled work
 
-The reconciler is a fixed-point runner. It keeps running until every record either matches a rule or is explicitly left for human review. Rules are checked in priority order; intelligence (the engine's reasoning path) only runs when no rule matches.
+Some work runs on a clock rather than in response to a record: a standing check every morning, say. Triggers are how you declare it, and the engine promises:
 
-Most records don't trigger reconcile work — system records skip it entirely to avoid cascades, already-handled records (`body.dispatch_handled: true`) skip it, decision responses (records with `body.fulfills` or `body.cancels`) skip it. What *does* trigger reconcile is typically a user record or a triggered record that asks for something.
-
-The reconciler uses a semaphore to cap concurrent dispatches (default 4). This is what prevents a burst of incoming records from spawning a corresponding burst of subprocesses. Back-pressure in the reconciler is a queue wait, not a rejection.
-
-### TICK (minutes)
-
-The drift-detection loop. Runs on a fixed interval (default 60 seconds) and handles work that needs periodic attention but doesn't need to run per-record:
-
-- **Process trust outcomes.** Verdict records (`KNOW` with `body.verdict`) arrived during the previous tick; this loop folds them into the `(actor, domain, judged_by)` evidence table.
-- **CUSUM drift detection.** Check whether an actor's success rate has changed meaningfully from its baseline. Spikes or drops emit alerts.
-- **Stall detection.** Identify threads that have an open INTEND but no new records for longer than the stall window. These become candidates for an operator alert or automatic escalation.
-
-TICK isn't latency-sensitive. A 30-second delay on trust updates is fine. What matters is that it runs reliably and the work it does can catch up if the host is busy — all of TICK's work is idempotent over its window.
-
-### CRON (hours / daily)
-
-The maintenance loop. Runs on a cron schedule (configurable per job) and handles things that compound slowly:
-
-- **Trust decay.** Apply the 90-day half-life to the evidence table. Old approvals count less.
-- **Pattern crystallization sweep.** Check whether patterns that were close to the C1-C4 criteria have now met them. Promote qualifying patterns.
-- **De-crystallization check.** Demote crystallized patterns that have lost quality (failing replays, trust drops, compression regression).
-- **Snapshots.** Produce daily thread snapshots for backup / federation seeding.
-- **Cost and health reports.** Aggregate the day's dispatch costs and publish the summary.
-
-CRON work is typically offloaded to spawned tasks rather than running inline in the instance process, so a long cron job doesn't block ingest or reconcile. The instance acts as the scheduler; the actual work runs in short-lived subprocesses that emit their results back as records.
-
-## Config is data
-
-The engine's behaviour is configured through records on a reserved thread, `th_engine_config`. Every routing rule, every trigger, every fold rule, every CEL permission predicate, every auth toggle — all of them are `LEARN` records on this thread. Three properties follow:
-
-1. **Hot reload.** When a new LEARN lands on `th_engine_config`, the engine's broadcast handler immediately reloads the relevant config slice. Changes take effect on the next record, no restart.
-2. **Version control is free.** Config history is the thread's record log. You can answer "when was this rule added?" by reading the records. You can answer "what rules were active on 2025-12-15?" by folding the thread with a reference clock.
-3. **Config mistakes are records.** A bad rule doesn't delete the good one — it adds a new record that the loader rejects. The warning appears in logs, but the system keeps running with the previous working config. Remove the bad record or supersede it with a correct one.
+- **A missed run is recorded, never silently dropped.** If the workspace was off when a run was due, the miss is written down and the trigger's own policy decides what happens next: skip it, run the latest occurrence once, or catch up on each one it missed.
+- **A trigger never fires twice for the same occurrence,** even across a restart.
+- **A trigger that cannot fire says so.** `spl doctor` reports how many triggers are enabled, and names any enabled trigger that fires nothing, with when it last fired and why it is skipping; `spl trigger history <name>` shows each skip. A trigger installed from a blueprint starts switched off.
+- **Spending is bounded.** Each trigger runs under a budget and the workspace has a daily ceiling; a run past either is refused and recorded, and a trigger whose budget runs out, or that keeps failing, raises a decision in your call instead of going quiet.
 
 ```bash
-spl config show                       # the current loaded config
-spl config list-rules                 # routing rules
-spl config list-triggers              # event + schedule triggers
-spl config list-fold-rules            # task/thread fold customisations
-spl config list-health                # health check predicates
-spl config list-permission-rules      # permission middleware rules
-spl expr eval '<CEL>' --context <ctx> # preview an expression before storing
+spl trigger list | show | history <name>   # what is declared, what fired, what was skipped
+spl trigger pause | resume | run | remove <name>
 ```
 
-Most "change the engine's behaviour" requests turn out to be "author a CEL config record". See [CEL expressions](/docs/guides/cel-expressions) for the authoring workflow and [Routing rules](/docs/guides/routing-rules) for the routing-specific form.
+On the same clock the engine does its own housekeeping: the daily backup (`spl backup`), clearing out old telemetry, and keeping the store under any size ceiling you declared. Above the ceiling, ordinary writes are refused with a clear reason, and your own configuration writes never are, so you can always raise it. `spl doctor` shows the store's size and what is taking the room.
 
-## Routing cascade
+## Changing how the engine behaves
 
-When reconcile decides a record needs to be acted on, the routing cascade runs in priority order, cheapest first:
+You never restart or redeploy a workspace to change what the engine does. Rules, triggers, permissions and health checks are records you write (most are one short [expression](/docs/guides/cel-expressions)), and three things hold: a change applies to the next record that arrives; every rule that was ever in force is still there, with who wrote it and when; and a rule the engine cannot load is left out rather than half-applied (a refused trigger is reported by name) while every other rule stays in force.
 
-```
-Record needs routing
-  │
-  ▼ 1. Explicit target (body.to)          → dispatch there, done.
-  │
-  ▼ 2. Pattern match (L1 → L2 → L3)       → REPLAY the matched outcome.
-  │
-  ▼ 3. Routing rule match                 → dispatch to rule's target.
-  │
-  ▼ 4. Trust-based fallback               → pick the highest-trust actor
-  │                                          in the record's domain.
-  ▼ 5. Intelligence reasoning             → propose a routing decision,
-  │                                          emit as the decision gate for approval.
-  ▼ 6. Default handler                    → notify, don't dispatch.
+```bash
+spl config show                    # what is loaded right now
+spl config list-rules              # routing rules; also list-triggers, list-health, list-permission-rules
+spl expr eval                      # try an expression before you store it
 ```
 
-Each step is faster and cheaper than the next. Explicit targets are a constant-time dereference. Pattern matches are a hash lookup. Rule matches are a compiled-CEL eval (~10µs for a warm cache, compile costs amortise). Trust fallback is a registry lookup. Intelligence is a full LLM call and costs accordingly.
+## What the engine does not do
 
-The cascade falls forward. When step 2 misses, step 3 runs; when 3 misses, step 4. A high-traffic deployment with crystallized patterns should see most records resolved by step 2, with 3 and 4 covering the long tail and 5 only for genuine novelty.
+**It does not do the work itself.** Runs, answers and tool calls happen as the member who asked, within that member's permissions and budget; see [Running a goal](/docs/guides/running-a-goal).
 
-## Self-improvement
-
-The engine gets better as records accumulate, by design:
-
-- **Intelligence decisions become decision-gate proposals.** The engine's reasoning doesn't silently execute — it proposes a routing rule and asks an operator to approve. Approved proposals become rules.
-- **Rules that work repeatedly become patterns.** Every successful dispatch via a rule is evidence that the rule's shape is a pattern worth crystallizing.
-- **Patterns that meet C1-C4 crystallize into REPLAY.** Once crystallized, the same shape of work no longer needs rule matching — it replays the outcome directly.
-- **Meta-trust tracks the reasoning path.** The `intelligence` actor itself has a trust profile. Proposals it makes that get approved contribute to its trust; rejected ones detract.
-
-Over time, the fraction of records handled by steps 1-2 (fastest, cheapest) grows, and the fraction needing step 5 (slowest, most expensive) shrinks. This is the compounding property — nothing in the system fights against it; every successful completion is evidence that next time can be cheaper.
-
-## What the engine doesn't do
-
-Worth enumerating because the loop structure is narrow on purpose.
-
-**The engine doesn't own the adapter subprocess.** Dispatch starts a process; the reconciler's role is to emit the INTEND and register a callback. The subprocess runs independently, emits records back via HTTP, and the reconciler picks those up on the broadcast channel like any other record.
-
-**The engine doesn't centralise state.** Every piece of derived state — trust, patterns, configs, namespace registry, instance registry — is a fold of a thread's records. Lose the derived caches, the engine rebuilds from the record log on the next reload. The derived state isn't a separate database.
-
-**The engine doesn't gate federation.** Federation is a peer of the engine, not a consumer. The engine broadcasts records; the federation loop pulls from peers, runs its signature and consent checks, and emits into INGEST like any other writer. From the engine's perspective, a federated record is just another record.
+**It does not decide what leaves your workspace.** Sharing with another workspace happens only by a permission you grant; see [Federation](/docs/concepts/federation).
 
 ## What's next
 
-- **[Records](/docs/concepts/records)** — what the engine processes.
-- **[Trust](/docs/concepts/trust)** — how evidence accumulates and feeds the cascade.
-- **[Patterns](/docs/concepts/patterns)** — how the L0-L3 hashes drive the matching step.
-- **[CEL expressions](/docs/guides/cel-expressions)** — authoring the config records the engine reads.
-- **[Configuration reference](/docs/reference/configuration)** — the current config surface.
+- **[Patterns](/docs/concepts/patterns)**: how proven ways of working get reused.
+- **[Routing rules](/docs/guides/routing-rules)**: telling the engine what should happen.
+- **[Configuration reference](/docs/reference/configuration)**.

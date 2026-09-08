@@ -86,7 +86,7 @@ choose what runs on it. Two ways to give it a voice.
 spl init --preset recommended    # presets: recommended | blank
 
 # Any time later, on an already-initialized instance:
-spl blueprint install chief-of-staff
+spl blueprint install <path-to-blueprint> --accept-plan <hash>
 ```
 
 Every preset except `blank` installs the chief. If you initialized bare and the
@@ -94,11 +94,7 @@ assistant seems silent, this is why, and nothing is broken: install the chief
 through the blueprint door with the command above.
 
 <Callout type="info" title="Your instance can already use a model out of the box">
-A fresh instance ships with managed model access, so you do not have to supply a
-provider API key just to get the assistant responding. Bringing your own key in
-`[intelligence]` is an optional override, for when you want your own account or a
-specific model. See [First run](/docs/get-started/first-run) and
-[api.syncropic.com](/docs/integrate/api-syncropic).
+A hosted workspace arrives with managed model access, so the chief answers from your first message. A workspace on your own machine has no model until you give it a key (`spl config set-key anthropic <your key>`, then restart the daemon); until then the chief is installed but silent, and `spl run` says so rather than failing quietly.
 </Callout>
 
 Hosted instances come with the chief already on.
@@ -108,7 +104,7 @@ Hosted instances come with the chief already on.
 If you send a message and nothing comes back, work through this in order:
 
 1. **You initialized bare and never installed the chief.** The most common
-   cause on a self-host. Run `spl blueprint install chief-of-staff`, or
+   cause on a self-host. Run `spl blueprint install <path-to-blueprint> --accept-plan <hash>`, or
    re-init with `--preset recommended`.
 2. **No inference backend, or the backend is rejecting calls.** An expired key
    or an exhausted quota means the reply call fails. Run `spl doctor`: it

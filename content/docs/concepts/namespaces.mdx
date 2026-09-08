@@ -1,6 +1,6 @@
 ---
 title: Namespaces
-description: A 5-level hierarchy that scopes every record to a tenancy, project, environment, or job — with monotonic narrowing of capabilities from parent to child.
+description: A 5-level hierarchy that scopes every record to a tenancy, project, environment, or job, with monotonic narrowing of capabilities from parent to child.
 ---
 
 ## Overview
@@ -19,13 +19,13 @@ DEFAULT → ORG → PROJECT → ENV → JOB
 
 | Level | Example ID | Purpose | When you'd create one |
 |---|---|---|---|
-| **DEFAULT** | `default` | System-wide baseline. Implicit, can't be deleted. | Never — it always exists. |
+| **DEFAULT** | `default` | System-wide baseline. Implicit, can't be deleted. | Never, it always exists. |
 | **ORG** | `acme-corp` | Tenant boundary. One company / team / customer. | When you onboard a second customer or split your team into independent units. |
-| **PROJECT** | `acme-corp/payments` | A workstream within an org. | When two projects under the same org need independent budgets, dial settings, or rule sets. |
+| **PROJECT** | `acme-corp/payments` | A workstream within an org. | When two projects under the same org need independent budgets, autonomy settings, or rule sets. |
 | **ENV** | `acme-corp/payments/staging` | A stage within a project. | When you have `staging` and `production` for the same project and you want CEL rules that only fire in one. |
 | **JOB** | `acme-corp/payments/staging/job-42` | A per-execution scope. | When a long-running dispatch needs its own ephemeral scope that can be cleaned up cleanly. |
 
-The maximum depth is 4 segments under DEFAULT. You can stop at any level — `acme-corp` (just ORG) is a complete, valid namespace.
+The maximum depth is 4 segments under DEFAULT. You can stop at any level, `acme-corp` (just ORG) is a complete, valid namespace.
 
 ## How records get a namespace
 
@@ -45,7 +45,7 @@ Every record carries its namespace in `body.namespace`:
 }
 ```
 
-Records that omit `body.namespace` fall through to the implicit `default`. Every existing record continues working — `default` is always Active and always allowed.
+Records that omit `body.namespace` fall through to the implicit `default`. Every existing record continues working, `default` is always Active and always allowed.
 
 ## Lifecycle
 
@@ -67,7 +67,7 @@ Transitions:
                   (re-create)
 ```
 
-You can re-activate an archived namespace by running `spl namespace create` again with the same ID — the latest record per ID wins, so a new Active LEARN supersedes the prior Archived one.
+You can re-activate an archived namespace by running `spl namespace create` again with the same ID, the latest record per ID wins, so a new Active LEARN supersedes the prior Archived one.
 
 ## The narrowing rule
 
@@ -107,17 +107,17 @@ Three concrete reasons the spec mandates this shape:
 
 **1. Predictable cleanup.** When a customer leaves or a project ends, you archive the ORG-level namespace and you're done. Every JOB, ENV, and PROJECT record under it stops accepting writes. You never have to walk the descendant tree by hand or write cleanup queries against the database.
 
-**2. Tenancy without forking the engine.** The same instance serves multiple orgs without cross-contamination. An attacker who somehow obtains an ORG-level credential for `acme-corp` cannot inject records claiming `bigcorp` as their namespace — the registry doesn't have a `bigcorp` ancestor for them to pass through.
+**2. Tenancy without forking the engine.** The same instance serves multiple orgs without cross-contamination. An attacker who somehow obtains an ORG-level credential for `acme-corp` cannot inject records claiming `bigcorp` as their namespace, the registry doesn't have a `bigcorp` ancestor for them to pass through.
 
-**3. Policy composition is closed.** When (in a future release) namespaces also carry policy YAML, the resolved policy at any level is the *intersection* of every ancestor's policy. There is no way to add capability by going deeper. This makes audit feasible — you can answer "what could a job-42 dispatch ever do?" by looking at the chain of policies, no need to chase implicit grants.
+**3. Policy composition is closed.** When (in a future release) namespaces also carry policy YAML, the resolved policy at any level is the *intersection* of every ancestor's policy. There is no way to add capability by going deeper. This makes audit feasible, you can answer "what could a job-42 dispatch ever do?" by looking at the chain of policies, no need to chase implicit grants.
 
 ## When NOT to use namespaces
 
 - **You're a solo developer running spl on your laptop.** Stay in `default`. There's nothing to gain.
-- **You have one team and one production environment.** A single ORG is overkill — `default` is fine.
+- **You have one team and one production environment.** A single ORG is overkill, `default` is fine.
 - **You're prototyping.** Namespaces are about boundaries, and prototyping is about not having boundaries. Add namespaces when the boundaries become real (a second customer, a second product, a regulated environment).
 
-The implicit `default` namespace is always there, always Active, and never goes away. The namespace system is fully backward compatible with every pre-namespace record — you only think about namespaces when you actively need them.
+The implicit `default` namespace is always there, always Active, and never goes away. The namespace system is fully backward compatible with every pre-namespace record, you only think about namespaces when you actively need them.
 
 ## What's enforced today vs the spec
 
@@ -125,13 +125,13 @@ The current implementation covers the **existence layer** of the narrowing guara
 
 Two pieces of the namespace model are not yet implemented and are tracked as follow-up tasks:
 
-- **Policy composition** — the YAML policy language with `dial`, `primitives`, `max_effects`, etc. and the intersect-on-allow / union-on-deny composition rules. Today, the `policy` field on a namespace entry is opaque text. The narrowing check only validates existence + status, not capability subsets.
-- **Store-level isolation** — the spec mandates that backends partition records by namespace at the storage layer for hard isolation. Today, records are tagged but not indexed by namespace, and read queries return records from all namespaces a caller has access to.
+- **Policy composition**: the YAML policy language (autonomy level, allowed primitives, effect limits, and so on) and the intersect-on-allow / union-on-deny composition rules. Today, the `policy` field on a namespace entry is opaque text. The narrowing check only validates existence + status, not capability subsets.
+- **Store-level isolation**: the spec mandates that backends partition records by namespace at the storage layer for hard isolation. Today, records are tagged but not indexed by namespace, and read queries return records from all namespaces a caller has access to.
 
 Both are bounded follow-ups, not show-stoppers. The HTTP-boundary enforcement is what most operators actually need: an attacker on the network cannot inject records into namespaces that don't exist.
 
 ## Next steps
 
-- **Use it now**: see [`spl namespace`](/docs/reference/cli#namespaces-v0100) in the CLI reference for the create/list/show/archive/delete commands.
+- **Use it now**: see [`spl namespace`](/docs/reference/cli#namespaces) in the CLI reference for the create/list/show/archive/delete commands.
 - **Author CEL rules scoped to namespaces**: the `current_namespace()` function and `record.body.namespace` field are both available in every CEL context. See [CEL Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now).
 - **Walk through the worked example**: see the [Namespaces guide](/docs/guides/namespaces) for a full setup from `spl namespace create` to a working multi-environment deployment.
