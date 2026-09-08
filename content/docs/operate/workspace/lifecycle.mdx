@@ -119,7 +119,9 @@ The workspace catalog is just records. You can query it directly without
 the `spl workspace` commands:
 
 ```bash
-spl query --kind core.workspace.v1
+curl -s -X POST http://127.0.0.1:9100/v1/records/query \
+  -H 'content-type: application/json' \
+  -d '{"filter":{"body.kind":"core.workspace.v1"}}'
 ```
 
 This is the same fold `spl workspace list` performs. Filtering on
