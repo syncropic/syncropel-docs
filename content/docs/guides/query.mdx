@@ -5,7 +5,7 @@ description: Filter records server-side with structured query documents. Support
 
 ## Overview
 
-Query lets you ask the instance: _"give me every record where X"_, with X expressed as a structured filter document. The filter runs server-side — nothing streams over the wire except the matches. This is the right tool for any query that touches more than one thread, any filter over body shape (`body.kind`, `body.priority`, `body._refs.*`), or any workload big enough that client-side filtering wastes bandwidth.
+Query lets you ask the workspace: _"give me every record where X"_, with X expressed as a structured filter document. The filter runs server-side — nothing streams over the wire except the matches. This is the right tool for any query that touches more than one thread, any filter over body shape (`body.kind`, `body.priority`, `body._refs.*`), or any workload big enough that client-side filtering wastes bandwidth.
 
 Two entry points:
 
@@ -136,7 +136,7 @@ So `body.kind`, `body.priority`, and `body._refs.music_artist` all work; `body` 
 
 - **`thread`** — optional thread-scope. Shorthand for adding `{ "thread": "th_..." }` to the filter. Uses the thread index directly.
 - **`sort`** — single-key document; value is `1` for ascending, `-1` for descending. Example: `{ "clock": -1 }` (newest first), `{ "created_at": 1 }` (oldest first), `{ "body.priority": -1 }` (highest priority first — but see [Indexed Field Registry](./body-kind-manifest) for why you'll want to declare body fields first).
-- **`limit`**: default 100, clamped to 1000. Asking for more returns 1000 rows and `capped: true`; read `capped` to know a page is partial. `matched_total` is disclosure-aware (it is served only when nothing was withheld from you, and otherwise counts the rows *you* may see), so it is a count over your own view rather than over the instance, and it is still not a substitute for `capped` when deciding whether you have the whole answer.
+- **`limit`**: default 100, clamped to 1000. Asking for more returns 1000 rows and `capped: true`; read `capped` to know a page is partial. `matched_total` is disclosure-aware (it is served only when nothing was withheld from you, and otherwise counts the rows *you* may see), so it is a count over your own view rather than over the workspace, and it is still not a substitute for `capped` when deciding whether you have the whole answer.
 - **`offset`** — for pagination. Prefer `{ "clock": { "$gt": last_clock } }` as a cursor once you have one — cursor-style pagination is cheaper than deep offsets.
 - **`explain`** — when `true`, the response includes a `plan` describing which fields used a top-level column (indexed), and which fields fell to the body-scan path.
 
@@ -196,7 +196,7 @@ spl config add-body-kind-manifest \
   --indexed-field body.title
 ```
 
-After the instance reloads config, queries on `body.kind` are served from the new index. The plan's `unindexed_fields` list still names `body.kind`, because that list is a conservative "this was a body.* path" marker rather than a statement about which index was chosen; measure the query time to confirm.
+After the workspace reloads config, queries on `body.kind` are served from the new index. The plan's `unindexed_fields` list still names `body.kind`, because that list is a conservative "this was a body.* path" marker rather than a statement about which index was chosen; measure the query time to confirm.
 
 ## Patterns
 

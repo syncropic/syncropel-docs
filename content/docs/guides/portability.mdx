@@ -1,17 +1,17 @@
 ---
 title: Portability
-description: Move records, threads, and federation pairs between Syncropel instances. Export from one steward, import into another, with zero data loss.
+description: Move records, threads, and federation pairs between Syncropel workspaces. Export from one steward, import into another, with zero data loss.
 ---
 
 ## What this is
 
-`spl export` produces a signed, content-addressed bundle of one Syncropel instance's state. `spl import` ingests that bundle into another instance. After a round-trip, every record, thread, federation pair, and consent grant is present on the new side — bit for bit identical.
+`spl export` produces a signed, content-addressed bundle of one Syncropel instance's state. `spl import` ingests that bundle into another workspace. After a round-trip, every record, thread, federation pair, and consent grant is present on the new side — bit for bit identical.
 
 This is why hosted and self-hosted are equivalent: any Syncropel workspace can be moved between hosts, between operators, between hosted and self-hosted, without losing data or relationships.
 
 ## What's portable
 
-Everything that's part of your instance:
+Everything that's part of your workspace:
 
 - **Records** — every record on every thread, content-addressed (so re-importing the same bundle is a no-op, automatically)
 - **Threads** — derived state rebuilds from the record fold on import
@@ -23,7 +23,7 @@ Everything that's part of your instance:
 
 What's **not** in the bundle:
 
-- **Plaintext secret values.** Secrets live in your secret backend (env vars, vault, OS keyring). The bundle has handle-references only. To complete the migration, bring up the same secret backend on the new instance separately.
+- **Plaintext secret values.** Secrets live in your secret backend (env vars, vault, OS keyring). The bundle has handle-references only. To complete the migration, bring up the same secret backend on the new workspace separately.
 - **Bearer tokens** — by default, service-account tokens are revoked on export so a leaked bundle can't grant access. Pass `--carry-tokens` if you intend to preserve them across the migration.
 - **Trust scores** — these rebuild automatically from the imported records (`KNOW`/`DO` outcomes replay through the trust math).
 
@@ -35,7 +35,7 @@ The minimal command:
 spl export --out /tmp/my-instance.tar.zst
 ```
 
-This produces a `tar.zst` bundle signed by your instance's identity. The signature ties the bundle to the issuing instance — a tampered bundle won't verify on import.
+This produces a `tar.zst` bundle signed by your workspace's identity. The signature ties the bundle to the issuing instance — a tampered bundle won't verify on import.
 
 Useful flags:
 
@@ -101,11 +101,11 @@ Use this flag deliberately. Re-imports are idempotent (same bundle → same reco
 1. Import once on a fresh instance (no `--force-overwrite` needed)
 2. Re-import later if you need to verify it (idempotent — `records_inserted: 0`, `records_deduplicated: 100`)
 
-## Migrating between instances
+## Migrating between workspaces
 
 The canonical pattern: hosted → local.
 
-Imagine you've been running on a hosted instance. You want to move to your laptop:
+Imagine you've been running on a hosted workspace. You want to move to your laptop:
 
 ```bash
 # On the hosted side

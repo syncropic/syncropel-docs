@@ -3,12 +3,12 @@ title: Keeping your access
 description: Make a key to a place you were let into, use it on any device, and see every device that can open the place as you.
 ---
 
-When somebody lets you into an instance, the credential lives in the browser
+When somebody lets you into a workspace, the credential lives in the browser
 you accepted it in. Lose that browser, or open a new phone, and you used to
 have to ask the host for a fresh link. Now you can keep a key yourself.
 
-A key is **to a door**, never "your account": two nights on one instance are
-two keys, on purpose. The instance stores only a hash of it; nobody but you
+A key is **to a door**, never "your account": two nights on one workspace are
+two keys, on purpose. The workspace stores only a hash of it; nobody but you
 ever sees the key again.
 
 ## Make a key
@@ -59,7 +59,7 @@ Under **+ add a connection**, when you are reading a place, two lists appear:
   others keep working, and your standing in the place is untouched; only that
   device is out.
 
-## What the instance refuses
+## What the workspace refuses
 
 The door that turns a key into a credential answers every wrong attempt the
 same way, in the same time, whether the person named does not exist, has no
@@ -67,11 +67,11 @@ key, or typed the wrong one. Studio shows that refusal in the door's own words
 and adds no diagnosis of its own. Attempts are rate limited: three in a burst,
 then one every five seconds, per person named and per network address.
 
-## Two more ways back, where the instance accepts them
+## Two more ways back, where the workspace accepts them
 
 The recovery key is the floor: no vendor, no account, works for a party guest.
 Two more ways to come back ride the same doors, and Studio shows each only on
-instances that accept it (`proof_kinds_accepted` on the instance's `/health`).
+workspaces that accept it (`proof_kinds_accepted` on the workspace's `/health`).
 
 ### Link to your account
 
@@ -79,22 +79,22 @@ Signed in to a hosted account, **keep this access** also offers **link to your
 account**. Press it and your account can find this key again on any device:
 under **+ add a connection**, **shared with you** lists the places your
 account knows, and **open as you** re-opens one without a line to paste. The
-account is a way to find the key, never the key itself: the instance sees a
+account is a way to find the key, never the key itself: the workspace sees a
 salted hash, not who you are to the account provider.
 
-Hosted instances get this when the operator turns it on; a self-hosted
+Hosted workspaces get this when the operator turns it on; a self-hosted
 instance accepts it only if its operator declares a verifier
 ([operators](/docs/operate/account-verifier)). Signing out on a shared device
 clears what that device held and leaves your account's list untouched.
 
 ### Use a passkey
 
-Where the instance declares a relying party, **keep this access** offers
+Where the workspace declares a relying party, **keep this access** offers
 **use a passkey**. One gesture registers a passkey that your phone or laptop
 keeps for you and your platform carries between your devices. On another
 device, paste a kept line into **+ add a connection** and choose **use a
 passkey instead**: the line only names the place and who you are there, its
-code is never sent, and the passkey signs the instance's challenge.
+code is never sent, and the passkey signs the workspace's challenge.
 
 A passkey is the safest key here. It is still one key to one door, and a
 passkey made on one kind of phone does not travel to every laptop, so keep a
@@ -102,7 +102,7 @@ code as well; Studio says so when a passkey is the only key you hold.
 
 ## For operators
 
-Nothing to configure for the recovery key; every instance on a current
-version accepts it. `GET /health` lists what an instance accepts under
+Nothing to configure for the recovery key; every workspace on a current
+version accepts it. `GET /health` lists what a workspace accepts under
 `proof_kinds_accepted`. The doors behind this page are in the
 [API reference](/docs/reference/api#self).

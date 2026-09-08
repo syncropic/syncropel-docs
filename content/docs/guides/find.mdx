@@ -1,6 +1,6 @@
 ---
 title: Find
-description: Search everything on your instance — file names, file contents, and conversations — from one query. No setup, no AI provider required, works the same on hosted and self-hosted instances.
+description: Search everything on your workspace — file names, file contents, and conversations — from one query. No setup, no AI provider required, works the same on hosted and self-hosted workspaces.
 ---
 
 ## Overview
@@ -142,7 +142,7 @@ curl -X POST "$BASE/v1/search/rebuild" -H "Authorization: Bearer $TOKEN" \
 ```
 
 A rebuild re-indexes in small batches in the background — it never blocks
-the instance, and `--stats` shows it converging.
+the workspace, and `--stats` shows it converging.
 
 ## Limits
 

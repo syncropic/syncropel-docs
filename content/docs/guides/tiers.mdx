@@ -57,7 +57,7 @@ spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
   --body '{"kind":"core.engine.tier.v1","tier":"trial","max_turns":9,"daily_cost_cap_usd":2.5}'
 ```
 
-An instance with no tier record for a tier yields the constant, byte-identical
+A workspace with no tier record for a tier yields the constant, byte-identical
 to the pre-record clamp. Editable fields are `max_turns`, `wall_clock_secs`,
 `token_budget`, `daily_loop_cap`, `concurrency`, `max_depth`, `max_children`,
 `max_tree_loops`, `daily_cost_cap_usd`, and `default_budget_usd`.
@@ -109,8 +109,8 @@ The ceiling is the load-bearing part:
   is not the operator.
 - An unrecognised status reads as Trial. That is the fail-closed direction: an
   unknown word from a payment processor must not buy capacity.
-- `past_due` is not a cut-off. A failed card narrows what an instance may
-  spend; it does not take the instance away. The person keeps their records,
+- `past_due` is not a cut-off. A failed card narrows what a workspace may
+  spend; it does not take the workspace away. The person keeps their records,
   the door keeps answering, and the caps come down until they fix it.
 
 This is deliberately not a per-run call into the billing worker: that would put

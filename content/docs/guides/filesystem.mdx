@@ -1,17 +1,17 @@
 ---
 title: Working with files
-description: Browse, upload, organize, and publish files on a Syncropel instance with the spl fs command.
+description: Browse, upload, organize, and publish files on a Syncropel workspace with the spl fs command.
 ---
 
-Every Syncropel instance has a [filesystem](/docs/concepts/files) — a place
+Every Syncropel workspace has a [filesystem](/docs/concepts/files) — a place
 for your working files, published artifacts, and connected drives. This guide
 walks through managing it from the command line with `spl fs`.
 
 ## Before you start
 
-You need a running instance — see [Your first run](/docs/get-started/first-run)
-to set one up locally, or [Hosted instances](/docs/get-started/hosted) for a
-managed one. `spl fs` talks to whichever instance your CLI is pointed at, and
+You need a running workspace — see [Your first run](/docs/get-started/first-run)
+to set one up locally, or [Hosted workspaces](/docs/get-started/hosted) for a
+managed one. `spl fs` talks to whichever workspace your CLI is pointed at, and
 uses the same credential as the rest of the CLI — if you've already paired or
 saved a token, you're set ([Authentication](/docs/get-started/pairing)).
 
@@ -101,7 +101,7 @@ publish again later, and each publish produces its own fixed artifact. See
 
 ## Connected drives
 
-`spl fs mounts` lists external drives connected to the instance. Connected
+`spl fs mounts` lists external drives connected to the workspace. Connected
 drives appear under `/mnt/<name>` and can be browsed like any other directory:
 
 ```bash
@@ -121,7 +121,7 @@ spl fs stat /files/data.csv --json | jq '.size_bytes'
 
 ## In the browser
 
-Everything here is also available visually. Open your instance on the web
+Everything here is also available visually. Open your workspace on the web
 and use the **Files** tab — it's a browser AND editor for the same
 filesystem, so a file you upload from the terminal shows up there
 immediately, and vice versa. See [Files in your
@@ -134,7 +134,7 @@ mobile experience.
 
 - [Files](/docs/concepts/files) — the filesystem model: the four areas, and
   the working-file → artifact lifecycle.
-- [Working with files in your instance](/docs/guides/files-in-studio) — the
+- [Working with files in your workspace](/docs/guides/files-in-studio) — the
   same filesystem, visually.
 - [CLI reference: Files](/docs/reference/cli#files) — the complete `spl fs`
   command list.
