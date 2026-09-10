@@ -5,7 +5,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Community',
-  description: 'How to participate in the Syncropel open-source community — questions, ideas, bug reports, contributions.',
+  description: 'How to participate in the Syncropel open-source community: questions, ideas, bug reports, contributions.',
 };
 
 interface LinkCard {
@@ -19,7 +19,7 @@ const participate: ReadonlyArray<LinkCard> = [
   {
     title: 'GitHub',
     href: 'https://github.com/syncropic/syncropel',
-    desc: 'The project home — overview, releases, the front door for the protocol',
+    desc: 'The project home: overview, releases, the front door for the protocol',
     external: true,
   },
   {
@@ -61,13 +61,13 @@ const policy: ReadonlyArray<LinkCard> = [
   {
     title: 'Security policy',
     href: 'https://github.com/syncropic/syncropel/blob/main/SECURITY.md',
-    desc: 'How to report a vulnerability — do not file public issues',
+    desc: 'How to report a vulnerability. Do not file public issues',
     external: true,
   },
   {
     title: 'License',
     href: 'https://github.com/syncropic/syncropel/blob/main/LICENSE',
-    desc: 'Apache-2.0 — the terms that govern the reference implementation',
+    desc: 'BSL 1.1 for the kernel and CLI, Apache-2.0 for the SDKs',
     external: true,
   },
 ];
