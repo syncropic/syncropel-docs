@@ -350,6 +350,7 @@ Answering the same question twice returns the same thread. See
 | DELETE | `/v1/self/bindings/{id}` | Remove one proof | [Keeping your access](/docs/guides/keeping-your-access) |
 | GET | `/v1/self/credentials` | Every live credential that opens this workspace as you | [Keeping your access](/docs/guides/keeping-your-access) |
 | DELETE | `/v1/self/credentials/{bearer_id}` | Revoke one of them | [Keeping your access](/docs/guides/keeping-your-access) |
+| GET | `/v1/self/report` | Whether this workspace can answer yet (configured, a provider is live, an assistant is present) | [Your first hour](/docs/get-started/first-hour) |
 | POST | `/v1/recredential/challenge` | Start signing in with a passkey (**open**) | [Keeping your access](/docs/guides/keeping-your-access) |
 | POST | `/v1/recredential` | Get a new credential from a proof: the proof is the credential (**open**) | [Keeping your access](/docs/guides/keeping-your-access) |
 | GET | `/v1/auth/challenge` | A signed challenge for key-based sign-in (**open**; refused unless that mode is enabled) | |

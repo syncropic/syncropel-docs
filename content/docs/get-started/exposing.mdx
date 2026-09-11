@@ -78,11 +78,14 @@ server {
 When a proxy terminates connections, the instance sees `127.0.0.1` as the client IP for everything. Two config flags harden against header spoofing in this mode:
 
 ```bash
-spl config set strict_actor_header true
-spl config set strict_impersonation_enforcement true
+# strict impersonation enforcement has a dedicated verb:
+spl config impersonation-strict-enable
 ```
 
-Both take effect on the next request — no restart needed.
+`strict_actor_header` has no dedicated verb yet; enable it by writing a
+`strict_actor_header` config record (a `LEARN` on `th_engine_config` with
+`enabled: true`, the standard config-record convention). Both take effect on the
+next request — no restart needed.
 
 - **`strict_actor_header`** rejects requests that claim a DID via header without a matching token.
 - **`strict_impersonation_enforcement`** blocks admin tokens from acting as arbitrary actors unless an explicit allowlist is set.

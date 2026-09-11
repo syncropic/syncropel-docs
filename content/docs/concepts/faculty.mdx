@@ -72,10 +72,10 @@ The `<DID>` accepts a `name` shorthand that expands to `did:sync:agent:<name>`. 
 # Every deployed Faculty (latest manifest per actor)
 spl faculty list
 # ACTOR                  MECHANISM   TRANSPORT    SEAM       ENABLED
-# did:sync:agent:scribe  llm         proxy_http   inference  true
+# did:sync:agent:harness  llm         proxy_http   inference  true
 
 # One Faculty's manifest in full
-spl faculty show did:sync:agent:scribe
+spl faculty show did:sync:agent:harness
 
 # Retire a Faculty — unregisters it live
 spl faculty retire did:sync:agent:optimizer

@@ -171,10 +171,10 @@ A conversation with [the chief of staff](/docs/get-started/the-assistant) is sin
 
 Two things change when delegation happens:
 
-1. **The loop runs as *the user*, not as Scribe/Guide.** It uses the user's identity, permissions, and tier — Scribe steps aside for the duration. Every record the loop emits is signed by the user's actor DID.
+1. **The loop runs as *the user*, not as the chief.** It uses the user's identity, permissions, and tier — the chief steps aside for the duration. Every record the loop emits is signed by the user's actor DID.
 2. **The chat-actor's response and the loop's outcome pair up.** A `core.work.delegation.v1` record opens the delegation; the loop's outcome closes it. This is the same pair-completion pattern decision requests use.
 
-Delegation is auto-classified — Scribe sees a message that opens with `@agent` and starts a loop. The classifier is heuristic (verbs like "build", "audit", "find every…"); it can be tightened with an explicit `@agent` opening.
+Delegation is auto-classified — the chief sees a message that opens with `@agent` and starts a loop. The classifier is heuristic (verbs like "build", "audit", "find every…"); it can be tightened with an explicit `@agent` opening.
 
 See [Agents](/docs/concepts/agents) for the user-facing view of this handoff — what the launch surface shows, what the capability is, what the outcomes mean.
 
@@ -196,7 +196,7 @@ curl -X POST http://localhost:9100/v1/work/loop \
   -d '{"goal": "...", "max_turns": 8}'
 
 # Chat — @agent delegation
-# (type into any Scribe/Guide thread)
+# (type into any assistant thread)
 @agent audit my last 7 days of dispatches and write a summary
 ```
 

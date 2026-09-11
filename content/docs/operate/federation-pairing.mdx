@@ -122,7 +122,7 @@ Returns a table of pair_id, peer DID, state, mode, last sync timestamp. States:
 spl federation show <pair_id>
 ```
 
-Reveals the peer manifest snapshot, last refresh timestamp, last sync cursor position, consent grants attached to this pair, and **token IDs only** (plaintext bearers are never displayed once issued). If you need a token's plaintext to embed in a different tool, mint a new token with `spl token mint --scopes federation:sync,federation:subscribe` and revoke the original.
+Reveals the peer manifest snapshot, last refresh timestamp, last sync cursor position, consent grants attached to this pair, and **token IDs only** (plaintext bearers are never displayed once issued). If you need a token's plaintext to embed in a different tool, mint a new token with `spl token create --scopes federation:sync,federation:subscribe` and revoke the original.
 
 ### Pause and resume
 

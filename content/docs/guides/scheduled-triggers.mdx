@@ -149,11 +149,11 @@ minimum gap.
 ## Turn a trigger off
 
 ```bash
-# Remove by name
-spl config remove-trigger --name daily-summary
+# Remove by name (writes a tombstone; re-declaring the name brings it back)
+spl trigger remove daily-summary
 
-# Or disable without removing (preserves history)
-spl config update-trigger --name daily-summary --enabled false
+# Or pause without removing (keeps the whole definition)
+spl trigger pause daily-summary
 ```
 
 ## Pairs with

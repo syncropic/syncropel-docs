@@ -212,8 +212,7 @@ Reload the iframe — every time you click the button, the new record appears at
 Open another terminal and emit a record manually with the SDK or CLI:
 
 ```bash
-spl emit --thread <same-th> --act DO \
-  --kind core.action --body '{"description":"manual emit"}'
+spl do "manual emit" --thread <same-th>
 ```
 
 It shows up in the iframe within a second. The extension is now a live participant in the thread, not just an emitter.

@@ -52,7 +52,7 @@ For a guided diagnostic, see [Troubleshooting connection](/docs/operate/troubles
 ### How do I reset trust scores?
 
 Trust evidence is records (LEARN on actor's trust thread). To reset:
-1. Stop accumulating new evidence by pausing the relevant routing rules (`spl config disable-rule <name>`).
+1. Stop accumulating new evidence by removing or superseding the relevant routing rules (change their config records the same way, or `spl trigger pause`/`spl trigger remove` for a trigger).
 2. Emit a `LEARN` on `th_trust_<actor>` with a `body.kind = "trust.reset.v1"` marker, following the standard record-change convention.
 3. The next trust query rebuilds from the post-reset evidence only.
 

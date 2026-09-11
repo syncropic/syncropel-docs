@@ -172,10 +172,11 @@ a newer record. A hosted **paid** workspace has more storage and no ceiling by
 default, the same as a workstation. Either can declare or change its own
 bounds with the record above.
 
-<Callout type="warn">
-As of v0.224 the free tier's door is not yet open, and the boot-time seeding
-of the free ceiling has not shipped in a tagged release. Until it does, no
-hosted workspace carries a ceiling unless someone writes one.
+<Callout type="info">
+The free hosted tier is open (since v0.225). A free workspace boots with a
+whole-store ceiling (about 800 MiB of store on a 1 GB volume), seeded once at
+configuration. A paid workspace and a local workstation carry no ceiling by
+default; either can declare or change its own bounds with the record above.
 </Callout>
 
 <Callout type="info">

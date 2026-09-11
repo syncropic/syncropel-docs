@@ -66,7 +66,7 @@ Before an actor appears in routing rules or CEL expressions, it should be regist
 ```bash
 spl actor register did:sync:agent:reviewer --display-name "Reviewer"
 spl actor list
-spl actor lookup did:sync:agent:reviewer
+spl actor show did:sync:agent:reviewer
 ```
 
 Registration writes a `LEARN` record to `th_actor_registry`. The engine folds that thread to build the live registry in memory, which is what `record.actor` resolution and the CEL `trust()` function consult. Unknown DIDs aren't rejected, they can still appear in `record.actor`, but they won't be found by name-based routing until registered.
