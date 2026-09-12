@@ -146,10 +146,29 @@ canonicalizer moved again.`
 A nonzero count is history, not corruption. Older releases named some records
 slightly differently from how the current release would name them; nothing was
 lost, every record is still served under its original name, and every read is
-correct. The number is worth writing down once. What would matter is the
-number growing from one release to the next, which is the one thing this row
-exists to catch. The sweep stops at 250,000 records and says `capped` when it
-did.
+correct. What would matter is the number growing because the canonicalizer
+moved again, and a count alone cannot say that: a store that imported older
+records also grows. So the row names the DATE of the newest drifted record
+(`The newest drifted record was written 2026-08-02 ... before the v0.223 write
+fix, so this is history`) and reads it against the release that fixed the
+write path; a date after it says `the canonicalizer moved again, or a pre-fix
+binary wrote to this store; report it`. The sweep stops at 250,000 records in
+table order and says so.
+
+## boot peak
+
+What the last successful boot cost, against what bounds this body. The daemon
+writes `boot-peak.json` beside the store after its boot folds complete, and
+this row reads that file with no daemon, so the body at its memory ceiling can
+still be diagnosed. Passes with `this boot peaked at 412 MB of a 1,024 MB cgroup
+limit (40%) (boot 2026-09-12 09:14 UTC, 31 s, 175,122 records, kernel 0.235.0)`.
+Warns from 85% and fails from 95%, because a boot that just fit is the boot
+before the one that does not, and the remedy names what to do from where you
+stand: give the body more memory, or get the records out while it still starts
+(`spl export --offline`, which needs no daemon and free space for one copy of
+the store). Off a cgroup the row reads `nothing bounds this body here` and
+never warns. The figure re-measures every boot, so it tracks growth; on a
+hosted body the fleet alert keys on it.
 
 ## javascript runtime
 
@@ -191,7 +210,14 @@ Enable with spl backup --auto enable.`, with `no successful backup on file yet
 suppressed. Check spl backup --auto status.` Passes with `enabled, daily at
 03:00, retention 7d, last success 5h ago, task briefs covered (2351 files)`.
 When the last backup did not cover the task briefs, the row says `task briefs
-NOT covered:` with the reason. See [Backup and
+NOT covered:` with the reason. The same sentence covers the identity: `identity
+covered` when the signing keys were in the sealed backup set, else `identity
+NOT covered (no passphrase configured); never covered on this body, so a
+restore of its records boots as a different workspace`, which WARNS even when
+the backup is fresh, because a backup of records without the identity is a
+backup of records and not of the workspace; the remedy is
+`SPL_BACKUP_PASSPHRASE` in the daemon's environment. A daemon older than the
+field says nothing about it, never `covered`. See [Backup and
 recovery](/docs/guides/backup-restore).
 
 ## replication

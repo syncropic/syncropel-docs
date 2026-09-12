@@ -45,6 +45,31 @@ Useful flags:
 | `--uncompressed` | Plain `.tar` instead of `.tar.zst` (inspectable; larger) |
 | `--no-identity` | Don't include private key + DID document (then the bundle isn't importable) |
 | `--carry-tokens` | Keep service-account tokens valid across migration |
+| `--offline` | Read the store directly, with no daemon (below) |
+
+### When the workspace will not start
+
+`spl export` normally asks the running daemon for the bundle. A workspace
+that cannot boot (too little memory for its store, a corrupt runtime, a
+machine that will not come up) cannot answer, and until v0.235 that was the
+state where the records were hardest to get out. `--offline` opens the store
+file directly, signs the bundle with the workspace's own keys from its home,
+and needs no daemon:
+
+```bash
+spl export --offline --out /tmp/my-instance.tar.zst
+```
+
+It refuses, and writes nothing, while a daemon owns the home: a PID file, the
+configured port answering, or a `spl-serve.service` unit that is active,
+because a second reader on a store a daemon is writing is the one thing this
+must never be, and "running" is not a boolean during boot (a large store takes
+up to a minute and a half between start and bind). Stop the daemon first, or
+export through it without `--offline`. A PID file left by a body the kernel
+killed at boot is the honest hard case: confirm nothing is running, remove
+`run/spl.pid` under the home, and export. The bundle is byte-for-byte the
+bundle the daemon door produces and imports the same way; it needs free space
+for one copy of the store.
 
 Inspect a bundle without unpacking:
 

@@ -206,6 +206,7 @@ Answering the same question twice returns the same thread. See
 | DELETE | `/v1/actors/{did}/definition` | Retire a member you defined | [Members and adapters](/docs/guides/actors-and-adapters) |
 | PATCH | `/v1/actors/{did}/definition` | Shape a member: model, words, tools, ceilings, name, with a partial body (owner) | [Actor doors](/docs/reference/actor-doors) |
 | GET | `/v1/actors/{did}/history` | A member's versions, newest first, with what changed (owner) | [Actor doors](/docs/reference/actor-doors) |
+| POST | `/v1/actors/{did}/definition/revert` | Put a listed version back, as a new version (owner) | [Actor doors](/docs/reference/actor-doors) |
 | POST | `/v1/blueprints/materialize` | Install a blueprint, which can define members, tools and rules together | [Blueprints](/docs/concepts/blueprints) |
 | GET | `/v1/actors/{did}/memories` | What a member remembers | [Member memory](/docs/guides/actor-memory) |
 | POST | `/v1/actors/{did}/memories` | Give a member something to remember | [Member memory](/docs/guides/actor-memory) |

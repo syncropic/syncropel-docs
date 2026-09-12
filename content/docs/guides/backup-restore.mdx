@@ -31,6 +31,22 @@ The daily backup job writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into t
 
 The backup directory is OUTSIDE `~/.syncro/` — removing that directory does not affect the backups.
 
+### The identity is part of the workspace, and only a sealed backup carries it
+
+A backup of `hub.db` alone is a backup of records. The signing keys live
+beside the store, not in it, and a restore without them boots as a DIFFERENT
+workspace: a drill on 2026-07-20 restored 89,152 records into a body that
+answered every authenticated route with `BOOTSTRAP_REQUIRED`. With
+`SPL_BACKUP_PASSPHRASE` set in the daemon's environment the daily backup
+seals the keys into the same set (`spl backup --auto restore-keys` brings them
+back), and the doctor's `daily backup` row and the workspace read say so:
+`identity covered`, or `identity NOT covered` with the reason and the last
+time a backup did cover it. A body that has never covered its identity warns
+even when its backup is fresh, because the thing it would bring back is not
+the workspace. The keys recovery window is bounded by the last successful boot
+that ran a backup, which is an older watermark than the last record flush;
+read both.
+
 ## Manual Backup
 
 ```bash

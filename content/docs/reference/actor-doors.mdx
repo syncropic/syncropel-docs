@@ -126,8 +126,31 @@ the version before it (`model`, `prompt`, `tools`, `budget_usd`, `max_turns`,
 `display_name`; the first version says `created`). Tools compare as a set and
 the words by their record, so reordering tools or writing the same words again
 is not a change. `total` counts every version and `truncated` says whether
-`limit` cut the list. Owner-only, like the shape door. Putting a version back
-is not a door yet; a revert will be written as a new version, never a delete.
+`limit` cut the list. Owner-only, like the shape door.
+
+### Revert
+
+`POST /v1/actors/{did}/definition/revert` with `{"version": "<definition_record_id>"}`
+puts a listed version back. It is written as a NEW version, never a delete:
+the target's facet and name are re-emitted as the newest definition, parented
+to the version it supersedes, so the history reads shaped, shaped, reverted
+and nothing on the ledger moves. The words come back by reference (the prompt
+record persists), and the result is checked under the same bounds the define
+and shape doors enforce, so a version whose tools or ceilings are outside
+today's reach is refused by name rather than restored as a wider way in. A
+revert never retires and never un-retires. The response is the member's row as
+the workspace read serves it, plus `reverted_to`. From a terminal, `spl actor
+revert chief <version>` takes the id or a prefix of twelve or more characters
+as `spl actor history` prints it.
+
+| Code | When |
+|---|---|
+| `403 OWNER_ONLY` | The credential is not an admin one. |
+| `404 ACTOR_UNKNOWN` | No definition exists for `{did}`. |
+| `404 VERSION_UNKNOWN` | The id is not one of this member's versions. |
+| `409 ACTOR_RETIRED` | The member is retired; define it again instead. |
+| `400 NOTHING_TO_CHANGE` | The version named is already the current one. |
+| `403 TOOL_NOT_IN_REACH`, `403 WRITE_KIND_NOT_ADMITTED` | The version violates today's bounds. |
 
 ## Start and read its runs
 
