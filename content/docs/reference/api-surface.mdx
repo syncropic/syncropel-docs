@@ -257,7 +257,7 @@ Answering the same question twice returns the same thread. See
 | POST | `/v1/secrets/list` | List the secrets you may see | [Secrets](/docs/concepts/secrets) |
 | POST | `/v1/secrets/delete` | Delete a secret | [Secrets](/docs/concepts/secrets) |
 | POST | `/v1/secrets/promote` | Move a secret to a more durable store | [Secrets](/docs/concepts/secrets) |
-| POST | `/v1/entitlement` | Report what a subscription did; the workspace decides the tier it grants | [Tiers and entitlements](/docs/guides/tiers) |
+| POST | `/v1/entitlement` | Report what a subscription did; the workspace decides the tier it grants. Idempotent by effect: the same status from the same source answers `unchanged: true` and writes nothing | [Tiers and entitlements](/docs/guides/tiers) |
 
 ## Sharing and public links
 
@@ -301,7 +301,7 @@ Answering the same question twice returns the same thread. See
 | POST | `/v1/repo/publish` | Publish this workspace as a repository | [Publishing a repository](/docs/operate/publish-repository) |
 | POST | `/v1/repo/fork` | Fork a repository | |
 | POST | `/v1/repo/unlist` | Retract a repository's directory listing | |
-| POST | `/v1/repo/keys` | Mint a deploy key for a repository | |
+| POST | `/v1/repo/keys` | Mint a deploy key for a repository; `expires_days` defaults to 90 and is refused past 365 by name (every bearer class expires) | |
 | GET | `/.well-known/repositories` | The live repository listings (**open**) | |
 | GET | `/` | The workspace's public front page (**open**) | [The workspace site](/docs/operate/site) |
 | GET | `/v1/site` | The published site record | [The workspace site](/docs/operate/site) |
@@ -353,7 +353,7 @@ Answering the same question twice returns the same thread. See
 | DELETE | `/v1/self/bindings/{id}` | Remove one proof | [Keeping your access](/docs/guides/keeping-your-access) |
 | GET | `/v1/self/credentials` | Every live credential that opens this workspace as you | [Keeping your access](/docs/guides/keeping-your-access) |
 | DELETE | `/v1/self/credentials/{bearer_id}` | Revoke one of them | [Keeping your access](/docs/guides/keeping-your-access) |
-| GET | `/v1/self/report` | Whether this workspace can answer yet (configured, a provider is live, an assistant is present) | [Your first hour](/docs/get-started/first-hour) |
+| GET | `/v1/self/report` | Whether this workspace can answer yet (configured, a provider is live, an assistant is present), the plan, and two reasons from outside the workspace: `provider_unfunded` before you type, `provider_degraded` after a failure | [What the workspace says about itself](/docs/reference/workspace-read) |
 | POST | `/v1/recredential/challenge` | Start signing in with a passkey (**open**) | [Keeping your access](/docs/guides/keeping-your-access) |
 | POST | `/v1/recredential` | Get a new credential from a proof: the proof is the credential (**open**) | [Keeping your access](/docs/guides/keeping-your-access) |
 | GET | `/v1/auth/challenge` | A signed challenge for key-based sign-in (**open**; refused unless that mode is enabled) | |
@@ -406,7 +406,7 @@ Answering the same question twice returns the same thread. See
 | GET | `/v1/instance/bootstrap` | Everything a client needs to draw its first screen (**open**) | [API reference](/docs/reference/api#instance) |
 | POST | `/v1/instance/configure` | Apply a setup preset to a bare workspace | [First run](/docs/get-started/first-run) |
 | GET | `/v1/capabilities` | What this workspace can do, machine-readable (**open**) | [API reference](/docs/reference/api#capability-discovery) |
-| GET | `/.well-known/syncropel` | The same, for a workspace that has not signed in yet (**open**) | [API reference](/docs/reference/api#capability-discovery) |
+| GET | `/.well-known/syncropel` | The same, for a workspace that has not signed in yet (**open**); since v0.236 it also carries `owner_actions`, the nine actions a control plane may forward on an owner's behalf, each naming a declared door and its scope | [API reference](/docs/reference/api#capability-discovery) |
 | GET | `/openapi.json` | The OpenAPI document (**open**) | |
 | GET | `/docs/api` | A rendered view of it (**open**) | |
 | GET | `/v1/console/manifest` | Which commands the operator console may run | |

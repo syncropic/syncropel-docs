@@ -245,6 +245,22 @@ loudly when there is none:
   10s cadence, with 4 records pending: the durability window is wider than
   configured.` Records are waiting and not leaving. Read the log.
 
+Since v0.236 the sentence also carries the one number that answers "how far
+behind is the copy": the age of the OLDEST record not yet in the tree, in
+parentheses. `oldest unflushed record waited 4s` is that many seconds of work
+at risk right now; `oldest unflushed: none` is a measured nothing pending;
+`lag not measured` means no flush tick has run yet, or the store keeps no
+ingest clock (an in-memory store), and it is never a zero. The row warns when
+that record has waited six cadences even if the last flush was a second ago,
+because a fresh flush that left old records behind is the case the old rule
+missed. The same age is on `/health` and the workspace read as
+`writeback.oldest_unflushed_age_secs` (null, 0, or N), never computed as now
+minus the last flush, which is largest exactly when nothing is wrong. The row
+also names how many records the last derived-plane refresh folded against the
+ceiling it refuses at, so a body approaching that ceiling is warned before the
+refresh refuses rather than after (SKL-4007; the ceiling is a stopgap that
+buys weeks on a fast-growing body, and the row is what says when).
+
 ## triggers
 
 Whether scheduled work would actually happen. Passes with `N configured, none
