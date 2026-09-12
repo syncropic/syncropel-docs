@@ -1,6 +1,6 @@
 ---
 title: Federation Pairing
-description: Pair two Syncropel instances so they can sync threads, exchange records, and converge on shared state. Covers when to pair, the pair lifecycle, debug recipes for the common failure modes, soak-test results, and capacity planning.
+description: Pair two Syncropel instances so they can sync threads, exchange records, and converge on shared state. Covers when to pair, the pair lifecycle, debug recipes for the common failure modes, how to read a pair's health, and capacity planning.
 ---
 
 ## Audience
@@ -248,33 +248,58 @@ spl federation pair https://bob.example/
 
 Re-pairing is cheap. The historical cursor on the new pair starts at the current peer clock; you don't get the missed records back unless you also restore from snapshots, but you get a clean slate.
 
-## 4. Soak results — what to expect at steady state
+## 4. Reading a pair's health
 
-The federation soak test exercises a two-instance pair under a mixed workload (record emit, decision-gate approvals, fold-rule reloads) for an extended window. Reference numbers from a recent run, in CSV form so you can compare against your own:
+There is no bundled load generator for pairs. What the daemon does give you is a live view of every sync pair it is running: the pair's lifecycle state, how many records it has pulled, how long each poll takes, how far behind it is, and whether its delivery latency has drifted. Three surfaces expose it, from coarsest to finest.
 
-```csv
-window,duration_min,records_emitted,records_synced,sync_lag_p50_ms,sync_lag_p99_ms,reconcile_queue_max,errors
-warmup,5,1240,1240,180,420,3,0
-ramp,15,8420,8420,210,512,7,0
-steady,60,33180,33180,225,548,9,0
-spike,5,4860,4860,610,1290,18,0
-recovery,15,7240,7240,240,580,12,0
+### The state column
+
+```bash
+spl federation list
+spl federation show <peer_did>
 ```
 
-What to read off the table:
+`list` folds `th_federation_pairs` and prints one row per pair with its state (`not_paired`, `establishing`, `active`, `paused`, `degraded`, `revoked`). `show` adds the last clock the pair reached, when it last changed state, and the reason for the last transition. This is the record-level view: it tells you what the pair is, not how fast it is moving.
 
-- **`sync_lag_p50_ms` ≈ 200ms in steady state.** Continuous mode keeps round-trip latency in the polite range — anything over 1s sustained is a yellow flag.
-- **`sync_lag_p99_ms` < 1.5s during a 4× emit spike.** SSE buffering catches up within the spike window; polling-mode pairs would show much worse tail latency under the same load.
-- **`reconcile_queue_max` < 20 in a 4× spike.** This is the bound that matters for capacity planning (next section).
-- **`errors = 0`.** The soak passes only when zero pair-level errors land. A soak with errors is a regression.
+### The sync health doors
 
-If your numbers look meaningfully worse:
+The sync loop keeps in-memory metrics per pair over a rolling one-hour window. They are not records: they reset when the daemon restarts, and they are meant to be scraped, not archived. Both doors need a bearer carrying the `federation:manage` scope.
 
-- **p50 lag > 500ms in steady state** → check network latency between peers; pairs are not designed for cross-continent links without `set-mode polling` and longer intervals.
-- **`reconcile_queue_max` > 50** → the consuming side's adapter is the bottleneck, not the pair. Profile the adapter's per-record cost.
-- **Errors > 0** → walk them in `~/.syncro/logs/spl.log` filtered on `target=syncropel_engine::federation`.
+```bash
+# Every pair the daemon is syncing, in one report.
+curl -s -H "Authorization: Bearer $SPL_TOKEN" http://localhost:9100/v1/sync/health
 
-The CSV format above is what `spl federation soak --csv` emits, so you can pipe it directly into a spreadsheet or comparison tool.
+# One pair in detail.
+curl -s -H "Authorization: Bearer $SPL_TOKEN" http://localhost:9100/v1/sync/pairs/<pair_id>/stats
+```
+
+`GET /v1/sync/health` returns:
+
+| Field | Meaning |
+|---|---|
+| `pairs_total`, `pairs_by_state` | How many sync loops are registered, bucketed by loop state: `starting`, `running`, `paused`, `failing`, `stopped`. |
+| `records_pulled_last_hour`, `records_pulled_last_minute` | Throughput across every pair. |
+| `mean_delivery_latency_ms`, `p50_delivery_latency_ms`, `p95_delivery_latency_ms` | How long a record takes to arrive after the peer wrote it, across every pair in the window. |
+| `slowest_pairs` | The five pairs furthest behind, each with `lag_secs` (seconds since its last successful poll) and its `last_error`. |
+| `most_errored_pairs` | The five pairs with the most failed polls, each with `errors_last_hour`. |
+| `drift_alerts` | Pairs whose delivery latency has moved off its own baseline (a CUSUM over the latency series, which fires on a sustained slowdown of roughly twice the baseline). Each alert names the `metric`, the `baseline_ms`, and the `current_ms`. |
+
+`GET /v1/sync/pairs/{pair_id}/stats` returns the same measurements for one pair, plus its `state`, its `cursor`, `records_pulled_total`, `poll_intervals` (`mean_ms`, `last_ms`, `configured_ms`), `delivery_latency` (`mean_ms`, `p50_ms`, `p95_ms`, `last_ms`), `errors_last_hour`, `retries_current`, `last_successful_poll_at`, and `lag_secs`.
+
+The bearer-gated `GET /v1/health` carries a one-glance summary of the same data under `federation`: `pairs_total`, `pairs_healthy` (loops in `starting`, `running`, or `paused`), and `pairs_failing`.
+
+### The doctor
+
+`spl doctor` adds one pairing-specific row, `federation bind host`: when the daemon has sync pairs configured but is bound to a loopback address, it warns that remote peers cannot reach this instance and names the `--host` flag to fix it. (The doctor's `replication` row is about the repository write-back lease, not about pairs.)
+
+### What healthy looks like
+
+- Every pair you expect to be live reads `active` in `spl federation list` and `running` in `pairs_by_state`.
+- `lag_secs` stays close to the configured poll interval. A lag that keeps growing means polls are failing, and `last_error` on that pair says why.
+- `errors_last_hour` is 0. A pair that is erroring is either in `failing` already or on its way there; the sync loop backs off and retries, so a single transient error is not a problem, a steady count is.
+- `drift_alerts` is empty. An alert with a rising `current_ms` and no error is usually the network between the peers, not the pair.
+
+If a pair looks wrong, the lifecycle section above is the recovery path: `spl federation refresh` to re-read the peer, `pause` and `resume` to restart the loop from its saved cursor, and `revoke` plus a fresh `pair` when the divergence is not repairable.
 
 ## 5. Capacity planning
 
@@ -302,7 +327,7 @@ Practical limits:
 - **For continuous mode, plan ~10-20 pairs** before you start contending with adapter throughput. Each open SSE adds a per-tick overhead the reconciler has to absorb.
 - **Bandwidth is rarely the constraint.** The constraint is record-ingest throughput on the receiving side, which is bounded by the adapter pipeline, not by the pair primitive.
 
-To measure your own ceiling, drive `spl federation soak` against a known peer and watch `reconcile_queue_max` and `sync_lag_p99_ms`. The pair primitive is healthy as long as the queue stays bounded and the lag tail stays under a second.
+To find your own ceiling, add pairs under your real workload and watch `GET /v1/sync/health` as you go. The pair primitive is healthy as long as `p95_delivery_latency_ms` stays flat, `lag_secs` on the slowest pair stays near its poll interval, and `drift_alerts` stays empty. The first of those to move is the one telling you where the ceiling is.
 
 ## What's next
 
