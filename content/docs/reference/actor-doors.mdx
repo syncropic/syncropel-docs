@@ -79,6 +79,56 @@ so there is never a moment when it is runnable without its bound. Answers
 
 A retired member can no longer be run as (see `RUN_ACTOR_NOT_COVERED` below).
 
+### Shape a member
+
+`PATCH /v1/actors/{did}/definition` changes part of a definition without
+rewriting the rest. It is the workspace owner's door (the credential's admin
+bit); a member proposes a definition instead and never writes the chief. The
+body is partial and every field is optional; a field the door does not know
+is refused, never dropped:
+
+| Field | What it does |
+|---|---|
+| `display_name` | Renames the member (the same rules as the name door: never a person's name). |
+| `model` | One of the priced catalog the workspace read lists under `models[]`. Any other id is refused by name. |
+| `prompt` | The member's words, as text. They are written as a `core.actor.prompt.v1` record and the definition points at it, so every earlier wording stays on the ledger. |
+| `tools` | `{add: [...], remove: [...]}`. Adding a tool already held is a no-op; removing one not held is refused. |
+| `budget_usd`, `max_turns` | The run ceilings. |
+
+The result is checked under the same bounds the define door enforces, then
+written as one new definition record (the previous one is its parent), which
+the work loop picks up with no restart. The response is the member's row in
+the shape `GET /v1/self/workspace` serves under `assistants[]`, read back from
+the store, plus `definition_record_id` and, when words changed,
+`prompt_record_id`. The next real reply's run stamps the chosen model; that is
+the proof the change took. From a terminal, `spl actor shape chief --model
+claude-sonnet-5 --prompt-file words.txt --add-tool judge --remove-tool run_code`
+drives the same door by the name you see, and `spl actor history chief` reads
+the versions.
+
+| Code | When |
+|---|---|
+| `403 OWNER_ONLY` | The credential is not an admin one. |
+| `404 ACTOR_UNKNOWN` | No definition exists for `{did}`. |
+| `409 ACTOR_RETIRED` | The member is retired; define it again instead. |
+| `409 ASSISTANT_WOULD_GO_MUTE` | The change would leave the member unable to answer (no model, `max_turns` 0, a budget of zero). Nothing is written. |
+| `422 MODEL_UNKNOWN` | The model is not in the priced catalog; the message names the catalog. |
+| `422 TOOL_NOT_DECLARED` | A `tools.remove` entry the member does not hold. |
+| `400 NOTHING_TO_CHANGE` | An empty body. |
+
+### History
+
+`GET /v1/actors/{did}/history?limit=20` lists the member's versions, newest
+first, each with `definition_record_id`, `at` (when it was written), `by`
+(who shaped it, else the definition's principal, else its author), the model,
+the words, the tools, the ceilings, and `changed`: the fields that differ from
+the version before it (`model`, `prompt`, `tools`, `budget_usd`, `max_turns`,
+`display_name`; the first version says `created`). Tools compare as a set and
+the words by their record, so reordering tools or writing the same words again
+is not a change. `total` counts every version and `truncated` says whether
+`limit` cut the list. Owner-only, like the shape door. Putting a version back
+is not a door yet; a revert will be written as a new version, never a delete.
+
 ## Start and read its runs
 
 `POST /v1/actors/{did}/runs` starts a run as the member `{did}`, so the run

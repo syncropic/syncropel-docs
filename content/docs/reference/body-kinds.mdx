@@ -62,9 +62,31 @@ so a new Faculty converses without any new kinds.
 | Kind | Beat |
 |---|---|
 | `core.faculty.call.v1` | The outbound model call for a conversational turn. |
-| `core.faculty.response.v1` | The reply — content, `stop_reason`, `model_used`, `usage` (all four token dimensions), `cost_usd`. |
+| `core.faculty.response.v1` | The reply — content, `stop_reason`, `model_used`, `usage` (all four token dimensions), `cost_usd`, and a `context` block (below). |
 | `core.faculty.error.v1` | The turn failed; the error is a record, not a log line. |
 | `core.faculty.cancelled.v1` | The user cancelled an in-flight reply. |
+
+### What a reply's `context` says
+
+A reply that ran through the work loop (an escalated turn, a thread default
+that is a work-loop member, or the answer that returns after a parked run was
+resumed) carries a `context` block a client reads instead of parsing prose:
+
+| Field | Meaning |
+|---|---|
+| `context.source_thread` | The run's own thread. Its turns, tool calls and asks live there. |
+| `context.escalation.status` | `parked` (the reply is the question the run asked; `awaiting` names the ask), `ran`, `refused` or `unavailable` (with a `reason`). |
+| `context.escalation.loop_cost_usd` | This beat's share of the run: everything up to the park, or the resume's spend alone when `resumed` is true. |
+| `context.escalation.resumed` | `true` on the reply composed back after a parked run was answered and finished. |
+| `context.report` | The verb the run closed with (`done`, `blocked`, `surprised`, `needs_you`, `rejected`). The `REPORT:` line itself never reaches the person. |
+| `context.wordless` | `true` when the model returned no words and the content is the kernel's one-line stand-in. |
+
+**One coherent cost.** A parked-then-resumed run produces two reply beats.
+The first carries the run's cost up to the park; the second carries only what
+the resume spent. The two sum to the run's total over its turns and never
+exceed it. Show a beat's cost, or the run's, never both added together. On an
+escalated reply, `usage.cost_usd` also includes the single-shot call that
+decided to escalate; `loop_cost_usd` is the loop alone.
 
 The earlier per-actor families (`core.scribe.*`, `core.guide.*`) remain
 readable history — existing records still query, fold, and render — but
