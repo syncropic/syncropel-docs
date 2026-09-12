@@ -95,6 +95,25 @@ spl serve --repo <locator>
 
 The startup `.bak` file protects against local file loss; the published repository is the canonical portable recovery form — it travels between machines and verifies its own integrity on restore.
 
+### The open tail is verified, or refused by name
+
+A tree's sealed segments were always verified on restore. Since v0.235 the
+open tail (`log/open/current.jsonl`, the records since the last seal) is too:
+the writer records the tail's hash in `refs/HEAD`, measured from the bytes in
+the store, and `spl repo restore`, `spl repo mount` and `spl repo drift` read
+the tail through one verdict, reported as `tail.status`:
+
+| Status | Meaning |
+|---|---|
+| `verified` | HEAD vouched for the tail and the bytes matched; its records were taken. |
+| `refused` | The fetch, the hash or the parse failed against HEAD's claim. Nothing from the tail was taken, the sealed set was restored alone, `tail.reason` names why and `tail.not_taken` says how many lines stood behind it. One well-formed record appended to the tail by anyone who can write one object into the prefix is exactly this case: content-addressing says nothing about who wrote a whole object. |
+| `unverified` | The tree was written before v0.235 and HEAD carries no tail hash; the caller passed `--accept-unverified-tail` and the lines were taken with the verdict on the report. Without the flag such a tail is refused. |
+| `absent` | HEAD names no open segment. |
+
+The price of refusing to trust an unvouched tail is bounded by one flush
+interval: a different body re-basing a dead writer's tree does not carry
+records that lived only in a tail HEAD could not vouch for.
+
 ## What Rebuilds on Startup
 
 The engine reconstructs all derived state from the immutable record log:

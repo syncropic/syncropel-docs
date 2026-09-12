@@ -17,7 +17,7 @@ Everything that's part of your workspace:
 - **Threads** — derived state rebuilds from the record fold on import
 - **Federation pairs** — the persistent relationships established via `spl federation pair`. URLs auto-refresh on first contact post-migration; you don't need to re-pair.
 - **Consent grants** — cross-namespace permissions via the `th_consent` thread
-- **Identity** — the DID document + private key (optional, see below)
+- **Identity** — the DID document + private key travel IN the bundle (optional, see below), and as of v0.235 the import door does not yet install them into the target home (`identity_restored: false` with `identity_note` saying so); the restored workspace answers under its own instance DID until the identity is brought back by `spl backup --auto restore-keys` or an identity sidecar (SKL-3995 tracks the install)
 - **Service accounts + adapter registry** — the structural metadata
 - **Engine config** — routing rules, fold rules, decision policies, permission rules
 
@@ -164,6 +164,10 @@ This isn't aspirational — it's tested on every release as a CI gate. If round-
 **`import refused: local store has N records; pass --force-overwrite to import anyway`** — Safety gate. Either start with a fresh instance, or pass `--force-overwrite` if you mean it.
 
 **`signature verification failed`** — Bundle signature doesn't match the included identity. Either tampered or corrupted. Re-export from a trusted source.
+
+**`identity-family record failed verification on import: DID missing expected method prefix: <missing master_did>`** (before v0.235) — The bundle holds a `core.identity.revoke.v1` naming `revoked_grant`, which is what retiring an assistant writes, and the importer held it to the identity family's countersignature that the grant it revokes never had; the whole bundle was refused, so a workspace that had ever retired an assistant could not be moved. Since v0.235 such a revoke is admitted as the grant it names is. Re-export and import on 0.235 or later.
+
+**Reading the import summary.** `records_inspected` equals `records_inserted` plus `records_deduplicated` (the same id was already there) plus `records_skipped` (a record whose thread, actor and clock were already held under a different id, which a fresh home's own configuration seeds collide on) plus `records_failed`; `refusals_by_reason` names each. `identity_restored` says whether the bundle's identity was installed into the target home; when the bundle carried one and it was not, `identity_note` says so and names the paths that do bring an identity back (`spl backup --auto restore-keys`, `spl repo restore --identity-sidecar`). A restore of records without the identity boots as a different workspace.
 
 **Federation pair shows stale URL after import** — Expected. The URL refreshes on first contact via DID resolution. If your pair's peer is unreachable at the cached URL AND the peer DID is unresolvable, sync will surface a clear error pointing you at `spl federation refresh <peer-did>`.
 
