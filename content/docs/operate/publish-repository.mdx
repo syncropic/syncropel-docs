@@ -68,6 +68,43 @@ they land — the publication follows your instance instead of trailing
 it. See [Backup &amp; restore](/docs/guides/backup-restore) for the
 recovery half of the same story.
 
+### A hosted workspace keeps its own repository
+
+A workspace on Syncropic Services can hold its repository from the moment it
+is created, with no key of its own to manage. Three doors do it, and each is an
+action the control plane forwards on the owner's behalf.
+
+1. **Declare** the handle: `POST /v1/repo/declare` with `{"name": "notes"}`.
+   The handle is `<your workspace's label>/notes`, and it lives at
+   `s3://<bucket>/<label>/notes/`. Declaring the same handle again answers
+   `created: false`; a different repository under that name is `409 REPO_EXISTS`.
+2. **Publish** it: `POST /v1/repo/publish` with
+   `{"repo": "<label>/notes", "scope": "instance", "visibility": "L3", "no_listing": true}`
+   keeps a private, restorable copy of the whole workspace. With no stored key,
+   the workspace gets a short-lived key for its own prefix from the control
+   plane (`credential: "minted"` in the answer). Before it writes, it takes the
+   repository's **write lease**, so no second writer can move the published
+   state under a live one. A workspace with no repository bound yet is bound to
+   what it just published, and the answer says `bound: true, restart_required: true`:
+   continuous write-back starts at the next start.
+3. **Bind** (for an existing, empty published tree): `POST /v1/repo/bind` with
+   `{"repo": "<label>/notes"}`. A tree that already holds records is refused
+   `TREE_NOT_EMPTY`, because only a restore or a publish knows where to resume.
+
+Refusals a caller can meet, each by name:
+
+| Code | What it means |
+|---|---|
+| `LEASE_HELD` | Another workspace is writing this repository right now; the message names it and when its lease expires. |
+| `WRITER_IS_LIVE` | This workspace already writes back to this repository; its own flush is the publish. |
+| `LOCATOR_NOT_HOME` | A bind named a location other than where the repository lives. |
+| `NAMESPACE_NOT_OWNED` | A declare named a namespace other than this workspace's label. |
+| `MINT_REFUSED` / `MINT_UNAVAILABLE` | The control plane would not, or could not, issue the key. |
+
+A standby that finds the lease held takes over by itself once the lease is
+released or expires, and a clean stop drains one last flush and hands the lease
+on, so moving a repository's writer does not wait on anyone.
+
 ## 4. Verify as a reader would
 
 ```bash

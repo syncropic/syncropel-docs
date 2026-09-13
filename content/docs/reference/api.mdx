@@ -511,15 +511,33 @@ This emits a `core.work.loop_cancel.v1` `DO` record on the loop's thread; the re
 | Method | Path | Description |
 |---|---|---|
 | GET | `/v1/decisions` | List pending decisions |
-| POST | `/v1/decisions/:id/decide` | Approve or reject a pending decision |
+| POST | `/v1/decisions/:id/decide` | Answer a pending decision: pick an option, answer in your own words, or pick several |
 
-### Approve a Decision
+### Answer a Decision
+
+An ask an actor raises offers its readings as `options`, each with a `label`, a
+one-line `description`, and one marked `recommended`. Pick one by its id:
 
 ```bash
 curl -X POST http://localhost:9100/v1/decisions/abc123.../decide \
   -H "Content-Type: application/json" \
-  -d '{"decision": "approve", "reason": "Looks correct"}'
+  -d '{"decision": "newest", "reason": "Recent work first"}'
 ```
+
+When the ask says `allow_other: true`, answer in your own words instead:
+
+```bash
+curl -X POST http://localhost:9100/v1/decisions/abc123.../decide \
+  -H "Content-Type: application/json" \
+  -d '{"decision": "other", "provided_value": "Do both, newest first"}'
+```
+
+When the ask says `multi: true`, pick several with `"decisions": ["newest", "played"]`.
+A choice the ask does not allow is refused by name: `BAD_OPTION`,
+`OTHER_NOT_ALLOWED`, `MULTI_NOT_ALLOWED`, or `PROVIDED_VALUE_REQUIRED`. An older
+ask with only approve and reject answers exactly as before. The waiting run
+resumes on your answer as words, the chosen reading's label and description or
+your own sentence, never on an id.
 
 ## Engine
 

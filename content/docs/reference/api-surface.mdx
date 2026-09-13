@@ -298,7 +298,9 @@ Answering the same question twice returns the same thread. See
 | POST | `/v1/directory/block` | Block a listing, or unblock it | |
 | POST | `/v1/directory/report` | Report a listing for abuse | |
 | POST | `/v1/directory/delist` | Remove a listing (operator moderation) | |
-| POST | `/v1/repo/publish` | Publish this workspace as a repository | [Publishing a repository](/docs/operate/publish-repository) |
+| POST | `/v1/repo/declare` | Declare a repository for this workspace at `<label>/<name>` (owner) | [Publishing a repository](/docs/operate/publish-repository) |
+| POST | `/v1/repo/publish` | Publish this workspace as a repository; takes the write lease first, and binds a workspace that has no repository yet | [Publishing a repository](/docs/operate/publish-repository) |
+| POST | `/v1/repo/bind` | Bind an empty published tree as this workspace's write-back target (owner) | [Publishing a repository](/docs/operate/publish-repository) |
 | POST | `/v1/repo/fork` | Fork a repository | |
 | POST | `/v1/repo/unlist` | Retract a repository's directory listing | |
 | POST | `/v1/repo/keys` | Mint a deploy key for a repository; `expires_days` defaults to 90 and is refused past 365 by name (every bearer class expires) | |

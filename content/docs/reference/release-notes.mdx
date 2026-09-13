@@ -9,6 +9,23 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## The Kept Repository
+
+**A workspace keeps its own repository from birth, and an ask gives you readings to choose from.**
+
+- **A repository without a key to manage.** A hosted workspace declares its repository, publishes
+  it under a short-lived key issued for its own storage prefix, and binds itself as the writer, so
+  continuous write-back keeps the published copy current.
+- **One writer at a time.** Publishing takes the repository's write lease before it moves the
+  published state, so a second workspace can no longer overwrite a live writer; it is refused by
+  name and told who holds the lease.
+- **Handing a repository on.** A standby takes over by itself when the lease frees, a clean stop
+  hands the lease on after a last flush, and a writer stopped mid-write no longer loses records the
+  published state had already committed.
+- **Asks you can answer.** When an assistant needs your decision it offers two to six readings,
+  each with a line saying what it would do and one it recommends. Pick one, pick several when
+  allowed, or answer in your own words, and the work resumes on what you chose.
+
 ## The First Question
 
 A fresh workspace now greets you with one real question in your call: "What
