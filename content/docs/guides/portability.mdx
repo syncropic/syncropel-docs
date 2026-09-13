@@ -17,7 +17,7 @@ Everything that's part of your workspace:
 - **Threads** — derived state rebuilds from the record fold on import
 - **Federation pairs** — the persistent relationships established via `spl federation pair`. URLs auto-refresh on first contact post-migration; you don't need to re-pair.
 - **Consent grants** — cross-namespace permissions via the `th_consent` thread
-- **Identity** — the DID document + private key travel IN the bundle (optional, see below), and as of v0.235 the import door does not yet install them into the target home (`identity_restored: false` with `identity_note` saying so); the restored workspace answers under its own instance DID until the identity is brought back by `spl backup --auto restore-keys` or an identity sidecar (SKL-3995 tracks the install)
+- **Identity** — the DID document + private key travel IN the bundle (optional, see below), and as of v0.235 the import door does not yet install them into the target home (`identity_restored: false` with `identity_note` saying so); the restored workspace answers under its own instance DID until the identity is brought back by `spl backup --auto restore-keys` or an identity sidecar
 - **Service accounts + adapter registry** — the structural metadata
 - **Engine config** — routing rules, fold rules, decision policies, permission rules
 
