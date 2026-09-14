@@ -39,7 +39,7 @@ Create a `<label>.syncropel.app` workspace by signing in at [syncropel.com](http
 | Storage that keeps your work | Your records survive restarts and updates; see [Your hosted workspace](/docs/get-started/your-hosted-workspace) |
 | Fast, protected access | Protection against traffic floods, served close to you, HTTP/3 |
 
-A paid workspace starts with a 30-day free trial. After the trial, billing is $25 per month for that workspace; cancel any time. If you delete a workspace, its label returns to the reservation pool after a grace period. Billing questions: your [account portal](https://syncropel.com/account) or support.
+A paid workspace starts with a 30-day free trial. After the trial, billing is $25 per month for that workspace; cancel any time. If you delete a workspace, its label returns to the reservation pool after a grace period. Billing lives on your [account page](https://syncropel.com/account). Your workspaces, kept repositories and keys are listed in the account console at [services.syncropic.com](https://services.syncropic.com).
 
 ### Managed inference (api.syncropic.com)
 
@@ -55,13 +55,13 @@ You've been running `spl serve` on your laptop and want to move to a hosted work
 
 ```bash
 # 1. Export your local workspace
-spl export --output ~/my-instance.tar.gz
+spl export --out ~/my-workspace.tar.zst
 
 # 2. Create a hosted workspace (gets you a fresh empty <label>.syncropel.app)
 
 # 3. Import your data
-SPL_INSTANCE_URL=https://<label>.syncropel.app \
-  spl import ~/my-instance.tar.gz
+SPL_SERVE_URL=https://<label>.syncropel.app \
+  spl import ~/my-workspace.tar.zst
 ```
 
 Connections to other workspaces need to be set up again after the import, because the new workspace has its own identity, but records, threads, and audit logs come along intact.
@@ -72,15 +72,15 @@ You're moving off hosted (sovereignty preference, or you just want it on your ow
 
 ```bash
 # 1. Export your hosted workspace
-SPL_INSTANCE_URL=https://<label>.syncropel.app \
-  spl export --output ~/migrate.tar.gz
+SPL_SERVE_URL=https://<label>.syncropel.app \
+  spl export --out ~/migrate.tar.zst
 
 # 2. Install spl locally if you haven't
 curl https://get.syncropic.com/spl | sh
 
 # 3. Start a local workspace and import
 spl serve
-spl import ~/migrate.tar.gz
+spl import ~/migrate.tar.zst
 
 # 4. Delete the hosted workspace from your account page whenever you like
 ```
@@ -93,10 +93,10 @@ If you delete the hosted workspace, its `<label>.syncropel.app` URL returns to t
 |---|---|---|
 | Cost | Free, plus your hardware | One workspace free; $25 per month for each more, after a 30-day trial |
 | Ops | Yours (updates, backups, TLS) | Ours |
-| Always-on | Only when your machine is on | Yes |
+| Always-on | Only when your machine is on | Sleeps when idle, wakes when opened (usually in a couple of seconds) |
 | URL | `localhost:9100` (or however you expose it) | `<label>.syncropel.app` |
 | Provider keys | Yours (per-provider billing) | Yours, or via the api.syncropic.com gateway |
-| Backups | Manual (your snapshot procedure) | Managed for you |
+| Backups | Manual (your snapshot procedure) | A kept copy, where offered (files not included yet) |
 | Connecting to other workspaces | Directly between workspaces | Same |
 | Access | Keys you create | Same, plus your syncropel.com identity owns the workspace |
 | Best for | Sovereignty preference, your own hardware | Zero ops, work from any device |
@@ -107,6 +107,7 @@ Start wherever friction is lowest; moving later is one export away.
 
 - [Hosted signup walkthrough](./hosted) for creating a workspace and what to expect during the wait
 - [Your hosted workspace](./your-hosted-workspace) for how your work is saved, sleeping, and deleting
-- [Install spl on your machine](./install) for local use, or for pairing with a hosted workspace
+- [Install spl on your machine](./install) for local use, or for connecting to a hosted workspace
 - [api.syncropic.com](/docs/integrate/api-syncropic) for managed inference details
-- [Account portal](https://syncropel.com/account) for workspaces, usage, and billing
+- [Account page](https://syncropel.com/account) for billing
+- [Account console](https://services.syncropic.com) for your workspaces, kept repositories and keys
