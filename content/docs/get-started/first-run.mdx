@@ -100,7 +100,8 @@ The default file is small, tens of lines. The blocks you'll see:
 - **`[fleet]`**: advertised endpoint for fleet mode (not relevant for single-machine use).
 
 <Callout type="warn" title="A local workspace has no model until you give it a key">
-A hosted workspace arrives with managed model access. A workspace on your own
+A hosted workspace arrives with managed model access (free plans include a
+one-time inference allowance). A workspace on your own
 machine does not: the assistant is installed by the preset but has nothing to
 answer with until you supply a provider key. Run
 `spl config set-key anthropic <your key>`, then `spl stop` and

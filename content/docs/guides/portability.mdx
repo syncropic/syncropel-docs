@@ -1,6 +1,6 @@
 ---
 title: Portability
-description: Move records, threads, and federation pairs between Syncropel workspaces. Export from one steward, import into another, with zero data loss.
+description: Move records, threads, and federation pairs between Syncropel workspaces. Export from one workspace, import into another, with zero data loss.
 ---
 
 ## What this is
@@ -17,7 +17,7 @@ Everything that's part of your workspace:
 - **Threads** — derived state rebuilds from the record fold on import
 - **Federation pairs** — the persistent relationships established via `spl federation pair`. URLs auto-refresh on first contact post-migration; you don't need to re-pair.
 - **Consent grants** — cross-namespace permissions via the `th_consent` thread
-- **Identity** — the DID document + private key travel IN the bundle (optional, see below), and as of v0.235 the import door does not yet install them into the target home (`identity_restored: false` with `identity_note` saying so); the restored workspace answers under its own instance DID until the identity is brought back by `spl backup --auto restore-keys` or an identity sidecar
+- **Identity** — the workspace's identity can travel in the bundle (optional, see below), but an import does not yet bring the workspace's identity with it; the imported workspace keeps its own until you bring the identity back with `spl backup --auto restore-keys` or an identity sidecar
 - **Service accounts + adapter registry** — the structural metadata
 - **Engine config** — routing rules, fold rules, decision policies, permission rules
 
@@ -51,8 +51,8 @@ Useful flags:
 
 `spl export` normally asks the running daemon for the bundle. A workspace
 that cannot boot (too little memory for its store, a corrupt runtime, a
-machine that will not come up) cannot answer, and until v0.235 that was the
-state where the records were hardest to get out. `--offline` opens the store
+machine that will not come up) cannot answer, which is the state where the
+records are hardest to get out. `--offline` opens the store
 file directly, signs the bundle with the workspace's own keys from its home,
 and needs no daemon:
 
@@ -85,7 +85,7 @@ tar -tzf /tmp/my-instance.tar.zst | head
 
 The `manifest.json` carries:
 - `bundle_version` — schema version
-- `source_did` — issuing instance DID
+- `source_did` — the DID of the workspace that made the bundle
 - `record_count` — total records
 - `bundle_sha256` — hash over all staged files in path-sorted order
 
@@ -113,7 +113,7 @@ Useful flags:
 
 ## Safety: refusing to clobber
 
-By default `spl import` refuses to import into a non-empty store. This prevents accidentally overwriting work on a populated steward with a snapshot from somewhere else.
+By default `spl import` refuses to import into a non-empty store. This prevents accidentally overwriting work on a populated workspace with a snapshot from somewhere else.
 
 To override:
 

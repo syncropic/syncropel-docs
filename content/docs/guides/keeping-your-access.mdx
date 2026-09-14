@@ -17,11 +17,12 @@ Open any thread you can read. Under **what this is**, members and guests see
 **keep this access**. Press **make a key** and Studio shows one line, once:
 
 ```
-KRMRW-PEERZ-RHMSW-AH8Y9-1V9S7-K@btw.syncropel.com/did:sync:user:guest:aa72e25c…
+KRMRW-PEERZ-RHMSW-AH8Y9-1V9S7-K@btw.syncropel.com/<who you are there>
 ```
 
 Three parts, left to right: the key (26 letters and digits, grouped in fives so
-it reads aloud), the place, and who the key re-opens the place as. Copy it
+it reads aloud), the place, and who the key re-opens the place as (a long
+identifier, shortened here). Copy it
 somewhere you will find again. It is not a link; pasting it into a browser's
 address bar does nothing.
 
@@ -71,7 +72,7 @@ then one every five seconds, per person named and per network address.
 
 The recovery key is the floor: no vendor, no account, works for a party guest.
 Two more ways to come back ride the same doors, and Studio shows each only on
-workspaces that accept it (`proof_kinds_accepted` on the workspace's `/health`).
+workspaces that accept it.
 
 ### Link to your account
 
@@ -82,8 +83,8 @@ account knows, and **open as you** re-opens one without a line to paste. The
 account is a way to find the key, never the key itself: the workspace sees a
 salted hash, not who you are to the account provider.
 
-Hosted workspaces get this when the operator turns it on; a self-hosted
-instance accepts it only if its operator declares a verifier
+Hosted workspaces accept it. A self-hosted workspace accepts it only if the
+person running it declares a verifier
 ([operators](/docs/operate/account-verifier)). Signing out on a shared device
 clears what that device held and leaves your account's list untouched.
 
@@ -103,6 +104,5 @@ code as well; Studio says so when a passkey is the only key you hold.
 ## For operators
 
 Nothing to configure for the recovery key; every workspace on a current
-version accepts it. `GET /health` lists what a workspace accepts under
-`proof_kinds_accepted`. The doors behind this page are in the
+version accepts it. The doors behind this page are in the
 [API reference](/docs/reference/api#self).
