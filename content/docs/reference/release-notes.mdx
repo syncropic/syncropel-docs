@@ -9,6 +9,35 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## The Honest Machine
+
+**The workspace says what it did and why, and a failure lands on whoever can fix it.**
+
+- **An assistant is offered exactly the tools its definition names.** Each run records what it
+  was offered and names every declared tool it was not offered, with the reason. A definition
+  that names no tools is offered none, and naming a tool the workspace does not have is refused
+  when you define or shape the assistant.
+- **Failures are sorted by who can fix them.** A missing key, a spent budget, a provider that is
+  out of credit and a service that is briefly down are told apart. A missing key raises one
+  question for you, and answering it once unblocks every run waiting on that key. An unfunded
+  provider stops the run with a reason instead of letting the model try again and again. Only the
+  mistakes the model can correct go back to it.
+- **Notices instead of piles of questions.** Something you may need to know, such as runs failing
+  for the same reason, appears once as a notice with a count, and you can acknowledge it. Questions
+  stay for things that need your answer.
+- **Decide a whole class of suggestions at once.** Suggested rules are grouped by what they are
+  about, so you can apply one or stop that kind of suggestion in one step, and a stopped kind
+  costs nothing afterwards.
+- **Run a schedule by hand.** You can run a scheduled trigger once now, even while it is paused,
+  without moving its schedule, and pausing or resuming it survives reinstalling its blueprint.
+- **Files travel with a published repository.** Publishing a workspace now carries the files you
+  stored in it, and restoring gives them back, each checked against its fingerprint. The publish
+  report says whether every file was carried. Files written while the workspace is continuously
+  saving to its repository are not carried yet; a later release adds that.
+- **Smaller fixes.** A fresh workspace's welcome thread always shows as your conversation; the
+  run lists show the runs you just started; and an assistant started right after an install no
+  longer fails on its first step.
+
 ## The Unattended Workspace
 
 **If you use a hosted workspace: it now keeps saving your work on its own through sleep and restarts, and your plan's limits apply to every run.**
