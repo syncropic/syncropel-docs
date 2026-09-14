@@ -1,17 +1,19 @@
 ---
 title: Quickstart
-description: Install Syncropel, run your first task through completion, and earn your first trust evidence — all in 5 minutes.
+description: Install Syncropel, run your first task through completion, and earn your first trust evidence, all in 5 minutes.
 ---
+
+This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
 The shortest path from zero to a working Syncropel loop. Eight commands. About five minutes.
 
-> **Prefer hosted?** Skip install entirely — sign up at [syncropel.com/sign-up](https://syncropel.com/sign-up) and follow [Hosted workspace signup](/docs/get-started/hosted). Same protocol, same CLI, no machine to maintain.
+> **Prefer hosted?** Skip install entirely: sign up at [syncropel.com/sign-up](https://syncropel.com/sign-up) and follow [Hosted workspace signup](/docs/get-started/hosted). Same protocol, same CLI, no machine to maintain.
 
-## In a hurry — just the commands
+## In a hurry: just the commands
 
 ```bash
 # 1. Install
-curl -sSf https://get.syncropic.com/spl | sh           # Linux / macOS / WSL — Windows: irm https://get.syncropic.com/spl.ps1 | iex
+curl -sSf https://get.syncropic.com/spl | sh           # Linux / macOS / WSL. Windows: irm https://get.syncropic.com/spl.ps1 | iex
 
 # 2. Initialize
 spl init
@@ -33,29 +35,29 @@ If those eight commands ran clean, you're done. The rest of this page explains w
 
 ## What just happened
 
-You produced four immutable, content-addressed records on a thread, accumulated trust evidence in the `meta` domain (where Syncropel groups infrastructure/process/onboarding work), and proved the loop works. Every other Syncropel feature — federation, AI agent dispatch, CEL automation, namespaces — composes on top of this primitive.
+You produced four immutable, content-addressed records on a thread, accumulated trust evidence in the `meta` domain (where Syncropel groups infrastructure/process/onboarding work), and proved the loop works. Every other Syncropel feature (federation, AI agent dispatch, CEL automation, namespaces) composes on top of this primitive.
 
 | Step | What ran | What got recorded |
 |---|---|---|
-| `spl init` | Created `~/.syncro/` (config, logs, secrets dir) | — |
+| `spl init` | Created `~/.syncro/` (config, logs, secrets dir) | none |
 | `spl start` | Started the instance (background daemon) on `127.0.0.1:9100`, opened `~/.syncro/hub.db` | The instance's bootstrap LEARN on `th_engine_config` |
-| `spl task add` | Created task thread `TASK-0001` | INTEND record — task creation |
-| `spl task start` | Marked active | DO record — work-started |
-| `spl task done` | Submitted for evaluation | KNOW record — completion claim |
-| `spl task approve` | Reviewer-actor evaluated and accepted | KNOW record — verdict; trust evidence accumulates |
+| `spl task add` | Created task thread `TASK-0001` | INTEND record: task creation |
+| `spl task start` | Marked active | DO record: work-started |
+| `spl task done` | Submitted for evaluation | KNOW record: completion claim |
+| `spl task approve` | Reviewer-actor evaluated and accepted | KNOW record: verdict; trust evidence accumulates |
 
 `spl thread records TASK-0001` shows all four. `spl trust` shows the evidence the verdict produced: it appears a few seconds after the approve, once the engine's periodic trust fold runs, so if the first `spl trust` reads empty, run it again in a moment.
 
 ## Why a separate actor for `approve`?
 
-Syncropel's trust model gates self-evaluation: a record's evaluator must be a different actor than its emitter. The `SPL_ACTOR=did:sync:agent:reviewer` shown above is just an example evaluator actor — any DID different from the emitter works. For solo work, a dedicated reviewer actor is the canonical evaluator; for team work, real reviewers approve their teammates' work.
+Syncropel's trust model gates self-evaluation: a record's evaluator must be a different actor than its emitter. The `SPL_ACTOR=did:sync:agent:reviewer` shown above is just an example evaluator actor: any DID different from the emitter works. For solo work, a dedicated reviewer actor is the canonical evaluator; for team work, real reviewers approve their teammates' work.
 
 The trust function `wilson_lb(success, total)` rejects evaluations where executor == evaluator with the CUSUM detector. Trying to self-approve raises an explicit error message; the env-var workaround above is the documented single-user pattern.
 
 ## Common pitfalls
 
 **`spl start` says ready, but `spl status` shows nothing.**
-The instance may have failed to bind port 9100. Check `~/.syncro/logs/spl.log` — most common cause is a previous instance still bound. Use `pgrep -af "spl serve"` and `kill <pid>` to clean up, then retry.
+The instance may have failed to bind port 9100. Check `~/.syncro/logs/spl.log`: most common cause is a previous instance still bound. Use `pgrep -af "spl serve"` and `kill <pid>` to clean up, then retry.
 
 **`spl task done` complains about uncommitted git changes.**
 The task-completion gate refuses to attribute completion when the working tree is dirty (so wrong commits don't get tied to the wrong task). Either `git commit` first, or pass `--force` if the changes are unrelated.
@@ -67,10 +69,10 @@ The PID file got orphaned (rare but real). Use `pgrep -af "spl serve"` then `kil
 
 You now have a running instance, a completed task, a trust score, and an understanding of records → threads → trust. The natural next paths:
 
-- **[Tutorials](/docs/tutorials/first-task)** — guided 15-30-minute walkthroughs (first task, first thread, first workspace)
-- **[Concepts](/docs/concepts/records)** — why records are 8 fields, how the dial scales from REPLAY to CREATE, what trust really measures
-- **[Guides](/docs/guides/task-management)** — task management, search, namespaces, debugging, SDKs, backup-restore
-- **[Operator runbook](/docs/operate/runbook)** — backup discipline, recovery, in-place upgrades when this becomes real work
-- **[FAQ](/docs/reference/faq)** — common questions about vocabulary, hosted vs self-hosted, federation, troubleshooting
+- **[Tutorials](/docs/tutorials/first-task)**: guided 15-30-minute walkthroughs (first task, first thread, first workspace)
+- **[Concepts](/docs/concepts/records)**: why records are 8 fields, how the dial scales from REPLAY to CREATE, what trust really measures
+- **[Guides](/docs/guides/task-management)**: task management, search, namespaces, debugging, SDKs, backup-restore
+- **[Operator runbook](/docs/operate/runbook)**: backup discipline, recovery, in-place upgrades when this becomes real work
+- **[FAQ](/docs/reference/faq)**: common questions about vocabulary, hosted vs self-hosted, federation, troubleshooting
 
 Or jump back to the [docs home](/docs) and pick by what you actually want to build.

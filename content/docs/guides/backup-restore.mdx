@@ -1,7 +1,9 @@
 ---
 title: Backup and Recovery
-description: Protect your Syncropel data — the database, task content, and configuration.
+description: Protect your Syncropel data, including the database, task content, and configuration.
 ---
+
+This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
 ## What to Protect
 
@@ -29,7 +31,7 @@ ls ~/.local/share/syncropel/backups/instance-<tail>/
 
 The daily backup job writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into the same directory. (An instance running on an isolated `SYNCROPEL_HOME` before its identity is bootstrapped keys the directory as `home-<hash>/` instead.)
 
-The backup directory is OUTSIDE `~/.syncro/` — removing that directory does not affect the backups.
+The backup directory is OUTSIDE `~/.syncro/`: removing that directory does not affect the backups.
 
 ### The identity is part of the workspace, and only a sealed backup carries it
 
@@ -66,7 +68,7 @@ spl stop
 # Restore from backup
 cp ~/.local/share/syncropel/backups/instance-<tail>/hub.db.bak ~/.syncro/hub.db
 
-# Restart — trust and config rebuild automatically from records
+# Restart: trust and config rebuild automatically from records
 spl serve
 
 # Verify
@@ -75,7 +77,7 @@ spl task list
 spl trust
 ```
 
-## Portable Backup — Publish the Instance
+## Portable Backup: Publish the Instance
 
 From v0.118, the recommended portable backup is a published repository snapshot of the whole instance:
 
@@ -93,7 +95,7 @@ spl repo restore <dir-or-https-url>
 spl serve --repo <locator>
 ```
 
-The startup `.bak` file protects against local file loss; the published repository is the canonical portable recovery form — it travels between machines and verifies its own integrity on restore.
+The startup `.bak` file protects against local file loss; the published repository is the canonical portable recovery form: it travels between machines and verifies its own integrity on restore.
 
 ### The open tail is verified, or refused by name
 
@@ -118,9 +120,9 @@ records that lived only in a tail HEAD could not vouch for.
 
 The engine reconstructs all derived state from the immutable record log:
 
-- **Trust scores** — replayed from outcome records
-- **Engine config** — replayed from configuration records
-- **Thread state** — derived from records (`state = fold(records)`)
+- **Trust scores**: replayed from outcome records
+- **Engine config**: replayed from configuration records
+- **Thread state**: derived from records (`state = fold(records)`)
 
 ## Prevention
 

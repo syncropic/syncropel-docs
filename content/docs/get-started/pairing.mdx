@@ -3,14 +3,16 @@ title: Pairing a Browser or Phone
 description: Use `spl pair` to attach a browser, phone, or other device to your workspace with its own scoped service account and token. One-click URL, QR-code flow, manual pairing for headless hosts, and revocation.
 ---
 
+This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
+
 Your CLI talks to your workspace via `~/.syncro/token`. Browsers and phones can't read that file, so they need their own service account and token. `spl pair` wraps the whole "mint a scoped account, render a token, show it in a form the other device can consume" flow in one command.
 
 ## Why pairing exists
 
 A fresh browser pointed at `syncropel.com` has no way to authenticate to your local workspace. It doesn't know what instance URL to hit, and even if it did, it has no token. Three ways to solve this:
 
-1. **Paste the token manually.** Works, but painful — tokens are 40-plus characters and typing them on a phone keyboard is error-prone.
-2. **Share the CLI's token with the browser.** Bad — the CLI's token is usually `admin`-scoped and the browser doesn't need that.
+1. **Paste the token manually.** Works, but painful: tokens are 40-plus characters and typing them on a phone keyboard is error-prone.
+2. **Share the CLI's token with the browser.** Bad: the CLI's token is usually `admin`-scoped and the browser doesn't need that.
 3. **Pair.** Mint a fresh, narrowly-scoped service account just for this device, hand its token to the device, and let the device store it.
 
 Pairing is path 3. It produces a device-specific service account you can revoke independently if the device is lost.
@@ -28,25 +30,25 @@ The command:
 
 1. Creates a new service account named after your device, bound to your user DID, with the scopes you named.
 2. Mints a token on the new account.
-3. Renders the pairing payload three ways — pick the one that fits the situation.
+3. Renders the pairing payload three ways: pick the one that fits the situation.
 
 ### Output: three ways to pair
 
 The CLI prints all three in order of friction. Pick whichever is easiest for the device you're trying to pair.
 
-**1. One-click URL — the fastest path.** First line of the output is a clickable URL of the form:
+**1. One-click URL: the fastest path.** First line of the output is a clickable URL of the form:
 
 ```text
 https://syncropel.com/pair#<encoded-payload>
 ```
 
-Click it (or copy it into the browser you want to pair). The page reads the encoded payload, verifies the token against your workspace, stores the credential in the browser, and drops you on `/tasks` — no typing, no scanning, no copy/paste.
+Click it (or copy it into the browser you want to pair). The page reads the encoded payload, verifies the token against your workspace, stores the credential in the browser, and drops you on `/tasks`: no typing, no scanning, no copy/paste.
 
 The token rides in the URL fragment (the part after `#`), which never reaches any server. After the credential is stored, the browser replaces the URL bar with `/tasks` so the token doesn't sit in browser history either.
 
-**2. QR code — for phones with a camera.** Underneath the URL, the CLI renders a QR code that encodes the same payload. Open `syncropel.com` on the phone, choose the QR tab, and point the camera at your terminal. Same end state: credential stored, dashboard loads.
+**2. QR code: for phones with a camera.** Underneath the URL, the CLI renders a QR code that encodes the same payload. Open `syncropel.com` on the phone, choose the QR tab, and point the camera at your terminal. Same end state: credential stored, dashboard loads.
 
-**3. Plain-text payload — for paste flows.** Below the QR is the raw `url` / `token` / `device` triple, ready to paste into any device that can't click a URL or scan a QR (a headless server, a script, a config file).
+**3. Plain-text payload: for paste flows.** Below the QR is the raw `url` / `token` / `device` triple, ready to paste into any device that can't click a URL or scan a QR (a headless server, a script, a config file).
 
 All three end at the same place: the device stores the URL and token in encrypted local storage and uses them on every subsequent API call.
 
@@ -57,7 +59,7 @@ All three end at the same place: the device stores the URL and token in encrypte
 | State | Dot | What it means |
 |---|---|---|
 | No instance reachable | gray | `localhost:9100` isn't responding. Start `spl serve`. |
-| Connected, insecure mode | amber `DEV MODE` | `--insecure-localhost` — auth bypassed, fine for solo dev. |
+| Connected, insecure mode | amber `DEV MODE` | `--insecure-localhost`: auth bypassed, fine for solo dev. |
 | Pair required | amber | Your workspace wants a token; this browser has none. Run `spl pair` and click the printed URL. |
 | Connected, secure | green | Paired, token valid, records stream normally. |
 | Token expired or revoked | red | Your token was nuked. Click **Re-pair** to run through pairing again. |
@@ -67,21 +69,21 @@ For the full set of failure modes, see [Troubleshooting](/docs/get-started/troub
 
 ### On a phone or iPad
 
-`syncropel.com` on mobile no longer probes `localhost:9100` — phones can't reach a workspace there, and the resulting browser-blocked error confused more than it helped. Mobile users now land on a welcome screen with three explicit paths:
+`syncropel.com` on mobile no longer probes `localhost:9100`: phones can't reach a workspace there, and the resulting browser-blocked error confused more than it helped. Mobile users now land on a welcome screen with three explicit paths:
 
 | Action | When to use |
 |---|---|
 | **Scan pairing QR** | You're standing next to your laptop and just ran `spl pair --device browser-mobile`. Point the phone camera at the printed QR. |
 | **Enter instance URL** | Your workspace is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
-| **Browse public records** | Placeholder for a future release — read federation-published feeds without pairing. |
+| **Browse public records** | Placeholder for a future release: read federation-published feeds without pairing. |
 
 The mobile entry deliberately omits the localhost probe. If you previously paired this phone and the workspace URL is stored, the dashboard probes it directly and skips the welcome screen.
 
-If you're seeing this welcome screen on a desktop and you do have a workspace at localhost, your viewport may be narrower than 640px or Chrome DevTools touch-emulation is on — widen the window or disable emulation.
+If you're seeing this welcome screen on a desktop and you do have a workspace at localhost, your viewport may be narrower than 640px or Chrome DevTools touch-emulation is on: widen the window or disable emulation.
 
 ### Choose `--url` carefully
 
-`--url` is the address the **target device** will call — not your workspace's view of itself.
+`--url` is the address the **target device** will call: not your workspace's view of itself.
 
 | Situation | URL to pass |
 |---|---|
@@ -109,7 +111,7 @@ The general rule: start narrow. `admin` is appropriate for a browser driving the
 
 ## Manual pairing (headless servers)
 
-If the device can't scan a QR — a headless server, a CI runner, a script — use `--no-qr`:
+If the device can't scan a QR (a headless server, a CI runner, a script), use `--no-qr`:
 
 ```bash
 spl pair \
@@ -135,9 +137,9 @@ Copy-paste that into the target device's config file, environment, or secret man
 
 Exactly three fields:
 
-- **`url`** — the workspace URL the device will call.
-- **`token`** — the bearer token. Used as `Authorization: Bearer <token>` on every request.
-- **`device`** — the display name you chose. Surfaced by the device so the user can tell one paired workspace from another.
+- **`url`**: the workspace URL the device will call.
+- **`token`**: the bearer token. Used as `Authorization: Bearer <token>` on every request.
+- **`device`**: the display name you chose. Surfaced by the device so the user can tell one paired workspace from another.
 
 Nothing else is transmitted. The token itself is the authentication proof; the URL tells the device where to send requests; the device name is presentation only.
 
@@ -147,7 +149,7 @@ Nothing else is transmitted. The token itself is the authentication proof; the U
 spl service-account list
 ```
 
-Devices paired via `spl pair` show up as regular service accounts — the only difference from a bootstrap account is their scopes and the fact that they were minted after auth was already on.
+Devices paired via `spl pair` show up as regular service accounts: the only difference from a bootstrap account is their scopes and the fact that they were minted after auth was already on.
 
 ## Revoking a lost device
 
@@ -160,7 +162,7 @@ spl service-account revoke <sa_id>             # irreversible; every token for t
 
 The device continues to hit your workspace with its old token and every request now returns `401 AUTH_INVALID`. Your other paired devices are unaffected.
 
-If you want to give the device a fresh token without retiring the whole service account — for example, when rolling tokens quarterly:
+If you want to give the device a fresh token without retiring the whole service account (for example, when rolling tokens quarterly):
 
 ```bash
 spl token rotate <sa_id>
@@ -172,12 +174,12 @@ Then re-pair that device with the new token. The old token dies; the service acc
 
 **"Pairing succeeded but the browser shows connected-no-records."** The device stored the URL and token but the token doesn't have `records:read`. Check `spl service-account list` and re-pair with wider scopes.
 
-**"The QR code doesn't scan."** Most terminals render blocky Unicode. If your terminal doesn't support it, use `--no-qr` and copy the payload. Alternatively, widen the terminal and re-run — some QR libraries need a minimum cell size.
+**"The QR code doesn't scan."** Most terminals render blocky Unicode. If your terminal doesn't support it, use `--no-qr` and copy the payload. Alternatively, widen the terminal and re-run: some QR libraries need a minimum cell size.
 
 **"I paired my phone but it can't reach my workspace over Wi-Fi."** `--url 127.0.0.1:9100` only reaches the host itself. Your phone needs the host's LAN IP. Check `ip addr` or `ifconfig` on the host and re-pair.
 
 ## See also
 
-- [Security model](/docs/operate/security-model) — bearer tokens, service accounts, what's on-disk
-- [Troubleshooting](/docs/get-started/troubleshooting) — diagnostic tree for the most common failure modes
-- [Operator runbook](/docs/operate/runbook) — day-2 operations once your workspace is doing real work
+- [Security model](/docs/operate/security-model): bearer tokens, service accounts, what's on-disk
+- [Troubleshooting](/docs/get-started/troubleshooting): diagnostic tree for the most common failure modes
+- [Operator runbook](/docs/operate/runbook): day-2 operations once your workspace is doing real work

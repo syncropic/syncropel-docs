@@ -1,13 +1,15 @@
 ---
 title: Starting Your Instance
-description: The three modes `spl serve` runs in — dev, secure local, and exposed — and how to manage your instance's lifecycle. Start, stop, restart, inspect, tail logs.
+description: The three modes `spl serve` runs in (dev, secure local, and exposed) and how to manage your instance's lifecycle. Start, stop, restart, inspect, tail logs.
 ---
+
+This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
 `spl serve` is your Syncropel instance. It runs in the background, owns `~/.syncro/hub.db`, binds an HTTP port for the API, binds a Unix socket (Linux and macOS) for the local CLI, and runs the four engine loops (ingest, reconcile, tick, cron).
 
 There are three ways to start it. Pick by situation.
 
-## Dev mode — `--insecure-localhost`
+## Dev mode: `--insecure-localhost`
 
 ```bash
 spl serve --insecure-localhost
@@ -17,23 +19,23 @@ Use this the very first time, and any time you're doing local development withou
 
 What it does:
 
-- Forces the bind address to `127.0.0.1` (loopback only — never reachable from another machine, regardless of `--host`).
+- Forces the bind address to `127.0.0.1` (loopback only: never reachable from another machine, regardless of `--host`).
 - Sets `auth.required = false` for the lifetime of this instance.
 - Logs a `WARN` line on startup so you notice if it's accidentally left on.
 
 To be precise about what this flag is: it turns **authentication** off for
-a loopback-only instance. It has nothing to do with TLS or certificates —
+a loopback-only instance. It has nothing to do with TLS or certificates;
 local instances speak plain HTTP on loopback either way.
 
 You rarely *need* it: a fresh secure instance starts fine with zero service
 accounts (see [bootstrap mode](#what-a-successful-start-looks-like) below),
 and the local CLI works over the Unix socket immediately. Reach for
 `--insecure-localhost` when you want the **HTTP** surface open without
-tokens — quick local scripts, curl exploration, throwaway dev instances.
+tokens: quick local scripts, curl exploration, throwaway dev instances.
 
 **Never run this on a host you didn't boot yourself.** The guard against external reachability is strong, but the principle still holds: `--insecure-localhost` is for your laptop, not for anything shared.
 
-## Secure local mode — `spl serve`
+## Secure local mode: `spl serve`
 
 ```bash
 spl serve
@@ -49,17 +51,17 @@ What it does:
   socket works normally, and the TCP API answers `503 BOOTSTRAP_REQUIRED`
   (with the exact commands to run) until you mint the first service
   account. The instance never refuses to start over missing accounts.
-- Takes a startup backup of `hub.db` to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` — a per-instance directory keyed by the instance DID (see [Operator runbook](/docs/operate/runbook) for backup discipline).
+- Takes a startup backup of `hub.db` to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak`: a per-instance directory keyed by the instance DID (see [Operator runbook](/docs/operate/runbook) for backup discipline).
 
 The instance stays bound to loopback, which means nothing outside the machine can reach it. To expose it beyond loopback, see [Exposing your instance securely](/docs/get-started/exposing).
 
-## Exposed mode — `--host 0.0.0.0`
+## Exposed mode: `--host 0.0.0.0`
 
 ```bash
 spl serve --host 0.0.0.0
 ```
 
-Binds to every interface on the machine. This is what you pass when the instance is meant to be reached from outside — typically from a phone on the same private network, a federation peer, or a reverse proxy.
+Binds to every interface on the machine. This is what you pass when the instance is meant to be reached from outside: typically from a phone on the same private network, a federation peer, or a reverse proxy.
 
 **Exposure is a separate decision from authentication.** `--host 0.0.0.0` without `auth.required = true` is a catastrophic misconfiguration. The default is to keep auth on. `spl doctor` flags instances bound to non-loopback with auth off.
 
@@ -71,7 +73,7 @@ Read [Exposing the instance securely](/docs/get-started/exposing) before using t
 
 ```bash
 spl start          # background (alias for `spl serve --daemon`)
-spl serve          # foreground — canonical for systemd / Docker / supervisors
+spl serve          # foreground: canonical for systemd / Docker / supervisors
 ```
 
 `spl start` is the convenience verb `spl init` recommends for interactive
@@ -84,7 +86,7 @@ use; it supports the same flags as `spl serve` (`--port`, `--memory`,
 spl serve --port 9200
 ```
 
-`--port` (default `9100`) is how a second instance shares a machine —
+`--port` (default `9100`) is how a second instance shares a machine, but
 each instance needs its own home directory too; see
 [Running multiple local instances](/docs/guides/multiple-instances).
 
@@ -152,7 +154,7 @@ Instance started. Run 'spl status' to verify health.
 ```
 
 The instance comes up healthy with zero service accounts, and the local CLI
-talks to it via the Unix socket — `Auth: required (service accounts: 0)` is
+talks to it via the Unix socket: `Auth: required (service accounts: 0)` is
 **bootstrap mode**, not an error. Until you mint the first service account,
 the TCP API answers every request with `503 BOOTSTRAP_REQUIRED` and the
 exact commands to run:
@@ -168,8 +170,8 @@ See [First run](/docs/get-started/first-run) and [Service accounts](/docs/get-st
 
 ## See also
 
-- [Service accounts and tokens](/docs/get-started/service-accounts) — delegation primitive (browser pair, paired phone, MCP, remote CLI)
-- [Keeping your instance running](/docs/operate/persist-instance) — make `spl serve` auto-start at login (systemd / launchd / Windows Service)
-- [Exposing your instance securely](/docs/get-started/exposing) — go beyond loopback
-- [Operator runbook](/docs/operate/runbook) — day-2 lifecycle, upgrades, recovery
-- [`spl doctor`](/docs/operate/doctor) — fast triage when the instance is misbehaving
+- [Service accounts and tokens](/docs/get-started/service-accounts): delegation primitive (browser pair, paired phone, MCP, remote CLI)
+- [Keeping your instance running](/docs/operate/persist-instance): make `spl serve` auto-start at login (systemd / launchd / Windows Service)
+- [Exposing your instance securely](/docs/get-started/exposing): go beyond loopback
+- [Operator runbook](/docs/operate/runbook): day-2 lifecycle, upgrades, recovery
+- [`spl doctor`](/docs/operate/doctor): fast triage when the instance is misbehaving

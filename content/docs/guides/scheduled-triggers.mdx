@@ -1,6 +1,6 @@
 ---
 title: Scheduled triggers
-description: Use cron-schedule event triggers to run periodic work — daily summaries, stale-task reminders, trust decay audits — without external schedulers.
+description: Use cron-schedule event triggers to run periodic work (daily summaries, stale-task reminders, trust decay audits) without external schedulers.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
@@ -11,11 +11,11 @@ Event triggers in Syncropel are stored as LEARN records on
 `th_engine_config` with `body.topic = "event_trigger"`. They come in
 two flavors:
 
-- **Record-matching** — fire when a record matching a CEL expression is
+- **Record-matching**: fire when a record matching a CEL expression is
   ingested (documented in [Routing rules](/docs/guides/routing-rules))
-- **Schedule-based** (this guide) — fire when a cron schedule elapses
+- **Schedule-based** (this guide): fire when a cron schedule elapses
 
-This guide is about the schedule flavor — the "give me a daily summary
+This guide is about the schedule flavor: the "give me a daily summary
 at 9am" pattern. No external scheduler needed; the engine's CRON loop
 evaluates schedules on every tick.
 
@@ -25,7 +25,7 @@ evaluates schedules on every tick.
 - An actor DID to dispatch to (typically `did:sync:agent:<role>`)
 - The actor must have a registered adapter (see [Actors and adapters](/docs/guides/actors-and-adapters))
 
-## Quickstart — daily summary
+## Quickstart: daily summary
 
 Dispatch your dev agent every morning at 9am to summarize yesterday's work:
 
@@ -190,9 +190,9 @@ spl trigger pause daily-summary
 
 ## Pairs with
 
-- **[Routing rules](/docs/guides/routing-rules)** — record-matching
+- **[Routing rules](/docs/guides/routing-rules)**: record-matching
   triggers with actions
-- **[CEL expressions](/docs/guides/cel-expressions)** — the expression
+- **[CEL expressions](/docs/guides/cel-expressions)**: the expression
   language for record-matching trigger conditions
-- **[Actors and adapters](/docs/guides/actors-and-adapters)** — how
+- **[Actors and adapters](/docs/guides/actors-and-adapters)**: how
   dispatched actors actually run

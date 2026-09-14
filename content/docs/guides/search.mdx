@@ -3,9 +3,11 @@ title: Semantic Search
 description: Free-text search over the record log. Embeds the query through a configured provider, ranks records by cosine similarity, and returns the top K. Envelope filters (thread, actor, kind) narrow the result after ranking so near-misses don't crowd out the best answer.
 ---
 
+This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
+
 ## Overview
 
-Semantic search answers the question _"give me records that mean something like X"_, where X is free-text and "means like" is cosine similarity in an embedding space. It complements two siblings: [Find](./find) is the right tool when you know words that actually appear in the thing (names, phrases, identifiers — and it needs no setup); [Query](./query) is the right tool when you know the shape of what you want (`body.kind`, `body.priority`, exact thread). Semantic search is the right tool when you only know the _idea_ and want records nearby that idea regardless of surface form.
+Semantic search answers the question _"give me records that mean something like X"_, where X is free-text and "means like" is cosine similarity in an embedding space. It complements two siblings: [Find](./find) is the right tool when you know words that actually appear in the thing (names, phrases, identifiers, and it needs no setup); [Query](./query) is the right tool when you know the shape of what you want (`body.kind`, `body.priority`, exact thread). Semantic search is the right tool when you only know the _idea_ and want records nearby that idea regardless of surface form.
 
 Three entry points:
 
@@ -13,20 +15,20 @@ Three entry points:
 - **HTTP**: `POST /v1/records/search` with a JSON body
 - **SDK**: `client.search({ query })` (TypeScript) or `await client.search(query)` (Python)
 
-All three talk to the same embedding provider — configured once per workspace, used by every search. The **Ollama** provider (local, zero-cost) ships today; additional hosted providers land in later releases. If you just need text search and don't want to configure a provider, use [Find](./find) — it works everywhere with zero setup.
+All three talk to the same embedding provider: configured once per workspace, used by every search. The **Ollama** provider (local, zero-cost) ships today; additional hosted providers land in later releases. If you just need text search and don't want to configure a provider, use [Find](./find): it works everywhere with zero setup.
 
-## Prerequisites — configure an embedding provider
+## Prerequisites: configure an embedding provider
 
 Semantic search is off by default. Before any search works, configure a provider:
 
 ```bash
-# One-time setup — installs nothing; requires an Ollama instance already running.
+# One-time setup: installs nothing; requires an Ollama instance already running.
 spl config embedding-provider set ollama \
   --endpoint http://localhost:11434 \
   --model nomic-embed-text
 ```
 
-This writes an `embedding_provider` LEARN record on `th_engine_config`. The workspace rebuilds its embedder on the next broadcast of that record — no restart. Verify:
+This writes an `embedding_provider` LEARN record on `th_engine_config`. The workspace rebuilds its embedder on the next broadcast of that record: no restart. Verify:
 
 ```bash
 spl config embedding-provider show
@@ -70,7 +72,7 @@ const result = await client.search({
 });
 
 if (result.disabled) {
-  console.log("Semantic search not configured — run `spl config embedding-provider set ollama`");
+  console.log("Semantic search not configured: run `spl config embedding-provider set ollama`");
 } else {
   for (const hit of result.hits) {
     console.log(hit.score.toFixed(3), hit.record.id, hit.record.body);
@@ -91,7 +93,7 @@ client = Client(
 result = await client.search("authentication failure logs", k=5)
 
 if result.get("disabled"):
-    print("Semantic search not configured — run `spl config embedding-provider set ollama`")
+    print("Semantic search not configured: run `spl config embedding-provider set ollama`")
 else:
     for hit in result["hits"]:
         print(f"{hit['score']:.3f}  {hit['record']['id']}  {hit['record']['body']}")
@@ -110,18 +112,18 @@ else:
 }
 ```
 
-- **`query`** (required) — the free-text string. Embedded verbatim through the configured provider.
-- **`k`** — top-K to return. Clamped to `[1, 100]`. Default `10`.
-- **`thread`** — restrict to one thread id.
-- **`actor`** — restrict to records emitted by a specific actor DID.
-- **`kind`** — restrict to records whose `body.kind` matches.
-- **`after_clock`** — restrict to records with `clock >= after_clock`. Useful for time-windowed searches.
+- **`query`** (required): the free-text string. Embedded verbatim through the configured provider.
+- **`k`**: top-K to return. Clamped to `[1, 100]`. Default `10`.
+- **`thread`**: restrict to one thread id.
+- **`actor`**: restrict to records emitted by a specific actor DID.
+- **`kind`**: restrict to records whose `body.kind` matches.
+- **`after_clock`**: restrict to records with `clock >= after_clock`. Useful for time-windowed searches.
 
 ### Filters are _post_-ranking
 
 This is the important invariant: **envelope filters narrow the top-K _after_ cosine ranking**, not before. The engine embeds the query, scores every record that has an embedding, picks the top K globally, then applies your `thread` / `actor` / `kind` / `after_clock` predicates.
 
-Why: pre-filter search on a narrow slice of records can produce fewer than K hits (or none) when the closest matches sit just outside the filter. Post-filter preserves rank quality — you get the best near-matches that _also_ satisfy your constraints.
+Why: pre-filter search on a narrow slice of records can produce fewer than K hits (or none) when the closest matches sit just outside the filter. Post-filter preserves rank quality: you get the best near-matches that _also_ satisfy your constraints.
 
 If you need strict pre-filtering (e.g. "only look inside this thread"), combine with [Query](./query) instead: search broadly, then query each hit's thread. In practice the post-filter behavior is what you want 95% of the time.
 
@@ -141,11 +143,11 @@ If you need strict pre-filtering (e.g. "only look inside this thread"), combine 
 }
 ```
 
-- **`embedder`** — provider identifier. `null` when search is disabled.
-- **`k`** — echoes the requested K (after clamp).
-- **`hits`** — ordered list, highest cosine similarity first.
-  - **`score`** — cosine similarity in `[-1, 1]`, though in practice `[0, 1]` for any healthy embedding model.
-  - **`record`** — the full Record — `id`, `thread`, `actor`, `act`, `body`, `clock`, and all the rest.
+- **`embedder`**: provider identifier. `null` when search is disabled.
+- **`k`**: echoes the requested K (after clamp).
+- **`hits`**: ordered list, highest cosine similarity first.
+  - **`score`**: cosine similarity in `[-1, 1]`, though in practice `[0, 1]` for any healthy embedding model.
+  - **`record`**: the full Record, with `id`, `thread`, `actor`, `act`, `body`, `clock`, and all the rest.
 
 When the provider is unreachable (instance returns 503), the SDK returns:
 
@@ -198,7 +200,7 @@ Narrows to task records whose body is semantically near "login."
 
 ### Combining with query
 
-Search is often the top of a funnel: find candidates by meaning, then use [Query](./query) to drill into the structure. Example — find incident records semantically near "slow queries" and then query for their resolution status:
+Search is often the top of a funnel: find candidates by meaning, then use [Query](./query) to drill into the structure. Example: find incident records semantically near "slow queries" and then query for their resolution status:
 
 ```bash
 # 1. Find candidates
@@ -246,12 +248,12 @@ Hosted provider kinds land in a subsequent release. The `spl config embedding-pr
 
 - **Embedding provider reachability**: if Ollama isn't running, the workspace logs an embedder error at ingest time (the record ingests fine, the embedding is skipped) and returns 503 on search requests. Restart the provider and re-ingest if you care about the skipped records.
 - **`k` clamp**: `k > 100` is silently clamped to 100. For very large result sets, combine search (for relevance) with [Query](./query) (for structural pagination).
-- **Empty query**: both SDKs raise / throw on empty query — this is a programmer error, never fail-open.
-- **Filter + k interaction**: if `k=10` and your filters reject 9 of the top 10, you'll get a single hit — _not_ re-ranked. For dense filters where you need a guaranteed return size, request a larger `k` upfront.
-- **Fail-open SDK transport**: both SDKs return empty hits on network or 5xx failures. Check `result.hits.length` — zero with `disabled: false` is ambiguous between "nothing similar" and "transport failed." The CLI raises explicitly.
+- **Empty query**: both SDKs raise / throw on empty query: this is a programmer error, never fail-open.
+- **Filter + k interaction**: if `k=10` and your filters reject 9 of the top 10, you'll get a single hit, _not_ re-ranked. For dense filters where you need a guaranteed return size, request a larger `k` upfront.
+- **Fail-open SDK transport**: both SDKs return empty hits on network or 5xx failures. Check `result.hits.length`: zero with `disabled: false` is ambiguous between "nothing similar" and "transport failed." The CLI raises explicitly.
 
 ## Next Steps
 
-- [**Query**](./query) — the structural complement. Use search to find candidates, query to drill into their structure.
-- [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk) — full client reference including transport details and identity configuration.
-- [**Body-Kind Manifests**](./body-kind-manifest) — for when you want rich-query filters on body fields to stay fast at scale.
+- [**Query**](./query): the structural complement. Use search to find candidates, query to drill into their structure.
+- [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk): full client reference including transport details and identity configuration.
+- [**Body-Kind Manifests**](./body-kind-manifest): for when you want rich-query filters on body fields to stay fast at scale.

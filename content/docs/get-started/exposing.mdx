@@ -3,6 +3,8 @@ title: Exposing the Instance Securely
 description: Make `spl serve` reachable from other machines without putting an unauthenticated SQLite-backed HTTP server on the public internet. Tailscale, reverse proxy with TLS, CORS, and what never to do.
 ---
 
+This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
+
 By default `spl serve` binds `127.0.0.1` and is unreachable from anywhere else on your network. You'll want to change that when:
 
 - You're pairing a phone that lives on the same home network.
@@ -33,7 +35,7 @@ Tailscale's ACLs further narrow which devices can reach the instance. Default-al
 
 ## Alternative: reverse proxy with TLS
 
-A reverse proxy — Caddy, nginx, or Traefik — terminates TLS on a public hostname and forwards to the instance on loopback. This is the right answer when you need a public URL (say, `https://syncropel.your-domain.com`) for a federation peer or a web dashboard hosted elsewhere.
+A reverse proxy (Caddy, nginx, or Traefik) terminates TLS on a public hostname and forwards to the instance on loopback. This is the right answer when you need a public URL (say, `https://syncropel.your-domain.com`) for a federation peer or a web dashboard hosted elsewhere.
 
 Keep the instance bound to loopback:
 
@@ -85,7 +87,7 @@ spl config impersonation-strict-enable
 `strict_actor_header` has no dedicated verb yet; enable it by writing a
 `strict_actor_header` config record (a `LEARN` on `th_engine_config` with
 `enabled: true`, the standard config-record convention). Both take effect on the
-next request — no restart needed.
+next request: no restart needed.
 
 - **`strict_actor_header`** rejects requests that claim a DID via header without a matching token.
 - **`strict_impersonation_enforcement`** blocks admin tokens from acting as arbitrary actors unless an explicit allowlist is set.
@@ -105,9 +107,9 @@ spl serve --host 0.0.0.0
 
 On a cloud VM, `--host 0.0.0.0` exposes the instance on port 9100 to the entire internet. Even with auth on, you are one config mistake away from a token leak that compromises the whole record store. Even with perfect auth hygiene, you're paying every bot on the internet to probe your instance's surface.
 
-If you find yourself wanting `--host 0.0.0.0`, pick one of the three safer alternatives above. The only legitimate use of `0.0.0.0` is on a host that is itself behind a firewall, reverse proxy, or tunnel — and in that case, `--host 127.0.0.1` would also work and is simpler.
+If you find yourself wanting `--host 0.0.0.0`, pick one of the three safer alternatives above. The only legitimate use of `0.0.0.0` is on a host that is itself behind a firewall, reverse proxy, or tunnel, and in that case, `--host 127.0.0.1` would also work and is simpler.
 
-## CORS — when a browser calls your instance
+## CORS: when a browser calls your instance
 
 The instance's HTTP API rejects cross-origin requests by default. To let a browser at `https://syncropel.com` (or any other origin) call your locally-running instance, add the origin to the allowlist:
 
@@ -121,7 +123,7 @@ Multiple origins:
 spl config auth-set-cors-origins https://syncropel.com,https://app.example.com
 ```
 
-The setting is a runtime record — it takes effect immediately and survives instance restarts.
+The setting is a runtime record: it takes effect immediately and survives instance restarts.
 
 Typical setups:
 
@@ -146,11 +148,11 @@ Once the instance is reachable on a stable URL, a federation peer can pair to it
 | Browser on `syncropel.com` | Loopback instance + CORS allowlist |
 | Federation peer on a cloud host | Reverse proxy with TLS or an outbound tunnel |
 | Team-shared instance | Reverse proxy with TLS on a private network |
-| Single developer laptop | Loopback only — don't expose at all |
+| Single developer laptop | Loopback only: don't expose at all |
 
 ## See also
 
-- [Authentication and service accounts](/docs/operate/keyring) — scopes, token lifecycle, emergency recovery
-- [Federation pair guide](/docs/guides/federation-pair) — pair two instances for bi-directional sync via `spl federation pair`
-- [Operator runbook](/docs/operate/runbook) — backup discipline, recovery, upgrades
-- [Troubleshooting](/docs/get-started/troubleshooting) — when an exposed instance isn't reachable or CORS is blocking
+- [Authentication and service accounts](/docs/operate/keyring): scopes, token lifecycle, emergency recovery
+- [Federation pair guide](/docs/guides/federation-pair): pair two instances for bi-directional sync via `spl federation pair`
+- [Operator runbook](/docs/operate/runbook): backup discipline, recovery, upgrades
+- [Troubleshooting](/docs/get-started/troubleshooting): when an exposed instance isn't reachable or CORS is blocking

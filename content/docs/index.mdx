@@ -1,13 +1,13 @@
 ---
 title: Syncropel Documentation
-description: A shared, append-only log that human and AI teammates build on together — every intent, action, and observation is recorded, and the system learns from what gets written.
+description: A shared, append-only log that human and AI teammates build on together. Every intent, action, and observation is recorded, and the system learns from what gets written.
 ---
 
 ## Two paths to a working instance
 
-**Hosted** — fastest. Sign up at [syncropel.com/sign-up](https://syncropel.com/sign-up); a private Syncropel workspace is ready at `<your-label>.syncropel.app` in about two minutes. No install, no machine to maintain. One hosted workspace is free per person, with no card (1 GB of storage, a small amount of computing capacity and a one-time inference allowance); more are $25 per month each with a 30-day free trial ([pricing](/docs/get-started/pricing)). Walkthrough: [Hosted workspace signup](/docs/get-started/hosted).
+**Hosted**: fastest. Sign up at [syncropel.com/sign-up](https://syncropel.com/sign-up); a private Syncropel workspace is ready at `<your-label>.syncropel.app` in about two minutes. No install, no machine to maintain. One hosted workspace is free per person, with no card (1 GB of storage, a small amount of computing capacity and a one-time inference allowance); more are $25 per month each with a 30-day free trial ([pricing](/docs/get-started/pricing)). Walkthrough: [Hosted workspace signup](/docs/get-started/hosted).
 
-**Self-hosted** — install `spl` on a machine you maintain:
+**Self-hosted**: install `spl` on a machine you maintain:
 
 ```bash
 # Linux + macOS
@@ -20,9 +20,9 @@ irm https://get.syncropic.com/spl.ps1 | iex
 spl init && spl serve
 ```
 
-Both paths run the same binary, expose the same APIs, and federate with each other. Pick by where you want the data and who handles uptime — full comparison on the [Hosted workspace signup](/docs/get-started/hosted) page.
+Both paths run the same binary, expose the same APIs, and federate with each other. Pick by where you want the data and who handles uptime: full comparison on the [Hosted workspace signup](/docs/get-started/hosted) page.
 
-Follow the [Quickstart](/docs/start) for a 5-minute walkthrough — first task with trust evidence. Or read [Get Started](/docs/get-started) for the deeper, multi-page onboarding journey covering both paths.
+Follow the [Quickstart](/docs/start) for a 5-minute walkthrough: first task with trust evidence. Or read [Get Started](/docs/get-started) for the deeper, multi-page onboarding journey covering both paths.
 
 If you're integrating from code, jump to the [TypeScript SDK](/docs/guides/typescript-sdk) or [Python SDK](/docs/guides/python-sdk).
 
@@ -30,20 +30,20 @@ If you're integrating from code, jump to the [TypeScript SDK](/docs/guides/types
 
 ## What a Syncropel thread looks like
 
-Every coordination event — chat, task, code change, tool call, observation, intent — becomes a record. Records group into threads. Threads produce trust:
+Every coordination event (chat, task, code change, tool call, observation, intent) becomes a record. Records group into threads. Threads produce trust:
 
 ```text
 fix-checkout-timeout              5 records · 3 actors
 
 ● you      INTEND  "Fix checkout timeout before launch"                14m ago
-○ agent    DO      Profiled API — connection pool saturated at 10     12m ago
+○ agent    DO      Profiled API: connection pool saturated at 10     12m ago
 ○ agent    DO      Patch applied: pool 10 → 50, deployed to staging    9m ago
-○ monitor  KNOW    p99 latency 4.2s → 180ms — 340 users unblocked      6m ago
+○ monitor  KNOW    p99 latency 4.2s → 180ms: 340 users unblocked      6m ago
 ○ agent    LEARN   "Pool sizing must scale with replicas"              now
                    captured · next similar issue replays the solution
 ```
 
-`●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and signed by its actor. The `LEARN` at the end is captured as a reusable pattern — next time the same shape of issue appears, the solution replays automatically.
+`●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and signed by its actor. The `LEARN` at the end is captured as a reusable pattern: next time the same shape of issue appears, the solution replays automatically.
 
 That same thread can be queried via the [TypeScript SDK](/docs/guides/typescript-sdk), [Python SDK](/docs/guides/python-sdk), or [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others). Hosted workspaces ship with **[the chief of staff](/docs/get-started/the-assistant)**, a default conversational assistant that responds in any thread you open by typing, so you do not have to wire anything up.
 
@@ -51,13 +51,13 @@ That same thread can be queried via the [TypeScript SDK](/docs/guides/typescript
 
 ## Tutorials
 
-Step-by-step learning — follow along from start to finish.
+Step-by-step learning: follow along from start to finish.
 
 | Tutorial | Description |
 |---|---|
 | [Your First Task](/docs/tutorials/first-task) | Create, complete, and see trust grow |
 | [Working with Threads](/docs/tutorials/first-thread) | Open, fork, and close coordinated workflows |
-| [Build your First Workspace](/docs/tutorials/first-workspace) | Scaffold, edit, test, publish, and share — the canonical workspace path |
+| [Build your First Workspace](/docs/tutorials/first-workspace) | Scaffold, edit, test, publish, and share: the canonical workspace path |
 
 ## Concepts
 
@@ -72,16 +72,16 @@ Understand how Syncropel works under the hood.
 
 ## Guides
 
-Solve specific problems — task-oriented, practical.
+Solve specific problems: task-oriented, practical.
 
 | Guide | Description |
 |---|---|
 | [Task Management](/docs/guides/task-management) | Full lifecycle from creation to approval |
-| [Find](/docs/guides/find) | Search file names, file contents, and conversations — no setup required |
+| [Find](/docs/guides/find) | Search file names, file contents, and conversations: no setup required |
 | [Semantic Search](/docs/guides/search) | Meaning-based search over records (requires an embedding provider) |
 | [Namespaces](/docs/guides/namespaces) | Set up multi-tenant scoping |
 | [Debugging Syncropel](/docs/guides/debugging) | doctor → status → debug replay → audit export |
-| [TypeScript SDK](/docs/guides/typescript-sdk) | Universal JS/TS client — Node, Deno, Bun, edge runtimes, browsers |
+| [TypeScript SDK](/docs/guides/typescript-sdk) | Universal JS/TS client: Node, Deno, Bun, edge runtimes, browsers |
 | [Python SDK](/docs/guides/python-sdk) | Emit records and query threads from Python |
 | [Backup & Recovery](/docs/guides/backup-restore) | Protect your data and recover safely |
 | [body.kind manifest](/docs/guides/body-kind-manifest) | Record kind grammar and reserved scopes |
@@ -92,7 +92,7 @@ Connect Syncropel to other tools.
 
 | Page | Description |
 |---|---|
-| [api.syncropic.com](/docs/integrate/api-syncropic) | The Syncropic-hosted AI gateway — single endpoint, many providers |
+| [api.syncropic.com](/docs/integrate/api-syncropic) | The Syncropic-hosted AI gateway: single endpoint, many providers |
 | [AI clients](/docs/integrate/ai-clients) | Plug Syncropel into MCP-compatible clients (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others) |
 
 ## Operate
@@ -102,12 +102,12 @@ Day-2 operations for production instances.
 | Page | Description |
 |---|---|
 | [Operator Runbook](/docs/operate/runbook) | Instance lifecycle, recovery from corruption, backup discipline, in-place upgrades |
-| [Doctor](/docs/operate/doctor) | Top-down diagnostic tree — when something doesn't work, start here |
+| [Doctor](/docs/operate/doctor) | Top-down diagnostic tree: when something doesn't work, start here |
 | [Security Model](/docs/operate/security-model) | Authentication, service accounts, what's on-disk, threat surface |
 
 ## Reference
 
-Look things up — commands, endpoints, formats.
+Look things up: commands, endpoints, formats.
 
 | Reference | Description |
 |---|---|

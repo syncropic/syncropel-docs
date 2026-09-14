@@ -5,7 +5,7 @@ description: A diagnostic tree for the real failure modes users hit on install a
 
 Use this page when something that should work isn't working. Each section names a concrete symptom, explains what's happening, and gives the exact recovery command.
 
-For a healthy-machine audit, prefer [`spl doctor`](/docs/operate/doctor) — it runs seven checks and pinpoints which layer is failing.
+For a healthy-machine audit, prefer [`spl doctor`](/docs/operate/doctor): it runs seven checks and pinpoints which layer is failing.
 
 ## "Failed to start spl serve" after install
 
@@ -26,7 +26,7 @@ The most common causes and their fixes:
 
 ### `unable to open database file`
 
-The instance could not open `hub.db` — either the path is wrong, the directory isn't writable, or the current working directory is in a location SQLite doesn't handle well (notably UNC or WSL-mounted paths on Windows).
+The instance could not open `hub.db`: either the path is wrong, the directory isn't writable, or the current working directory is in a location SQLite doesn't handle well (notably UNC or WSL-mounted paths on Windows).
 
 Quick workaround: specify the store path explicitly.
 
@@ -38,10 +38,10 @@ If that succeeds, the path resolution was the issue. On Linux and macOS the inst
 
 ### `auth.required is enabled but no service accounts exist`
 
-On Linux/macOS this is not an error — the local CLI authenticates over the Unix socket (filesystem-trust) and a zero-service-account instance is the canonical happy path. If you see this message anyway:
+On Linux/macOS this is not an error: the local CLI authenticates over the Unix socket (filesystem-trust) and a zero-service-account instance is the canonical happy path. If you see this message anyway:
 
 - **On Windows**: Unix-socket trust is not yet wired for the Windows local-CLI path. Mint a bearer with [`spl pair --device local-windows --url http://127.0.0.1:9100 --scopes admin`](/docs/get-started/pairing) and save the printed token.
-- **You've opted out of Unix-socket trust** (`[auth] unix_socket = false` in `config.toml`): you've explicitly chosen the bearer-only model — see [Service accounts](/docs/get-started/service-accounts) for the pair flow.
+- **You've opted out of Unix-socket trust** (`[auth] unix_socket = false` in `config.toml`). You've explicitly chosen the bearer-only model; see [Service accounts](/docs/get-started/service-accounts) for the pair flow.
 - **You're on an older instance**: upgrade with `curl get.syncropic.com/spl | sh` to land the canonical first-run flow.
 
 The legacy "bootstrap dance" (`--insecure-localhost` → `spl service-account create --bootstrap` → `spl token save`) still works but is no longer required on the canonical first run.
@@ -176,7 +176,7 @@ spl serve
 
 ## Corrupted record store or stuck locks
 
-If `hub.db` is corrupted beyond a simple lock issue — perhaps after a disk-full event or a mid-write kernel panic — the nuclear option is to wipe `~/.syncro/` and re-initialize:
+If `hub.db` is corrupted beyond a simple lock issue (perhaps after a disk-full event or a mid-write kernel panic), the nuclear option is to wipe `~/.syncro/` and re-initialize:
 
 ```bash
 # First, make a backup if the file is at all recoverable:
@@ -198,7 +198,7 @@ spl stop
 spl serve
 ```
 
-Any records you had are gone. Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` (a per-instance directory keyed by the instance DID) may contain a recent snapshot — see [Operator runbook → Recovery](/docs/operate/runbook) for the full restore procedure.
+Any records you had are gone. Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` (a per-instance directory keyed by the instance DID) may contain a recent snapshot: see [Operator runbook → Recovery](/docs/operate/runbook) for the full restore procedure.
 
 ## Data went to `System32` (Windows)
 
@@ -214,7 +214,7 @@ Move-Item C:\Windows\System32\hub.db $env:USERPROFILE\.syncro\hub.db
 spl serve --store $env:USERPROFILE\.syncro\hub.db
 ```
 
-Always start `spl serve` from a working directory you control (your home directory is safe). Never run as Administrator unless you have a specific reason — the user-scope install does not need it.
+Always start `spl serve` from a working directory you control (your home directory is safe). Never run as Administrator unless you have a specific reason: the user-scope install does not need it.
 
 ## Hosted workspace
 
@@ -232,10 +232,10 @@ Run the full diagnostic:
 spl doctor --json
 ```
 
-Every check reports `pass`, `warn`, or `fail` with a specific fix. If `doctor` is green but behavior is still wrong, capture the instance log around the failure — `spl doctor --json` produces a machine-readable summary you can attach when reporting the issue.
+Every check reports `pass`, `warn`, or `fail` with a specific fix. If `doctor` is green but behavior is still wrong, capture the instance log around the failure: `spl doctor --json` produces a machine-readable summary you can attach when reporting the issue.
 
 ## See also
 
-- [`spl doctor`](/docs/operate/doctor) — one-command diagnostic with specific fixes
-- [Reset and uninstall](/docs/get-started/reset-uninstall) — how to cleanly start over
-- [Operator runbook → Recovery](/docs/operate/runbook) — restore from backup after data loss
+- [`spl doctor`](/docs/operate/doctor): one-command diagnostic with specific fixes
+- [Reset and uninstall](/docs/get-started/reset-uninstall): how to cleanly start over
+- [Operator runbook → Recovery](/docs/operate/runbook): restore from backup after data loss
