@@ -146,6 +146,34 @@ Schedules are UTC. If you want a local-time firing, offset accordingly.
 schedule somehow produces double fires, or if you want a defensive
 minimum gap.
 
+## Actors that run unattended
+
+A scheduled actor's definition can say what its runs may write and what they owe:
+
+- `work_loop.writes` names the threads its runs may write, and `work_loop.write_kinds` the record
+  kinds. Configuration and authority threads and kinds are refused when the actor is defined, so a
+  scheduled run can never arm a trigger or change a workspace's limits.
+- `work_loop.revert` says how the actor's effects are undone. An actor that holds a tool with an
+  effect outside the workspace (an HTTP call, for example) needs it to start. `work_loop.contract`
+  and `work_loop.promises` state what a run commits to and produces. A trigger's `dispatch` can set
+  its own `contract`, `revert` and `promises` for the runs it starts.
+- A run that promised a kind or a thread and wrote nothing to it reads `stopped_short` with the
+  reason `promised <kind>, wrote none`, never done.
+- A failed item in a batch releases its slot, and a question the actor asks again replaces its
+  older unanswered copy on your register.
+
+## When a hosted workspace sleeps
+
+A hosted workspace sleeps when nobody is using it. It publishes when its next scheduled trigger
+falls due, and the service wakes it at that moment. The wake carries no instruction: the workspace
+checks it is a time it published, runs whatever is due from its own records, and stays awake until
+the work is saved. A wake that arrives more than five minutes late leaves the occurrence to the
+trigger's `catchup` rule and adds one notice to your register.
+
+On the free plan a workspace is woken at most once an hour, so a trigger whose schedule fires more
+often than hourly is refused when you turn it on (`SCHEDULE_FINER_THAN_PLAN`). `spl doctor` shows
+the next wake.
+
 ## Turn a trigger off
 
 ```bash

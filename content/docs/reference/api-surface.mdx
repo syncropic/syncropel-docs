@@ -257,7 +257,8 @@ Answering the same question twice returns the same thread. See
 | POST | `/v1/secrets/list` | List the secrets you may see | [Secrets](/docs/concepts/secrets) |
 | POST | `/v1/secrets/delete` | Delete a secret | [Secrets](/docs/concepts/secrets) |
 | POST | `/v1/secrets/promote` | Move a secret to a more durable store | [Secrets](/docs/concepts/secrets) |
-| POST | `/v1/entitlement` | Report what a subscription did; the workspace decides the tier it grants. Idempotent by effect: the same status from the same source answers `unchanged: true` and writes nothing | [Tiers and entitlements](/docs/guides/tiers) |
+| POST | `/v1/entitlement` | Report what a subscription did; the workspace decides the tier it grants. Idempotent by effect: the same status from the same source answers `unchanged: true` and writes nothing. On a hosted workspace with a plan, only a request signed by the hosting service is accepted | [Tiers and entitlements](/docs/guides/tiers) |
+| POST | `/v1/engine/wake` | The hosting service wakes a sleeping workspace at a time the workspace published; the request names only that time, is signed with a key the workspace issued, and is answered until the due work is saved. Not found on a workspace that publishes no schedule | [Scheduled triggers](/docs/guides/scheduled-triggers) |
 
 ## Sharing and public links
 

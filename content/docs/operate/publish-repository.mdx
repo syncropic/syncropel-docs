@@ -182,6 +182,30 @@ for anyone who already holds the locator or a deploy key. It removes
 *discovery*, not data. Owner-gated; re-publishing with a listing makes
 it discoverable again.
 
+## Keeping it saved
+
+Once a workspace is bound to its repository it saves continuously, and it keeps saving through
+restarts, stops and sleep without anyone acting:
+
+- **It asks for exactly the right key.** Each time it needs a storage key, the workspace asks for
+  the epoch the repository's write lease would grant it, so the key it receives always matches the
+  lease it then takes.
+- **It retries on its own.** If the key is refused or the storage cannot be reached, for example
+  in the first seconds after waking, the workspace tries again with a backoff of at most a minute.
+- **It says when it is not saving.** `/health` and the workspace read carry `attach`
+  (`starting`, `holding`, `standing_by` or `refused`), `attach_fact` (the reason) and
+  `not_replicating_secs` (how long nothing has been saved). `spl doctor` fails a workspace that is
+  refused and names the reason and the seconds.
+- **It hands the repository on cleanly.** A workspace that loses the lease to another one stops
+  counting as the writer at once, including for scheduled work.
+
+The repository keeps your workspace's records: threads, messages, decisions, definitions and
+configuration. Files you store in a workspace are not saved to its repository yet, and publish and
+restore say so with `files_carried: false`.
+
+A saved copy can lag the workspace by at most one flush interval (30 seconds on the free plan), so
+a workspace that is killed outright can lose up to that much of its newest work.
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |

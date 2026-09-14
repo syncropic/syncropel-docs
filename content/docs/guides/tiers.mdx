@@ -116,6 +116,19 @@ The ceiling is the load-bearing part:
 This is deliberately not a per-run call into the billing worker: that would put
 a network hop in the admission path and make two deciders of one question.
 
+## A hosted workspace follows its plan
+
+On a hosted workspace every run follows the limits of the workspace's plan: a free workspace runs
+at the Trial ceilings, a paid one at the Paid ceilings. That holds for every way a run starts: a
+message you send, an assistant stepping into a conversation, a scheduled trigger, a delegation. The
+plan is set when the workspace is created, and a workspace on your own machine has no plan ceiling.
+
+On a hosted workspace with a plan, the ceilings come from the release itself: writing a tier record
+or an entitlement through the records door is refused (`PLAN_LIMITS_NOT_WRITABLE`), and the
+entitlement door accepts only a request signed by the hosting service
+(`ENTITLEMENT_UNSIGNED` otherwise). The Trial ceiling allows two runs at once, so a scheduled run
+never stops you from starting your own.
+
 ## Promotion is surfaced, never automatic
 
 A tier's resolution can surface the next tier up as eligible, but only above a
