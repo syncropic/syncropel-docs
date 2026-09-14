@@ -11,46 +11,52 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ## The Unattended Workspace
 
-**A workspace keeps working when nobody is watching it.**
+**If you use a hosted workspace: it now keeps saving your work on its own through sleep and restarts, and your plan's limits apply to every run.**
 
-- **It keeps saving through every sleep and restart.** A hosted workspace that loses its
-  connection to its repository, whether its key was refused or its storage was out of reach when
-  it woke, tries again on its own within a minute instead of waiting for a restart. Its first
-  request after waking no longer fails on a connection that went stale while it slept.
-  A replacement machine for the same workspace takes over saving once the old one stops; while
-  the old one still runs, the replacement reports that it cannot save rather than that it is
-  standing by, which a later release corrects. `/health` and
-  `spl doctor` say whether it is saving (`attach`), and if not, why and for how long. The
-  repository keeps records; files stored in a workspace are not carried yet, and publish and
-  restore now say so.
+- **It keeps saving through every sleep and restart.** If a hosted workspace cannot save when it
+  wakes, it tries again on its own within a minute instead of waiting for a restart, and its first
+  request after waking no longer fails. Files stored in a workspace are not part of its saved copy
+  yet, and the workspace now says so.
 - **Scheduled work happens on time, even while the workspace sleeps.** A hosted workspace tells
-  the service when it next needs to run, and the service wakes it at that moment. The wake says
-  only "it is time": the workspace decides what to do from its own records, and a wake it did not
-  ask for is refused.
-- **Scheduled actors can run unattended.** An actor's definition can name the threads and kinds its
-  runs write, what they promise to produce, and how their effects are undone. A run that promised a
-  result and wrote nothing no longer reads as done, a failed batch releases what it held, and a
-  question the actor asks every day replaces yesterday's copy instead of piling up.
+  the service when it next needs to run, and the service wakes it at that moment. The workspace
+  decides what to do from its own records.
 - **Your plan's limits hold everywhere.** Every run on a hosted workspace, scheduled ones included,
   follows the limits of the workspace's plan, and those limits cannot be raised by writing
   configuration.
+- **Scheduled assistants can run unattended.** An assistant that runs on a schedule no longer reads
+  as done when it promised a result and produced nothing, and a question it asks every day replaces
+  yesterday's copy instead of piling up.
+
+For people running their own workspace or using the API:
+
+- `/health` and `spl doctor` say whether a workspace is saving (`attach`), and if not, why and for
+  how long. Publish and restore now report that files are not carried.
+- A replacement machine for the same workspace takes over saving once the old one stops; while
+  the old one still runs, the replacement reports that it cannot save rather than that it is
+  standing by, which a later release corrects.
+- An actor's definition can name the threads and kinds its runs write, what they promise to
+  produce, and how their effects are undone. A failed item in a batch releases what it held.
 
 ## The Kept Repository
 
-**A workspace keeps its own repository from birth, and an ask gives you readings to choose from.**
+**If you use a hosted workspace: it can keep a saved copy of itself with nothing for you to manage, and when an assistant needs your decision it now offers clear choices.**
 
-- **A repository without a key to manage.** A hosted workspace declares its repository, publishes
-  it under a short-lived key issued for its own storage prefix, and binds itself as the writer, so
-  continuous write-back keeps the published copy current.
+- **A saved copy without a key to manage.** A hosted workspace can keep its own repository from the
+  moment it is created, and keeps that copy current as you work.
+- **Asks you can answer.** When an assistant needs your decision it offers two to six choices,
+  each with a line saying what it would do and one it recommends. Pick one, pick several when
+  allowed, or answer in your own words, and the work resumes on what you chose.
+
+For people running their own workspace or using the API:
+
 - **One writer at a time.** Publishing takes the repository's write lease before it moves the
   published state, so a second workspace can no longer overwrite a live writer; it is refused by
   name and told who holds the lease.
 - **Handing a repository on.** A standby takes over by itself when the lease frees, a clean stop
   hands the lease on after a last flush, and a writer stopped mid-write no longer loses records the
   published state had already committed.
-- **Asks you can answer.** When an assistant needs your decision it offers two to six readings,
-  each with a line saying what it would do and one it recommends. Pick one, pick several when
-  allowed, or answer in your own words, and the work resumes on what you chose.
+- A hosted workspace declares its repository, publishes it, and becomes its writer, so continuous
+  write-back keeps the published copy current.
 
 ## The First Question
 

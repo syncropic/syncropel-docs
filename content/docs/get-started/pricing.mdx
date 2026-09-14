@@ -6,7 +6,7 @@ description: Local is free. Hosted workspaces are $25 per month per workspace wi
 ## TL;DR
 
 - **Local**: free. Run `spl serve` on your laptop or your own server. No subscription, no usage limits, no telemetry.
-- **Hosted**: **$25 per month per workspace**, with a **30-day free trial**. Each hosted workspace is a fully managed `<label>.syncropel.app` with TLS, edge ingress, and a persistent record store.
+- **Hosted**: **$25 per month per workspace**, with a **30-day free trial**. Each hosted workspace is a fully managed `<label>.syncropel.app` with secure connections, fast access from anywhere, and storage that keeps your work.
 - **Managed inference (api.syncropic.com)**: optional, usage-billed. See [api.syncropic.com](/docs/integrate/api-syncropic) for the per-model price list.
 
 You can move freely between local and hosted using `spl export` / `spl import`: your data is portable by design.
@@ -18,27 +18,27 @@ You can move freely between local and hosted using `spl export` / `spl import`: 
 You run `spl serve` on hardware you control. Syncropic gets no money, no telemetry, no inspection capability:
 
 - Records, threads, and audit logs live in your workspace's record store on your machine
-- Federation works peer-to-peer; no Syncropic-operated server in the path
+- Connections between workspaces go directly from one to the other; no Syncropic-operated server in the path
 - Provider keys (Anthropic, OpenAI, Google) are yours; you bill those directly
 - Updates via `curl https://get.syncropic.com/spl | sh`, a single binary
 - Open protocol and open SDKs: the specification is CC-BY-SA-4.0 and the SDKs are Apache-2.0; the kernel and `spl` CLI are Business Source License 1.1 (converting to Apache-2.0 four years after each release), free to download and run
 
 ### Hosted ($25 per month per workspace, 30-day free trial)
 
-Provision a `<label>.syncropel.app` instance by signing in at [syncropel.com](https://syncropel.com). What's included:
+Create a `<label>.syncropel.app` workspace by signing in at [syncropel.com](https://syncropel.com). What's included:
 
 | Included | Notes |
 |---|---|
 | Hosted workspace running `spl serve` | Restarts on crash; updated for you |
 | `<label>.syncropel.app` URL with TLS | Certificate managed for you |
-| Persistent record store | Your records survive restarts and updates |
-| Edge ingress | DDoS protection, geographic edge, HTTP/3 |
+| Storage that keeps your work | Your records survive restarts and updates; see [Your hosted workspace](/docs/get-started/your-hosted-workspace) |
+| Fast, protected access | Protection against traffic floods, served close to you, HTTP/3 |
 
 Every new workspace starts with a 30-day free trial. After the trial, billing is $25 per month for that workspace; cancel any time. If you delete a workspace, its label returns to the reservation pool after a grace period. Billing questions: your [account portal](https://syncropel.com/account) or support.
 
 ### Managed inference (api.syncropic.com)
 
-The [managed inference gateway](/docs/integrate/api-syncropic) is optional and usage-billed at the prices listed on its page. Every call also emits a record on your `th_audit_api_usage` thread, so reconciliation is a record query. You can always bring your own provider keys instead; local and hosted workspaces both accept them.
+The [managed inference gateway](/docs/integrate/api-syncropic) is optional and usage-billed at the prices listed on its page. Every call is also recorded in your workspace, so you can check your usage against your bill. You can always bring your own provider keys instead; local and hosted workspaces both accept them.
 
 ## Local and hosted: moving between
 
@@ -49,38 +49,38 @@ The [managed inference gateway](/docs/integrate/api-syncropic) is optional and u
 You've been running `spl serve` on your laptop and want to move to a hosted workspace:
 
 ```bash
-# 1. Export your local instance
+# 1. Export your local workspace
 spl export --output ~/my-instance.tar.gz
 
-# 2. Provision a hosted instance (gets you a fresh empty <label>.syncropel.app)
+# 2. Create a hosted workspace (gets you a fresh empty <label>.syncropel.app)
 
 # 3. Import your data
 SPL_INSTANCE_URL=https://<label>.syncropel.app \
   spl import ~/my-instance.tar.gz
 ```
 
-Federation pairs need to be re-established post-import (different DID), but records, threads, and audit logs come along intact.
+Connections to other workspaces need to be set up again after the import, because the new workspace has its own identity, but records, threads, and audit logs come along intact.
 
 ### Hosted to local
 
 You're moving off hosted (sovereignty preference, or you just want it on your own metal):
 
 ```bash
-# 1. Export your hosted instance
+# 1. Export your hosted workspace
 SPL_INSTANCE_URL=https://<label>.syncropel.app \
   spl export --output ~/migrate.tar.gz
 
 # 2. Install spl locally if you haven't
 curl https://get.syncropic.com/spl | sh
 
-# 3. Start a local instance and import
+# 3. Start a local workspace and import
 spl serve
 spl import ~/migrate.tar.gz
 
-# 4. Delete the hosted instance from your account page at your leisure
+# 4. Delete the hosted workspace from your account page whenever you like
 ```
 
-If you delete the hosted workspace, its `<label>.syncropel.app` URL returns to the reservation pool after a grace period. Federation peers will need to re-pair against your new local DID.
+If you delete the hosted workspace, its `<label>.syncropel.app` URL returns to the reservation pool after a grace period. Workspaces you were connected to will need to connect to your new local workspace again.
 
 ## Local vs. hosted: which fits
 
@@ -92,15 +92,16 @@ If you delete the hosted workspace, its `<label>.syncropel.app` URL returns to t
 | URL | `localhost:9100` (or however you expose it) | `<label>.syncropel.app` |
 | Provider keys | Yours (per-provider billing) | Yours, or via the api.syncropic.com gateway |
 | Backups | Manual (your snapshot procedure) | Managed for you |
-| Federation | Peer-to-peer | Same; federation is identical between modes |
-| Auth | Tokens you mint | Same, plus your syncropel.com identity owns the workspace |
+| Connecting to other workspaces | Directly between workspaces | Same |
+| Access | Keys you create | Same, plus your syncropel.com identity owns the workspace |
 | Best for | Sovereignty preference, your own hardware | Zero ops, work from any device |
 
 Start wherever friction is lowest; moving later is one export away.
 
 ## See also
 
-- [Hosted signup walkthrough](./hosted) for the provisioning flow and what to expect during the wait
+- [Hosted signup walkthrough](./hosted) for creating a workspace and what to expect during the wait
+- [Your hosted workspace](./your-hosted-workspace) for how your work is saved, sleeping, and deleting
 - [Install spl on your machine](./install) for local use, or for pairing with a hosted workspace
 - [api.syncropic.com](/docs/integrate/api-syncropic) for managed inference details
 - [Account portal](https://syncropel.com/account) for workspaces, usage, and billing

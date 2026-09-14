@@ -3,6 +3,8 @@ title: Scheduled triggers
 description: Use cron-schedule event triggers to run periodic work — daily summaries, stale-task reminders, trust decay audits — without external schedulers.
 ---
 
+This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
+
 ## What they are
 
 Event triggers in Syncropel are stored as LEARN records on
@@ -164,9 +166,8 @@ A scheduled actor's definition can say what its runs may write and what they owe
 
 ## When a hosted workspace sleeps
 
-A hosted workspace sleeps when nobody is using it. It publishes when its next scheduled trigger
-falls due, and the service wakes it at that moment. The wake carries no instruction: the workspace
-checks it is a time it published, runs whatever is due from its own records, and stays awake until
+A hosted workspace sleeps when nobody is using it. When its next scheduled trigger falls due, the
+service wakes it; the workspace runs whatever is due from its own records and stays awake until
 the work is saved. A wake that arrives more than five minutes late leaves the occurrence to the
 trigger's `catchup` rule and adds one notice to your register.
 

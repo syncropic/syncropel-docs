@@ -3,6 +3,8 @@ title: Tiers and entitlements
 description: Every run is clamped by the tier of the principal it runs for. Tiers are records you can edit without a release, per-actor ceilings only ever tighten, and a subscription status maps to a tier through one kernel decision. A self-hoster and operator guide.
 ---
 
+This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
+
 ## Why tiers exist
 
 Every work-loop run is bounded before it starts. The bound comes from the tier
@@ -113,9 +115,6 @@ The ceiling is the load-bearing part:
   spend; it does not take the workspace away. The person keeps their records,
   the door keeps answering, and the caps come down until they fix it.
 
-This is deliberately not a per-run call into the billing worker: that would put
-a network hop in the admission path and make two deciders of one question.
-
 ## A hosted workspace follows its plan
 
 On a hosted workspace every run follows the limits of the workspace's plan: a free workspace runs
@@ -125,8 +124,8 @@ plan is set when the workspace is created, and a workspace on your own machine h
 
 On a hosted workspace with a plan, the ceilings come from the release itself: writing a tier record
 or an entitlement through the records door is refused (`PLAN_LIMITS_NOT_WRITABLE`), and the
-entitlement door accepts only a request signed by the hosting service
-(`ENTITLEMENT_UNSIGNED` otherwise). The Trial ceiling allows two runs at once, so a scheduled run
+entitlement door refuses a request that does not come from the hosting service
+(`ENTITLEMENT_UNSIGNED`). The Trial ceiling allows two runs at once, so a scheduled run
 never stops you from starting your own.
 
 ## Promotion is surfaced, never automatic
