@@ -1,12 +1,13 @@
 ---
 title: Pricing & billing
-description: Local is free. Hosted workspaces are $25 per month per workspace with a 30-day free trial. One price story, no tiers.
+description: Local is free. One hosted workspace is free, with no card. More hosted workspaces are $25 per month each, with a 30-day free trial.
 ---
 
 ## TL;DR
 
 - **Local**: free. Run `spl serve` on your laptop or your own server. No subscription, no usage limits, no telemetry.
-- **Hosted**: **$25 per month per workspace**, with a **30-day free trial**. Each hosted workspace is a fully managed `<label>.syncropel.app` with secure connections, fast access from anywhere, and storage that keeps your work.
+- **Hosted, free**: **one hosted workspace per person, no card required.** It includes 1 GB of storage, a small amount of computing capacity and a one-time inference allowance.
+- **Hosted**: **$25 per month per workspace** when you want more, with a **30-day free trial**. Each hosted workspace is a fully managed `<label>.syncropel.app` with secure connections, fast access from anywhere, and storage that keeps your work.
 - **Managed inference (api.syncropic.com)**: optional, usage-billed. See [api.syncropic.com](/docs/integrate/api-syncropic) for the per-model price list.
 
 You can move freely between local and hosted using `spl export` / `spl import`: your data is portable by design.
@@ -23,6 +24,10 @@ You run `spl serve` on hardware you control. Syncropic gets no money, no telemet
 - Updates via `curl https://get.syncropic.com/spl | sh`, a single binary
 - Open protocol and open SDKs: the specification is CC-BY-SA-4.0 and the SDKs are Apache-2.0; the kernel and `spl` CLI are Business Source License 1.1 (converting to Apache-2.0 four years after each release), free to download and run
 
+### Hosted, free (one workspace)
+
+Every person can have one hosted workspace for free, with no card. Its bounds (version 1, published 2026-09-08): one free workspace per person, 1 GB of storage, a small amount of computing capacity, and a one-time inference allowance. Upgrade any time; your records come with you.
+
 ### Hosted ($25 per month per workspace, 30-day free trial)
 
 Create a `<label>.syncropel.app` workspace by signing in at [syncropel.com](https://syncropel.com). What's included:
@@ -34,7 +39,7 @@ Create a `<label>.syncropel.app` workspace by signing in at [syncropel.com](http
 | Storage that keeps your work | Your records survive restarts and updates; see [Your hosted workspace](/docs/get-started/your-hosted-workspace) |
 | Fast, protected access | Protection against traffic floods, served close to you, HTTP/3 |
 
-Every new workspace starts with a 30-day free trial. After the trial, billing is $25 per month for that workspace; cancel any time. If you delete a workspace, its label returns to the reservation pool after a grace period. Billing questions: your [account portal](https://syncropel.com/account) or support.
+A paid workspace starts with a 30-day free trial. After the trial, billing is $25 per month for that workspace; cancel any time. If you delete a workspace, its label returns to the reservation pool after a grace period. Billing questions: your [account portal](https://syncropel.com/account) or support.
 
 ### Managed inference (api.syncropic.com)
 
@@ -86,7 +91,7 @@ If you delete the hosted workspace, its `<label>.syncropel.app` URL returns to t
 
 |  | Local (free) | Hosted ($25 per month per workspace) |
 |---|---|---|
-| Cost | Free, plus your hardware | $25 per month per workspace after a 30-day trial |
+| Cost | Free, plus your hardware | One workspace free; $25 per month for each more, after a 30-day trial |
 | Ops | Yours (updates, backups, TLS) | Ours |
 | Always-on | Only when your machine is on | Yes |
 | URL | `localhost:9100` (or however you expose it) | `<label>.syncropel.app` |
