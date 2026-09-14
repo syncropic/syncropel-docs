@@ -17,12 +17,12 @@ This page summarizes recent releases in plain language: what changed and why it 
   wakes, it tries again on its own within a minute instead of waiting for a restart, and its first
   request after waking no longer fails. Files stored in a workspace are not part of its saved copy
   yet, and the workspace now says so.
-- **Scheduled work happens on time, even while the workspace sleeps.** A hosted workspace tells
-  the service when it next needs to run, and the service wakes it at that moment. The workspace
-  decides what to do from its own records.
-- **Your plan's limits hold everywhere.** Every run on a hosted workspace, scheduled ones included,
-  follows the limits of the workspace's plan, and those limits cannot be raised by writing
-  configuration.
+- **Scheduled work can wake a sleeping workspace.** A hosted workspace can tell the service when it
+  next needs to run, so the service can wake it at that moment. This is built and is being switched
+  on for hosted workspaces; until then, schedules run while the workspace is awake.
+- **Your plan's limits hold everywhere.** Every run on a hosted workspace with a plan, scheduled
+  ones included, follows that plan's limits, and those limits cannot be raised by writing
+  configuration. Workspaces created before this release get their plan as they are updated.
 - **Scheduled assistants can run unattended.** An assistant that runs on a schedule no longer reads
   as done when it promised a result and produced nothing, and a question it asks every day replaces
   yesterday's copy instead of piling up.

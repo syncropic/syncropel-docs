@@ -166,14 +166,16 @@ A scheduled actor's definition can say what its runs may write and what they owe
 
 ## When a hosted workspace sleeps
 
-A hosted workspace sleeps when nobody is using it. When its next scheduled trigger falls due, the
-service wakes it; the workspace runs whatever is due from its own records and stays awake until
-the work is saved. A wake that arrives more than five minutes late leaves the occurrence to the
-trigger's `catchup` rule and adds one notice to your register.
+A hosted workspace sleeps when nobody is using it. Scheduled triggers run while the workspace is
+awake. A trigger that falls due while the workspace sleeps is handled by its `catchup` rule the
+next time the workspace wakes, for example when you open it.
 
-On the free plan a workspace is woken at most once an hour, so a trigger whose schedule fires more
-often than hourly is refused when you turn it on (`SCHEDULE_FINER_THAN_PLAN`). `spl doctor` shows
-the next wake.
+Waking a sleeping hosted workspace at the moment its next trigger falls due is built and is being
+switched on for hosted workspaces. Until it is on, do not rely on a schedule firing on time while
+nobody is using the workspace.
+
+On the free plan, a trigger whose schedule fires more often than hourly is refused when you turn it
+on (`SCHEDULE_FINER_THAN_PLAN`).
 
 ## Turn a trigger off
 
