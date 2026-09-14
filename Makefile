@@ -1,6 +1,6 @@
 ## Vocabulary lint helpers.
 
-.PHONY: lint-vocabulary lint-vocabulary-fix lint-vocabulary-test
+.PHONY: lint-vocabulary lint-vocabulary-fix lint-vocabulary-test check-doc-commands
 
 # Run the linter (fails on hits); same invocation as CI.
 lint-vocabulary:
@@ -16,3 +16,8 @@ lint-vocabulary-fix:
 # Run the linter's own self-test (failure-modes matrix).
 lint-vocabulary-test:
 	@bash tools/lint_vocabulary_test.sh
+
+# Check every `spl` command in get-started code blocks against the local
+# binary's --help (subcommands and flags). Prints SKIPPED without `spl`.
+check-doc-commands:
+	@python3 tools/check-doc-commands.py

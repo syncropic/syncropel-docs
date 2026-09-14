@@ -10,7 +10,7 @@ On Linux and macOS, `spl serve` already forks, detaches from the terminal, write
 `spl` ships a one-command installer that drops a correctly-configured user unit and enables it:
 
 ```bash
-spl setup --systemd-user
+spl setup --daemon
 ```
 
 This writes `~/.config/systemd/user/spl-serve.service` with contents equivalent to:

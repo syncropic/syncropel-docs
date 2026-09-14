@@ -111,27 +111,25 @@ The general rule: start narrow. `admin` is appropriate for a browser driving the
 
 ## Manual pairing (headless servers)
 
-If the device can't scan a QR (a headless server, a CI runner, a script), use `--no-qr`:
+If the device can't scan a QR (a headless server, a CI runner, a script), run the same command and copy the plain-text payload printed under the QR code:
 
 ```bash
 spl pair \
   --device "ci-worker-1" \
   --url "http://127.0.0.1:9100" \
-  --scopes records:read \
-  --no-qr
+  --scopes records:read
 ```
 
-The output is the JSON payload the QR would have encoded:
+The last block of the output holds the same three values the QR encodes:
 
-```json
-{
-  "url": "http://127.0.0.1:9100",
-  "token": "spl_prod_sa_XXXX_YYYYYY",
-  "device": "ci-worker-1"
-}
+```text
+Pairing payload (manual entry if QR fails):
+  url:    http://127.0.0.1:9100
+  token:  <your token>
+  device: ci-worker-1
 ```
 
-Copy-paste that into the target device's config file, environment, or secret manager.
+Copy those values into the target device's config file, environment, or secret manager. The token is shown only in this text output: `-o json` leaves it out on purpose.
 
 ## What the payload contains
 
@@ -174,7 +172,7 @@ Then re-pair that device with the new token. The old token dies; the service acc
 
 **"Pairing succeeded but the browser shows connected-no-records."** The device stored the URL and token but the token doesn't have `records:read`. Check `spl service-account list` and re-pair with wider scopes.
 
-**"The QR code doesn't scan."** Most terminals render blocky Unicode. If your terminal doesn't support it, use `--no-qr` and copy the payload. Alternatively, widen the terminal and re-run: some QR libraries need a minimum cell size.
+**"The QR code doesn't scan."** Most terminals render blocky Unicode. If your terminal doesn't support it, copy the plain-text payload printed under the QR code instead. Alternatively, widen the terminal and re-run: some QR libraries need a minimum cell size.
 
 **"I paired my phone but it can't reach my workspace over Wi-Fi."** `--url 127.0.0.1:9100` only reaches the host itself. Your phone needs the host's LAN IP. Check `ip addr` or `ifconfig` on the host and re-pair.
 
