@@ -133,14 +133,14 @@ spl config add-trigger \
 
 | Spec | Fires |
 |---|---|
-| `0 9 * * *` | 9:00am every day (UTC) |
+| `0 9 * * *` | 9:00am every day (UTC, unless the trigger names a timezone) |
 | `*/15 * * * *` | Every 15 minutes |
 | `0 */4 * * *` | Every 4 hours on the hour |
 | `0 10 * * MON` | 10:00am every Monday |
 | `0 0 1 * *` | Midnight on the 1st of every month |
 | `30 8 * * MON-FRI` | 8:30am on weekdays |
 
-Schedules are UTC. If you want a local-time firing, offset accordingly.
+Schedules are UTC unless the trigger names a `timezone` (an IANA name such as `Europe/London`).
 
 ## Rate limiting
 
@@ -167,11 +167,12 @@ A scheduled actor's definition can say what its runs may write and what they owe
 ## When a hosted workspace sleeps
 
 A hosted workspace sleeps when nobody is using it. Scheduled triggers run while the workspace is
-awake. A trigger that falls due while the workspace sleeps is handled by its `catchup` rule the
-next time the workspace wakes, for example when you open it.
+awake. When a trigger falls due while the workspace sleeps, the missed run is dealt with the next
+time the workspace wakes, for example when you open it. The trigger's catch-up setting (`catchup`)
+decides what happens: skip the missed run, run only the most recent one, or run each one it missed.
 
-Waking a sleeping hosted workspace at the moment its next trigger falls due is built and is being
-switched on for hosted workspaces. Until it is on, do not rely on a schedule firing on time while
+Waking a sleeping hosted workspace at the moment its next trigger falls due is built but not switched
+on yet. Until it is, do not rely on a schedule firing on time while
 nobody is using the workspace.
 
 On the free plan, a trigger whose schedule fires more often than hourly is refused when you turn it

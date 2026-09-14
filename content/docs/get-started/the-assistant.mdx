@@ -1,15 +1,15 @@
 ---
 title: The assistant
-description: Every Syncropel workspace can answer when you type. The conversational default is the chief of staff, an ordinary actor you can read, change, and replace. This page explains what it is, how a conversation actually works underneath, and how to turn it on when you self-host.
+description: Every Syncropel workspace can answer when you type. The conversational default is the chief of staff, an ordinary assistant you can read, change, and replace. This page explains what it is, how a conversation actually works underneath, and how to turn it on when you self-host.
 ---
 
 When you open a thread on a Syncropel workspace and type a message, something
 answers. On a hosted workspace that something is there from your first thread.
-It is the **chief of staff**, an actor named "the chief", and it is the
+It is the **chief of staff**, an assistant named "the chief", and it is the
 conversational default on every deployment profile except `blank`.
 
 The chief is deliberately unremarkable in one important way: it is an ordinary
-actor, defined by a [blueprint](/docs/concepts/blueprints) like any other. What
+assistant, defined by a [blueprint](/docs/concepts/blueprints) like any other. What
 answers you is something you can read, change, and replace. There is no hidden
 "assistant service" wired into the binary.
 
@@ -17,7 +17,7 @@ answers you is something you can read, change, and replace. There is no hidden
 Workspaces before v0.216 had a separate built-in assistant called Scribe (and a
 sibling orientation agent, the Guide), configured with `spl config scribe`.
 Those are retired. The conversational default is now the chief of staff, a
-normal actor. Old Scribe and Guide records stay readable as history, and an
+normal assistant. Old Scribe and Guide records stay readable as history, and a
 workspace that already ran the old assistant keeps answering across upgrades.
 </Callout>
 
@@ -32,20 +32,18 @@ raise a real question when it needs one, rather than to guess.
 
 A conversation is just records. Nothing about a chat is special or ephemeral.
 
-1. **You type a message.** Your client emits a `core.user.message.v1` record
-   onto a thread: a new thread if you are starting fresh, or an existing one to
-   continue.
-2. **The workspace routes it to the chief.** The chief is registered as an actor
-   on your workspace; a message on a conversational thread is dispatched to it.
-3. **The chief reads the thread and responds.** It folds the thread so far into
-   context, calls a language model, and emits a reply record back onto the same
-   thread.
-4. **Your client renders the new record.** Because the reply is a record, it
+1. **You type a message.** Your client writes it as a record onto a thread: a
+   new thread if you are starting fresh, or an existing one to continue.
+2. **The workspace hands it to the chief.** The chief is a member of your
+   workspace; a message on a conversational thread goes to it.
+3. **The chief reads the thread and responds.** It reads the thread so far,
+   calls a language model, and writes a reply record back onto the same thread.
+4. **Your client shows the new record.** Because the reply is a record, it
    shows up the way every other record does, and it is still there when you
-   reload, query the thread, or fold it later.
+   reload or look at the thread later.
 
 Multi-turn context falls out of this for free: each new message lands on the
-same thread, so the next fold already contains the whole conversation. You do
+same thread, so the next reading already contains the whole conversation. You do
 not manage a session. The thread is the session.
 
 ## When a turn needs to do work
@@ -60,21 +58,19 @@ chief runs that one turn through a governed work loop instead of a single-shot
 reply, and two things hold:
 
 1. **The loop runs as you, not as the chief.** It uses your identity, your
-   [tier](/docs/guides/tiers), and your permissions. Records the loop emits are
-   signed by your actor DID. The chief steps aside for the duration.
+   [tier](/docs/guides/tiers), and your permissions. Records the loop writes are
+   signed as you. The chief steps aside for the duration.
 2. **The engine decides when the loop is done, not the loop itself.** An
    engine-issued evaluator checks the work against criteria derived from your
    goal. A loop cannot self-certify success.
 
-The loop's progress lands on the same thread as a series of records
-(`core.work.turn.v1`, `core.work.tool_call.v1`, `core.work.loop_outcome.v1`),
-so you watch it the same way you watch any conversation. To start a governed
+The loop's progress lands on the same thread as a series of records, so you
+watch it the same way you watch any conversation. To start a governed
 run explicitly and sit with it, edit-in-place at the ask and print the diff, use
 [`spl run`](/docs/guides/running-a-goal).
 
-Turn-by-turn escalation is on by default. To turn it off for a given actor, set
-`conversation_escalation: false` on its `core.engine.actor_adapter.v1` record;
-that actor then only ever replies single-shot.
+Turn-by-turn escalation is on by default, and you can turn it off for a given
+assistant so it only ever replies single-shot; see [Under the hood](#under-the-hood).
 
 ## Turning the assistant on when you self-host
 
@@ -116,11 +112,25 @@ If you send a message and nothing comes back, work through this in order:
    inspect the thread directly with `spl thread records <thread-id>` to confirm
    your message record was written.
 
+## Under the hood
+
+For readers working with the records directly:
+
+- The chief is an actor registered on the workspace. Your message is a
+  `core.user.message.v1` record, and the chief builds its context by folding
+  the thread's records.
+- Records an escalated turn writes are signed by your actor DID, not the
+  chief's.
+- An escalated turn's progress is written as `core.work.turn.v1`,
+  `core.work.tool_call.v1` and `core.work.loop_outcome.v1` records.
+- To turn escalation off for one actor, set `conversation_escalation: false` on
+  its `core.engine.actor_adapter.v1` record.
+
 ## Where to go next
 
 - [Work loops](/docs/concepts/work-loop): the primitive a turn escalates into.
 - [Running a goal](/docs/guides/running-a-goal): `spl run`, the developer's seat.
 - [Tiers](/docs/guides/tiers): what a loop is allowed to spend, by tier.
 - [Blueprints](/docs/concepts/blueprints): how the chief is defined, and how you
-  would define your own conversational actor.
-- [Hosted workspace signup](/docs/get-started/hosted): get a workspace in under a minute.
+  would define your own conversational assistant.
+- [Hosted workspace signup](/docs/get-started/hosted): get a workspace ready in about two minutes.

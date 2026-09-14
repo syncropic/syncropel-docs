@@ -216,6 +216,14 @@ spl serve --store $env:USERPROFILE\.syncro\hub.db
 
 Always start `spl serve` from a working directory you control (your home directory is safe). Never run as Administrator unless you have a specific reason — the user-scope install does not need it.
 
+## Hosted workspace
+
+These apply to a workspace created at syncropel.com.
+
+- **A connection error right after a quiet period.** The workspace was asleep and is waking up. Waking usually takes a couple of seconds; try again in a moment.
+- **A `401` after reconnecting a machine.** The key this machine holds is no longer accepted. Connect the machine again and save the new key with `spl token save <token>`; see [Connect your command line](/docs/get-started/hosted#connect-your-command-line-to-the-hosted-workspace).
+- **Storage full on the free plan.** A free workspace has 1 GB of storage; a storage-full error means it has reached that limit. See [Pricing](/docs/get-started/pricing) for what each plan includes.
+
 ## Still stuck
 
 Run the full diagnostic:
