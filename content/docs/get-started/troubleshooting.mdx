@@ -40,7 +40,7 @@ If that succeeds, the path resolution was the issue. On Linux and macOS the inst
 
 On Linux/macOS this is not an error: the local CLI authenticates over the Unix socket (filesystem-trust) and a zero-service-account instance is the canonical happy path. If you see this message anyway:
 
-- **On Windows**: Unix-socket trust is not yet wired for the Windows local-CLI path. Mint a bearer with [`spl pair --device local-windows --url http://127.0.0.1:9100 --scopes admin`](/docs/get-started/pairing) and save the printed token.
+- **On Windows**: Unix-socket trust is not yet wired for the Windows local-CLI path. Create a bearer with [`spl pair --device local-windows --url http://127.0.0.1:9100 --scopes admin`](/docs/get-started/pairing) and save the printed token.
 - **You've opted out of Unix-socket trust** (`[auth] unix_socket = false` in `config.toml`). You've explicitly chosen the bearer-only model; see [Service accounts](/docs/get-started/service-accounts) for the pair flow.
 - **You're on an older instance**: upgrade with `curl get.syncropic.com/spl | sh` to land the canonical first-run flow.
 

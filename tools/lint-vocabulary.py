@@ -59,6 +59,102 @@ INTERNAL_PATTERNS = {
     r"open[- ]source (kernel|runtime|binar)": "(the runtime is not open source; the spec and SDKs are)",
 }
 
+# ----- Scoped rule sets -----------------------------------------------------
+#
+# The global rules above run on every file. The rule sets below run only on
+# the pages a person reads first, and they check PROSE only: fenced code
+# blocks, inline code spans, link targets and frontmatter keys are skipped
+# (frontmatter `title:` and `description:` values are prose and are checked).
+#
+# Paths are globs relative to the docs root `content/docs/`. Extend the lists
+# here; nothing else in the file needs to change.
+
+# Pages held to the person-facing rule set.
+PERSON_FACING_PATHS = [
+    "get-started/**",
+    "guides/keeping-your-access.mdx",
+    "guides/files-in-studio.mdx",
+    "guides/your-call.mdx",
+    "guides/portability.mdx",
+    "index.mdx",
+]
+
+# Rule name -> (regex, suggested plain replacement).
+PERSON_FACING_RULES = {
+    "em-dash": (
+        "\u2014",
+        "use a comma, parentheses or a separate sentence "
+        "(in frontmatter use a comma, never a colon)",
+    ),
+    "did-literal": (
+        r"did:sync:",
+        "say 'your workspace's identity' or 'the member', or put a value "
+        "the reader must type in inline code",
+    ),
+    "thread-id": (
+        r"\bth_[a-z0-9_]+",
+        "say 'the conversation' or 'the thread', or put an id the reader "
+        "must type in inline code",
+    ),
+    "api-path": (
+        r"/v1/[A-Za-z0-9_{}/.:-]*",
+        "describe what the page or command does, or link to the API "
+        "reference; put a path the reader must type in inline code",
+    ),
+    "record-kind": (
+        r"\bcore\.[a-z_.]+\.v[0-9]+\b",
+        "describe what was recorded in plain words, or put the kind in "
+        "inline code under an 'Under the hood' note",
+    ),
+    "task-number": (
+        r"\bSKL-[0-9]+\b",
+        "describe the behaviour instead of the internal task",
+    ),
+    "control-plane": (
+        r"(?i)\bcontrol plane\b",
+        "say 'the hosted service' or 'Syncropic's side'",
+    ),
+    "write-back": (
+        r"(?i)\bwrite-back\b",
+        "say 'saving to your repository' or 'keeping a copy'",
+    ),
+    "fold": (
+        r"(?i)\bfold(s|ed|ing)?\b",
+        "say 'is worked out from the records' or 'summary'",
+    ),
+    "mint": (
+        r"(?i)\bmint(s|ed|ing)?\b",
+        "say 'create', 'issue' or 'make'",
+    ),
+    "federation": (
+        r"(?i)\bfederat(e|es|ed|ing|ion)\b",
+        "say 'connect workspaces' or 'share between workspaces'",
+    ),
+}
+
+# Stricter words, opted into per page. Only hosted-only pages belong here:
+# self-host pages legitimately say "instance" for a local daemon.
+STRICT_WORD_PATHS = {
+    "get-started/your-hosted-workspace.mdx": ["instance", "actor"],
+    "get-started/hosted.mdx": ["instance", "actor"],
+    "get-started/pricing.mdx": ["instance", "actor"],
+    "guides/files-in-studio.mdx": ["instance", "actor"],
+}
+
+STRICT_WORD_RULES = {
+    "instance": (
+        r"(?i)\binstances?\b",
+        "say 'workspace' (hosted pages)",
+    ),
+    "actor": (
+        r"(?i)\bactors?\b",
+        "say 'member', 'assistant' or 'person'",
+    ),
+}
+
+# The docs root that scoped-path globs are relative to.
+DOCS_ROOT_MARKER = "content/docs/"
+
 # Path globs that are EXEMPT (provenance, history, changelog, research).
 # Patterns are checked against the path RELATIVE to the repo root.
 PATH_WHITELIST = [
@@ -129,6 +225,19 @@ TERM_RE = re.compile(r"\b(" + "|".join(re.escape(t) for t in RETIRED_TERMS) + r"
 # because the keys are already regex (not literal strings).
 INTERNAL_PATTERN_RES = [(re.compile(p), s) for p, s in INTERNAL_PATTERNS.items()]
 
+PERSON_FACING_RULE_RES = [
+    (name, re.compile(p), s) for name, (p, s) in PERSON_FACING_RULES.items()
+]
+STRICT_WORD_RULE_RES = {
+    name: (re.compile(p), s) for name, (p, s) in STRICT_WORD_RULES.items()
+}
+
+# Frontmatter keys whose VALUES are prose for the scoped rule sets.
+FRONTMATTER_PROSE_KEYS = ("title", "description")
+FRONTMATTER_PROSE_RE = re.compile(
+    r"^(\s*(?:" + "|".join(FRONTMATTER_PROSE_KEYS) + r")\s*:)(.*)$"
+)
+
 # YAML frontmatter keys that legitimately quote prior names.
 FRONTMATTER_PROVENANCE_KEYS = (
     "previously_named",
@@ -149,6 +258,7 @@ class Hit:
     term: str
     suggestion: str
     line_text: str
+    rule: str = "vocabulary"
 
 
 @dataclass
@@ -252,6 +362,40 @@ def _is_frontmatter_provenance_line(line: str) -> bool:
     return False
 
 
+# ----- Scoped rule selection ------------------------------------------------
+
+
+def docs_relative(rel_path: str) -> str | None:
+    """Return the path relative to `content/docs/`, or None when outside it."""
+    posix = rel_path.replace(os.sep, "/")
+    if posix.startswith(DOCS_ROOT_MARKER):
+        return posix[len(DOCS_ROOT_MARKER):]
+    marker = "/" + DOCS_ROOT_MARKER
+    idx = posix.rfind(marker)
+    if idx >= 0:
+        return posix[idx + len(marker):]
+    return None
+
+
+def scoped_rules_for(rel_path: str) -> list[tuple[str, re.Pattern, str]]:
+    """The scoped rules (name, regex, suggestion) that apply to one file."""
+    import fnmatch
+
+    docs_rel = docs_relative(rel_path)
+    if docs_rel is None:
+        return []
+    rules: list[tuple[str, re.Pattern, str]] = []
+    if any(fnmatch.fnmatch(docs_rel, pat) for pat in PERSON_FACING_PATHS):
+        rules.extend(
+            (f"person-facing/{name}", rx, sug)
+            for name, rx, sug in PERSON_FACING_RULE_RES
+        )
+    for word in STRICT_WORD_PATHS.get(docs_rel, []):
+        rx, sug = STRICT_WORD_RULE_RES[word]
+        rules.append((f"strict-word/{word}", rx, sug))
+    return rules
+
+
 # ----- Scanner --------------------------------------------------------------
 
 
@@ -269,6 +413,8 @@ def scan_file(path: Path, rel_path: str) -> list[Hit]:
     in_frontmatter = False
     prev_disable = False
     is_md = path.suffix in {".md", ".mdx"}
+
+    scoped_rules = scoped_rules_for(rel_path) if is_md else []
 
     lines = text.splitlines()
     for idx, raw_line in enumerate(lines, start=1):
@@ -312,6 +458,32 @@ def scan_file(path: Path, rel_path: str) -> list[Hit]:
         if is_md:
             line_for_match = _strip_link_targets(line_for_match)
 
+        # Scoped rules: prose only. In frontmatter only the values of the
+        # prose keys are checked; every other frontmatter line is skipped.
+        if scoped_rules:
+            scoped_text: str | None = _strip_link_targets(
+                _strip_inline_code(raw_line)
+            )
+            if in_frontmatter:
+                fm = FRONTMATTER_PROSE_RE.match(scoped_text)
+                scoped_text = (
+                    " " * len(fm.group(1)) + fm.group(2) if fm else None
+                )
+            if scoped_text is not None:
+                for rule_name, rx, suggestion in scoped_rules:
+                    for m in rx.finditer(scoped_text):
+                        hits.append(
+                            Hit(
+                                path=path,
+                                line_no=idx,
+                                col=m.start() + 1,
+                                term=m.group(0),
+                                suggestion=suggestion,
+                                line_text=raw_line.rstrip(),
+                                rule=rule_name,
+                            )
+                        )
+
         for m in TERM_RE.finditer(line_for_match):
             term = m.group(1)
             hits.append(
@@ -322,6 +494,7 @@ def scan_file(path: Path, rel_path: str) -> list[Hit]:
                     term=term,
                     suggestion=RETIRED_TERMS[term],
                     line_text=raw_line.rstrip(),
+                    rule="retired-term",
                 )
             )
 
@@ -335,6 +508,7 @@ def scan_file(path: Path, rel_path: str) -> list[Hit]:
                         term=m.group(0),
                         suggestion=suggestion,
                         line_text=raw_line.rstrip(),
+                        rule="internal-reference",
                     )
                 )
 
@@ -373,13 +547,26 @@ def print_gh_annotations(hits: list[Hit], mode: str) -> None:
     level = "error" if mode == "error" else "warning"
     for h in hits:
         msg = (
-            f"Disallowed term {h.term!r} found; replace with "
+            f"[{h.rule}] Disallowed term {h.term!r} found; replace with "
             f"{h.suggestion!r}. Suppress with "
             "`<!-- vocab-lint-disable-next-line -->` if intentional."
         )
         print(
             f"::{level} file={h.path},line={h.line_no},col={h.col}::{msg}",
             flush=True,
+        )
+
+
+def print_plain_findings(hits: list[Hit]) -> None:
+    """One readable line per finding on stderr: file:line, rule, suggestion."""
+    cwd = Path.cwd().resolve()
+    for h in hits:
+        try:
+            shown = h.path.resolve().relative_to(cwd).as_posix()
+        except ValueError:
+            shown = str(h.path)
+        sys.stderr.write(
+            f"{shown}:{h.line_no}: {h.rule}: {h.term!r}: {h.suggestion}\n"
         )
 
 
@@ -396,11 +583,12 @@ def print_summary(report: Report, mode: str, repo: str) -> None:
     out.append("")
     out.append("Disallowed vocabulary detected. Replace as suggested below.")
     out.append("")
-    out.append("| File | Line | Term | Suggested |")
-    out.append("|------|-----:|------|-----------|")
+    out.append("| File | Line | Rule | Term | Suggested |")
+    out.append("|------|-----:|------|------|-----------|")
     for h in report.hits[:50]:
         out.append(
-            f"| `{h.path}` | {h.line_no} | `{h.term}` | `{h.suggestion}` |"
+            f"| `{h.path}` | {h.line_no} | {h.rule} | `{h.term}` | "
+            f"`{h.suggestion}` |"
         )
     if len(report.hits) > 50:
         out.append(f"| … | … | … | (+{len(report.hits) - 50} more) |")
@@ -525,6 +713,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print_gh_annotations(report.hits, ns.mode)
+    print_plain_findings(report.hits)
     print_summary(report, ns.mode, ns.repo)
 
     if not report.hits:

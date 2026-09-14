@@ -1,6 +1,6 @@
 ---
 title: Windows Notes
-description: Platform-specific guidance for Windows — WSL gotchas, Windows Defender, Windows Firewall, user-scope PATH, and long path names.
+description: Platform-specific guidance for Windows, covering WSL gotchas, Windows Defender, Windows Firewall, user-scope PATH, and long path names.
 ---
 
 Most of Syncropel works identically on Windows and Linux. A handful of Windows-specific considerations trip up new users; this page collects them.
@@ -25,11 +25,11 @@ cd /mnt/c/Users/$USER
 /mnt/c/Users/$USER/AppData/Local/Programs/spl/spl.exe version
 ```
 
-But this is not a supported path — the native shell is always better.
+But this is not a supported path. The native shell is always better.
 
 ## Windows Defender
 
-Windows Defender can scan `hub.db` on every read or write, which slows down a busy instance. It also occasionally flags fresh release binaries as "unknown" while reputation data catches up — this triggers an interactive prompt on first run.
+Windows Defender can scan `hub.db` on every read or write, which slows down a busy instance. It also occasionally flags fresh release binaries as "unknown" while reputation data catches up, which triggers an interactive prompt on first run.
 
 ### Optional: Defender exclusions
 
@@ -49,7 +49,7 @@ If Defender prompts with an "unknown publisher" warning the first time you run `
 
 ## Windows Firewall
 
-The first time `spl serve` binds a TCP port, Windows Firewall prompts for inbound network permission. The prompt can land behind other windows — if your install appears to hang during the post-install verify step, that's almost certainly the culprit.
+The first time `spl serve` binds a TCP port, Windows Firewall prompts for inbound network permission. The prompt can land behind other windows. If your install appears to hang during the post-install verify step, that's almost certainly the culprit.
 
 ### Find a hidden prompt
 
@@ -72,7 +72,7 @@ New-NetFirewallRule `
   -Profile Private,Domain
 ```
 
-This allows inbound connections on Private and Domain networks (which includes most LAN and private VPN scenarios) but not Public. If you need Public network access, replace `-Profile Private,Domain` with `-Profile Any` — though think hard about whether that's actually what you want.
+This allows inbound connections on Private and Domain networks (which includes most LAN and private VPN scenarios) but not Public. If you need Public network access, replace `-Profile Private,Domain` with `-Profile Any`, though think hard about whether that's actually what you want.
 
 ### Removing the rule
 
@@ -80,7 +80,7 @@ This allows inbound connections on Private and Domain networks (which includes m
 Remove-NetFirewallRule -DisplayName "spl serve"
 ```
 
-## PATH — user scope, no admin
+## PATH: user scope, no admin
 
 The Windows install script writes to the **user** `PATH`, not the machine `PATH`:
 
@@ -152,7 +152,7 @@ Get-Content -Path $env:USERPROFILE\.syncro\logs\spl.log -Tail 200 -Wait
 
 ## See also
 
-- [Install](/docs/get-started/install) — Windows install flow
-- [Windows Service](/docs/operate/windows-service) — run `spl serve` as a boot-time service
-- [Troubleshooting](/docs/get-started/troubleshooting) — Windows-specific symptoms covered alongside Linux cases
-- [Linux and macOS notes](/docs/get-started/linux-macos) — parallel page for non-Windows hosts
+- [Install](/docs/get-started/install): Windows install flow
+- [Windows Service](/docs/operate/windows-service): run `spl serve` as a boot-time service
+- [Troubleshooting](/docs/get-started/troubleshooting): Windows-specific symptoms covered alongside Linux cases
+- [Linux and macOS notes](/docs/get-started/linux-macos): parallel page for non-Windows hosts

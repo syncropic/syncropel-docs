@@ -8,9 +8,9 @@ Two distinct operations.
 - **Reset** wipes `~/.syncro/` (identity, keys, records, token, config) but leaves the `spl` binary installed and `~/.syncro-data/` (your task content) untouched. Use this when you want a clean first-run experience without reinstalling.
 - **Uninstall** removes the `spl` binary itself. Use this when you're done with Syncropel on this machine.
 
-Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` (a per-instance directory keyed by the instance DID) are written outside `~/.syncro/`, so they survive **reset but not full disk cleanup**. The backup is destructive — every instance start overwrites it. If you care about your records, copy them off-host before running either of the operations on this page.
+Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` (a per-instance directory keyed by the instance DID) are written outside `~/.syncro/`, so they survive **reset but not full disk cleanup**. The backup is destructive. Every instance start overwrites it. If you care about your records, copy them off-host before running either of the operations on this page.
 
-## Clean reset — `spl reset`
+## Clean reset with `spl reset`
 
 `spl reset` is the canonical way to wipe `~/.syncro/` back to a fresh state. It refuses to run while the instance is up, prints a plan of what it will touch, prompts for confirmation, and creates a timestamped backup of `hub.db` before deleting anything.
 
@@ -22,17 +22,17 @@ spl init                                        # regenerate identity and config
 spl serve                              # start fresh
 ```
 
-What `spl reset` deletes: **everything inside `~/.syncro/`**, then `~/.syncro/` itself. The command lists the directory at reset time and removes every entry that isn't explicitly preserved by a `--keep-*` flag — that catches accumulated state like `vfs.db*`, `agent/`, `content/`, `serve.log`, and any old backup files without needing the reset command to know about every possible path.
+What `spl reset` deletes: **everything inside `~/.syncro/`**, then `~/.syncro/` itself. The command lists the directory at reset time and removes every entry that isn't explicitly preserved by a `--keep-*` flag. That catches accumulated state like `vfs.db*`, `agent/`, `content/`, `serve.log`, and any old backup files without needing the reset command to know about every possible path.
 
 What `spl reset` **never** deletes:
 
 | Path | Why |
 |---|---|
-| `~/.syncro-data/` | Task content files (Markdown) + alias mappings — your authored content, separate blast radius from `.syncro/` |
+| `~/.syncro-data/` | Task content files (Markdown) + alias mappings (your authored content, separate blast radius from `.syncro/`) |
 | `~/.local/share/syncropel/backups/` | Automatic `hub.db` backups, plus the `hub.db.pre-reset.<iso8601>` snapshot this command creates |
 | OS keyring entries | If you have an identity stored in linux-secret-service / macOS Keychain / Windows DPAPI, those entries are not touched. `spl init` overwrites them on next start, so this is functionally idempotent |
 
-`~/.syncro/` itself is also removed when **no** `--keep-*` flag is passed — so the next `spl init` works without `--force`. With any `--keep-*` flag set, the home dir is left in place containing only the kept entries, and the next `spl init` needs `--force`.
+`~/.syncro/` itself is also removed when **no** `--keep-*` flag is passed, so the next `spl init` works without `--force`. With any `--keep-*` flag set, the home dir is left in place containing only the kept entries, and the next `spl init` needs `--force`.
 
 ### How reset detects a running instance
 
@@ -43,7 +43,7 @@ What `spl reset` **never** deletes:
 3. (Default `~/.syncro/` home only) TCP `127.0.0.1:9100` accepts a connection.
 4. (Linux, default home only) `systemctl --user is-active spl-serve.service` returns `active`.
 
-Signals 3+4 are scoped to the default `~/.syncro/` home so multi-instance setups and tests using `SYNCROPEL_HOME=/some/other/path` aren't blocked by an unrelated instance. If you use a systemd user unit to keep `spl serve` running, the command will tell you to stop the unit first — bringing the instance down with just `kill` isn't enough because the unit will respawn it the moment state is deleted.
+Signals 3+4 are scoped to the default `~/.syncro/` home so multi-instance setups and tests using `SYNCROPEL_HOME=/some/other/path` aren't blocked by an unrelated instance. If you use a systemd user unit to keep `spl serve` running, the command will tell you to stop the unit first. Bringing the instance down with just `kill` isn't enough because the unit will respawn it the moment state is deleted.
 
 ### Common flags
 
@@ -72,7 +72,7 @@ spl init
 spl serve
 ```
 
-### Fallback — when `spl reset` itself can't run
+### Fallback: when `spl reset` itself can't run
 
 If the `spl` binary is broken (a corrupt upgrade, a `--insecure-localhost` instance that refuses to stop, an orphaned PID file confusing the lifecycle), fall back to the manual procedure:
 
@@ -92,7 +92,7 @@ spl init
 
 The manual `rm -rf` does NOT auto-back up `hub.db` first, so if there's anything you want to keep, copy it off-host before running this. The instance-startup backup at `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` is your last line of defense after the fact.
 
-After either path, you're back at the start of the onboarding flow. The `spl init` command prints the next steps — open the local front door at `http://127.0.0.1:9100/` or pair Studio at `https://syncropel.com/connect?url=http://127.0.0.1:9100`.
+After either path, you're back at the start of the onboarding flow. The `spl init` command prints the next steps: open the local front door at `http://127.0.0.1:9100/` or pair Studio at `https://syncropel.com/connect?url=http://127.0.0.1:9100`.
 
 ### First boot after reset
 
@@ -106,11 +106,11 @@ spl status   # instance healthy
 spl doctor   # all green
 ```
 
-`spl task add "..."`, `spl thread list`, `spl status`, and every other CLI command works immediately — no service account, no bearer token, no `--insecure-localhost` step. The local CLI authenticates via the Unix socket at `~/.syncro/run/spl.sock` (mode 0700 owned by your user); filesystem permissions are the authentication.
+`spl task add "..."`, `spl thread list`, `spl status`, and every other CLI command works immediately, with no service account, no bearer token, no `--insecure-localhost` step. The local CLI authenticates via the Unix socket at `~/.syncro/run/spl.sock` (mode 0700 owned by your user); filesystem permissions are the authentication.
 
-You only need to mint a service account when **delegating** scoped access to a different principal — a browser pair, a paired phone, an MCP client, a remote CLI, or another federating instance. See [Service accounts and tokens](/docs/get-started/service-accounts).
+You only need to create a service account when **delegating** scoped access to a different principal: a browser pair, a paired phone, an MCP client, a remote CLI, or another instance you sync with. See [Service accounts and tokens](/docs/get-started/service-accounts).
 
-On older instances that don't support Unix-socket trust, the legacy `--insecure-localhost` + `service-account create --bootstrap` + `token save` + restart-secure flow still works — but upgrading (`curl get.syncropic.com/spl | sh`) skips it.
+On older instances that don't support Unix-socket trust, the legacy `--insecure-localhost` + `service-account create --bootstrap` + `token save` + restart-secure flow still works, but upgrading (`curl get.syncropic.com/spl | sh`) skips it.
 
 ## Full uninstall
 
@@ -161,7 +161,7 @@ rm -rf ~/.local/share/syncropel
 
 ### If you installed the Windows Service wrapper
 
-Uninstall the service **before** removing the binary — the SCM needs `spl.exe` to exist for the uninstall call.
+Uninstall the service **before** removing the binary. The SCM needs `spl.exe` to exist for the uninstall call.
 
 ```powershell
 # From elevated PowerShell
@@ -186,7 +186,7 @@ systemctl --user daemon-reload
 
 - The `spl` binary itself.
 - Any entries you added to your shell's `PATH`.
-- `~/.syncro-data/` (task content + alias mappings) — the operator's authored content lives in a separate directory from `.syncro/` for exactly this reason. `spl reset` never touches it unless you pass `--wipe-task-data` and confirm the extra prompt. Manual `rm -rf ~/.syncro` doesn't touch it either.
+- `~/.syncro-data/` (task content + alias mappings): the operator's authored content lives in a separate directory from `.syncro/` for exactly this reason. `spl reset` never touches it unless you pass `--wipe-task-data` and confirm the extra prompt. Manual `rm -rf ~/.syncro` doesn't touch it either.
 - Backups at `~/.local/share/syncropel/backups/`. The pre-reset snapshot `hub.db.pre-reset.<iso8601>` that `spl reset` writes lands here too, so reset is recoverable. Only full uninstall removes this directory.
 - OS keyring entries (if you use a keyring backend). `spl init` overwrites the entry on next start.
 
@@ -197,7 +197,7 @@ systemctl --user daemon-reload
 
 ### What neither removes
 
-- Records that were federated to another instance before the reset or uninstall. Those live on the remote peer independently.
+- Records that were synced to another instance before the reset or uninstall. Those live on the remote peer independently.
 - Git repos, source checkouts, or other project state that happens to be adjacent on disk.
 
 ## Restoring from backup after a reset
@@ -222,10 +222,10 @@ cp ~/.local/share/syncropel/backups/instance-<tail>/hub.db.bak ~/.syncro/hub.db
 spl serve
 ```
 
-The identity in `config.toml` is independent of the records file, so a restored `hub.db` works with your current DID — as long as you haven't re-initialized to a new keypair in between. If you have, records will still restore but they'll be signed under the old key. See [Operator runbook → Recovery](/docs/operate/runbook) for the full procedure.
+The identity in `config.toml` is independent of the records file, so a restored `hub.db` works with your current DID, as long as you haven't re-initialized to a new keypair in between. If you have, records will still restore but they'll be signed under the old key. See [Operator runbook → Recovery](/docs/operate/runbook) for the full procedure.
 
 ## See also
 
-- [Operator runbook → Backup discipline](/docs/operate/runbook) — how the automatic backup works and why off-host copies matter
-- [First run](/docs/get-started/first-run) — what a fresh `spl init` creates
-- [Troubleshooting](/docs/get-started/troubleshooting) — when a reset is the right answer (usually it isn't)
+- [Operator runbook → Backup discipline](/docs/operate/runbook): how the automatic backup works and why off-host copies matter
+- [First run](/docs/get-started/first-run): what a fresh `spl init` creates
+- [Troubleshooting](/docs/get-started/troubleshooting): when a reset is the right answer (usually it isn't)

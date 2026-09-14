@@ -11,6 +11,8 @@
 #   8. In a YAML provenance field    → MUST NOT flag
 #   9. In a whitelisted path         → MUST NOT flag
 #  10. Auto-fix produces a clean diff that, applied, makes #1 disappear
+#  13-19. Scoped rule sets: person-facing rules fire in prose on in-scope
+#         pages only; strict words fire only on opted-in pages
 
 set -euo pipefail
 
@@ -218,6 +220,90 @@ if [ "${RC}" = "2" ]; then
   report PASS "fixture 12: error-mode exits 2 on hits"
 else
   report FAIL "fixture 12: error-mode exit was ${RC}, expected 2"
+fi
+
+# ----- Scoped rule sets (person-facing + strict words) ---------------------
+mkdir -p scoped/content/docs/get-started scoped/content/docs/operate
+EM="$(printf '\342\200\224')"
+TICK='`'
+FENCE='```'
+cat > scoped/content/docs/get-started/page.mdx <<FIXTURE
+---
+title: Page
+description: A description ${EM} with a dash.
+icon: Book${EM}Mark
+---
+# Page
+
+Prose with an em dash ${EM} here.
+Your id is did:sync:user:you on th_abc_123 via /v1/records now.
+It writes core.user.message.v1 through the control plane with write-back.
+The fold is minted and federation follows.
+
+Inline code is fine: ${TICK}did:sync:user:you${TICK} and ${TICK}/v1/records${TICK} and ${TICK}th_abc${TICK}.
+
+${FENCE}bash
+spl know --thread th_code /v1/in/code did:sync:x core.a.v1 ${EM} fold mint
+${FENCE}
+FIXTURE
+cat > scoped/content/docs/operate/elsewhere.mdx <<FIXTURE
+# Elsewhere
+
+An em dash ${EM} and a fold outside the person-facing scope.
+FIXTURE
+cat > scoped/content/docs/get-started/pricing.mdx <<'FIXTURE'
+# Pricing
+
+Each instance has an actor.
+FIXTURE
+cat > scoped/content/docs/get-started/install.mdx <<'FIXTURE'
+# Install
+
+Start a local instance with an actor.
+FIXTURE
+set +e
+(cd scoped && python3 ../tools/lint-vocabulary.py --mode error content/docs \
+  > /dev/null 2> ../scoped.out)
+SCOPED_RC=$?
+set -e
+if [ "${SCOPED_RC}" = "2" ]; then
+  report PASS "fixture 13: scoped findings exit 2"
+else
+  report FAIL "fixture 13: scoped run exit was ${SCOPED_RC}, expected 2"
+fi
+for rule in em-dash did-literal thread-id api-path record-kind control-plane \
+            write-back fold mint federation; do
+  if grep -q "page.mdx:\([89]\|1[01]\): person-facing/${rule}:" scoped.out; then
+    report PASS "fixture 14: person-facing/${rule} flagged in prose"
+  else
+    report FAIL "fixture 14: person-facing/${rule} NOT flagged in prose"
+  fi
+done
+if grep -q "page.mdx:3: person-facing/em-dash:" scoped.out; then
+  report PASS "fixture 15: em dash in frontmatter description flagged"
+else
+  report FAIL "fixture 15: em dash in frontmatter description NOT flagged"
+fi
+if grep -q "page.mdx:\(4\|13\|1[5-7]\):" scoped.out; then
+  report FAIL "fixture 16: frontmatter key, inline code or code fence FALSELY flagged"
+else
+  report PASS "fixture 16: frontmatter key, inline code and code fence skipped"
+fi
+if grep -q "elsewhere.mdx:.*person-facing" scoped.out; then
+  report FAIL "fixture 17: person-facing rules FALSELY applied outside scope"
+else
+  report PASS "fixture 17: person-facing rules stay in scope"
+fi
+if grep -q "get-started/pricing.mdx:3: strict-word/instance:" scoped.out && \
+   grep -q "get-started/pricing.mdx:3: strict-word/actor:" scoped.out; then
+  report PASS "fixture 18: strict words flagged on an opted-in page"
+else
+  report FAIL "fixture 18: strict words NOT flagged on an opted-in page"
+fi
+if grep -q "install.mdx:.*strict-word" scoped.out; then
+  report FAIL "fixture 19: strict words FALSELY applied to a page not opted in"
+else
+  report PASS "fixture 19: strict words not applied to a page not opted in"
 fi
 
 echo

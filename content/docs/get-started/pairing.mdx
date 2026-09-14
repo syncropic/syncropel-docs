@@ -5,7 +5,7 @@ description: Use `spl pair` to attach a browser, phone, or other device to your 
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
-Your CLI talks to your workspace via `~/.syncro/token`. Browsers and phones can't read that file, so they need their own service account and token. `spl pair` wraps the whole "mint a scoped account, render a token, show it in a form the other device can consume" flow in one command.
+Your CLI talks to your workspace via `~/.syncro/token`. Browsers and phones can't read that file, so they need their own service account and token. `spl pair` wraps the whole "create a scoped account, render a token, show it in a form the other device can consume" flow in one command.
 
 ## Why pairing exists
 
@@ -13,7 +13,7 @@ A fresh browser pointed at `syncropel.com` has no way to authenticate to your lo
 
 1. **Paste the token manually.** Works, but painful: tokens are 40-plus characters and typing them on a phone keyboard is error-prone.
 2. **Share the CLI's token with the browser.** Bad: the CLI's token is usually `admin`-scoped and the browser doesn't need that.
-3. **Pair.** Mint a fresh, narrowly-scoped service account just for this device, hand its token to the device, and let the device store it.
+3. **Pair.** Create a fresh, narrowly-scoped service account just for this device, hand its token to the device, and let the device store it.
 
 Pairing is path 3. It produces a device-specific service account you can revoke independently if the device is lost.
 
@@ -29,7 +29,7 @@ spl pair \
 The command:
 
 1. Creates a new service account named after your device, bound to your user DID, with the scopes you named.
-2. Mints a token on the new account.
+2. Creates a token on the new account.
 3. Renders the pairing payload three ways: pick the one that fits the situation.
 
 ### Output: three ways to pair
@@ -75,7 +75,7 @@ For the full set of failure modes, see [Troubleshooting](/docs/get-started/troub
 |---|---|
 | **Scan pairing QR** | You're standing next to your laptop and just ran `spl pair --device browser-mobile`. Point the phone camera at the printed QR. |
 | **Enter instance URL** | Your workspace is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
-| **Browse public records** | Placeholder for a future release: read federation-published feeds without pairing. |
+| **Browse public records** | Placeholder for a future release: read feeds that other workspaces publish, without pairing. |
 
 The mobile entry deliberately omits the localhost probe. If you previously paired this phone and the workspace URL is stored, the dashboard probes it directly and skips the welcome screen.
 
@@ -105,7 +105,7 @@ The `--device` label sets a sensible default scope for you, so you usually don't
 | `emitter-*` (e.g. `emitter-linear`) | `records:read,records:write` | An integration that writes records but doesn't need to administer your workspace. |
 | Anything else | `records:read,records:write` | Conservative default with a hint suggesting one of the prefixes above. |
 
-If the default isn't what you want, override with `--scopes` (comma-separated list). For example, `--scopes records:read` mints a viewer-only token regardless of device prefix.
+If the default isn't what you want, override with `--scopes` (comma-separated list). For example, `--scopes records:read` creates a viewer-only token regardless of device prefix.
 
 The general rule: start narrow. `admin` is appropriate for a browser driving the dashboard but rarely the right choice for a phone or an integration. Add scopes when a feature actually fails on a token, not preemptively.
 
@@ -149,7 +149,7 @@ Nothing else is transmitted. The token itself is the authentication proof; the U
 spl service-account list
 ```
 
-Devices paired via `spl pair` show up as regular service accounts: the only difference from a bootstrap account is their scopes and the fact that they were minted after auth was already on.
+Devices paired via `spl pair` show up as regular service accounts: the only difference from a bootstrap account is their scopes and the fact that they were created after auth was already on.
 
 ## Revoking a lost device
 

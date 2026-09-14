@@ -117,7 +117,7 @@ If you send a message and nothing comes back, work through this in order:
 For readers working with the records directly:
 
 - The chief is an actor registered on the workspace. Your message is a
-  `core.user.message.v1` record, and the chief builds its context by folding
+  `core.user.message.v1` record, and the chief builds its context by reading
   the thread's records.
 - Records an escalated turn writes are signed by your actor DID, not the
   chief's.

@@ -1,17 +1,17 @@
 ---
 title: Your identity & recovery
-description: Your Syncropel identity is one portable identity that follows you across every device and workspace. This page explains what it is, how signing in on a new device works, and — most importantly — how to back it up so you never lose access.
+description: Your Syncropel identity is one portable identity that follows you across every device and workspace. This page explains what it is, how signing in on a new device works, and, most importantly, how to back it up so you never lose access.
 ---
 
-Your Syncropel identity is **one portable identity that follows you everywhere**. The same identity owns your content whether you reach it from your laptop, your phone, the web, or a self-hosted workspace. Nothing you create is tied to a single device — it's tied to *you*.
+Your Syncropel identity is **one portable identity that follows you everywhere**. The same identity owns your content whether you reach it from your laptop, your phone, the web, or a self-hosted workspace. Nothing you create is tied to a single device. It's tied to *you*.
 
 This page explains what your identity is, how it stays the same across devices, and how to back it up so you never lose access.
 
 ## One identity, many devices
 
-When you sign in — on the web at syncropel.com or by connecting `spl` on a machine you maintain — you get the same identity every time. Signing in on a brand-new device gives you back the *same* identity, with the *same* content, automatically. There's no per-device setup and nothing to copy between machines for everyday use.
+When you sign in (on the web at syncropel.com or by connecting `spl` on a machine you maintain), you get the same identity every time. Signing in on a brand-new device gives you back the *same* identity, with the *same* content, automatically. There's no per-device setup and nothing to copy between machines for everyday use.
 
-**Lost a device? Just sign in again.** Your content is owned by your sign-in identity, not by any machine. A stolen laptop or a reinstalled phone costs you nothing: sign in on the next device and everything you own is there. You don't need a recovery phrase for this — everyday continuity rides entirely on being able to sign in.
+**Lost a device? Just sign in again.** Your content is owned by your sign-in identity, not by any machine. A stolen laptop or a reinstalled phone costs you nothing: sign in on the next device and everything you own is there. You don't need a recovery phrase for this. Everyday continuity rides entirely on being able to sign in.
 
 That is the story for a workspace **you own**. For a place somebody else let you into (a night, a project, a teammate's workspace), your way back on a new device is a key you keep yourself: see [Keeping your access](/docs/guides/keeping-your-access). The recovery phrase on this page protects the master identity of a workspace operator; the kept key re-opens one door for one person. They are different things and both are real.
 
@@ -25,14 +25,14 @@ It prints your identity, the method behind it, and the device you're signing fro
 
 ## Linked sign-in methods
 
-You can have more than one way to sign in — for example an email address and a Google account — all pointing at the same identity. Adding a second sign-in method never creates a second identity; it's just another door into the one you already have. Manage these from your account settings on the web.
+You can have more than one way to sign in (for example an email address and a Google account), all pointing at the same identity. Adding a second sign-in method never creates a second identity; it's just another door into the one you already have. Manage these from your account settings on the web.
 
 ## Your recovery phrase
 
-Everyday access rides on signing in. But your identity also has a deeper, self-owned layer: a **recovery phrase** — a sequence of 24 ordinary words that *is* your identity at its root. With it, you can rebuild your identity from scratch on any device, with no dependence on any sign-in provider.
+Everyday access rides on signing in. But your identity also has a deeper, self-owned layer: a **recovery phrase**, a sequence of 24 ordinary words that *is* your identity at its root. With it, you can rebuild your identity from scratch on any device, with no dependence on any sign-in provider.
 
 <Callout type="info">
-The recovery phrase lives on workspaces running **master identity mode**. Hosted workspaces are adopting it progressively; on a machine you maintain yourself, start with `spl init --master` (or set `SPL_IDENTITY_MODE=master` before init). On a workspace not yet in master mode, the commands below report that they aren't available — your everyday sign-in continuity (above) is unaffected.
+The recovery phrase lives on workspaces running **master identity mode**. Hosted workspaces are adopting it progressively; on a machine you maintain yourself, start with `spl init --master` (or set `SPL_IDENTITY_MODE=master` before init). On a workspace not yet in master mode, the commands below report that they aren't available. Your everyday sign-in continuity (above) is unaffected.
 </Callout>
 
 Reveal your recovery phrase like this:
@@ -42,10 +42,10 @@ spl identity backup --i-understand
 ```
 
 <Callout type="warn">
-Your recovery phrase is a secret. Anyone who has it can restore your identity. The command prints it **only to your own terminal** and never sends it anywhere. Write it down and store it offline — on paper, in a safe, or in a password manager. Do not paste it into chat, email, or a screenshot.
+Your recovery phrase is a secret. Anyone who has it can restore your identity. The command prints it **only to your own terminal** and never sends it anywhere. Write it down and store it offline: on paper, in a safe, or in a password manager. Do not paste it into chat, email, or a screenshot.
 </Callout>
 
-If you'd rather not keep the whole phrase in one place, you can split it into **five shares, any three of which** can rebuild it — useful for storing pieces in separate locations or with people you trust:
+If you'd rather not keep the whole phrase in one place, you can split it into **five shares, any three of which** can rebuild it, useful for storing pieces in separate locations or with people you trust:
 
 ```bash
 spl identity backup --i-understand --shamir
@@ -61,7 +61,7 @@ If you set up a fresh device, lose a machine, or simply want your identity on an
 spl identity recover --phrase "word1 word2 ... word24"
 ```
 
-Run this on a fresh install. Your identity comes back **exactly as it was** — same identity, same ownership of your content. If you split your phrase into shares instead, supply any three:
+Run this on a fresh install. Your identity comes back **exactly as it was**: same identity, same ownership of your content. If you split your phrase into shares instead, supply any three:
 
 ```bash
 spl identity recover --shamir-share "<share-1>" --shamir-share "<share-2>" --shamir-share "<share-3>"
@@ -71,14 +71,14 @@ Recovery is deterministic: the same phrase always rebuilds the same identity, on
 
 ## Why this matters
 
-- **Sign-in is convenience; the recovery phrase is ownership.** Day to day, you just sign in and your stuff is there. But if you ever lose access to a sign-in method, the recovery phrase is what guarantees you can still get your identity — and everything you own — back.
+- **Sign-in is convenience; the recovery phrase is ownership.** Day to day, you just sign in and your stuff is there. But if you ever lose access to a sign-in method, the recovery phrase is what guarantees you can still get your identity, and everything you own, back.
 - **No one can lock you out.** Because your identity can be rebuilt from a phrase you alone hold, your access doesn't ultimately depend on any company or provider staying available.
 - **Back it up once, early.** The best time to save your recovery phrase is right after you first set up your identity. Do it before you've created anything you'd hate to lose.
 
 ## What to do right now
 
 1. If your workspace runs master identity mode, run `spl identity backup --i-understand` and write the 24 words down offline.
-2. Store them somewhere you'll still have in a year — not just on the device you're using now.
+2. Store them somewhere you'll still have in a year, not just on the device you're using now.
 3. Optionally split them into shares (`--shamir`) and keep the pieces in different places.
 
-That's it. With your recovery phrase saved, your identity — and everything you build on Syncropel — is genuinely yours, on every device, for good.
+That's it. With your recovery phrase saved, your identity (and everything you build on Syncropel) is genuinely yours, on every device, for good.

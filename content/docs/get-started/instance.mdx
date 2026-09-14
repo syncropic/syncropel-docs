@@ -49,7 +49,7 @@ What it does:
 - Enforces `auth.required = true`. Every HTTP request needs a valid bearer token.
 - With **zero service accounts**, starts in **bootstrap mode**: the local
   socket works normally, and the TCP API answers `503 BOOTSTRAP_REQUIRED`
-  (with the exact commands to run) until you mint the first service
+  (with the exact commands to run) until you create the first service
   account. The instance never refuses to start over missing accounts.
 - Takes a startup backup of `hub.db` to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak`: a per-instance directory keyed by the instance DID (see [Operator runbook](/docs/operate/runbook) for backup discipline).
 
@@ -61,7 +61,7 @@ The instance stays bound to loopback, which means nothing outside the machine ca
 spl serve --host 0.0.0.0
 ```
 
-Binds to every interface on the machine. This is what you pass when the instance is meant to be reached from outside: typically from a phone on the same private network, a federation peer, or a reverse proxy.
+Binds to every interface on the machine. This is what you pass when the instance is meant to be reached from outside: typically from a phone on the same private network, a peer workspace, or a reverse proxy.
 
 **Exposure is a separate decision from authentication.** `--host 0.0.0.0` without `auth.required = true` is a catastrophic misconfiguration. The default is to keep auth on. `spl doctor` flags instances bound to non-loopback with auth off.
 
@@ -155,7 +155,7 @@ Instance started. Run 'spl status' to verify health.
 
 The instance comes up healthy with zero service accounts, and the local CLI
 talks to it via the Unix socket: `Auth: required (service accounts: 0)` is
-**bootstrap mode**, not an error. Until you mint the first service account,
+**bootstrap mode**, not an error. Until you create the first service account,
 the TCP API answers every request with `503 BOOTSTRAP_REQUIRED` and the
 exact commands to run:
 
