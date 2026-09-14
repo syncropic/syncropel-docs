@@ -1,6 +1,6 @@
 ---
 title: Hosted workspace signup
-description: Skip the install. Sign in at syncropel.com and have a fully portable Syncropel workspace running in about a minute. Self-hosted and hosted are first-class equals; this page walks through the hosted signup end to end.
+description: Skip the install. Sign in at syncropel.com and have a fully portable Syncropel workspace ready in about two minutes. Self-hosted and hosted are first-class equals; this page walks through the hosted signup end to end.
 ---
 
 If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel workspace for you. A hosted workspace is the same Syncropel as a self-hosted one: the same program, the same features, the same way of storing your work. You can move freely between hosted and self-hosted at any time: `spl export` takes all of your data with you, and the same program runs on both ends.
@@ -34,18 +34,15 @@ Reserved labels (`api`, `docs`, `www`, `app`, `admin`, etc.) are rejected with a
 
 Submitting the form starts setting up your workspace and shows progress live. The signup page shows each step as it finishes:
 
-| Step | What's happening | Typical time |
-|---|---|---|
-| `reserve` | Your label is reserved so nobody else can take it. | < 1s |
-| `app_create` | Your workspace is created. | 1-2s |
-| `volume_create` | Storage for your workspace is set aside. | 1-2s |
-| `dns` | `<label>.syncropel.app` is pointed at your new workspace. | 5-15s |
-| `image_build` / `deploy` | Your workspace starts on the current release. | 20-40s |
-| `bootstrap` | Your workspace sets up its first sign-in key. | 1-2s |
-| `dns_propagate` | The new address becomes reachable across the internet. | up to ~30s |
-| `ready` | Your workspace is reachable. | |
+| Step shown | What's happening |
+|---|---|
+| Creating server | Your workspace is created. |
+| Allocating storage | Storage for your workspace is set aside. |
+| Deploying instance | Your workspace starts on the current release. |
+| Initializing your instance | Your workspace sets up its first sign-in key. |
+| Routing your domain | `<label>.syncropel.app` is pointed at your new workspace and becomes reachable. |
 
-Total time to `ready` is typically 60 to 120 seconds. If any step fails, the page shows a clear error and gives you a way to retry.
+When every step is done, the page says your workspace is ready. The whole setup usually takes about two minutes. If any step fails, the page shows a clear error and gives you a way to retry.
 
 ### 4. Land in your workspace
 
@@ -57,7 +54,7 @@ The bare `<label>.syncropel.app` address is your workspace's public landing page
 
 [syncropel.com/account/workspaces](https://syncropel.com/account/workspaces) lists every workspace your account owns, with its status, a way to connect, and actions like delete. Sign in on a new device and the same list is there; one click connects Studio to any of them.
 
-Want another workspace for a separate project? Create another; each workspace is billed on its own.
+Want another workspace for a separate project? Create another. Your first hosted workspace is free; each one after that is $25 per month, with a 30-day free trial.
 
 ## What you can do once you're in
 
@@ -66,7 +63,6 @@ The same things anyone using Syncropel can do, with the same command line and SD
 - **Use Syncropel Studio** for threads, tasks, search and your assistant. `<label>.syncropel.app` itself is the workspace's public landing page ([you can customize it](/docs/operate/site)); Studio at syncropel.com is where you actually work.
 - **Use the command line or SDKs** instead if you prefer to work in code; see the next section.
 - **Connect more devices** with `spl pair --device <label> --url https://<label>.syncropel.app`, or without the command line at all: on any thread press **keep this access**, and paste the key it shows into **+ add a connection** on the other device (see [Keeping your access](/docs/guides/keeping-your-access)).
-- **Connect with another Syncropel workspace**: see [connecting two workspaces](/docs/guides/federation-pair).
 - **Export everything** at any time with `spl export`; see [Portability](/docs/guides/portability).
 
 You don't look after the workspace yourself: it restarts if it crashes, and secure connections are handled for you. You can check that your workspace is up by opening `<label>.syncropel.app/health` in a browser.
@@ -84,7 +80,7 @@ curl -sSf https://get.syncropic.com/spl | sh           # Linux / WSL. Windows: i
 # 2. Point the CLI at your hosted workspace
 export SPL_SERVE_URL=https://<label>.syncropel.app
 
-# 3. Pair this machine. Studio's Connect button (or the ready screen's
+# 3. Connect this machine. Studio's Connect button (or the ready screen's
 #    CLI option) gives you a device key; save it:
 spl token save <token>
 ```
@@ -108,7 +104,7 @@ spl task list
 
 `spl status` prints which address it is using and whether your key is accepted. `spl thread list` and `spl task list` should show your workspace's threads and tasks (empty if you haven't added anything yet).
 
-If you get a `401`, pair again and save the new key (`spl token save <token>`), and check that `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, open `<label>.syncropel.app/health` in a browser: the workspace may be waking up after a quiet period, so give it a few seconds.
+If you get a `401`, connect this machine again and save the new key (`spl token save <token>`), and check that `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, open `<label>.syncropel.app/health` in a browser: the workspace may be waking up after a quiet period, so give it a few seconds.
 
 ### A separate key for each device (recommended)
 
@@ -120,6 +116,8 @@ spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.app --scopes
 
 `spl pair` prints a one-click link, a QR code, and plain text: pick whichever fits. For the command line on the same machine, the simplest path is to copy the printed key and run `spl token save <new-token>`. If the laptop is ever lost, you can switch off just that key.
 
+`--scopes admin` gives the key full control of the workspace: it can read and change everything, including creating and switching off other keys. Without it, a key named like this one can read and add records but cannot manage keys or settings.
+
 See [Service accounts and tokens](/docs/get-started/service-accounts) for the longer version, including narrowing what a key can do and replacing keys.
 
 ## Hosted vs. self-hosted: which to pick
@@ -130,7 +128,7 @@ Both are the same Syncropel. Pick by where you want the data and who keeps it ru
 |---|---|---|
 | Where the data lives | Your own hosted workspace with its own storage | On your machine |
 | Who keeps it running | Syncropic | You |
-| Backups | Managed for you; see [Your hosted workspace](/docs/get-started/your-hosted-workspace) | You; see [Backup discipline](/docs/operate/runbook#backup-discipline) |
+| Backups | A kept copy, where offered (files not included yet); see [Your hosted workspace](/docs/get-started/your-hosted-workspace) | You; see [Backup discipline](/docs/operate/runbook#backup-discipline) |
 | Connecting to other workspaces | Yes | Yes |
 | Cost | One workspace free; $25 per month for each more, after a 30-day trial | Whatever your machine costs |
 | Lock-in | None: `spl export` takes everything with you | None: same program |
@@ -149,7 +147,7 @@ For both, the signup page shows a clear error, with no logs to dig through. If r
 ## What's next
 
 - **[Your hosted workspace](/docs/get-started/your-hosted-workspace)**: how your work is saved, sleeping, and deleting.
-- **[Pairing a browser or phone](/docs/get-started/pairing)**: get a second device onto the same workspace.
+- **[Connecting a browser or phone](/docs/get-started/pairing)**: get a second device onto the same workspace.
 - **[First run](/docs/get-started/first-run)**: the same first-day walkthrough applies to any workspace, hosted or self-hosted.
 - **[Your first task](/docs/tutorials/first-task)**: a five-minute walkthrough to create and complete a task.
 - **[Security model](/docs/operate/security-model)**: keys, service accounts, and what is stored where.
