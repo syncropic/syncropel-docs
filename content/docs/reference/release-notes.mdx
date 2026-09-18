@@ -9,6 +9,126 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## The Doors Open
+
+**Your work is attributed to you, and only you can write as you.**
+
+- **A device writes as itself and nobody else.** A browser or app paired with your workspace
+  could put any name on the work it saved, including yours. It can no longer name anybody but
+  itself. If you have invited people in, this is what makes "this was written by Wren" true
+  rather than merely claimed, and a teammate's browser can no longer save work under your name.
+- **A paired browser is signed in as the person who paired it.** Until now a device you paired
+  from the command line was nobody in particular, which is why a second browser could not invite
+  anyone even when you could. Pairing now records who did it, so your other devices can do what
+  you can do. Devices you paired earlier keep working exactly as before; pair again to give one
+  a name.
+- **Leaving a workspace.** You could already remove your own membership, and nothing told you so.
+  Your workspace now tells a device who it is signed in as, which is what a screen needs before it
+  can offer you the door.
+- **A workspace can no longer be pointed at the wrong storage by accident.** If a workspace was
+  never told where to keep its saved copy, it used to guess, and the guess named real shared
+  storage. It now says it has not been told, and a workspace with no storage configured starts
+  normally and simply does not publish.
+
+## The Second Person
+
+**You can invite somebody into your workspace, see who joined, and take it back.**
+
+- **Inviting from your own browser.** Most of this existed and was out of reach: the browser you
+  opened your workspace in could already add and remove people, and could not create an invitation,
+  see the invitations it had sent, or read the record of who used them. All three now work from the
+  browser you already use.
+- **You can see who joined and when.** The list of invitations shows each person who used one and
+  the moment they did. Nothing new is recorded to answer this; it was already known and not shown.
+- **Your workspace tells a screen what you may do.** Rather than a screen discovering your
+  permissions by trying something and being refused, your workspace says plainly what this device
+  may do. A hosted owner previously saw no members page at all for exactly that reason.
+- **When somebody's access changes, open screens notice.** Removing a member raises a signal that
+  tells other screens to re-check what they may do, instead of waiting for a reload.
+- **Two fixes underneath.** A badly formed key is now refused instead of being treated as a
+  sign-in, and a workspace that could not recognise its own owner can do so again.
+
+## The Body With History
+
+**Fixes that only show up on a workspace that has been used for a while.**
+
+- **Scheduled work stopped failing on established workspaces.** Six places worked out where they
+  were in a workspace's history in a way that was correct on a new workspace and wrong on a busy
+  one, including the daily run of a scheduled assistant and the emergency path for getting back
+  into a workspace you are locked out of.
+- **A restored workspace no longer says "still setting up" forever.** A workspace restored from a
+  saved copy, with enough history that first-time setup will never run again, used to report that
+  it was configuring and wait for something that could not happen. It now says what is actually
+  needed and how to do it.
+- **Sending a record is simpler.** Anything sending work into a workspace had to compute a position
+  in its history first, which it could not always see correctly. That is now optional and the
+  workspace works it out.
+- **Testing against realistic workspaces.** Almost every check ran against an empty workspace, and
+  the defect that reached people needed one with history. There are now four sizes to test against,
+  and the very first run against them found a real problem.
+
+## The Free Clock
+
+**A workspace that has been running for months keeps working like a new one.**
+
+- **Standing orders work on a busy workspace.** Creating, pausing and resuming a scheduled task
+  failed on a workspace with a long history, and worked on a fresh one, which is why it was not
+  caught earlier. Pausing and resuming were quietly broken on such workspaces too.
+- **A change is in effect before you are told it happened.** Creating a task and immediately pausing
+  it could report that the task did not exist, and resuming then pausing could report no change at
+  all. Both now answer from the state they actually wrote.
+- **A clearer refusal.** When a workspace cannot record something, it now names what it was trying
+  to record rather than leaving a gap in the sentence.
+
+## The Standing Order
+
+**You can ask your workspace to do something on a schedule, without being there.**
+
+- **Schedules you can create.** Until this release there was no way for somebody on a hosted
+  workspace to set up recurring work at all. Now you can create a standing order, pause it, resume
+  it, and see its history.
+- **Time zones.** A schedule can name a time zone, so "every weekday at 9" means nine where you
+  are. The two awkward days of the year are handled deliberately: the spring change moves the run
+  rather than skipping it, and the autumn change runs a fixed-time job once.
+- **Nothing runs away with your budget.** A workspace has a daily ceiling across all its scheduled
+  work, and you can stop everything at once.
+- **Missed runs are visible.** A run that was missed because the workspace was asleep is recorded
+  rather than silently skipped, and you choose whether it catches up.
+
+## The Answer Arrives Checkable
+
+**A saved copy of a workspace says what its summaries were computed from.**
+
+- **You can tell whether a summary is current.** When you restore a workspace elsewhere, its
+  precomputed answers now say which records they were built from, and you are told plainly whether
+  each one is current, partial, out of date, or missing. Before this you had to trust them or
+  rebuild them, and rebuilding needed a running workspace, which is the thing a saved copy exists
+  to avoid.
+- **A read says what it left out.** A filtered result used to look the same as an empty one. It now
+  says that it was narrowed, without revealing anything about what was withheld.
+
+## The Current Value
+
+**A workspace can say, once, how to get from a pile of records to the current value of something.**
+
+- **One place to define "the latest".** A team can declare how to reduce many records to the
+  current value per item, and every screen and assistant reads the same answer instead of each
+  working it out. A ledger stops showing every past version of everything.
+- **Assistants can read those answers too.** A scheduled assistant can consult a declared summary
+  rather than re-reading raw history.
+
+## The Shared Thread
+
+**Who is on a thread, what each person can do, and what each may see, decided in one place.**
+
+- **A guest sees only what their invitation covers.** A guest whose invitation covered one thread
+  could still list things across ten other parts of a workspace. Each of those now answers for the
+  person asking: what they may not see reads as missing.
+- **Acting as the owner requires being the owner.** Claiming to be the workspace owner now requires
+  a sign-in entitled to it, rather than only naming an owner who exists.
+- **Adding somebody to one thread.** You can bring a person into a single thread with what they
+  need to take part, without giving them the rest of the workspace.
+
 ## The Honest Machine
 
 **The workspace says what it did and why, and a failure lands on whoever can fix it.**
