@@ -24,7 +24,9 @@ Everything that's part of your workspace:
 What's **not** in the bundle:
 
 - **Plaintext secret values.** Secrets live in your secret backend (env vars, vault, OS keyring). The bundle has handle-references only. To complete the migration, bring up the same secret backend on the new workspace separately.
-- **Bearer tokens**: by default, service-account tokens are revoked on export so a leaked bundle can't grant access. Pass `--carry-tokens` if you intend to preserve them across the migration.
+- **Sign-in credentials**: by default the bundle leaves out the records that make a bearer token work, and a workspace that imports a bundle drops any such records it finds unless you tell it to keep them. Pass `--carry-tokens` on export, and accept them on import, only if you intend to preserve them across the migration.
+
+> **A copy exported before version 0.254 contains your working credentials.** Older exports carried those records even when tokens were not meant to travel, so an older copy on disk is a secret: store it as you would a password, and if one has left your machine, rotate the tokens of the workspace it came from with `spl token rotate`. `spl doctor` names any such copy it finds in the workspace's own folders.
 - **Trust scores**: these rebuild automatically from the imported records (`KNOW`/`DO` outcomes replay through the trust math).
 
 ## Export

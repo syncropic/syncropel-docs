@@ -9,6 +9,17 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## The Owner's Own Phone
+
+**Your second device gets your powers, the room you opened is yours, and older copies are named for what they hold.**
+
+- **A device you pair for yourself has the same rights you do.** Until now a phone or second browser paired for the workspace owner knew who you were but could not invite anyone: "this browser cannot make invitations yet". A device paired for the owner from a signed-in owner's browser now carries the owner's rights, and the members page on it works the way it does on your first browser. A device paired before this release keeps what it had until you pair it again, and the workspace says so rather than showing a greyed button.
+- **The room you opened belongs to you.** On hosted workspaces the assistant's first reply could sort ahead of your first message, and the workspace then treated the assistant as the room's owner and refused to show you its members. Ties are now broken by the order things actually arrived, so the person who opened the room owns it.
+- **Copies exported before version 0.254 are named as secrets.** The previous release stopped credentials travelling in an exported copy. It could not reach copies already on disk, which still hold them. `spl doctor` now finds any such copy in the usual places and names it, `spl import --dry-run` says the same of any file you point it at, and the portability guide explains what to do (keep the file as you would a password, or rotate your tokens if it has left your machine).
+- **A copy whose files arrived late is not deleted.** A copy imported while one file's contents had not yet reached it used to leave that file out of the list, and the next tidy-up could then record it as deleted, which a later complete copy could not undo. The file now stays listed, says that its contents are missing, and opens as soon as a complete copy arrives.
+- **"Download a copy" says three numbers.** How many files the copy carries, how many distinct contents that is, and how many files could not be included, each stated rather than worked out from the others.
+- **Ask for an app and get one.** The assistant's instructions now say how to write an app when you ask for one, so a plain "build me a tip calculator" is enough. Existing workspaces pick this up with `spl workspace repair --apply`.
+
 ## The Honest Reading
 
 **Three places where the workspace told you something that was not quite what it was doing.**
