@@ -109,7 +109,7 @@ counts come back already split. See the [API reference](/docs/reference/api)
 and [Your call](/docs/guides/your-call) for the rest, including decisions
 whose run already ended.
 
-## Four useful things to do now
+## Five useful things to do now
 
 **1. Write your first record.** In the Studio, type in your thread. On the
 command line, a note on the thread you just opened:
@@ -134,9 +134,11 @@ spl say "What is on my register right now?"
 first, then the oldest. Empty on a configured workspace means nothing needs
 you.
 
-**4. Run something (local workspaces).** `spl run` starts a governed run as
-you, streams it to your terminal, pauses to ask if the member running it needs
-a decision, and prints the outcome:
+**4. Ask it to do a piece of work.** In a hosted workspace, open **sessions**
+and fill in the goal, with an optional ceiling on turns and on spend. On your
+own machine, `spl run` does the same thing in the terminal: it starts the work
+as you, streams it as it happens, pauses to ask if whoever is doing the work
+needs a decision, and prints the outcome:
 
 ```bash
 spl run "List the threads on this workspace and write a one-line summary of each as a note."
@@ -148,6 +150,37 @@ asked a question nobody could answer (no terminal, no `--answer`), it exits
 `spl decisions provide`. See
 [Running a goal](/docs/guides/running-a-goal) for budgets, turn ceilings, and
 giving a run a repository to work in.
+
+**5. Put it on a schedule, so it happens without you.** This is the part that
+makes a workspace different from a chat window: the work keeps happening while
+you are away, and you read what it did when you come back.
+
+Today this is a command line step. One command creates the standing order and
+turns it on:
+
+```bash
+spl config add-trigger \
+  --name morning-review \
+  --schedule "0 9 * * *" \
+  --timezone Europe/London \
+  --target did:sync:agent:harness \
+  --goal "Read what is waiting on me and write one note summarising it." \
+  --budget 0.10 \
+  --enable
+```
+
+`--target` names who does the work. `did:sync:agent:harness` is the assistant
+your workspace already has, so you can paste this as it is; `spl actor list`
+shows the others once you define some. `--schedule` takes the ordinary
+five-field cron form, and `--timezone` takes a zone name so nine in the morning
+stays nine in the morning when the clocks change. `--budget` is the most it may spend on one run. Leave `--enable` off
+and it is created but stays asleep until you turn it on.
+
+Then leave. When you come back, `spl trigger history morning-review` lists
+every time it ran, and each run is an ordinary thread you can open and read.
+
+On a free workspace a standing order may run at most once an hour, so pick a
+time of day rather than a short interval.
 
 ## If nothing is waiting
 
