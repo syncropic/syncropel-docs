@@ -9,6 +9,18 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## The Assistant Does What It Says
+
+**Your assistant works from the instructions it was given, a fresh install reads healthy, and the work it does shows up where you look.**
+
+- **Your assistant now reads its own instructions.** On workspaces set up with the recommended starting point, the assistant's instructions were stored in a form the part that runs its work skipped, so every conversation ran without them while the settings page showed them. It now receives them on every run, and each run records which instructions it used.
+- **You can see exactly what the assistant was sent.** For any step of any run, the workspace can show the full instructions and messages the model received, so "why did it answer like that?" has an answer you can read.
+- **A new install no longer reports itself as broken.** `spl doctor` used to fail a brand new workspace for having no remote copy, which no new workspace has. Facts like that are now shown as notes, and the check fails only for something you can act on. A workspace with no model key now says so plainly and tells you how to add one, instead of saying it is still starting.
+- **Notes and scheduled work land where you look.** A note the assistant writes while answering you appears in that conversation. A scheduled job that runs writes a short report you can find, and the run's details open from the link the workspace gives you.
+- **Answering the assistant's question moves things forward.** When the assistant stops to ask you something and you answer, the conversation now shows what it did next, instead of repeating the question. If you say no, it takes another approach rather than asking again.
+- **The assistant says what it could not do.** When a step fails while it is answering you, the reply says so. A run you start yourself can read your whole workspace, while an assistant answering in a shared room keeps to what it was given, so it never carries your private threads to a guest.
+- **Keeping a copy of a new hosted workspace works.** The first save of a workspace's copy to its storage failed on hosted workspaces; it now succeeds.
+
 ## The Owner's Own Phone
 
 **Your second device gets your powers, the room you opened is yours, and older copies are named for what they hold.**
