@@ -9,6 +9,37 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## What Stays Yours
+
+**A device's key now runs out on its own, your private settings stay in your workspace, and the workspace tells you plainly when a backup is failing.**
+
+- **A device key stops working after 90 days.** When you sign in to a workspace from a browser or another device, that device gets a key. It now expires on its own after 90 days, so a key left behind on a borrowed or shared computer cannot be used later. Signing out already removed it; this covers the times you forget. Keys you create for your own tools and scripts are unchanged and do not expire unless you ask them to. If a key has run out, the workspace says so plainly, and opening the workspace again from your account gives that device a new one.
+- **Your keys and private settings stay in your workspace.** Saved credentials, the passwords paired workspaces use to reach each other, and the record of who read which secret are never sent to another workspace, whatever it asks for. A workspace you have not paired with cannot push anything into yours.
+- **Only the owner decides where a saved secret lives.** Pointing a named secret at a different store is now something only the workspace owner can do.
+- **A key you set from the command line is stored where your workspace looks for it.** `spl config set-key` now saves the key in the right place and records where it came from, and it refuses a name that would write the file somewhere else.
+- **A failing nightly backup says it is failing.** A workspace whose backups had never succeeded used to read "not run yet", even when it had been failing every night. It now says the backups are failing, how many times in a row, and why. `spl doctor` checks your newest backups, and checks the permissions on every folder where your keys are kept.
+- **A workspace you use every day is no longer "still being set up".** Some established workspaces reported that they were still being configured. They now report whether they are ready, based on what they actually have.
+- **Tables that show the current version of each item show every column again.** In workspaces that group records to their latest version, the columns joined from related records were showing blank. They now show their values.
+- **Clearer checks on what you submit.** A question with choices must offer between two and six of them, and a few other malformed submissions are now refused with a message that says what to fix.
+
+## Work That Actually Happens
+
+**When your assistant hands work to a helper it now runs and comes back, your workspace says what limits it, and your work runs on the key you set.**
+
+- **Handing work to a helper works everywhere.** On hosted workspaces, when the assistant passed part of a task to a helper, the helper never started and the assistant waited forever. The helper now runs and its result comes back.
+- **Your workspace says what limits its spending.** A workspace on the free plan could read "no limit" on its own spending page, which was the opposite of the truth. It now names what actually limits it: the plan's allowance, a daily limit you set, or, on your own computer, nothing.
+- **Your work uses the key you set.** If you saved a key under a name, work that asks for that name now uses it. If it cannot find that key, it says so instead of quietly using a different one.
+- **A decision that is yours stays yours.** Where a question in your workspace is meant for a person to answer, only a person can settle it. Anyone else, including an assistant or a guest, can suggest an answer but not make it final.
+
+## What A Workspace May Reach, And What It May Spend
+
+**Connect a service key or a calendar link, choose which assistants may use it, and set a daily spending limit on a paid workspace.**
+
+- **Connect a key or a calendar link.** You can add a service's key or a calendar link to your workspace. The value goes straight to secure storage and is never shown back to you or anyone else.
+- **You choose who may use a connection.** An assistant can use a connection only if you have allowed it, and only for work done for someone who may use it too. Removing that permission takes effect on the very next use.
+- **A daily spending limit on paid workspaces.** A paid workspace has a daily limit, 20 US dollars by default, which its owner can lower or raise up to that amount. When a daily allowance runs out, the workspace says so and says when it resets, instead of "try again".
+- **Guests stay in their room.** A guest invited to one conversation can take part in it but cannot start work elsewhere in the workspace, and a guest's daily allowance now applies wherever they work.
+
 ## What Arrives Is What Was Sent
 
 **Stopping a run stops it, shared rooms agree about who is in them, copies say what they hold, and you can preview exactly what your assistant would send.**
