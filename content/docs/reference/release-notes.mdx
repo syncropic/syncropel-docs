@@ -9,6 +9,20 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## Only What You Meant To Share
+
+**An invite can now limit a guest to the kinds of record you choose, people you erase stay erased through every backup and restore, your connected storage opens only to you, and a whole library loads in minutes.**
+
+- **Invites can limit what a guest reads.** When you invite someone, you can now say which kinds of record they may read, for example the RSVPs on an event but not the contact details. The limit holds everywhere they might read: the conversation, search, counts, live updates and tables. If a guest can write something private (like their own phone number), the invite must say what they may read, so one guest can never see another guest's details. Invites made before this release keep their current access, and `spl doctor` tells you how many there are.
+- **Erased stays erased.** When you erase someone's data, the keys that could unlock it are now handled with your sealed backup, and a record of the erasure is kept outside the workspace and re-applied every time it starts. Restoring an older backup can no longer bring back someone you erased. `spl doctor` warns you if your backups are not protected by a passphrase, or if they sit only on the same disk as your workspace.
+- **Your connected storage opens only to you.** Files in storage you have connected (for example a Drive folder) can now be browsed and opened directly only by you. Everyone else plays a file through the table it belongs to. A Drive connection now stays inside the folder you connected, and switching a connection off takes effect straight away.
+- **Large loads in minutes.** You can now send many records in one request. A music library of about 12,000 records loads in under two minutes, where it used to take close to an hour, and sending the same file again adds nothing twice. Resend the same file rather than rebuilding it, so nothing is counted as new.
+- **Buttons on tables.** A table can offer actions on its rows, for example recording a verdict on a track, and can say who may press them. Media in a table plays with a press, and never hands out a lasting link.
+- **Reports that are always current.** A workspace can now declare reports, such as what is due soon or which incidents are open, that are worked out the moment you look at them.
+- **Who you are, stated once.** Your workspace can now record whether its owner is a person or an organization, and every check agrees on who the owner is. A workspace set up for an organization should say so before anyone sets a personal name.
+- **Joining by invite is more reliable.** Accepting an invite could occasionally fail if the workspace was busy at the same moment. It now recovers on its own.
+- **Known.** Some reports built on top of other reports can still count an item that was closed or replaced. The newer, always-current reports do not.
+
 ## One Room Means One Room
 
 **A guest invited to one room now sees only that room everywhere, including in live updates, and large tables count every item.**
