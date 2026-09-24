@@ -9,6 +9,17 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## One Room Means One Room
+
+**A guest invited to one room now sees only that room everywhere, including in live updates, and large tables count every item.**
+
+- **A guest sees only their room, even in live updates.** Someone invited to one conversation could receive live updates about other conversations in the workspace. Live updates now follow exactly the same rules as everything else: a guest receives only what they are allowed to see. They are still told when their own access changes.
+- **Large tables count everything.** A table built from a conversation with more than a thousand items used to read only the first thousand, so its totals could come out as zero. It now reads the whole conversation.
+- **A new assistant works from its first message.** For a moment after you added or changed an assistant, a message could reach a generic stand-in instead. The change now takes effect before the workspace says it is done.
+- **Renewing a device key keeps its end date.** Renewing a device's key used to reset how long it lasted. It now keeps the original end date, so a key cannot be renewed forever. An owner's device can renew its key and keep the owner's rights, with a one-minute overlap so nothing is cut off mid-task.
+- **Groundwork for email you can control.** The workspace can now prepare a short notice when a decision is waiting for you, and you can mute a conversation you do not want to hear about. Nothing is emailed yet: sending starts only once it is switched on for your workspace, and each notice contains no content from your workspace, only a link back to it.
+- **Small improvements.** `spl --version` now shows exactly which build you are running. A scheduled task that runs on nobody's behalf is flagged by `spl doctor`, and the workspace shows when your saved secrets were last backed up.
+
 ## What Stays Yours
 
 **A device's key now runs out on its own, your private settings stay in your workspace, and the workspace tells you plainly when a backup is failing.**
