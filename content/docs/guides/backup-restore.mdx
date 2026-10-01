@@ -77,6 +77,23 @@ spl task list
 spl trust
 ```
 
+### Restoring onto a new machine: the store first, then the keys
+
+On a new machine, put the backed-up store in place first, then bring the keys back:
+
+```bash
+# 1. Put the store copy in place (with the daemon stopped)
+cp <backup>/hub.db.<timestamp> ~/.syncro/hub.db
+
+# 2. Then restore the keys from the same backup set
+#    (SPL_BACKUP_PASSPHRASE set to the backup's passphrase)
+spl backup --auto restore-keys <backup>/keys.<timestamp>
+```
+
+Do it in this order. If you run `restore-keys` before the store is in place, the workspace signs with your
+original keys but can report the new machine's workspace name on `/health`. If that happened, put the store
+in place and run `restore-keys` again with `--force`.
+
 ## Portable Backup: Publish the Instance
 
 From v0.118, the recommended portable backup is a published repository snapshot of the whole instance:
