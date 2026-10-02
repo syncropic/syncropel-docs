@@ -94,6 +94,12 @@ Do it in this order. If you run `restore-keys` before the store is in place, the
 original keys but can report the new machine's workspace name on `/health`. If that happened, put the store
 in place and run `restore-keys` again with `--force`.
 
+From v0.270 a backup set also holds the workspace's order log (`order.<timestamp>`, beside `keys.<timestamp>`).
+`restore-keys` puts it back for you. If you copy files by hand instead, copy `order.<timestamp>` too: a store
+that held an order log and boots without one refuses to start (`ORDER_LOG_MISSING`) rather than quietly
+beginning a new history. If the set really has none, start with `SPL_ACCEPT_NO_ORDER_LOG=1`: the new log's
+first entry records the gap.
+
 ## Portable Backup: Publish the Instance
 
 From v0.118, the recommended portable backup is a published repository snapshot of the whole instance:
