@@ -9,6 +9,55 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## What You Approve
+
+**Your assistant can now propose automations that run only once you approve them, conversations can be grouped into projects, and you can use your own Anthropic key for the assistant; free workspaces can also take uploads, and a workspace that stops responding now restarts itself.**
+
+- **Automations you approve.** Ask your assistant to do something on a schedule, or whenever something happens, and it proposes an automation. Nothing runs until you say yes, and you can pause or remove it later.
+- **Projects.** Conversations can be grouped into projects, and a project can be put on hold or marked done.
+- **Your own model key.** On a hosted workspace you can add your own Anthropic key for the assistant, and remove it again. The key is never stored as a record or shown back to you.
+- **Uploads on Free.** Free workspaces can take uploads.
+- **A workspace that stops responding restarts itself** instead of staying dark.
+- **When included use runs out.** When a Pro workspace has used the assistant use included for now, the assistant says more becomes available later. A Free workspace is told it can upgrade to keep going.
+- **From the command line today.** These are in this release for the command line and the API. The browser shows the first four from the next release.
+  - **Every sign-in is its own session.** Each browser and connected app signs in separately. You can see your sessions, end one, or end all the others. Anything a session writes is written as you.
+  - **Your passkey for important changes.** Changing who is in your workspace, its keys, its invites or its sharing asks for your passkey first. A run of the same change reuses it for a few minutes.
+  - **Private notes and messages.** You can keep an item sealed to your own devices. The workspace stores only the sealed version: search, automations and assistants never see the words, and an assistant in the room is told only that there is something private it can't read.
+  - **Support only when you allow it.** Syncropic support can reach your workspace only with access you give, for 24 hours, and you can take it back.
+  - **Guardians.** You can name people you trust to help you back in if you lose every device. A recovery waits before it completes, you can stop it from any of your devices, and you're emailed when one starts.
+  - **Moving keeps who you are.** A workspace moved to another home keeps its identity, and the old home stops accepting writes and says why.
+
+## What's Kept About You
+
+**A person can now see what assistants remember about them and ask to have it forgotten, and see how often items about them were read (the owner sees who, for 30 days); erasing someone now also removes their keys and invites, and gives the owner a report of what went; an owner can see a room exactly as a guest sees it, and hand a role like "accountant" to someone new without re-inviting anyone; a restore says whether the workspace moved or became a copy; and the copy off the machine now holds your files, not just their names.**
+
+- **What assistants remember about you.** You can see what an assistant remembers about you and ask for it to be forgotten. A memory about a person expires on its own after 90 days.
+- **Who read items about you.** You can see how often items about you were read. The owner sees who read them, for 30 days.
+- **Erasure that removes everything.** Erasing someone now also removes their keys, their unused invites and the data their connected accounts brought in. The owner gets a signed report of what went, and can preview it before confirming.
+- **See a room as a guest sees it.** An owner can look at a room exactly as a particular person sees it, without changing anything.
+- **Roles you can hand on.** A role like "accountant" can pass to someone new without re-inviting anyone.
+- **A restore tells you what it did.** Restoring a workspace says whether it moved or became a copy.
+- **Your files, off the machine.** The copy kept off the machine now holds your files, not just their names, and says plainly if anything is missing.
+- **Connected accounts stay yours.** Data a connected account brings in stays sealed to the person who connected it, never leaves by sync or export, and is deleted when they disconnect.
+- **Automations without a model.** Simple automations can run on a schedule without an assistant, and every run leaves a receipt that says what happened, or why it didn't run.
+- **Removed means removed.** A person whose access was taken away stays out after a restore, and the members list no longer shows removed or erased people as if they were present.
+
+## What A Restart Keeps
+
+**A hosted workspace's backups now survive a restart; restoring a workspace that was still running tells you it became a copy and when to try again; someone who has been erased shows only as "Someone who was erased"; and updating an installed venture keeps your own settings.**
+
+- **Backups that survive a restart.** A hosted workspace keeps its backups on its own storage, so a restart no longer loses them.
+- **A copy off the machine.** A hosted workspace can keep a copy of itself off the machine, and says plainly when that copy isn't being written and why. Syncropic turns this on per workspace.
+- **Restoring a running workspace.** Restoring a workspace that was still running tells you it became a copy, and when to try again.
+- **Erasure is quiet.** Someone who has been erased shows only as "Someone who was erased". Nothing a member can see says that an erasure happened, and the owner can see what is being held and why.
+- **Requests from outside.** A person outside the workspace can ask to join, and the owner can accept, decline or block the request.
+- **Guests can act on what they're shown.** A room can let a guest take a set action on an item they can see, such as confirming it.
+- **Updating a venture keeps your settings.** Updating an installed venture keeps your own choices: which automations are on, your budgets and caps, prompt edits, chosen columns and saved views.
+- **Search without an embedding model.** Search works by plain words when no embedding model is set up.
+- **Your memories are yours.** Only you, or the workspace owner, can export what an assistant remembers about you.
+
+---
+
 ## What You Can Open
 
 **An owner can now choose what each person may open in a room, files and audio included, and change someone's access without removing them; owners see how often each item is opened, never by whom; an invite names the conversation instead of showing a code; members can take a copy of what they wrote; and when someone asks to be erased, a company can keep only the records the law requires, and tells them what it kept and until when.**
