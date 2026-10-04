@@ -139,6 +139,44 @@ The price of refusing to trust an unvouched tail is bounded by one flush
 interval: a different body re-basing a dead writer's tree does not carry
 records that lived only in a tail HEAD could not vouch for.
 
+### A copy older than your live workspace is refused unless you say so
+
+From v0.272, `spl repo restore` checks the copy against the live workspace before anything lands. If the copy
+is older, the restore stops and names both points, so an old copy can't quietly undo newer changes, such as
+a key you removed:
+
+```bash
+spl repo restore <locator>                  # refused: the live workspace is newer
+spl repo restore <locator> --accept-older   # proceed; the restore records that you chose this
+```
+
+The same check runs for `spl repo mount`, `spl move`, `spl backup restore-keys` and `spl import`. The one exception is
+restoring keys from a daily backup set: a key set is always older than the live workspace, and restoring it
+is the normal recovery, so it is noted rather than refused. Whatever you restore, anything you revoked or
+removed stays revoked or removed: the lists of revoked keys and erased people are joined, never replaced.
+
+| Code | What it means |
+|---|---|
+| `LIVE_TREE_NEWER` | The live workspace is newer than the copy. Nothing was restored. |
+
+### Your task notes travel with the backup
+
+From v0.272, task notes (`~/.syncro-data/`) travel with the off-machine copy, and the startup backup writes
+`data.bak.tar.zst` beside `hub.db.bak`. Restore them on their own with:
+
+```bash
+spl backup restore-data <backup-set>            # adds what's missing; refuses a differing file
+spl backup restore-data <backup-set> --replace  # saves the current notes first, then replaces
+```
+
+`restore-data` never overwrites a note that differs from the backup unless you pass `--replace`, and then it
+saves a copy under `~/.local/share/syncropel/backups/tasks/` first. `spl repo restore` and `spl move` bring
+the notes into an empty data folder; otherwise they tell you the command to run.
+
+| Code | What it means |
+|---|---|
+| `DATA_CONFLICT` | A note in the backup differs from yours. Every conflict is listed and nothing was written. |
+
 ## What Rebuilds on Startup
 
 The engine reconstructs all derived state from the immutable record log:

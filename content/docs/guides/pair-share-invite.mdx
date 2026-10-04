@@ -81,6 +81,22 @@ Premise: Bob has his own instance at `bob.syncropel.app` and is already paired t
 
 The audit row on Alice's side shows `holder_did = did:sync:user:bob`, `holder_pubkey = <Bob's key>`, and the granted scopes.
 
+## Who may invite, and with what role
+
+- **A member can invite** when the owner has given them that ability, and confirms with their passkey first. Without it, the invite is refused.
+- **An invite can only carry a role its maker holds.** An owner can name invite roles (for example "crew" or "guest list"), and a member can make an invite only for a role they hold themselves.
+- **An invite link sends guests only to your workspace's own web address**: the addresses your workspace has declared, or your own machine on a self-hosted workspace. Any other address is refused when the invite is made, and ignored when it's opened.
+- **A returning guest proves it's them.** Joining again as an existing guest needs that guest's own invite or their device's key.
+- **Revoking an invite ends its sign-ins** (from v0.271): every session started from the invite ends with it.
+
+| Code | What it means |
+|---|---|
+| `INVITE_CLASS_FORBIDDEN` | The invite names a role its maker doesn't hold. |
+| `INVITE_CLASS_UNDECLARED` | The invite names a role the owner hasn't declared. |
+| `STUDIO_URL_UNDECLARED` | The invite names a web address the workspace hasn't declared. |
+| `HOLDER_KEY_UNPROVEN` | A returning guest couldn't prove it's the same guest. |
+| `SESSION_FORBIDDEN` | This person hasn't been given the ability to invite. |
+
 ## Revoke + audit
 
 - **Revoke one**: `spl invite revoke <invite_id>`. Idempotent — revoking again returns "already revoked" without erroring.
