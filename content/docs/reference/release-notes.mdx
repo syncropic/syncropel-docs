@@ -9,25 +9,24 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
-## Harder To Take Over
+## From Your Browser
 
-**Adding a first passkey to a workspace now needs a sign-in that has just proved it's you, so a session taken from a browser can't be used to take the workspace over; and a member can no longer give an invite a role they don't have themselves.**
+**You can now add a phone by scanning a code, see your devices and sign any one out, add a passkey before you need it, make a recovery code, and invite people, all from your browser; if you also use the command line, you can link the two so people see one of you.**
 
 - **A first passkey needs a fresh sign-in.** To add the first passkey to a workspace, you sign in again first, or use a sign-in that has just proved it's you. A browser session someone copied can't add a passkey of its own.
-- **A recovery sign-in can't strip your passkeys.** If someone gets back in with a recovery code or a brand-new passkey, they can't remove the passkeys you already had until a day has passed. Every session that was signed in before is ended, and says why.
 - **Invites keep to your own role.** A member can only make an invite for a role they hold themselves. An invite link only ever sends a guest to your workspace's own web address.
+- **Add a phone by scanning a code.** You confirm it by picking the matching words, which only the new phone shows.
+- **Your devices.** See every device you're signed in on and sign any one of them out.
+- **A recovery code** you can make in advance, shown once.
+- **Adding or removing a passkey is never quiet.** When a first passkey is added or any passkey removed, your other signed-in devices are told, and for 24 hours you can undo a first passkey from any of them.
+- **A code from the owner.** If you have no passkey yet, the owner can give you a one-time code that lets you add one.
+- **One of you.** If you also use the command line, you can link it to your browser sign-in so people see one of you.
+- **A recovery sign-in can't strip your passkeys.** If someone gets back in with a recovery code or a brand-new passkey, they can't remove the passkeys you already had until a day has passed. Every session that was signed in before is ended, and says why.
 - **Removed stays removed.** A passkey or recovery code you remove stays removed after a crash and after restoring an older copy.
 - **Restoring never goes backwards by accident.** Restoring a copy older than your live workspace is refused unless you say so, and the restore notes that you chose it.
 - **Your task notes are in your backup.** Task notes now travel with your off-machine copy and your startup backup, and can be restored on their own.
 - **Each run says why.** Every automation run, and every one that didn't run, records the reason. An automation you paused yourself is no longer listed as a problem.
-- **From the command line today.** These are in this release for the command line and the API. The browser shows them once it updates.
-  - **Add a phone by scanning a code.** You confirm it by picking the matching words, which only the new phone shows.
-  - **Your devices.** See every device you're signed in on and sign any one of them out.
-  - **A recovery code** you can make in advance, shown once.
-  - **Adding or removing a passkey is never quiet.** When a first passkey is added or any passkey removed, your other signed-in devices are told, and for 24 hours you can undo a first passkey from any of them.
-  - **A code from the owner.** If you have no passkey yet, the owner can give you a one-time code that lets you add one.
-  - **Your own usage.** See how much assistant use you've had.
-  - **One of you.** If you also use the command line, you can link it to your browser sign-in so people see one of you.
+- **Your own usage.** See how much assistant use you've had.
 - **Known.**
   - After some restores, a browser that was signed in is signed out without saying the workspace was restored.
 
