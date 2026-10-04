@@ -1,0 +1,111 @@
+---
+title: Where you're signed in
+description: See every device and browser signed in to a workspace as you, and sign out one you don't use or don't recognize.
+---
+
+Every browser and app you use with a workspace signs in on its own. That means
+you can see each one, and end one without touching the others. If you lose a
+phone, you can sign it out from any other device.
+
+All of this is in the Studio under **You**, in the **Devices and keys** section
+for the workspace you're in. Only you see your own devices: the workspace owner
+can't see a member's devices here.
+
+## Your devices
+
+**Your devices** lists each device signed in to this workspace as you, with when
+it was first seen and when it was last used. The device you're on reads **This
+device** and comes first.
+
+If no other device is signed in, the list says **Only this device is signed in.**
+
+The button to add another device sits under this list. See
+[Add a device](/docs/guides/add-a-device).
+
+### Sign a device out
+
+1. On the device's row, press **Sign out**.
+2. The Studio asks "Sign out" and the device's name, and reminds you it'll need
+   to sign in again with a code from a device that's signed in. Press **Sign
+   out**, or **Cancel**.
+3. Confirm with your passkey when asked.
+
+The device is signed out of every browser tab and app on it, at once. Its row
+moves to the end of the list and reads **Ended** with the date, **from this
+browser**.
+
+If you have no passkey and signed in more than 5 minutes ago, the Studio says
+**To sign out another device without a passkey, confirm it's you first.** Press
+**Confirm it's you** and follow the steps in
+[Keeping your access](/docs/guides/keeping-your-access#if-youre-asked-to-confirm-its-you-first).
+This shows straight away on the row, because a lost or stolen phone is exactly
+when you need it.
+
+{/* kernel: what can refuse this, in plain words */}
+
+## Where you're signed in
+
+Below your devices, **Where you're signed in** lists each sign-in on its own: for
+example, the Studio on Chrome and an app on the same laptop are two rows. Each
+row shows what signed in, on which device, when it signed in and when it was
+last used. The one you're using reads **This browser**.
+
+A row can also say how much that sign-in did in the last 30 days, such as how
+many rooms it read and items it wrote. It counts them and never names them, so
+the list is safe to show on a shared screen.
+
+- Press **End** on a row to end that one sign-in.
+- Press **End every other session** to end all of them except this browser.
+
+Ending one may ask for your passkey. If this browser has no passkey, the sheet
+offers **Use a recovery code** instead. Your recovery key then works once, so
+you'll make a new one afterward in Devices and keys.
+
+Ended rows stay on the list for a while and say how they ended, for example
+**Ended** on a date **from this browser**, **from another of your devices**, or
+**you signed out**.
+
+Anything a sign-in writes is written as you.
+
+## When you've been signed out
+
+If a sign-in ends while you're using it, the Studio tells you why, for example:
+
+- you signed out;
+- it was ended from another of your devices;
+- it wasn't used for 7 days, or reached its 30-day limit.
+
+Press **Sign in again** to carry on.
+
+If someone got back into the workspace as you using a recovery key or a new
+passkey, the Studio says **You were signed out here**, with when it happened and
+a deadline. If that wasn't you, sign in with a passkey you already had before the
+deadline, and remove the one they used in Devices and keys.
+
+## On a shared computer
+
+When you join a workspace by pasting an invite into **+ add a connection** on a
+browser that isn't yours, tick **This is a shared computer** before you press
+**accept invite**. Then reloading or closing the
+tab signs you out, and so do 30 minutes without use or 8 hours in all. Nothing
+about you is kept on that browser.
+
+## Common questions
+
+**Does signing out a device remove my passkey?**
+No. Your passkeys and recovery key are listed separately, under
+[Ways back in](/docs/guides/keeping-your-access#ways-back-in).
+
+**Can I sign out the device I'm on from here?**
+No. The **Sign out** button on this list is for your other devices, so the row
+for **This device** doesn't have one.
+
+**I don't recognize a device.**
+Sign it out, then check **Ways back in** for a passkey you didn't add, and remove
+it.
+
+## See also
+
+- [Keeping your access](/docs/guides/keeping-your-access): passkeys, recovery keys and confirming it's you.
+- [Add a device](/docs/guides/add-a-device): sign in on a new phone by scanning a code.
+- [Pair, share, invite](/docs/guides/pair-share-invite): invites and revoking them from the command line.

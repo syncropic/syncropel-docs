@@ -1,0 +1,85 @@
+---
+title: What ran and why
+description: See each run of an automation and why one didn't run, how much assistant use is yours, and a one-line health check for a hosted workspace.
+---
+
+The Studio answers three everyday questions without a terminal: did my
+automation run, and if not, why; how much have I used the assistants; and is my
+hosted workspace all right.
+
+## An automation's runs
+
+Open **This workspace**, then an automation. Under **Runs**, the newest runs come
+first, each with its date and time and what happened:
+
+| Label | What it means |
+|---|---|
+| **Ran** | It ran. |
+| **Skipped** | The workspace wasn't running at that time, and the automation's schedule says to skip missed runs. |
+| **Not needed** | Its condition wasn't met, so there was nothing to do. This isn't a problem. |
+| **Didn't run** | It couldn't start. The reason follows. |
+| **Didn't finish** | It started but stopped before it was done. |
+| **Stopped** | Someone stopped it. |
+| **Waiting** | It's waiting for an answer from someone. |
+
+The reason after the label is in plain words, for example:
+
+- "It wasn't allowed to start: it would have gone past a limit or rule set for it."
+- "It couldn't start: the assistant it hands work to isn't available."
+- "The model provider turned it down or didn't answer."
+- "It needs a key that isn't set."
+
+A reason never shows the information the automation was working on. If the
+Studio doesn't have words for a reason yet, it says so and shows a short code you
+can pass to support.
+
+If there have been no runs, the list says **No runs yet.**
+
+To change when an automation runs, see
+[Scheduled triggers](/docs/guides/scheduled-triggers).
+
+## Your usage
+
+Open **You**. In the workspace's section, **Your usage** shows your own
+assistant use only, never anyone else's:
+
+- **Runs on your plan**: runs included with the workspace's plan, today and this
+  month. These are never shown in dollars.
+- **Runs on your own key**: runs that used a model key you added yourself.
+- **Cost on your own key**: what those runs cost, estimated at your provider's
+  prices.
+
+**By assistant** splits the runs by assistant name. A row with nothing in it is
+left out, and if you haven't used an assistant this month, the section says **No
+assistant use yet this month.**
+
+If the workspace counts days in UTC rather than your own time zone, the columns
+read **Today (UTC)** and **This month (UTC)**.
+
+## Health of a hosted workspace
+
+On a hosted workspace you own, while you're signed in to your Syncropel account,
+**This workspace** has a **Health** line. It shows the one thing that matters
+most right now:
+
+| Line | What it means |
+|---|---|
+| **Running fine** | Nothing needs you. |
+| **Not responding since** a time | The workspace stopped answering. It restarts itself when this happens. |
+| **Storage is full** / **Storage is almost full** | It's out of, or close to running out of, storage. |
+| **Not saved off this machine since** a time | The copy kept off the machine isn't being updated. This isn't the daily backup. |
+| **1 thing needs you**, or a count | Something is waiting for you. |
+| **Asleep. Fine when it last answered** | The workspace is idle and was fine the last time it answered. |
+| **No report yet** | There's nothing to show yet. |
+
+If the line is more than 15 minutes old, it adds **last checked** and a time.
+Press **See all ›** for every check in detail.
+
+On a workspace you run yourself, the **Health** line comes from the workspace's
+own checks instead.
+
+## See also
+
+- [Scheduled triggers](/docs/guides/scheduled-triggers): set up automations that run on a schedule.
+- [Where you're signed in](/docs/guides/where-youre-signed-in): see your devices and sign one out.
+- [Keeping your access](/docs/guides/keeping-your-access): passkeys and recovery keys.

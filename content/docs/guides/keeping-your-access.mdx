@@ -1,108 +1,259 @@
 ---
 title: Keeping your access
-description: Make a key to a place you were let into, use it on any device, and see every device that can open the place as you.
+description: Add a passkey, keep a recovery key, and see every way back into a workspace, so losing a phone or clearing a browser doesn't lock you out.
 ---
 
-When somebody lets you into a workspace, the credential lives in the browser
-you accepted it in. Lose that browser, or open a new phone, and you used to
-have to ask the host for a fresh link. Now you can keep a key yourself.
+When somebody lets you into a workspace, your access lives in the browser you
+accepted it in. Lose that browser, or open a new phone, and you'd have to ask
+for a fresh invite. A **way back in** fixes that: a passkey, a recovery key you
+keep yourself, or your Syncropel account on a hosted workspace.
 
-A key is **to a door**, never "your account": two nights on one workspace are
-two keys, on purpose. The workspace stores only a hash of it; nobody but you
-ever sees the key again.
+Everything on this page is in the Studio under **You**, in the **Devices and
+keys** section for the workspace you're in. To see where you're signed in and
+sign a device out, read [Where you're signed in](/docs/guides/where-youre-signed-in).
 
-## Make a key
+## Ways back in
 
-Open any thread you can read. Under **what this is**, members and guests see
-**keep this access**. Press **make a key** and Studio shows one line, once:
+**Ways back in** lists what gets you back into this workspace if you lose this
+device:
+
+- a **Passkey** row for each passkey, with its name and the day it was added;
+- a **Recovery code** row with the day it was made, never the code itself;
+- **Your Syncropel account**, on a hosted workspace where your account is linked.
+
+If the list is empty, it says so: "No way back in yet. Add a passkey or make a
+recovery code, so losing this device doesn't lock you out."
+
+## Add a passkey
+
+A passkey is kept by your phone or laptop, and your platform carries it between
+your devices. Once a workspace has your passkey, important changes there, like
+adding a device or inviting someone, ask for it first.
+
+The Studio offers one at the right moment. Right after you sign in on a new
+device, join from an invite or confirm it's you at Syncropel, you see **Add a
+passkey for this workspace?** Press **Add passkey**, or **Later** to skip it for
+now. If you just confirmed it's you with your Syncropel account, the offer reads
+**Use a passkey here too**: your account passkey signs you in to Syncropel, and
+this one is for this workspace.
+
+<Callout type="info" title="A first passkey needs a recent sign-in">
+You can add your first passkey to a workspace only within 5 minutes of signing
+in, joining, or confirming it's you. This stops someone who got hold of an open
+browser from adding their own passkey and taking the workspace over. If the 5
+minutes have passed, the Studio asks you to confirm it's you again first.
+</Callout>
+
+### If you're asked to confirm it's you first
+
+A browser that was signed in before passkeys existed sees **Confirm it's you,
+then add a passkey**. You only do this once.
+
+- **On a hosted workspace,** press **Confirm it's you**. Syncropel checks it's
+  you, the page comes back, and the passkey offer appears.
+- **On a workspace you or your organization runs,** pick one of these:
+  - **Use a code from another device**: on a device that's already signed in,
+    open Devices and keys, choose **Add a phone or another device**, and scan the
+    code with this device. See [Add a device](/docs/guides/add-a-device).
+  - **Use the command line**: run the command the sheet shows, on the computer
+    that runs the workspace. It sits on its own line with a **Copy** button.
+  - **Ask the owner for a code**: the workspace owner gives you a short code
+    (see [below](#a-code-from-the-owner)). Enter it and press **Continue**.
+
+{/* kernel: what can refuse this, in plain words */}
+
+## Confirming important changes
+
+When you do something that changes who can get in, such as adding or signing out
+a device, inviting someone or removing a way back in, the Studio shows a sheet
+that names what you're about to do, like "Approve: sign out Chrome on Mac in
+Acme". Press **Continue** and your device asks for your passkey.
+
+If you have no passkey yet, the sheet leads with adding one: **Add a passkey for
+this workspace to continue**. Press **Add passkey**, or **Not now** to leave the
+change undone.
+
+On a workspace you run yourself, if you were never set up as its owner, the sheet
+says **Set up your owner account first** and shows one command to run on the
+computer that runs the workspace. Run it, then try again.
+
+## Your recovery key
+
+A recovery key is a line of letters and digits you keep somewhere off this
+device, like a password manager or on paper. It needs no account and no vendor.
+{/* WORDS? story to confirm: story's §4 names this "Make a recovery code" / "Your recovery code" / "I've saved it"; the live Studio still shows "keep this access", "make a key", "your key to this" and "I've kept it". The steps below use the live words. */}
+
+1. In Devices and keys, under **keep this access**, press **make a key**.
+2. The Studio shows **your key to this**, once. Copy it and keep it somewhere
+   safe, then close it. After that, the Studio can't show it again.
+
+The line looks like this:
 
 ```
 KRMRW-PEERZ-RHMSW-AH8Y9-1V9S7-K@btw.syncropel.com/<who you are there>
 ```
 
-Three parts, left to right: the key (26 letters and digits, grouped in fives so
-it reads aloud), the place, and who the key re-opens the place as (a long
-identifier, shortened here). Copy it
-somewhere you will find again. It is not a link; pasting it into a browser's
-address bar does nothing.
+From left to right: the key, grouped in fives so it reads aloud; the place; and
+who the key opens the place as (shortened here). It isn't a link, so pasting it
+into a browser's address bar does nothing.
 
-The floor is stated beside it and is not softened: lose the key **and** this
-browser, and whoever let you in has to let you in again.
+If you're a guest, the floor is stated beside it: lose the key **and** this
+browser, and whoever invited you has to let you in again.
 
-## Get back in on any device
+A guest who arrived on an invite link also sees **keep this access** on the
+conversation they were invited to.
 
-Open Studio on the new device, press **+ add a connection**, and paste the
-whole line into the field. Studio recognises it and offers **open with this
-key**. You land in the place as the same person, with the same threads.
+### Get back in on any device
 
-The key you pasted is spent by using it. Before you land, Studio shows you a
-**new key**, once. Keep that one; the old one no longer opens anything.
+Open the Studio on the new device, press **+ add a connection**, and paste the
+whole line. The Studio offers **open with this key**, and you land in the place
+as the same person.
 
-Typing is forgiving: case does not matter, spaces and hyphens are ignored, and
-a photographed `O` or `I` is read as `0` or `1`.
+Using the key spends it. Before you land, the Studio shows you a new key, once.
+Keep that one, because the old one no longer works.
 
-## Turn the key
+Typing is forgiving: case doesn't matter, spaces and hyphens are ignored, and a
+photographed `O` or `I` is read as `0` or `1`.
 
-On a thread where you already kept a key, **keep this access** says so and
-offers **make a new one**. It asks for the current key first (paste the bare
-code or the whole line), then shows the replacement once. The old key stops
-working. Nobody holding a stolen browser can quietly replace your key, because
-they do not have the current one.
+### Make a new key
 
-## Your keys, and every device that can open this as you
+Once you've kept a key, **keep this access** says so and offers **make a new
+one**. It asks for the current key first, then shows the replacement once. The
+old key stops working. Someone holding a stolen browser can't quietly replace
+your key, because they don't have the current one.
 
-Under **+ add a connection**, when you are reading a place, two lists appear:
+## Remove a way back in
 
-- **your keys to this** lists the keys bound to you here. **remove** deletes
-  one; you can make another from any thread.
-- **keys in the wild** lists every device that can open this place as you,
-  with the one you are on marked. If one is not yours, **revoke** it. The
-  others keep working, and your standing in the place is untouched; only that
-  device is out.
+Press **Remove** on a row.
 
-## What the workspace refuses
+- **If it isn't your last one,** the Studio asks **Remove this way back in?** and
+  says the others keep working. Press **Remove**, then confirm with your passkey.
+- **If it's your last one,** the Studio asks **Remove your last way back in?**
+  and warns that losing this device would then lock you out. Type
+  `remove my last way back in` in the box. **Remove** stays greyed out until the
+  words match. Case and spaces at either end don't matter.
 
-The door that turns a key into a credential answers every wrong attempt the
-same way, in the same time, whether the person named does not exist, has no
-key, or typed the wrong one. Studio shows that refusal in the door's own words
-and adds no diagnosis of its own. Attempts are rate limited: three in a burst,
-then one every five seconds, per person named and per network address.
+If you just used that way back in to get into the workspace, you can't remove it
+from this device. Add another way back in first, or remove it from a device
+that's been signed in longer.
+
+{/* kernel: what can refuse this, in plain words */}
+
+## When a passkey is added or removed
+
+When a passkey is added to a workspace for you for the first time, or any of
+your passkeys is removed, your **other** signed-in devices show a notice. The
+device that made the change doesn't.
+
+- **A passkey was added for this workspace.** It says which device and when. If
+  that was you, press **That was me**. If it wasn't, press **It wasn't me**
+  before the time shown, which is 24 hours after the passkey was added. You
+  confirm it's you, the passkey is removed, and the device that added it is
+  signed out.
+- **A passkey was removed for this workspace.** If it wasn't you, press **It
+  wasn't me** to open Devices and keys. Add a passkey again and sign out any
+  device you don't recognize.
+
+A device name chosen by whoever added the passkey is always shown in quotes, as
+"a device named “…”", so it can't read like a message from Syncropel.
+
+### Undo from the email
+
+On a hosted workspace, the owner also gets an email when a passkey is added,
+with a **Remove this passkey** button. It opens a page that says **Remove a
+passkey you didn't add**. Press **Confirm it's you**, sign in to your Syncropel
+account if asked, and the passkey is removed and the device that added it is
+signed out.
+
+The page tells you if the passkey was already removed, if the 24 hours have
+passed, or if you opened the link on the device that added the passkey, which
+can't undo it. Open it on another device instead.
+
+After 24 hours, you can still remove a passkey with your own passkey in Devices
+and keys.
+
+## A code from the owner
+
+If someone in a workspace you run has no passkey and their browser was signed in
+before passkeys, they can't add one alone. You can vouch for them.
+
+1. On their row in the members list, press **Get a code for** and their name.
+2. Read the sheet and press **Get code**, then confirm with your passkey.
+3. The Studio shows their code, once. Give it to them yourself, in person
+   or on a call. It works once, within an hour. Restarting the workspace cancels
+   it.
+
+They press **Ask the owner for a code** on their **Confirm it's you, then add a
+passkey** sheet, enter it and press **Continue**, and the passkey offer appears.
+If the code is mistyped, already used or out of time, they're told to ask you for
+a new one.
+
+When the code is used, the person's other devices show **A code from the owner
+was used to confirm it's you**, so they'd know if it wasn't them.
+
+## You on the command line
+
+If you use a workspace from both the Studio and the command line, people there
+see two entries for you. You can link them so they see one. Linking doesn't
+change what either can do. Guests don't see this section.
+
+1. In Devices and keys, under **You on the command line**, press **Link** and
+   confirm with your passkey.
+2. The Studio shows a command on its own line with **Copy**. Run it where you use
+   the command line within 10 minutes. It doesn't share your command-line key
+   with the browser.
+3. The command line prints two words. Back in the Studio, under **Which two words
+   does your command line show?**, choose that pair from the four shown.
+
+The Studio says **Linked.** If you choose the wrong pair, or **None of these**,
+nothing is linked and you start again from **Link**. Choosing words, rather than
+pressing a plain confirm button, means nobody can link your browser to someone
+else's command line.
+
+Once linked, if you're ever erased from the workspace, both entries are erased.
+To undo it, press **Unlink**. People see two entries again, though anyone who
+saw them as one may remember they're the same person.
 
 ## Two more ways back, where the workspace accepts them
-
-The recovery key is the floor: no vendor, no account, works for a party guest.
-Two more ways to come back ride the same doors, and Studio shows each only on
-workspaces that accept it.
 
 ### Link to your account
 
 Signed in to a hosted account, **keep this access** also offers **link to your
-account**. Press it and your account can find this key again on any device:
-under **+ add a connection**, **shared with you** lists the places your
-account knows, and **open as you** re-opens one without a line to paste. The
-account is a way to find the key, never the key itself: the workspace sees a
-salted hash, not who you are to the account provider.
+account**. Your account can then find this key again on any device: under **+
+add a connection**, **shared with you** lists the places your account knows, and
+**open as you** re-opens one without a line to paste. The account is a way to
+find the key, never the key itself.
 
 Hosted workspaces accept it. A self-hosted workspace accepts it only if the
-person running it declares a verifier
+person running it sets up a verifier
 ([operators](/docs/operate/account-verifier)). Signing out on a shared device
 clears what that device held and leaves your account's list untouched.
 
-### Use a passkey
+### Sign in with a passkey on a new device
 
-Where the workspace declares a relying party, **keep this access** offers
-**use a passkey**. One gesture registers a passkey that your phone or laptop
-keeps for you and your platform carries between your devices. On another
-device, paste a kept line into **+ add a connection** and choose **use a
-passkey instead**: the line only names the place and who you are there, its
-code is never sent, and the passkey signs the workspace's challenge.
+On another device, paste a kept line into **+ add a connection** and choose
+**use a passkey instead**. The line only names the place and who you are there;
+its code isn't sent, and your passkey signs you in.
 
-A passkey is the safest key here. It is still one key to one door, and a
-passkey made on one kind of phone does not travel to every laptop, so keep a
-code as well; Studio says so when a passkey is the only key you hold.
+A passkey made on one kind of phone doesn't travel to every laptop, so keep a
+recovery key as well. The Studio says so when a passkey is the only key you hold.
+
+## Workspaces on an older version
+
+On a workspace that hasn't been updated to the version with sign-in sessions,
+Devices and keys shows the older lists instead: **your keys to this**, where
+**remove** deletes a key, and **keys in the wild**, where **revoke** takes one
+device out without affecting the others.
 
 ## For operators
 
-Nothing to configure for the recovery key; every workspace on a current
-version accepts it. The doors behind this page are in the
+Nothing to configure for the recovery key; every workspace on a current version
+accepts it. Guardians, people you trust to help you back in, are set up from the
+command line. The requests behind this page are in the
 [API reference](/docs/reference/api#self).
+
+## See also
+
+- [Where you're signed in](/docs/guides/where-youre-signed-in): see your devices and sign one out.
+- [Add a device](/docs/guides/add-a-device): sign in on a new phone by scanning a code.
+- [Pair, share, invite](/docs/guides/pair-share-invite): issue invites from the command line.

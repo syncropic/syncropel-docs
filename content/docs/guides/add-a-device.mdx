@@ -1,0 +1,98 @@
+---
+title: Add a device
+description: Sign in on a new phone or laptop by scanning a code from a device that's already signed in, or join a workspace from an invite link in your browser.
+---
+
+You can sign in to a workspace on a new device without a terminal and without
+asking anyone for a new invite. A device that's already signed in shows a code,
+the new device scans it, and you confirm with two words.
+
+If you run the workspace yourself and prefer the command line, see
+[Pair, share, invite](/docs/guides/pair-share-invite).
+
+## Add a phone or another device
+
+You need a device that's already signed in to the workspace, and the new device
+with a camera.
+
+1. On the signed-in device, open **You**, go to **Devices and keys**, and press
+   **Add a phone or another device** under **Your devices**.
+2. Confirm with your passkey when asked.
+3. The Studio shows **Scan this with the device you're adding** and a code. It
+   works once, for 2 minutes. Only scan it on a device you own.
+4. Scan the code with the new device. It opens the Studio and shows **Your two
+   words**. Don't read them out to anyone.
+5. Back on the first device, the Studio asks **Which two words does your other
+   device show?** and offers four pairs. Choose the pair the new device shows.
+
+The first device says your other device is signed in, and the new device says
+**You're signed in.** and opens the workspace. It now appears in
+[Your devices](/docs/guides/where-youre-signed-in#your-devices).
+
+Right after this, the new device offers to add a passkey without asking you to
+confirm it's you again. See
+[Add a passkey](/docs/guides/keeping-your-access#add-a-passkey).
+
+### If the words don't match
+
+If none of the four pairs is the one on the new device, press **None of these**.
+Choosing a wrong pair or **None of these** cancels the sign-in: nothing is
+signed in and the code stops working. The new device says the sign-in was
+cancelled. Press **Make a new code** to start again.
+
+The two words are what make this safe. Someone who photographs your code from
+across the room can scan it, but they'd see different words from the ones you'd
+pick.
+
+### If a second device scans the code
+
+A code works for one device only. If a second device scans it, the Studio says a
+device you may not own tried to use it, so it no longer works and nothing was
+signed in. Make a new code, and keep it where only you can see it.
+
+### If the code expires
+
+After 2 minutes the Studio says **This code expired. Make a new one to try
+again.** Press **Make a new code**.
+
+{/* kernel: what can refuse this, in plain words */}
+
+## Join from an invite link
+
+When someone sends you an invite link to a workspace, open it in your browser.
+
+1. The workspace's own invite page tells you what the invite is for. Press
+   **Accept** {/* WORDS? story to confirm: this button is on the workspace's own invite page, not the Studio; check its live label */}.
+2. The Studio opens and accepts the invite for this browser. If it's a member
+   invite that doesn't name you yet, pick your member name and press **accept
+   invite**.
+3. You land signed in on what you were invited to: the conversation the invite
+   is for, or everything shared with you.
+
+If the workspace records who reads what, the Studio tells you once, on a **you're
+in** screen, before you go in. Press **go in** to carry on.
+
+This browser now has its own sign-in to the workspace, listed under
+[Where you're signed in](/docs/guides/where-youre-signed-in). Because you just
+joined, you can add a passkey straight away.
+
+### Paste an invite instead
+
+You can also paste an invite link into **+ add a connection**. The Studio shows
+what the invite gives you. Press **accept invite** to join. On a computer that
+isn't yours, tick **This is a shared computer** first, so closing the tab signs
+you out.
+
+### If you joined from another browser before
+
+If you're a guest and you open the same invite in a different browser, the
+Studio says **You joined from another browser**. To carry on as before, open the
+invite in the browser you used last time.
+
+{/* kernel: what can refuse this, in plain words */}
+
+## See also
+
+- [Where you're signed in](/docs/guides/where-youre-signed-in): see your devices and sign one out.
+- [Keeping your access](/docs/guides/keeping-your-access): passkeys and recovery keys, so a lost phone doesn't lock you out.
+- [Pair, share, invite](/docs/guides/pair-share-invite): issue and revoke invites from the command line.
