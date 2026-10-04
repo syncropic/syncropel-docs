@@ -9,6 +9,40 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## Harder To Take Over
+
+**Adding a first passkey to a workspace now needs a sign-in that has just proved it's you, so a session taken from a browser can't be used to take the workspace over; and a member can no longer give an invite a role they don't have themselves.**
+
+- **A first passkey needs a fresh sign-in.** To add the first passkey to a workspace, you sign in again first, or use a sign-in that has just proved it's you. A browser session someone copied can't add a passkey of its own.
+- **Adding or removing a passkey is never quiet.** When a first passkey is added, your other signed-in devices are told, and for 24 hours you can undo it from any of them. Removing a passkey tells them too.
+- **A recovery sign-in can't strip your passkeys.** If someone gets back in with a recovery code or a brand-new passkey, they can't remove the passkeys you already had until a day has passed. Every session that was signed in before is ended, and says why.
+- **The owner can vouch for you.** If you were signed in before passkeys existed and have none yet, the owner can give you a one-time code that lets you add one.
+- **Invites keep to your own role.** A member can only make an invite for a role they hold themselves. An invite link only ever sends a guest to your workspace's own web address.
+- **Removed stays removed.** A passkey or recovery code you remove stays removed after a crash and after restoring an older copy.
+- **Restoring never goes backwards by accident.** Restoring a copy older than your live workspace is refused unless you say so, and the restore notes that you chose it.
+- **Your task notes are in your backup.** Task notes now travel with your off-machine copy and your startup backup, and can be restored on their own.
+- **Each run says why.** Every automation run, and every one that didn't run, records the reason. An automation you paused yourself is no longer listed as a problem.
+- **Your own usage.** Anyone in a workspace can see how much assistant use they've had today.
+- **From the command line today.** These are in this release for the command line and the API. The browser shows them once it updates.
+  - **Add a phone by scanning a code.** You confirm it by picking the matching words, which only the new phone shows.
+  - **Your devices.** See every device you're signed in on and sign any one of them out.
+  - **A recovery code** you can make in advance, shown once.
+  - **One of you.** If you also use the command line, you can link it to your browser sign-in so people see one of you.
+- **Known.**
+  - The workspace's shared admin key can't be retired yet.
+  - After a restore that brings back only the stored copy, an older browser session is ended without saying the workspace was restored.
+
+## Where You're Signed In
+
+**Every browser and connected app now signs in as its own session that you can see and end, and important changes such as approving an automation ask for your passkey first while everyday answers don't; you can also let Syncropic support in for 24 hours only when you choose, keep notes and messages private to your own devices, and see in your account what ran in each workspace, what didn't and why.**
+
+- **Your browser is you.** Signed in on a browser, an owner can do everything an owner does: answer the first-run question, approve an automation, invite people.
+- **Your passkey only when it matters.** Your passkey is asked for when an answer changes something important, such as approving an automation. A plain answer to a question doesn't need it.
+- **What ran and why.** Your account shows what each automation was expected to do and whether it did, what ran, and why something didn't.
+- **Retired keys stay retired.** A key you retire stays retired, even after a crash.
+- **Revoking an invite ends its sign-ins.** Revoking an invite also ends every session that was started from it.
+- **Erasing reaches how someone joined.** Erasing someone now also removes the record of the invite they joined with.
+
 ## What You Approve
 
 **Your assistant can now propose automations that run only once you approve them, conversations can be grouped into projects, and you can use your own Anthropic key for the assistant; free workspaces can also take uploads, and a workspace that stops responding now restarts itself.**
