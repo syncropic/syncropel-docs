@@ -9,6 +9,24 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## Checked Before It's Installed
+
+**What you install in a workspace is now checked against what it declares before anything is written, and what doesn't match is refused with a plain reason; a new workspace's keys are also kept with its copy off this machine, so restoring it brings them back.**
+
+- **All or nothing.** Installing a package checks every part of it first. If any part is refused, you see every reason at once and nothing is written.
+- **What's checked.** A field's type and allowed values, how often an assistant may ask you something each day, whether a tool only reads or also changes things, and whether a connected service brings in records about people.
+- **You approve what you saw.** An install writes exactly what its preview showed you. If the package changed in between, it stops and asks you to look again.
+- **Your keys are in your off-machine copy.** A new workspace's keys now travel with its copy off this machine, and a restore tells you whether they were carried.
+- **Refusals say what's wrong.** When something is refused, the message says what's missing and what to do next.
+- **Erasing someone takes them out of their roles.** A person you erase no longer appears as holding a role in your workspace.
+- **Weekly automations wake your workspace.** An automation set to run once a week now runs even if your workspace was asleep.
+- **Done stays done.** A task you mark done stays done if a late failure report for it arrives afterwards.
+- **For the command line and the API.**
+  - A request option a page doesn't use is now refused by name instead of being quietly ignored.
+  - With `--json`, a command that fails always prints one JSON result describing the failure.
+- **Known.**
+  - A field marked for a group, for example `board` or `staff`, isn't yet hidden from other readers on its own. Who can read a record is still decided by the conversation or list it's in, so keep sensitive records where only that group can see them.
+
 ## From Your Browser
 
 **You can now add a phone by scanning a code, see your devices and sign any one out, add a passkey before you need it, make a recovery code, and invite people, all from your browser; if you also use the command line, you can link the two so people see one of you.**
