@@ -14,18 +14,19 @@ This page summarizes recent releases in plain language: what changed and why it 
 **A field marked for a group is now shown only to that group wherever it's read, including in search, counts and what an assistant sees; once someone is erased, nothing new about them reaches the workspace's copy off this machine except what a legal hold keeps, and an invitation's email address is kept in full only while the invitation is waiting.**
 
 - **Fields for a group stay with that group.** When a package marks a field for a group, such as pay, board decisions or customer details, only the people that group names can read it. That holds everywhere the field could show up: in the record itself, in filters, sorting, counts and search, in lists and summaries, and in what an assistant sees. Everyone else sees "Not shown to you", never an empty value.
-- **Nothing leaks through a count.** Totals, groupings and search results are worked out as if the hidden field weren't there, so they can't be used to guess it.
-- **A field marked for a group nobody declared is yours alone.** Until the package says who the group is, only the workspace's owner can read it.
-- **An erased person's details are hidden from everyone.** Their contact details and what they told you about themselves are hidden from every reader, the owner included.
-- **An erased person stays erased.** After you erase someone, nothing new about them reaches your workspace's copy off this machine or a copy you export. The one exception is a record you're keeping under a legal hold, such as a tax filing you must keep: it's kept whole.
-- **Invitation addresses aren't kept longer than needed.** When you invite someone by email, their full address is kept only while the invitation is waiting. Once it's accepted, withdrawn or expired, only a masked hint and a one-way fingerprint are kept. Invitations that had already ended are reduced the first time your workspace starts on this release.
-- **A member's invite limits now hold.** If a membership invite limited what the new member may add, those limits now apply after they join, as they already did for guests.
-- **For people who run their own workspace.** If you keep a list of who you've erased somewhere outside the workspace, restoring an older copy now checks that list and leaves those people out. It tells you plainly when it couldn't check.
+- **Nothing leaks through a count.** Filters, sorting and search work as if the hidden field weren't there, and totals and groupings say what they left out, so none of them can be used to guess it.
+- **A group nobody declared is yours alone.** If a field in a package is marked for a group the package doesn't declare, only the workspace's owner can read it. Installing such a package is refused, once for each such field. If a package you already installed has one, the field becomes owner-only and you get a notice.
+- **An erased person's details are hidden.** Their contact details and what they told you about themselves are no longer shown to any reader, the owner included, or to an assistant.
+- **An erased person stays erased.** After you erase someone, nothing about them goes out in the clear to your workspace's copy off this machine or to a copy you export. The one exception is a record you're keeping under a legal hold, such as a tax filing you must keep: it's kept whole.
+- **Invitation addresses aren't kept longer than needed.** When you invite someone by email, their full address is kept only while the invitation can still be used. Once it's used up, withdrawn or expired, at most a masked hint and a one-way fingerprint are kept. Invitations that had already ended are reduced once your workspace is running this release.
+- **A member's invite limits now hold.** If a membership invite limited what the new member may add, those limits now apply after they join, as they already did for guests. People who joined before this release keep what they had.
+- **For people who run their own workspace.** If you keep a list of who you've erased somewhere outside the workspace, restoring an older copy now checks that list and leaves those people out. If it can't check the list, it refuses and says why.
 - **For the command line and the API.**
-  - A package built for an earlier release that marks fields for its own groups is refused until it's rebuilt for this one.
-  - An invite whose limits include an option the workspace doesn't recognize is now refused by name instead of being quietly ignored.
+  - Issuing an invite whose limits include an option the workspace doesn't recognize is now refused, naming the option, instead of quietly ignoring it.
 - **Known.**
-  - Copies made before this release, such as older backups, still hold the full addresses of invitations that had ended. A copy restored from before this release keeps them until the workspace next starts.
+  - Searching or sorting as the owner still looks at an erased person's contact details. A search for their phone number can still find the record, though the number itself isn't shown.
+  - A field holding a person's own details is hidden in lists and search even from that person, because a search doesn't know whose record each one is.
+  - An invitation sent before this release keeps its address until it ends.
 
 ---
 
