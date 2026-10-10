@@ -11,21 +11,21 @@ The name comes from a domain your organization controls. Proving `acme.com` give
 
 ## Who can claim one
 
-- A workspace on an active Pro plan. Free workspaces can't claim names.
+- A workspace on a paid Pro plan. Free workspaces can't claim names.
 - The workspace's owner, signed in.
 - A domain you can register yourself, such as `acme.com` or `acme.co.uk`. An address on someone else's shared host, such as `acme.github.io`, can't prove a name.
 
 ## Claim a name
 
-1. Go to [account.syncropel.com](https://account.syncropel.com), open **Names**, and start a claim. Give the name you want and the domain that proves it.
+1. Go to [account.syncropel.com](https://account.syncropel.com), open **Names**, and press **Claim a name**. Give the name you want and the domain that proves it.
 2. You're shown a DNS record to add:
    - host `_syncropel.<your domain>`
    - type `TXT`
    - value `syncropel-verify=…` (copy it exactly as shown)
 
    Add it at your DNS provider on that host name itself, not through a CNAME.
-3. Press **Check**. The record has to be visible from two independent DNS resolvers. New DNS records can take minutes or hours to appear everywhere, so if the check doesn't pass yet, try again later.
-4. Once the check passes, the name is yours. Add offices and agents under it.
+3. Press **Check and claim**. The record has to be visible from two independent DNS resolvers. New DNS records can take minutes or hours to appear everywhere. If the check doesn't pass yet, your claim waits under **Waiting for your DNS record**; press **Continue** to try again later.
+4. Once the check passes, the name is yours. Use **Add a name** to add offices and agents under it.
 
 ## Good to know
 
