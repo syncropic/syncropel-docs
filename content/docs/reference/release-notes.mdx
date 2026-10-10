@@ -9,6 +9,23 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
+## When You Say Yes
+
+**When you accept an invitation from another workspace, you now join it; an answer shows the tools it used; and an owner can make keys for a repository from the browser.**
+
+- **Accepting an invitation joins you.** When someone in another workspace invites you and you accept, you're now a member there straight away. If that workspace can't be reached, you're told, and you can try again. In the two releases before this one, Accept recorded your answer without joining you. If that happened to you, the invitation now says you didn't finish joining; ask whoever invited you for a new one.
+- **See the tools an answer used.** Under "About this reply", an answer says which tools it used and how often, for example "It ran code 3 times (1 didn't work) and read files once." It never shows what a tool was given or what it returned.
+- **Repository keys from the browser.** An owner can make a key that reads, or reads and writes, a repository, from the workspace's settings, after confirming it's them. The key is shown once. Each key says when it was made, when it ends and when it was last used, and removing one stops it at once.
+- **Invitation addresses leave the copy off this machine.** Your workspace's copy off this machine no longer keeps the email address of anyone you invited. On upgrade, the copy is rewritten without those addresses, and the replaced files are deleted an hour later.
+- **Searches see only what's still there.** An owner's searches and filters match only what the workspace still holds.
+- **A newer assistant model.** A workspace's built-in assistant that was never set to a particular model now uses Claude Haiku 5.5, in new workspaces and in existing ones when they upgrade. An assistant set to a specific model keeps it.
+- **Sharing says what it shows.** A public link to a conversation can show "Messages only" or "Messages and records". Details kept for a group stay hidden, and a new type of record added after you share isn't shown.
+- **Known.**
+  - If your storage keeps earlier versions of files, those versions keep invitation addresses until the storage's own rules remove them. Backups and copies taken before you upgraded aren't changed.
+  - Content an erasure setting didn't cover when it was written stays readable after an erase.
+
+---
+
 ## Pick Up Where You Left Off
 
 **You can now pick up where you left off on your other devices, see when a choice you're offered rests on something that changed, and get one suggestion of what to open next; a field marked for a group is shown only to that group.**
@@ -27,9 +44,9 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **For the command line and the API.**
   - Issuing an invite whose limits include an option the workspace doesn't recognize is now refused, naming the option, instead of quietly ignoring it.
 - **Known.**
-  - Searching or sorting as the owner still looks at an erased person's contact details. A search for their phone number can still find the record, though the number itself isn't shown.
+  - Searching or sorting as the owner still looks at an erased person's contact details. A search for their phone number can still find the record, though the number itself isn't shown. Fixed in When You Say Yes.
   - A field holding a person's own details is hidden in lists and search even from that person, because a search doesn't know whose record each one is.
-  - Your workspace's copy off this machine, and its backups, still hold the full address of an invitation that has ended, because they were written while it was waiting. A copy restored from before this release brings those addresses back until your workspace next starts.
+  - Your workspace's copy off this machine, and its backups, still hold the full address of an invitation that has ended, because they were written while it was waiting. A copy restored from before this release brings those addresses back until your workspace next starts. For the copy off this machine, fixed in When You Say Yes.
   - An invitation sent before this release keeps its address until it ends.
 
 ---
