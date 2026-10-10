@@ -1,0 +1,37 @@
+---
+title: Organization names
+description: Give your organization a name other workspaces can find, proved by a domain you control, with offices and agents under it.
+---
+
+## What it is
+
+Your organization's workspace can hold a **name**, such as `acme`. Under it you can add **offices and agents**, such as `acme/support`, each pointing at a person or an agent in your workspace.
+
+The name comes from a domain your organization controls. Proving `acme.com` gives you `acme`.
+
+## Who can claim one
+
+- A workspace on an active Pro plan. Free workspaces can't claim names.
+- The workspace's owner, signed in.
+- A domain you can register yourself, such as `acme.com` or `acme.co.uk`. An address on someone else's shared host, such as `acme.github.io`, can't prove a name.
+
+## Claim a name
+
+1. Go to [account.syncropel.com](https://account.syncropel.com), open **Names**, and start a claim. Give the name you want and the domain that proves it.
+2. You're shown a DNS record to add:
+   - host `_syncropel.<your domain>`
+   - type `TXT`
+   - value `syncropel-verify=…` (copy it exactly as shown)
+
+   Add it at your DNS provider on that host name itself, not through a CNAME.
+3. Press **Check**. The record has to be visible from two independent DNS resolvers. New DNS records can take minutes or hours to appear everywhere, so if the check doesn't pass yet, try again later.
+4. Once the check passes, the name is yours. Add offices and agents under it.
+
+## Good to know
+
+- **The first proved claim wins.** Starting a claim doesn't reserve a name.
+- **Some names are protected.** Our own brand names, well-known organizations' names and words the system uses are kept for their own domains.
+- **What a name can look like.** Lowercase letters, digits and single hyphens. An organization name is 3 to 32 characters. An office or agent name is 2 to 32.
+- **Keep the DNS record in place.** Your domain is checked again every day. While the check fails, you can't add anything new under the name. Everything comes back on its own once the record is there again.
+- **Offices can change hands.** You can move an office to another person (it takes effect after 14 days), rename it, give it another name that also leads to it, or retire it. A retirement waits 14 days, and you can cancel it in that time.
+- **If your plan ends,** you keep the names you hold, but you can't add new ones.
