@@ -1,153 +1,56 @@
 ---
-title: Hosted workspace signup
-description: Skip the install. Sign in at syncropel.com and have a fully portable Syncropel workspace ready in about two minutes. Self-hosted and hosted are first-class equals; this page walks through the hosted signup end to end.
+title: Create your workspace
+description: Sign up at syncropel.com, pick your address, and start working in your own workspace a minute or two later. Nothing to install.
 ---
 
-If you don't want to install `spl` on a machine you maintain, syncropel.com runs a Syncropel workspace for you. A hosted workspace is the same Syncropel as a self-hosted one: the same program, the same features, the same way of storing your work. You can move freely between hosted and self-hosted at any time: `spl export` takes all of your data with you, and the same program runs on both ends.
+Your workspace is your own place on Syncropel: your conversations, tasks, files, decisions and assistant, at an address that's yours. We run it for you, so there's nothing to install or keep running.
 
-One hosted workspace is **free**, with no card. More hosted workspaces are **$25 per month each**, with a **30-day free trial**; see [Pricing](/docs/get-started/pricing).
+Your first workspace is **free**, with no card. See [Plans and billing](/docs/get-started/pricing).
 
-This page covers the signup flow you'll see at syncropel.com, what each step does, and how to connect the command line afterwards. Once your workspace is running, [Your hosted workspace](/docs/get-started/your-hosted-workspace) explains how your work is saved, what sleeping means, and what happens if you delete it.
+## What you'll need
 
-## Before you start
+- An email address, or a Google or other social sign-in.
+- A name for your workspace's address. If you pick `alice`, your workspace lives at `alice.syncropel.app`. Use 4 to 32 lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen.
 
-You need:
+That's all.
 
-- An email address that can receive verification mail (or a social login).
-- A choice of workspace label: a subdomain under `syncropel.app`, e.g. `alice.syncropel.app`. Lowercase letters, digits, and `-`. 3 to 32 characters. The label is yours for the lifetime of your account.
+## Sign up
 
-You do **not** need: Docker, or a domain you control.
-
-## The flow
-
-### 1. Sign in
-
-Visit [syncropel.com](https://syncropel.com) and sign in. Account creation is email-verified, with optional social login. Your account is the identity that owns every workspace you create: sign in from any device and your workspaces follow you.
-
-### 2. Pick a label
-
-The signup page asks for a label. If you pick `alice`, your workspace lives at `alice.syncropel.app`.
-
-Reserved labels (`api`, `docs`, `www`, `app`, `admin`, etc.) are rejected with an inline error. Pick something specific to you or your project.
-
-### 3. Watch the setup steps
-
-Submitting the form starts setting up your workspace and shows progress live. The signup page shows each step as it finishes:
-
-| Step shown | What's happening |
-|---|---|
-| `Creating server` | Your workspace is created. |
-| `Allocating storage` | Storage for your workspace is set aside. |
-| `Deploying instance` | Your workspace starts on the current release. |
-| `Initializing your instance` | Your workspace sets up its first sign-in key. |
-| `Routing your domain` | `<label>.syncropel.app` is pointed at your new workspace and becomes reachable. |
-
-When every step is done, the page says your workspace is ready. The whole setup usually takes about two minutes. If any step fails, the page shows a clear error and gives you a way to retry.
-
-### 4. Land in your workspace
-
-When setup finishes you land in **Syncropel Studio**, already connected to your new workspace, with no keys to copy. Your browser session carries your identity, and the workspace recognizes you as its owner. The ready screen also offers a way to connect the command line if you work from a terminal (see below).
-
-The bare `<label>.syncropel.app` address is your workspace's public landing page: an identity card, not where you work day to day.
-
-### Your workspaces, from any device
-
-[syncropel.com/account/workspaces](https://syncropel.com/account/workspaces) lists every workspace your account owns, with its status, a way to connect, and actions like delete. Sign in on a new device and the same list is there; one click connects Studio to any of them.
-
-Want another workspace for a separate project? Create another. Your first hosted workspace is free; each one after that is $25 per month, with a 30-day free trial.
-
-## What you can do once you're in
-
-The same things anyone using Syncropel can do, with the same command line and SDKs as a self-hosted workspace:
-
-- **Use Syncropel Studio** for threads, tasks, search and your assistant. `<label>.syncropel.app` itself is the workspace's public landing page ([you can customize it](/docs/operate/site)); Studio at syncropel.com is where you actually work.
-- **Use the command line or SDKs** instead if you prefer to work in code; see the next section.
-- **Connect more devices** with `spl pair --device <label> --url https://<label>.syncropel.app`, or without the command line at all: on any thread press **keep this access**, and paste the key it shows into **+ add a connection** on the other device (see [Keeping your access](/docs/guides/keeping-your-access)).
-- **Export everything** at any time with `spl export`; see [Portability](/docs/guides/portability).
-
-You don't look after the workspace yourself: it restarts if it crashes, and secure connections are handled for you. You can check that your workspace is up by opening `<label>.syncropel.app/health` in a browser.
-
-## Connect your command line to the hosted workspace
-
-The `spl` command line talks to a workspace on your own machine by default. To make it talk to your hosted workspace instead, you tell it two things: **where the workspace lives** (`SPL_SERVE_URL`) and **which key to use** (`spl token save`).
-
-### One-time setup
-
-```bash
-# 1. Install the CLI (skip if already installed)
-curl -sSf https://get.syncropic.com/spl | sh           # Linux / WSL. Windows: irm https://get.syncropic.com/spl.ps1 | iex
-
-# 2. Point the CLI at your hosted workspace
-export SPL_SERVE_URL=https://<label>.syncropel.app
-
-# 3. Connect this machine. Studio's Connect button (or the ready screen's
-#    CLI option) gives you a device key; save it:
-spl token save <token>
+```
+  syncropel.com          pick your address          a minute or two          your workspace
+ ┌─────────────┐        ┌──────────────────┐        ┌───────────────┐        ┌──────────────┐
+ │   Sign up   │ ─────▶ │ alice            │ ─────▶ │ setting up... │ ─────▶ │  the Studio  │
+ │             │        │ .syncropel.app   │        │ ✓ ✓ ✓ ✓       │        │  (you're in) │
+ └─────────────┘        └──────────────────┘        └───────────────┘        └──────────────┘
 ```
 
-`spl token save` stores the key in a file only you can read. After that, every `spl` command uses it automatically.
+1. Go to [syncropel.com](https://syncropel.com) and sign up. Confirm your email if asked.
+2. Type the name you want for your address. If it's taken or kept back for Syncropel's own use, you'll see that straight away; pick another.
+3. Watch the setup steps tick off. It usually takes a minute or two.
+4. You land in your workspace, in the **Studio**, signed in as its owner. There are no keys to copy.
 
-To keep the address across new terminal windows, add the export to your shell's startup file (`~/.bashrc`, `~/.zshrc`, etc.):
+## Your workspaces, from any device
 
-```bash
-echo 'export SPL_SERVE_URL=https://<label>.syncropel.app' >> ~/.bashrc
-```
+Sign in at [account.syncropel.com](https://account.syncropel.com) and open **Workspaces** to see every workspace you own, its plan and its status, and to open any of them in the Studio. Sign in on a new device and the same list is there.
 
-### Check that it works
+Want another workspace for a separate project? Create another. Your first is free; each one after that is on [Pro](/docs/get-started/pricing).
 
-```bash
-spl status
-spl thread list
-spl task add "First task on hosted" --priority normal --domain meta
-spl task list
-```
+## Your address
 
-`spl status` prints which address it is using and whether your key is accepted. `spl thread list` and `spl task list` should show your workspace's threads and tasks (empty if you haven't added anything yet).
+`<your-name>.syncropel.app` is your workspace's front door. Opened on its own, it shows a public page with your workspace's name; you work in the Studio. The address stays the same for as long as you keep the workspace, and it can't be renamed yet.
 
-If you get a `401`, connect this machine again and save the new key (`spl token save <token>`), and check that `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, open `<label>.syncropel.app/health` in a browser: the workspace may be waking up after a quiet period, so give it a few seconds.
+## If setup doesn't finish
 
-### A separate key for each device (recommended)
+- **The name is taken.** Someone chose it first. Pick another.
+- **It's taking longer than usual.** Wait half a minute and try again from the same page; your workspace may already be running.
 
-Create a separate key for each device so you can switch one off without affecting the others:
-
-```bash
-spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.app --scopes admin
-```
-
-`spl pair` prints a one-click link, a QR code, and plain text: pick whichever fits. For the command line on the same machine, the simplest path is to copy the printed key and run `spl token save <new-token>`. If the laptop is ever lost, you can switch off just that key.
-
-`--scopes admin` gives the key full control of the workspace: it can read and change everything, including creating and switching off other keys. Without it, a key named like this one can read and add records but cannot manage keys or settings.
-
-See [Service accounts and tokens](/docs/get-started/service-accounts) for the longer version, including narrowing what a key can do and replacing keys.
-
-## Hosted vs. self-hosted: which to pick
-
-Both are the same Syncropel. Pick by where you want the data and who keeps it running.
-
-| | Hosted (syncropel.com) | Self-hosted (`spl serve`) |
-|---|---|---|
-| Where the data lives | Your own hosted workspace with its own storage | On your machine |
-| Who keeps it running | Syncropic | You |
-| Backups | A kept copy, where offered (files not included yet); see [Your hosted workspace](/docs/get-started/your-hosted-workspace) | You; see [Backup discipline](/docs/operate/runbook#backup-discipline) |
-| Connecting to other workspaces | Yes | Yes |
-| Cost | One workspace free; $25 per month for each more, after a 30-day trial | Whatever your machine costs |
-| Lock-in | None: `spl export` takes everything with you | None: same program |
-
-Hosted is the path of least friction; self-hosted is the path of zero dependence on syncropel.com. Both are first-class.
-
-## When setup fails
-
-Most setup failures fall into one of two buckets:
-
-- **Label taken.** Someone reserved that label first. Pick another.
-- **Took too long.** Your workspace took longer than expected to start. The page suggests waiting 30 to 60 seconds and retrying: the workspace may already be running.
-
-For both, the signup page shows a clear error, with no logs to dig through. If retrying doesn't help, the details on the page contain everything support needs.
+If it still doesn't work, the page shows details you can send to support.
 
 ## What's next
 
-- **[Your hosted workspace](/docs/get-started/your-hosted-workspace)**: how your work is saved, sleeping, and deleting.
-- **[Connecting a browser or phone](/docs/get-started/pairing)**: get a second device onto the same workspace.
-- **[First run](/docs/get-started/first-run)**: the same first-day walkthrough applies to any workspace, hosted or self-hosted.
-- **[Your first task](/docs/tutorials/first-task)**: a five-minute walkthrough to create and complete a task.
-- **[Security model](/docs/operate/security-model)**: keys, service accounts, and what is stored where.
+- [Your hosted workspace](/docs/get-started/your-hosted-workspace): how your work is kept, sleeping and waking, and deleting
+- [The assistant](/docs/get-started/the-assistant): who you talk to in your workspace
+- [Keeping your access](/docs/guides/keeping-your-access): reaching your workspace from another device
+- [Organization names](/docs/guides/organization-names): a name for your organization (Pro)
+
+Working from a terminal? See [Connect the command line](/docs/get-started/connect-the-command-line).

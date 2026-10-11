@@ -7,7 +7,7 @@ A hosted workspace is one you created at [syncropel.com](https://syncropel.com).
 in the cloud, so there is nothing to install and nothing to keep running. This page explains what
 happens to your work while you use it, while you are away, and if you ever delete it.
 
-If you have not created one yet, start with [Hosted workspace signup](/docs/get-started/hosted).
+If you have not created one yet, start with [Create your workspace](/docs/get-started/hosted).
 
 ## A saved copy of your workspace
 
@@ -26,13 +26,13 @@ If your workspace keeps a copy, new work is saved to it shortly after it happens
 | Plan | New work is saved within about |
 |---|---|
 | Free | 30 seconds |
-| Paid | 10 seconds |
+| Pro | 10 seconds |
 
 So for a workspace that keeps a copy, if something goes wrong with the machine it runs on, the most
 you can lose is the work from those last few seconds. Without a kept copy, this limit does not
 apply.
 
-See [Pricing and billing](/docs/get-started/pricing) for what each plan includes.
+See [Plans and billing](/docs/get-started/pricing) for what each plan includes.
 
 ## When your workspace sleeps
 
@@ -59,25 +59,44 @@ Today the kept repository holds your workspace's records. That includes:
 **Files you store in the workspace are not included yet.** If you keep important files in your
 workspace, keep your own copy of them somewhere else for now.
 
-## When you delete a workspace
+## Pausing or deleting a workspace
 
-Deleting a workspace that kept a copy does not delete the copy straight away. The copy is kept for
-**30 days** after you delete the workspace.
+You'll find both on [account.syncropel.com](https://account.syncropel.com): open **Workspaces**, choose the workspace, and look under **Settings**.
 
-During that time you can see it in your account console at
-[services.syncropic.com](https://services.syncropic.com), under **Repositories**, with the date it was
-saved and its size.
+### Suspend: a pause with a way back
+
+**Suspend** stops the workspace. You have **7 days** to change your mind and press **Resume**. We email you a day before the 7 days end. If you don't resume it, the workspace is deleted when the 7 days are up, exactly as below.
+
+### Delete
+
+**Delete** removes the workspace straight away, and its address becomes free for someone else to take.
+
+If the workspace kept a saved copy, that copy stays for **30 days** so you can still start a new workspace from it. You'll see it under **Repositories** on account.syncropel.com, with the date it was saved and its size. After 30 days it's deleted.
+
+When you delete, you can tick **Also delete its kept records now** to have the copy deleted at once instead. Either way, a snapshot of the workspace's disk is kept for up to 7 days, then deleted.
+
+```
+ Suspend ─────── 7 days (email 1 day before the end) ───────┐
+    │                                                       ▼
+    └── Resume: back as it was                           Deleted
+                                                            │
+ Delete ────────────────────────────────────────────────────┤
+                                                            ▼
+                          saved copy kept 30 days, then gone
+                          (or gone at once if you ticked
+                           "Also delete its kept records now")
+```
+
+Delete each workspace before deleting your account. **Export** under **Account** gives you a copy of what's yours first.
 
 ## Taking your work with you
 
 Your workspace is never locked in. You can export everything at any time and run it on your own
 machine, or move work from your own machine into a hosted workspace. See
-[Portability](/docs/guides/portability) and the
-[moving between local and hosted](/docs/get-started/pricing#local-and-hosted-moving-between)
-section of the pricing page.
+[Portability](/docs/guides/portability) (a technical guide).
 
 ## See also
 
-- [Hosted workspace signup](/docs/get-started/hosted): creating a workspace and connecting to it
-- [Pricing and billing](/docs/get-started/pricing): the plans
+- [Create your workspace](/docs/get-started/hosted): signing up and what you'll see
+- [Plans and billing](/docs/get-started/pricing): Free and Pro, and moving between them
 - [The assistant](/docs/get-started/the-assistant): who you talk to in your workspace

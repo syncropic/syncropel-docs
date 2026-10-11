@@ -96,22 +96,22 @@ function HostedPanel() {
       <p className="text-sm leading-relaxed text-fd-foreground">
         Sign up at{' '}
         <Link
-          href="https://syncropel.com/signup"
+          href="https://syncropel.com/sign-up"
           className="font-medium text-[#c2410c] hover:underline dark:text-[#d97706]"
         >
-          syncropel.com/signup
+          syncropel.com/sign-up
         </Link>
-        . About 60 seconds. Your instance comes up at{' '}
-        <code className="rounded bg-fd-secondary px-1.5 py-0.5 font-mono text-[12px]">&lt;label&gt;.syncropel.app</code>{' '}
-        with a bootstrap token shown once.
+        . A minute or two later you're in your own workspace at{' '}
+        <code className="rounded bg-fd-secondary px-1.5 py-0.5 font-mono text-[12px]">&lt;your-name&gt;.syncropel.app</code>,
+        signed in, with nothing to copy.
       </p>
       <p className="text-sm leading-relaxed text-fd-muted-foreground">
-        No install, no machine to maintain. Free tier; paid tiers for scale. Same binary, same APIs, same record store
-        as self-hosted — move between hosted and self-hosted at any time.
+        Nothing to install. Your first workspace is free, with no card; Pro adds storage, included assistant use and
+        a name for your organization.
       </p>
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <Link
-          href="https://syncropel.com/signup"
+          href="https://syncropel.com/sign-up"
           className="inline-flex items-center gap-1.5 rounded bg-[#c2410c] px-3.5 py-2 text-[12px] font-medium text-white transition-opacity hover:opacity-90 dark:bg-[#d97706]"
         >
           Sign up <ArrowUpRight size={13} aria-hidden />
@@ -126,7 +126,7 @@ function HostedPanel() {
           href="/docs/get-started/pricing"
           className="inline-flex items-center text-[12px] font-medium text-fd-muted-foreground hover:text-fd-foreground"
         >
-          Pricing
+          Plans and billing
         </Link>
       </div>
     </div>

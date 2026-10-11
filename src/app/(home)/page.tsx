@@ -7,13 +7,21 @@ import { SurfaceTabs } from './SurfaceTabs';
 // Every entry in the KEEP set (per syncropel-research/docs/web-summit-trim
 // v2 plan §T) lives in exactly one bucket below.
 
+const useIt = [
+  { title: 'Create your workspace', href: '/docs/get-started/hosted', desc: 'Sign up at syncropel.com and start a minute or two later' },
+  { title: 'Plans and billing', href: '/docs/get-started/pricing', desc: 'Free and Pro, and moving between them' },
+  { title: 'Your hosted workspace', href: '/docs/get-started/your-hosted-workspace', desc: 'How your work is kept, pausing and deleting' },
+  { title: 'The assistant', href: '/docs/get-started/the-assistant', desc: 'Who you talk to in your workspace' },
+  { title: 'Organization names', href: '/docs/guides/organization-names', desc: 'A name others can find, proved by your domain' },
+  { title: 'Keeping your access', href: '/docs/guides/keeping-your-access', desc: 'Reach your workspace from another device' },
+];
+
 const startHere = [
   { title: 'Quickstart', href: '/docs/start', desc: 'Five minutes from zero to a working loop' },
-  { title: 'Hosted signup', href: '/docs/get-started/hosted', desc: '60-second flow at syncropel.com/signup' },
   { title: 'Install spl', href: '/docs/get-started/install', desc: 'Linux, macOS, Windows — single binary' },
   { title: 'First run', href: '/docs/get-started/first-run', desc: 'spl init, identity, ~/.syncro/ layout' },
+  { title: 'Connect the command line', href: '/docs/get-started/connect-the-command-line', desc: 'Point spl at a hosted workspace' },
   { title: 'Pair a device', href: '/docs/get-started/pairing', desc: 'Browser, phone, or second CLI on the same instance' },
-  { title: 'Pricing', href: '/docs/get-started/pricing', desc: 'Free tier + paid tiers — full cost surface' },
 ];
 
 const tutorials = [
@@ -26,7 +34,7 @@ const mentalModel = [
   { title: 'Records', href: '/docs/concepts/records', desc: 'The 8-field immutable, content-addressed unit' },
   { title: 'Threads', href: '/docs/concepts/threads', desc: 'Coordinated workflows that fold to state' },
   { title: 'Actors', href: '/docs/concepts/actors', desc: 'Identity, trust profiles, persistent memory' },
-  { title: 'Trust', href: '/docs/concepts/trust', desc: 'Wilson-LB evidence with the dial' },
+  { title: 'Trust', href: '/docs/concepts/trust', desc: 'Reputation earned from evidence' },
   { title: 'Patterns', href: '/docs/concepts/patterns', desc: 'Repeated success captured — replay or adapt at choice' },
 ];
 
@@ -73,7 +81,8 @@ interface NavSection {
 }
 
 const NAV_SECTIONS: ReadonlyArray<NavSection> = [
-  { title: 'Start here', tagline: 'Get an instance running on your terms', items: startHere },
+  { title: 'Use Syncropel', tagline: 'In your browser, nothing to install', items: useIt },
+  { title: 'Run it yourself', tagline: 'Developers and self-hosting', items: startHere },
   { title: 'Tutorials', tagline: 'Learn by doing — 15-30 minutes each', items: tutorials },
   { title: 'Mental model', tagline: 'What Syncropel actually is, under the hood', items: mentalModel },
   { title: 'Build with Syncropel', tagline: 'SDKs, AI clients, gateways, dev tools', items: build },
@@ -115,8 +124,8 @@ export default function HomePage() {
           Syncropel Documentation
         </h1>
         <p className="text-sm text-fd-muted-foreground max-w-lg mx-auto leading-relaxed">
-          Learn how to coordinate work between humans and AI agents
-          with immutable records, evidence-based trust, and self-improving workflows.
+          Your own workspace where you, the people you work with and your AI assistants
+          keep conversations, tasks, files and decisions in one place.
         </p>
       </section>
 
