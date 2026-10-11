@@ -5,7 +5,7 @@ description: Your own workspace where you, the people you work with and your AI 
 
 ## What Syncropel is
 
-Syncropel gives you a **workspace**: your own place, at your own address, where you, the people you invite and your AI assistants work together. Conversations, tasks, files and decisions stay in one place, and you can always see what was done and why.
+Syncropel gives you a **workspace**: your own place, at your own address, where you, the people you invite and your AI assistants work together. Conversations, tasks, files and decisions stay in one place, and you can see what was done and why.
 
 ```
                     alice.syncropel.app  (your workspace)
@@ -67,7 +67,7 @@ fix-checkout-timeout              5 records · 3 actors
                    captured · next similar issue replays the solution
 ```
 
-`●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and signed by its actor. The `LEARN` at the end is captured as a reusable pattern: next time the same shape of issue appears, the solution replays automatically.
+`●` is human; `○` is an AI agent or system. Every record is content-addressed and signed by its actor. The `LEARN` at the end is captured as a reusable pattern: next time the same shape of issue appears, the workspace can reuse what worked.
 
 That same thread can be queried via the [TypeScript SDK](/docs/guides/typescript-sdk), [Python SDK](/docs/guides/python-sdk), or [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others). Hosted workspaces ship with **[the chief of staff](/docs/get-started/the-assistant)**, a default conversational assistant that responds in any thread you open by typing, so you do not have to wire anything up.
 

@@ -12,7 +12,7 @@ const useIt = [
   { title: 'Plans and billing', href: '/docs/get-started/pricing', desc: 'Free and Pro, and moving between them' },
   { title: 'Your hosted workspace', href: '/docs/get-started/your-hosted-workspace', desc: 'How your work is kept, pausing and deleting' },
   { title: 'The assistant', href: '/docs/get-started/the-assistant', desc: 'Who you talk to in your workspace' },
-  { title: 'Organization names', href: '/docs/guides/organization-names', desc: 'A name others can find, proved by your domain' },
+  { title: 'Organization names', href: '/docs/guides/organization-names', desc: 'A name others can find, checked against your domain' },
   { title: 'Keeping your access', href: '/docs/guides/keeping-your-access', desc: 'Reach your workspace from another device' },
 ];
 
