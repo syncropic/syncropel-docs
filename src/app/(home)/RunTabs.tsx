@@ -101,7 +101,7 @@ function HostedPanel() {
         >
           syncropel.com/sign-up
         </Link>
-        . A minute or two later you're in your own workspace at{' '}
+        . A minute or two later you&rsquo;re in your own workspace at{' '}
         <code className="rounded bg-fd-secondary px-1.5 py-0.5 font-mono text-[12px]">&lt;your-name&gt;.syncropel.app</code>,
         signed in, with nothing to copy.
       </p>
