@@ -1,0 +1,68 @@
+---
+title: Set up your organization
+description: Create a workspace for your organization, pay for Pro, and claim your organization's name with your domain. About fifteen minutes, most of it waiting for DNS.
+---
+
+This page takes you from nothing to an organization workspace with its own name, such as `acme`, that other workspaces can find. If you're setting up a workspace just for yourself, you want [Create your workspace](/docs/get-started/hosted) instead.
+
+## What you'll need
+
+- **An email address for the organization**, not a person's own. The workspace belongs to whoever signs up, so an address the organization controls (such as `accounts@acme.com`) means the workspace doesn't depend on one person's account. The people who work in it join as members.
+- **A card for Pro.** An organization workspace is on Pro, paid as you create it. See [Plans and billing](/docs/get-started/pricing).
+- **Your organization's domain**, such as `acme.com`, and access to its DNS settings. The name you claim comes from the domain: `acme.com` gives you `acme`.
+
+## The steps
+
+```
+ syncropel.com      Who is it for?       pay for Pro      setting up       account.syncropel.com
+┌──────────┐      ┌──────────────┐     ┌──────────┐     ┌──────────┐     ┌──────────────────────┐
+│ Sign up  │ ───▶ │An organization│ ──▶ │ Start Pro│ ──▶ │ ✓ ✓ ✓ ✓  │ ──▶ │ Names: claim `acme`  │
+└──────────┘      └──────────────┘     └──────────┘     └──────────┘     │ add the DNS record   │
+                                                                         │ Check and claim      │
+                                                                         └──────────────────────┘
+```
+
+### 1. Sign up, and say it's for an organization
+
+1. Go to [syncropel.com](https://syncropel.com) and sign up with the organization's email address.
+2. At **Who is it for?**, choose **An organization**. Do it here: the pages after this don't ask again.
+3. Pick the workspace's address, such as `acme.syncropel.app`.
+
+### 2. Pay for Pro
+
+Press **Start Pro**. You go to checkout, and come back to set up the workspace when the payment is done.
+
+### 3. Wait for the workspace
+
+Watch the setup steps tick off. It usually takes a minute or two. You land in your workspace, signed in as its owner.
+
+### 4. Claim your organization's name
+
+1. Go to [account.syncropel.com](https://account.syncropel.com), open **Names**, and press **Claim a name**. Give the name and the domain that proves it.
+2. You're shown a DNS record to add at your DNS provider:
+
+   | Field | Value |
+   |---|---|
+   | Type | `TXT` |
+   | Name | `_syncropel` (some providers want the full `_syncropel.acme.com`) |
+   | Value | `syncropel-verify=…`, copied exactly as shown |
+   | TTL | your provider's default, such as **Auto**, is fine |
+
+   Add it on that name itself, not through a CNAME. In Cloudflare, either form of the name works.
+3. Press **Check and claim**. The record usually shows up within a few minutes; some providers take longer. If the check doesn't pass yet, your claim waits under **Waiting for your DNS record**. Press **Continue** to try again later.
+4. When the check passes, the name is yours. If the page still says the name isn't there, reload it.
+
+### 5. Bring people in
+
+- **Invite people by link** from your workspace's Members. They join as members of the organization's workspace.
+- **Add offices and agents under your name**, such as `acme/support`, with **Add a name** on the Names page. Each one points at someone in the workspace, so add them once the person they'll point at has joined.
+
+## Keep the DNS record
+
+Your domain is checked again every day. Leave the record in place. If the check starts failing, you can't add anything new under the name until it passes again; nothing you already have is taken away. See [Organization names](/docs/guides/organization-names) for the rules: what a name can look like, protected names, and moving or retiring offices.
+
+## See also
+
+- [Organization names](/docs/guides/organization-names): the rules for names, offices and agents
+- [Plans and billing](/docs/get-started/pricing): Pro, and your bill
+- [Your hosted workspace](/docs/get-started/your-hosted-workspace): how your work is kept
