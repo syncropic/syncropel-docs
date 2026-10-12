@@ -1,11 +1,11 @@
 ---
 title: Keeping your access
-description: Add a passkey, keep a recovery key, and see every way back into a workspace, so losing a phone or clearing a browser doesn't lock you out.
+description: Add a passkey, keep a recovery code, and see every way back into a workspace, so losing a phone or clearing a browser doesn't lock you out.
 ---
 
 When somebody lets you into a workspace, your access lives in the browser you
 accepted it in. Lose that browser, or open a new phone, and you'd have to ask
-for a fresh invite. A **way back in** fixes that: a passkey, a recovery key you
+for a fresh invite. A **way back in** fixes that: a passkey, a recovery code you
 keep yourself, or your Syncropel account on a hosted workspace.
 
 Everything on this page is in the Studio under **You**, in the **Devices and
@@ -57,8 +57,9 @@ then add a passkey**. You only do this once.
     code with this device. See [Add a device](/docs/guides/add-a-device).
   - **Use the command line**: run the command the sheet shows, on the computer
     that runs the workspace. It sits on its own line with a **Copy** button.
-  - **Ask the owner for a code**: the workspace owner gives you a short code
-    (see [below](#a-code-from-the-owner)). Enter it and press **Continue**.
+  - **Ask** the owner **for a code**: the button names the workspace's owner,
+    for example **Ask Maya for a code**. The owner gives you a short code (see
+    [below](#a-code-from-the-owner)). Enter it and press **Continue**.
 
 {/* kernel: what can refuse this, in plain words */}
 
@@ -77,50 +78,49 @@ On a workspace you run yourself, if you were never set up as its owner, the shee
 says **Set up your owner account first** and shows one command to run on the
 computer that runs the workspace. Run it, then try again.
 
-## Your recovery key
+## Your recovery code
 
-A recovery key is a line of letters and digits you keep somewhere off this
+A recovery code is a line of letters and digits you keep somewhere off this
 device, like a password manager or on paper. It needs no account and no vendor.
-{/* WORDS? story to confirm: story's §4 names this "Make a recovery code" / "Your recovery code" / "I've saved it"; the live Studio still shows "keep this access", "make a key", "your key to this" and "I've kept it". The steps below use the live words. */}
+{/* DRAFT for story: the two sentences above are carried over from the 0.272 draft; the steps below quote the live screen's words (folds/session/ways-back-in.ts RECOVERY_WORDS, folds/session/recovery-screen.ts). */}
 
-1. In Devices and keys, under **keep this access**, press **make a key**.
-2. The Studio shows **your key to this**, once. Copy it and keep it somewhere
-   safe, then close it. After that, the Studio can't show it again.
+The Studio shows and asks for a recovery code only on its own screen, never
+inside a conversation or an app. That screen says "You're on Syncropel's own
+recovery screen." If anything else asks you for your code, don't enter it.
 
-The line looks like this:
+### Make a recovery code
 
-```
-KRMRW-PEERZ-RHMSW-AH8Y9-1V9S7-K@btw.syncropel.com/<who you are there>
-```
+1. In Devices and keys, under **Ways back in**, press **Make a recovery code**.
+2. The recovery screen opens, headed **Your recovery code**. Press the button
+   under it, and confirm it's you if you're asked.
+3. The screen shows the code, once: "This is the only time it's shown. Save it
+   somewhere off this device, like a password manager or on paper. It works
+   once." Press **Copy** or **Download**, then **I've saved it**. After that, the
+   Studio can't show it again.
 
-From left to right: the key, grouped in fives so it reads aloud; the place; and
-who the key opens the place as (shortened here). It isn't a link, so pasting it
-into a browser's address bar does nothing.
+### Get back in with it
 
-If you're a guest, the floor is stated beside it: lose the key **and** this
-browser, and whoever invited you has to let you in again.
+On a new device, or after clearing your browser, open the Studio, press **+ add
+a connection** and paste your recovery code. The Studio doesn't use it there. It
+says "Recovery codes are only used on Syncropel's own recovery screen. Go there
+and enter it again." Press **Go to the recovery screen**, type the code under
+**Your recovery code**, and press **Get back in**.
 
-A guest who arrived on an invite link also sees **keep this access** on the
-conversation they were invited to.
+A code works once. When you're back in, the screen shows your new code, once, the
+same way as when you made one. If a new one couldn't be made, it says so: make
+one from Ways back in straight away.
 
-### Get back in on any device
+If the code is wrong, used up or unknown, the screen says "That code didn't
+work. Check it and try again."
 
-Open the Studio on the new device, press **+ add a connection**, and paste the
-whole line. The Studio offers **open with this key**, and you land in the place
-as the same person.
+### Make a new recovery code
 
-Using the key spends it. Before you land, the Studio shows you a new key, once.
-Keep that one, because the old one no longer works.
+Once you have a code, Ways back in offers **Make a new recovery code**, with
+"Your old one stops working." It asks for **Your current recovery code** first,
+then shows the new one once. Someone holding a stolen browser can't quietly
+replace your code, because they don't have the current one.
 
-Typing is forgiving: case doesn't matter, spaces and hyphens are ignored, and a
-photographed `O` or `I` is read as `0` or `1`.
-
-### Make a new key
-
-Once you've kept a key, **keep this access** says so and offers **make a new
-one**. It asks for the current key first, then shows the replacement once. The
-old key stops working. Someone holding a stolen browser can't quietly replace
-your key, because they don't have the current one.
+Lost it? Remove it, then make a new one.
 
 ## Remove a way back in
 
@@ -183,7 +183,7 @@ before passkeys, they can't add one alone. You can vouch for them.
    or on a call. It works once, within an hour. Restarting the workspace cancels
    it.
 
-They press **Ask the owner for a code** on their **Confirm it's you, then add a
+They press **Ask** and your name **for a code** on their **Confirm it's you, then add a
 passkey** sheet, enter it and press **Continue**, and the passkey offer appears.
 If the code is mistyped, already used or out of time, they're told to ask you for
 a new one.
@@ -218,11 +218,12 @@ saw them as one may remember they're the same person.
 
 ### Link to your account
 
-Signed in to a hosted account, **keep this access** also offers **link to your
-account**. Your account can then find this key again on any device: under **+
-add a connection**, **shared with you** lists the places your account knows, and
-**open as you** re-opens one without a line to paste. The account is a way to
-find the key, never the key itself.
+On a hosted workspace, your Syncropel account can be one of your ways back in.
+When it is, Ways back in lists **Your Syncropel account**. Under **+ add a
+connection**, **shared with you** lists the places your account knows, and
+**open as you** re-opens one without a code to type. The account is a way to
+find your way back, never a key itself.
+{/* DRAFT for story: rewritten from the 0.272 draft, which still named the retired "keep this access" card. Where the account is linked from on today's screens is to confirm before this ships. */}
 
 Hosted workspaces accept it. A self-hosted workspace accepts it only if the
 person running it sets up a verifier
@@ -231,12 +232,11 @@ clears what that device held and leaves your account's list untouched.
 
 ### Sign in with a passkey on a new device
 
-On another device, paste a kept line into **+ add a connection** and choose
-**use a passkey instead**. The line only names the place and who you are there;
-its code isn't sent, and your passkey signs you in.
+On another device, paste your recovery code into **+ add a connection** and
+choose **use a passkey instead**. The code isn't sent; your passkey signs you in.
 
 A passkey made on one kind of phone doesn't travel to every laptop, so keep a
-recovery key as well. The Studio says so when a passkey is the only key you hold.
+recovery code as well.
 
 ## Workspaces on an older version
 
@@ -247,9 +247,9 @@ device out without affecting the others.
 
 ## For operators
 
-Nothing to configure for the recovery key; every workspace on a current version
-accepts it. Guardians, people you trust to help you back in, are set up from the
-command line. The requests behind this page are in the
+Nothing to configure for the recovery code; every workspace on a current version
+accepts it. Guardians, people you trust to help you back in, are set up on the
+You page: see [Guardians](/docs/guides/guardians). The requests behind this page are in the
 [API reference](/docs/reference/api#self).
 
 ## See also
