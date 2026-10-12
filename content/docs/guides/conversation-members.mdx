@@ -1,0 +1,163 @@
+---
+title: Who's in a conversation
+description: Read a conversation's members page, see when what's in it was opened, give people roles, and leave a workspace.
+---
+
+{/* DRAFT for story review (Studio lane, 2026-10-12; ships with the Studio's arc R, after prod is on 0.276.0).
+    Bold words and quoted lines are the code's, verbatim, from syncropel-web studio-277r:
+    src/surfaces/frame/read/tabs.tsx, src/surfaces/frame/read/room-reads.tsx, src/folds/members/reads.ts,
+    src/folds/members/thread-members.ts, src/folds/invite/names.ts, src/folds/door/roles.ts,
+    src/surfaces/frame/places/door.tsx, src/surfaces/frame/places/page-edit.tsx, src/folds/thread/thread.ts.
+    Every other sentence is new and needs story's sign-off. */}
+
+## Overview
+
+Every conversation has a members page. It answers one question first, **Who can
+read this**, and then everything around it: who's invited, the other assistants
+in the workspace, guest links, when what's here was opened, and whose access has
+ended.
+
+Open it from the people shown at the top of a conversation.
+{/* DRAFT: confirm the name of the control that opens the members page. */}
+
+## Who can read this
+
+This section is always first, and it can't be hidden. It lists:
+
+- **you**, first;
+- the people who can read the conversation;
+- the assistants that are in it, each with a line saying what it does here, such
+  as **answers messages here** or **answers when named here**;
+- guests, because guests can read it too.
+
+A row doesn't say whether someone is online or when they were last here.
+
+Press a person's or an assistant's row to open its details. On a phone the details
+open from the bottom of the screen; on a wider screen they open beside the list.
+
+An assistant that answers here has an **on** / **off** switch on its row. It
+applies to this conversation only: switching an assistant off here doesn't change
+it anywhere else.
+
+## Invited
+
+People and offices that have been invited but haven't joined yet. They can't
+read the conversation until they join, so they're listed here and not under Who
+can read this. An office or assistant invited by name reads **invited, can read
+once they join**.
+
+## Other assistants in this workspace
+
+The workspace's other assistants, folded to one line until you open it. They don't
+answer here unless you name one: "Name one in a message here to ask it."
+
+When the workspace doesn't say which assistants answer in this conversation, the
+section says so: "This workspace doesn't say which of these answer here."
+
+## Guests and links
+
+The links that let guests in, including a public link. Each link's **⋯** offers
+**copy the link**, **show the QR code**, and, if you may, **change access** and
+**turn the link off**.
+
+## Opened here
+
+When what's in this conversation was opened, over the last 30 days. The newest
+days come first, and **Show all** with the number of days lists every one.
+
+What you see depends on who you are:
+
+- **The owner** sees the conversation as a whole, headed **Opened here in the
+  last 30 days**, with exact numbers: a day reads like "Oct 12 · read by 3
+  people", and the total like "14 reads in 30 days".
+- **Anyone else** sees only when what they wrote or added was opened, headed
+  "What you wrote or added here was opened…". To protect the people reading, a
+  small number isn't given exactly: a day can read "read by fewer than 3 people",
+  or "read by at least" a number when the count is a lower bound.
+
+Days are named by their date, not "today".
+
+## Access ended
+
+Only someone who can end other people's access sees this section, folded to one
+line. A row reads like "access ended Oct 6". It covers someone removed, a guest
+whose access ran out and a link that expired alike, so it doesn't say which.
+
+Someone who was erased is never listed here, and isn't counted.
+
+## Arrange the page
+
+The members page is arranged the same way for every conversation, and the
+arrangement is yours alone: it's kept on your own devices, and nobody else sees
+it. Press **Edit page** to move a section with **Move up** and **Move down**,
+**Remove** one, or put one back with **Add a section**. **Who can read this** is
+"Always here. You can make it smaller." Press **Done** when you're finished.
+
+Hiding a section only changes your view. Hiding **Opened here** doesn't stop
+reads being counted.
+
+## Roles
+
+A role gives everyone who holds it the same conversations. The owner manages
+roles on the workspace's members page, under **Roles**.
+{/* DRAFT: confirm the workspace members page's own label. */}
+
+### Make a role
+
+1. Under **Roles**, start a **New role**.
+2. Give it a **Name**: "Lowercase letters, numbers, hyphens and underscores."
+3. Under **Conversations**, choose each conversation and whether holders **can
+   read it** or **can read and write**.
+4. Press **Create role**.
+
+Each role's row says how many conversations it has and how many people hold it.
+After you save, the Studio may list what else your change affects, under **This
+also changes:**.
+
+To delete a role, the Studio asks "Delete the role" and the role's name, then
+**Delete**.
+
+### Change someone's role
+
+On a person's row, press **Change role…**, choose the role and press **Change
+role**. Before you do, the Studio says what changes:
+
+- "A role sets which conversations Maya can see. Conversations they were added
+  to directly stay."
+- If they can see everything in the workspace today, it warns that the role will
+  narrow that, and that the only way to give them everything again is to remove
+  them and invite them again.
+
+A person's role and their offices show under their name.
+
+### When a role is in the way
+
+If someone is in a conversation through their role, you can't take them out of
+that one conversation. The Studio says so, for example: "Maya is in this
+conversation through the role “Finance”. Change their role or the role's
+conversations instead. Nothing was changed."
+
+## Leave a workspace
+
+On the workspace's members page, your own row has **leave**. The Studio asks
+"Leave this workspace? This browser's key stops working on its next request; what
+you wrote stays." Press **yes, leave**, or **stay**.
+
+## After someone is erased
+
+When a person is erased from the workspace, each of their messages reads "This
+message was erased." wherever it appears.
+
+## Common gotchas
+
+- **A number that says "at least".** That's the privacy floor at work, not a
+  missing read. Only the owner sees exact counts.
+- **An assistant that moved sections.** The assistants in the conversation are
+  the ones that answer here, were named here or have worked here. The rest wait
+  under Other assistants until you name one.
+
+## See also
+
+- [Keeping your access](/docs/guides/keeping-your-access): ways back in, so losing a device doesn't lock you out.
+- [Pair, share, invite](/docs/guides/pair-share-invite): invites from the command line.
+- [Principals and grants](/docs/concepts/principals-and-grants): what a guest link admits.

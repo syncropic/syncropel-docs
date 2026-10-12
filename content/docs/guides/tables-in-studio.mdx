@@ -1,0 +1,53 @@
+---
+title: Tables in the Studio
+description: Read a conversation's tables, narrow them, and tell an empty view apart from an empty table.
+---
+
+{/* DRAFT for story review (Studio lane, 2026-10-12; ships with the Studio's arc R, after prod is on 0.276.0).
+    Quoted lines are the code's, verbatim, from syncropel-web studio-277r src/folds/find/words.ts (story D315)
+    and src/surfaces/frame/read/find/use-find.tsx. "Playable" and the counts are illustrative. Every other
+    sentence is new and needs story's sign-off. */}
+
+## Overview
+
+Some conversations hold tables: a venture's tracks, a list of tasks, a ledger of
+decisions. A conversation that holds only a table opens on it. A table can have
+**views**, saved ways of narrowing it, such as "Playable".
+
+## Narrow a table
+
+Use the narrowing bar to pick values in a column, type a word, or both. When
+nothing matches, the table says what it looked for, for example "No rows match"
+and the values you chose.
+
+## An empty view
+
+A view is a filter, so a view with no rows doesn't mean the table is empty. The
+Studio says which:
+
+> Playable is empty. None of the 3,393 rows match it.
+
+Press **Show all 3,393 rows** to see the whole table. With one row, the line reads
+"The 1 row doesn't match it." and the button **Show the 1 row**.
+
+A table that names its own words for an empty view shows those instead.
+
+## When the answer isn't whole
+
+If the workspace couldn't read everything yet, an empty table doesn't claim to
+be empty:
+
+- "Nothing matches yet. The workspace is still catching up."
+- "Nothing matches in what the workspace could read."
+
+## Column values
+
+Where a table gives its values their own words, such as a status called
+`in_review` that it names "In review", the Studio shows those words in the cells,
+the filters and the sort.
+
+## See also
+
+- [The three shapes](/docs/concepts/the-three-shapes): the ledger, the sentence and the address.
+- [The Studio in five minutes](/docs/tutorials/the-studio): read a ledger, then share a thread.
+- [Query](/docs/guides/query): ask the same questions from the command line.

@@ -3,13 +3,13 @@ title: What ran and why
 description: See each run of an automation and why one didn't run, how much assistant use is yours, and a one-line health check for a hosted workspace.
 ---
 
-The Studio answers three everyday questions without a terminal: did my
-automation run, and if not, why; how much have I used the assistants; and is my
-hosted workspace all right.
+The Studio answers everyday questions without a terminal: did my automation
+run, and if not, why; why did a run stop; how much have I used the assistants;
+and is my workspace all right.
 
 ## An automation's runs
 
-Open **This workspace**, then an automation. Under **Runs**, the newest runs come
+Open **automations**, then an automation. Under **Runs**, the newest runs come
 first, each with its date and time and what happened:
 
 | Label | What it means |
@@ -37,6 +37,120 @@ If there have been no runs, the list says **No runs yet.**
 
 To change when an automation runs, see
 [Scheduled triggers](/docs/guides/scheduled-triggers).
+
+## How runs went
+
+{/* DRAFT for story review (arc R, R7; story D301 5). Labels are the code's, verbatim, from
+    src/folds/compose/runs-health.ts. The surrounding sentences are new. */}
+
+On **automations**, the owner sees **How runs went**: how every run in the
+workspace ended, counted over the **Last 24 hours** and the **Last 7 days**. It
+shows counts only, never a list of runs.
+
+| Label | What it counts |
+|---|---|
+| **Finished** | Runs that did what they were asked. |
+| **Stopped early** | Runs that reached the most steps one run can take. |
+| **Ran out of budget** | Runs that reached their spending limit. |
+| **Stopped, repeating itself** | Runs stopped because they kept making the same call. |
+| **Couldn't do it** | Runs where the assistant said it couldn't do the work. |
+| **Failed** | Runs that went wrong. |
+| **Waiting on someone** | Runs waiting for an answer. |
+
+If the workspace restarted during the week, the counts start from then, and the
+section says so: "Counted since this workspace last started," and the date.
+
+## Checks
+
+Beside How runs went, **Checks** lists what the workspace's own checks found:
+anything failing first, then notes, each in the workspace's own words. These are
+the same checks `spl doctor` runs.
+
+## Why a run stopped
+
+{/* DRAFT for story review (arc R, R2/R11; story D297 e, D301 3). Quoted lines are the code's, verbatim, from
+    src/folds/session/stop-line.ts, src/folds/session/run-words.ts, src/folds/session/run-details.ts and
+    src/records/money.ts. The surrounding sentences are new. */}
+
+A run that didn't finish says why, in one line, and then shows what the assistant
+wrote about what it had done.
+
+- **It took the most steps it can.** "Stopped after 12 steps, the most one run
+  can take." The number is the run's own.
+- **It kept repeating itself.** "Stopped because it made the same … call three
+  times and got the same answer each time." The call is named by the tool's name.
+  If the run asked a question, the question follows.
+- **One call kept failing.** "Stopped because one … call kept failing."
+- **It couldn't do the work.** The assistant's own reason is shown.
+
+In lists, a run's state reads **running**, **waiting on you**, **answered** (or
+**finished** for a run that wasn't asked from a conversation), **stopped**,
+**stopped early**, **stopped, repeating itself** or **couldn't do this**. A
+conversation nobody has answered reads **unanswered** and how long, such as
+"unanswered · 15 days".
+
+### What a run cost
+
+Where you can see a run's cost, it's shown as an amount. When the model's price
+isn't known, it reads **Cost not known**, never $0.
+
+### More about a run
+
+A run's details can also say:
+
+- "Spending limit: the standard one, because none was set." (the owner sees this);
+- "A draft was kept.", with **See the draft**, when a run that ran out of budget
+  had something ready;
+- "Answered without making a plan first." and "Ran on" the model it ran on,
+  when you've turned on Detail's "How a run is going".
+
+## When an automation stops
+
+{/* DRAFT for story review (arc R, R4/R8/R14; story D299, D304). Quoted lines are the code's, verbatim, from
+    src/folds/ledger/failure-read.ts and src/folds/notices/notice-words.ts. the automation placeholder in the code is the
+    automation's name; the examples use "Library health". The surrounding sentences are new. */}
+
+When an automation needs you, it comes to your **inbox**. Opening it shows what
+went wrong, when, and what you can do. It never opens on a blank page.
+
+### It failed three times in a row
+
+An automation that fails three times in a row stops until you resume it. Its row
+reads "Library health · stopped after 3 failures in a row", and opening it says:
+
+> Library health stopped after failing 3 times in a row.
+> It last failed today at 8:00 AM.
+> It won't run again until you resume it.
+
+It also says what it spent today, and **What went wrong last time**, in the
+automation's own words, or "No reason was recorded."
+
+Choose **Resume it**, **Turn it off** or **Leave it stopped**. **See the
+automation** and **See the last run** take you to each.
+
+### A step keeps failing
+
+When one step fails several times in a row, that step is skipped and the rest of
+the automation keeps running. The row reads "Library health · a step is being
+skipped", and opening it says, for example, "A step in Library health failed 3
+times in a row, so it's being skipped." and when it's tried again. There's
+nothing to resume; press **Got it**.
+
+### Other reasons
+
+- **Its daily budget.** "Library health reached its daily budget, so it won't run
+  again until" a time.
+- **The workspace's daily limit.** "This workspace reached its daily spending
+  limit, so no automation runs until" a time. "The limit is changed with spl on a
+  computer." Press **Got it**.
+- **Its assistant isn't available.** "Library health can't run, because the
+  assistant it's set to use isn't available here." Set it to another assistant,
+  or **Turn it off**.
+- **A step failed in one run.** "The step … in Library health failed, so this run
+  stopped there." with **See the run**. "Next time it's due, it runs again."
+
+For a reason the Studio has no words for yet, the page shows the workspace's own
+sentence, a **Details** fold, links to what it's about, and **Got it**.
 
 ## Your usage
 
