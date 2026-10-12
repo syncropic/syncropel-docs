@@ -1,0 +1,102 @@
+---
+title: Guardians
+description: Choose people you trust to help you back into your account if you lose every device, and how they help when you ask.
+---
+
+{/* DRAFT for story review (Studio lane, 2026-10-12; the browser recovery ships with the Studio's 0.276 half).
+    Bold words and quoted lines are the code's, verbatim, from syncropel-web studio-0276 / studio-277r:
+    src/folds/guardian/words.ts (GUARDIANS_WORDS, GUARDIAN_WORDS, REQUESTER_WORDS, RECOVERY_PAGE_WORDS;
+    story D289-D295). Every other sentence is new and needs story's sign-off. */}
+
+## Overview
+
+A passkey or a recovery code gets you back in when you lose one device. Guardians
+are for the worst case: you've lost every device. Each guardian keeps one part of
+a way back into your account. It takes several of them, and then a wait you can
+stop, so no single guardian, and nobody who tricks one, can get in on their own.
+
+Guardians don't see anything in your workspace.
+
+## Add a guardian
+
+Guardians are set up on your **You** page, under **Guardians**: "People you trust
+to help you back in if you lose every device. Each keeps one part; it takes
+several of them, then a wait you can stop."
+
+1. Press **Add a guardian**.
+2. Enter **Their email** and **What to call them** ("Only you see this.").
+3. Press **Send the invite**, or **Make their invite link** to send the link
+   yourself. A link works once, and you only see it now: "Send this link to
+   them yourself, somewhere only they'll see it."
+
+Each guardian's row says where they are: **Invited, not accepted yet**,
+**Accepted**, or **Holding their part**. The section also says how many are needed,
+for example "2 of your 3 guardians are needed."
+
+### Remove a guardian
+
+Press **Remove** on their row. Removing someone doesn't take their part back on
+its own: it keeps working with the others' until you give your remaining
+guardians new parts. That's done from the command line today, and the Studio
+shows the commands to run.
+
+## Being someone's guardian
+
+When someone asks you to be their guardian, you get a link. It opens a page that
+says **Be a guardian for** and the place.
+
+- Press **Accept and keep my part here**. Your part is kept in that browser, so
+  use a browser you'll keep: "if its data is cleared, your part is gone and
+  they'll need to ask you again."
+- Come back to this page if they ask you to help them get back in.
+
+## Get back in with your guardians
+
+If you've lost every device, open **Get back into your account** in a browser
+you'll keep using, not a private window.
+{/* DRAFT: the address is /recovery/start; confirm how a person who has lost every device finds it. */}
+
+1. Enter **Your workspace's address**, like jane.syncropel.app, and press **Get
+   back in**. Nothing is sent until you press it.
+2. The page gives you a link to send to each guardian, or a square they can scan,
+   and a **Check**: 13 letters and numbers.
+3. Call each guardian, or meet them, and read them the check. They type it before
+   they approve. A guardian should never approve a check that only arrived by
+   message or email.
+4. Press **See how many have approved** to follow along. Once enough guardians
+   have approved, there's a wait, in case it wasn't you.
+5. When the wait is over, choose a signing key to bring onto this browser and
+   press **Bring back**.
+6. The page asks **Keep this browser as one of your devices?** Press **Keep it**,
+   or **Just this time** if you'll sign out when you're done.
+7. Press **Go to** and your workspace's name.
+
+Some keys can't come back in a browser. The page says so and tells you to use
+`spl` on a computer instead.
+
+### What your guardian sees
+
+The link you send opens the guardian's page. They type **The check they read to
+you**. If it doesn't match, the page says "That isn't the check for this request.
+Don't approve." and nothing is sent. If it matches, they press **Approve this
+device** and confirm.
+
+## When someone else tries
+
+Whenever a recovery starts, your **You** page and an email both say **Someone is
+trying to get into your account**, with how many guardians have approved and
+when it completes. If it isn't you, press **This isn't me. Stop it.** The Studio
+says "Stopped. No one got in."
+
+## Common gotchas
+
+- **A clock that's off.** If a device's clock is more than five minutes off, the
+  page asks you to set it to the right time and try again.
+- **A cleared browser part way through.** Start again, and ask your guardians
+  again.
+
+## See also
+
+- [Keeping your access](/docs/guides/keeping-your-access): passkeys and recovery codes, for losing one device.
+- [Your restore code](/docs/guides/restore-code): bring back your workspace's saved copy and your signing key.
+- [Where you're signed in](/docs/guides/where-youre-signed-in): see your devices and sign one out.

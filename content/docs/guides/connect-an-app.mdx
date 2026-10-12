@@ -1,0 +1,96 @@
+---
+title: Connect an app to your workspace
+description: What the Studio asks before an app connects, how to choose which of your connections it may use, and how to see what it did.
+---
+
+{/* DRAFT for story review (Studio lane, 2026-10-12; ships with the Studio's 0.276 half, contract C).
+    Bold words and quoted lines are the code's, verbatim, from syncropel-web studio-0276 / studio-277r:
+    src/folds/attach/consent.ts ATTACH_WORDS (story D283), src/folds/integrations/integrations.ts
+    CREDENTIAL_GRANT_WORDS and CUSTODY_WORDS (D283, D301), src/folds/session/signed-in.ts USES_WORDS (D283 item 4).
+    Example names (Notes app, notes.example.com, GitHub) are illustrative. Every other sentence is new and needs
+    story's sign-off. */}
+
+## Overview
+
+When an app asks to connect to your workspace, the Studio shows you what it's
+asking for before anything is given. Nothing is allowed until you press
+**Allow**, and an app can't use your connections, such as your GitHub or your
+email, unless you check them.
+
+## Before you allow
+
+The page is headed with the app and your workspace, for example "Notes app wants
+to connect to Acme". It says:
+
+- where the app comes from: "From notes.example.com";
+- where you'll be sent afterwards, and to continue only if you started this from
+  there;
+- **It will be able to:** what the app asks to do, such as reading everything you
+  can see in the workspace, or adding messages and notes as you;
+- what it can never do: "It can't change who has access, delete your workspace,
+  or see your passkeys and keys.";
+- how long it stays connected, and that "You can end it any time from Where
+  you're signed in."
+
+### Your connections
+
+If you have connections the app could use, they're listed under "It can't use
+any of your connections unless you check them here:". Each one is unchecked.
+Check only the ones you want this app to use.
+
+If the app could use some before, those are checked again, and the page says so:
+"Uncheck any you don't want it to use."
+
+Press **Allow**, or **Don't allow**. Allowing may ask for your passkey.
+
+## Which app can use a connection
+
+Each connection lists the apps and keys that may use it, and how:
+
+- "Notes app can read with it", or "can read and make changes with it";
+- "until" a date, where the access ends;
+- "Notes app isn't signed in anymore, so it can't use this." or "Notes app was
+  disconnected, so it can't use this." when it can't use it any more.
+
+### After the update
+
+Apps and keys you'd already allowed before this update can still use all your
+connections. Until you choose, they're marked **Can use all your connections**,
+and a notice says: "Apps and agents you'd already allowed can still use all your
+connections. You can now choose which ones each may use."
+
+- Press **Choose which** on an app to pick its connections.
+- Press **Keep all** to leave every one as it is.
+
+### Keys you keep in the workspace
+
+A key you gave the workspace for a connection says who can read it:
+
+- "Kept by this workspace, on a computer Syncropic manages. Syncropic can read
+  it."
+- "Kept by this workspace, on its own computer."
+
+## See what an app did
+
+In [Where you're signed in](/docs/guides/where-youre-signed-in), each app's row
+counts what it did with your connections and your workspace:
+
+- "Used your connections" and how many times;
+- "Wasn't allowed" and how many times, only when something was refused;
+- "Read" a number of "records in the last 30 days";
+- "Nothing in the last 30 days" when it did nothing in that time.
+
+These are counts only. They never name what was read.
+
+## Common gotchas
+
+- **An app that worked before and now can't use a connection.** Check that its
+  connection is checked, and that the app is still signed in.
+- **"Where this app comes from wasn't checked."** The page couldn't confirm where
+  the app comes from. Only allow it if you know you started this yourself.
+
+## See also
+
+- [Where you're signed in](/docs/guides/where-youre-signed-in): every sign-in, including apps, and how to end one.
+- [Agent credentials](/docs/guides/agent-credentials): keys for your own tools and scripts.
+- [Keeping your access](/docs/guides/keeping-your-access): ways back in.

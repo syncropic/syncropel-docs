@@ -1,0 +1,84 @@
+---
+title: Your restore code
+description: Make a restore code that brings back your workspace's saved copy and your signing key, and what changes when you make a new one or remove it.
+---
+
+{/* DRAFT for story review (Studio lane, 2026-10-12; ships with the Studio's 0.276 half).
+    Bold words and quoted lines are the code's, verbatim, from syncropel-web studio-0276:
+    src/folds/keys/restore-code.ts RESTORE_WORDS (story D231-D237, D284) and src/app/keys/restore/page.tsx.
+    ⚠ "Back", "Keep this code" and "Copied" on that screen are the Studio's own, not yet worded by story.
+    ⚠ Entry point: no in-app link to /keys/restore was found at studio-277r; confirm how a person reaches it.
+    Every other sentence is new and needs story's sign-off. */}
+
+## Overview
+
+A **restore code** and a **recovery code** are different things:
+
+- your **recovery code** gets *you* back into a workspace when you lose a device
+  (see [Keeping your access](/docs/guides/keeping-your-access));
+- your **restore code** brings back your *workspace's* saved copy, and on a new
+  device, once you've signed in, your signing key.
+
+The screen only appears where your workspace offers a restore code.
+
+## Make a restore code
+
+The **Restore code** screen says whether you have one: "Restore code: not set", or
+the day it was set.
+
+1. Press **Make a restore code**.
+2. The code is made on your device, and the screen shows it once, on two lines.
+3. Press **Print** or **Copy**, then **I've saved it**.
+
+Keep it somewhere only you can reach. If you lose it and your guardians can't
+help, what happens depends on how your workspace is kept. The screen tells you
+which, for example: "…though your workspace can still be restored." on a hosted
+workspace.
+
+The screen also says where your workspace's keys are kept, and who could open
+that copy. On a hosted workspace: "Your workspace's keys are kept with its saved
+copy, locked with a key Syncropic holds. That's how we can restore your workspace
+if its machine fails."
+
+## Make a new code, or remove it
+
+With a code set, the screen offers **Make a new code** and **Remove the code**.
+Either one asks you to confirm first, and either one also renews your signing
+key. Things you signed before still check as signed.
+
+Older saved copies of your workspace still open with your old code for a while.
+How long depends on your backup setting, and the screen says it: on a hosted
+workspace, "for up to" a number of days.
+
+If your signing key can't be renewed straight away, the screen says it renews
+"the next time you sign in on a device that already has it". Until then, your old
+restore code can still bring back your signing key.
+
+## Use your restore code
+
+Two moments ask for it, both on the same screen, under **Your restore code**.
+Type it and press **Use this code**.
+
+- **After moving to a new machine.** If your code doesn't cover new copies on this
+  machine yet, the screen says "Your restore code doesn't cover new copies on this
+  machine. Enter it once, or make a new one."
+- **After losing every device.** "First, sign in with your recovery code or your
+  guardians. Then enter your restore code to bring back your signing key."
+
+A typo is caught before anything is sent: "That restore code has a typo. Check it
+and try again." A code that doesn't open this copy reads "That code doesn't open
+this copy. Check it and try again. Nothing was restored."
+
+## Common gotchas
+
+- **A code you never saw.** If the workspace has a restore code that this screen
+  never showed you, it says so and asks you to make a new one, so you hold the
+  code that works.
+- **Leaving the screen.** The code is dropped from the page when you leave it.
+  Save it before you go.
+
+## See also
+
+- [Keeping your access](/docs/guides/keeping-your-access): passkeys and recovery codes.
+- [Guardians](/docs/guides/guardians): get back in when you've lost every device.
+- [Backup and restore](/docs/guides/backup-restore): the workspace's saved copies, from the command line.
