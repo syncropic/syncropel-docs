@@ -77,25 +77,23 @@ There are two ways to work with the filesystem:
 - **The command line** — `spl fs` browses and manages the filesystem from your
   terminal: `ls`, `cat`, `cp`, `mkdir`, `mv`, `rm`, `publish`, and more. The
   [command-line guide](/docs/guides/filesystem) is a full walkthrough.
-- **The Files tab** — when you open your instance on the web, the Files tab
-  is a full visual browser AND editor: open and edit markdown, code, JSON,
-  CSV, and text directly, drag files in from your computer to upload them,
-  drag files between folders to move them, and right-click to create or
-  rename. Edits autosave as you type, with a manual save shortcut and an
-  always-visible Save button. The [Files in your instance
-  guide](/docs/guides/files-in-studio) walks through it end to end.
 - **The SDK** — read and write files from your own code with `client.data.*`
   in the [TypeScript SDK](/docs/guides/typescript-sdk): write (with safe
   compare-and-swap edits), read, list, publish, and search. The [Files & blobs
   guide](/docs/guides/sdk-data-plane) is the full walkthrough.
+- **The Studio** — in the browser, **files** gathers every file anyone
+  attached to a conversation, with who can open each one. It is a list of
+  attachments, not a browser or editor for these four areas. The [Files in the
+  Studio guide](/docs/guides/files-in-studio) walks through it.
+  {/* DRAFT for story: replaces a description of a file browser and editor the Studio no longer has. */}
 
-All three reach the same files. Anything you upload from the terminal is there in
-the Files tab and through the SDK, and vice versa.
+The terminal and the SDK reach the same files. Anything you upload from the
+terminal is there through the SDK, and vice versa.
 
 ## Made by you
 
 Every file remembers **who made it and when**. A file you create — from the
-terminal, the Files tab, or the SDK — reads as *yours*, not as something
+terminal or the SDK — reads as *yours*, not as something
 "adopted" from elsewhere. That authorship travels with the file: when you look
 at it later, or hand your instance to a teammate, the record of who produced it
 is right there. Files brought in from a connected drive or another instance
@@ -113,9 +111,8 @@ rest of the instance; see [Authentication](/docs/get-started/pairing).
 - [Working with files from the command line](/docs/guides/filesystem) — a
   hands-on walkthrough of every `spl fs` command, from your first upload to
   publishing an artifact.
-- [Working with files in your instance](/docs/guides/files-in-studio) — the
-  same filesystem in a browser: tree, viewer, editor, drag-upload, and quick
-  find.
+- [Files in the Studio](/docs/guides/files-in-studio) — files attached to
+  conversations, in the browser.
 - [CLI reference: Files](/docs/reference/cli#files) — the complete `spl fs`
   command list.
 - [Files & blobs (SDK)](/docs/guides/sdk-data-plane) — read and write the

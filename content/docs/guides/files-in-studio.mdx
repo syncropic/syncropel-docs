@@ -1,240 +1,65 @@
 ---
-title: Working with files in your workspace
-description: Browse, edit, organize, and reference your files visually, with drag-and-drop uploads, an inline editor with autosave, quick find, and attaching files to chat.
+title: Files in the Studio
+description: Find every file anyone attached in your workspace, see who can open each one, and go to the conversation it came in.
 ---
 
-Every Syncropel workspace has a [filesystem](/docs/concepts/files): a place
-for your working files, published artifacts, connected drives, and files
-derived from your threads. The [command-line guide](/docs/guides/filesystem)
-covers managing it from your terminal. This guide covers the same filesystem
-visually, through the **Files** tab on your workspace.
+{/* DRAFT for story review (Studio lane, 2026-10-12). This page replaces a walkthrough of a file browser and editor
+    (a folder tree, an editor with autosave, uploads by dragging, "Use in chat") that the Studio no longer has.
+    Quoted UI words are from syncropel-web src/surfaces/frame/places/files.tsx at studio-277r; every other sentence
+    is new and needs story's sign-off. */}
 
-The Files tab is the same filesystem you reach with `spl fs`: anything you
-do here shows up there, and vice versa.
+## Overview
 
-<Callout>
-On a hosted workspace, files are not included in the kept copy yet. See [Your hosted workspace](/docs/get-started/your-hosted-workspace).
-</Callout>
+In the Studio, a file always arrives in a conversation: someone attaches it to a
+message. **files** is the place that gathers them, so you can find a file
+without remembering where it was sent. The files on disk that `spl fs` manages
+are a separate thing; see [Filesystem](/docs/guides/filesystem) for those.
 
-## Open Files
+## Attach a file
 
-Open your workspace in a browser and click **Files** in the navigation rail.
-On mobile, tap the Files icon in the bottom navigation.
+In a conversation, press the paperclip on the composer and choose the file. It
+lands in that conversation, and it appears in **files**.
 
-You'll see two columns:
+Only the people who can open that conversation can open the file. Attaching a
+file never shares it with anyone new.
 
-- **The tree on the left**: the four areas of your filesystem
-  (`/files`, `/artifacts`, `/mnt`, `/threads`), each expandable, with a
-  *Recent* list at the top of the most recently opened files.
-- **The viewer on the right**: empty until you pick a file. Once a file is
-  open, the viewer renders it according to its type (markdown, code, images,
-  PDFs, CSV tables, plain text, JSON, and more).
+## Find a file
 
-On mobile, the tree appears as a drawer and the viewer fills the screen when
-a file is open.
+Open **files** from the side of the Studio. The newest files come first, grouped
+under **today**, **yesterday** or how many days ago they arrived. Each row shows:
 
-## Browse
+- the file's title;
+- **a copy** or **live**. An attached file is **a copy**: it stays exactly as it
+  was when it was sent. A **live** item is worked out again from where it came
+  from whenever that changes;
+- what kind of file it is and the conversation it came in;
+- who attached it, and how many people can open it, as "can open it" after a
+  count.
 
-Click any folder to expand it. Click a file to open it in the viewer. The
-URL updates to include the open path, so you can copy and share a deep link
-to any file: opening that link drops you straight into the viewer.
+To narrow the list, use the same narrowing bar as every other list: choose a kind
+of file, type a word, or both. A kind with nothing in it shows its count as 0 so
+you can tell the file you're looking for isn't there.
 
-When you navigate away and come back, the file you last had open is restored
-automatically, so you don't have to dig through the tree again.
+Before you pick one, the side of the page shows how many files there are, as
+**things anyone attached**. With none yet, it reads: "Nothing has been attached
+yet. Attach a file from a conversation, with the paperclip on the composer, and
+it lands in that conversation and appears here."
 
-## View a file
+## Open a file
 
-Picking a file in the tree opens it on the right. The viewer chooses how to
-render based on the file's type:
+Pick a row to open it. Beside it, **where this is argued about** shows the
+conversation the file came in, starting where it arrived, and says how many later
+messages cite it. Press the conversation's name to go there.
 
-| File kind | How it renders |
-|---|---|
-| Markdown (`.md`, `.mdx`) | Rendered formatted text by default; a **Source** toggle shows the raw markdown |
-| Code (`.ts`, `.py`, `.rs`, `.json`, `.yaml`, and more) | Syntax-highlighted with line numbers and find-in-file |
-| Plain text (`.txt`, `.log`) | Wrapped monospace text |
-| CSV / TSV | A scrollable table |
-| Images (`.png`, `.jpg`, `.svg`, …) | Inline preview |
-| PDF | Inline preview when your browser allows it; an **Open in new tab** button otherwise |
-| Anything else | A download prompt |
+## Common gotchas
 
-Every viewer has a **Download** button to save the file to your computer, and
-a close (×) button to clear the selection.
+- **A file you can't see.** If you can't open the conversation a file came in,
+  the file isn't listed for you.
+- **Changing a file.** An attached file is a copy. To change it, attach the new
+  version in the conversation.
 
-## Edit a file
+## See also
 
-Click **Edit** in the viewer chrome to switch into the editor. Editable kinds
-are markdown, code, JSON, CSV, and plain text. Images, PDFs, and other
-binary files have no editor (replace them by uploading again instead).
-
-The editor opens with your file's contents and the cursor ready. Code and
-JSON files get a real code editor with syntax highlighting, line numbers,
-bracket matching, find-and-replace, and undo/redo. Markdown and plain text
-get a simple text area.
-
-Click **Done** to leave the editor and return to the viewer. Anything you
-typed is saved before closing.
-
-### Saving: how it works
-
-You don't have to think about saving: your edits sync to your workspace as
-you type. Concretely:
-
-- **Autosave**: about 1.5 seconds after you stop typing, your changes save
-  automatically. You'll see the indicator change from "Saving shortly…" to
-  "Saving…" to "✓ Saved".
-- **Save now**: if you want immediate confirmation, click the **Save**
-  button or press `⌘S` (macOS) / `Ctrl+S` (Windows / Linux).
-- **Saved on focus change**: clicking outside the editor or switching to
-  another browser tab saves any pending changes immediately. This is how
-  mobile users save without a keyboard shortcut: tapping outside the editor
-  area is enough.
-- **Saved on close**: closing the editor (Done button) or the browser tab
-  flushes a final save first.
-
-The indicator next to the Save button always tells you the truth about
-unsaved changes:
-
-| Indicator | Meaning |
-|---|---|
-| No changes yet | The file is exactly as it was when you opened it. |
-| Saving shortly… | You typed something; autosave will fire in a moment. |
-| Saving… | A save is in flight. |
-| ✓ Saved | Your most recent changes are persisted. Fades after a few seconds. |
-| Unsaved changes | You typed more after the last save; the next autosave will pick them up. |
-| Retrying… | A save failed (network blip); the editor will retry once automatically. |
-| Save failed | A save failed twice. Click **Retry** to try again. |
-| ⚠ Conflict | Someone (or another tab) changed the file under you. See below. |
-
-### Recovering unsaved work
-
-If your browser quits unexpectedly while you were editing (a crash, a tab
-close, a connection drop), your unsaved changes are kept locally. The next
-time you open the same file you'll see a banner offering to **Restore**
-those changes (or **Discard** them).
-
-### When someone else changes the file
-
-If another tab, another collaborator, or an agent writes to the same file
-while you have it open, your next save can't land cleanly: you'd
-unknowingly overwrite their changes. Instead, the editor shows a **Conflict**
-banner: your local edits stay on screen so you can copy them, and a
-**Reload** button discards them in favor of the latest version. Manually
-merge by copying your text aside first, reloading, then pasting.
-
-## Create files and folders
-
-Right-click any folder in the tree to open a context menu:
-
-- **New file**: opens an inline name input under the selected folder.
-  Type the file name (e.g. `notes.md`, `script.py`, `config.json`), press
-  **Enter** to create. The new file opens in the viewer; click **Edit** to
-  start writing.
-- **New folder**: same flow, but creates a folder.
-
-The folder you right-clicked becomes the parent. To create at the root of
-`/files`, right-click the `FILES` heading.
-
-## Upload files from your computer
-
-Drag any file from your computer's file manager onto the Files tab. As you
-drag over a folder, that folder highlights: drop to upload into it.
-Dropping on empty space in the tree uploads into the root of `/files`.
-
-Uploads happen in chunks, so a large file resumes cleanly if your connection
-drops. An **upload strip** at the top of the tree shows progress; cancel or
-dismiss completed uploads from there.
-
-Uploads are accepted only in `/files` and writable connected drives.
-Dropping on `/artifacts` or `/threads` is rejected (those are read-only).
-
-## Move files around
-
-Drag a file (or folder) from one place in the tree to another. The
-destination folder highlights as you drag over it; release to move.
-
-You can't move into `/artifacts`, `/threads`, or a read-only mount, and you
-can't move a folder into one of its own descendants: the editor catches
-both and shows a brief notice.
-
-## Rename and delete
-
-Right-click any file or folder to **Rename** or **Delete** it.
-
-- **Rename**: opens an inline input pre-filled with the current name. The
-  filename part (before the extension) is selected so you can type a new
-  one without retyping `.md`. Press **Enter** to commit.
-- **Delete**: opens a confirmation dialog. Deleting a folder removes
-  everything inside it.
-
-Both actions use the file's current content as a safety check: if the file
-changed underneath you between when the tree last loaded and when you act,
-you'll see a notice and the tree refreshes.
-
-`/artifacts` and `/threads` reject renames and deletes by design.
-
-## Quick find: `⌘K`
-
-Press `⌘K` (macOS) or `Ctrl+K` (Windows / Linux) anywhere in your workspace
-to open the quick-find palette. Type to filter; pick a result to jump
-straight to it.
-
-Three sections appear in the palette:
-
-- **Commands**: workspace-level actions you can take.
-- **Threads**: your recent threads, filtered by title.
-- **Files**: your recently opened files, filtered by name.
-
-Use the up/down arrows to move; **Enter** opens the highlighted result;
-**Escape** dismisses the palette.
-
-## Attach a file to a chat message
-
-To reference a file in a thread, type `@files` in any chat composer. The
-quick-find palette opens in **attach mode**: pick one or more files
-(use **Space** to select multiple), then click **Attach**. The selected
-files appear as chips above the composer, and submitting the message
-attaches them to the record you emit.
-
-The recipient of your message (another person, an agent, or an integration)
-gets a pin to the exact bytes of each file at the moment you attached it.
-Even if you later edit the file, the message stays pinned to that version.
-
-You can also attach the file you're currently viewing without typing
-`@files`: every file viewer has a **Use in chat** button that adds it to
-your next message.
-
-## On mobile
-
-The Files experience is built for small screens too, with one trade-off:
-mobile is optimized for **checking** files, not heavy organizing.
-
-- The tree appears as a slide-up drawer. Tap **Browse all files** to open
-  it from the Files screen.
-- The default screen shows your **recent** files and any files an agent
-  recently touched, so you can dive straight in without browsing.
-- Editing works the same as on desktop: autosave, Save button, conflict
-  handling all apply.
-- The Save button is always visible in the editor chrome, so you don't
-  need a keyboard shortcut.
-- Tapping outside the editor area (the most natural "leave this screen"
-  gesture) saves your changes.
-
-For complex moves and reorganization, switch to desktop or use the
-[command line](/docs/guides/filesystem). Mobile is the "read and quickly
-edit" surface; desktop is the "organize everything" surface.
-
-## Agent activity
-
-When an agent writes to a file in your filesystem, the row gets a small
-accent dot in the tree. On mobile, those files also surface in a
-**Modified by agent** list above your recents. This lets you spot what
-your assistants have been doing without scrolling through threads.
-
-## What's next
-
-- [Files](/docs/concepts/files): the filesystem model (the four areas,
-  the working-file → artifact lifecycle, and privacy).
-- [Working with files from the command line](/docs/guides/filesystem):
-  the same filesystem via `spl fs`.
-- [Threads](/docs/concepts/threads): where chat lives, and how attached
-  files travel with your messages.
+- [Filesystem](/docs/guides/filesystem): the workspace's files on disk, from the command line.
+- [Files](/docs/concepts/files): how files are stored and kept.
+- [Conversation members](/docs/guides/conversation-members): who can read a conversation, and so who can open what's attached to it.
