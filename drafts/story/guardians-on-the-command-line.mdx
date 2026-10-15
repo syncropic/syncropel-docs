@@ -1,0 +1,81 @@
+---
+title: Guardians, on the command line
+description: Name people you trust to help you back in if you lose every device, and check each one before they're added.
+---
+
+{/* story D431: a draft. Every command and flag below is for the kernel to check against int before this moves to content/docs/guides/. It stays out of content/ until then, and until Privacy "restore-and-guardians" 4.4 is published for hosted readers. The browser doesn't offer guardians, so this page is the only way in. */}
+
+Guardians are people you trust to help you get back into your workspace if you lose every device. No single
+guardian can get in alone: you choose how many of them must agree. When a recovery starts, it waits before it
+finishes, and you can stop it from any of your devices.
+
+You set guardians up on the command line. The browser doesn't offer guardians.
+
+## 1. Choose how many must agree
+
+```bash
+spl account rung set --guardians 2 --of 3
+```
+
+This says three people will hold a part, and any two of them together can help you back in. A recovery then
+waits 7 days before it finishes (`--wait` sets a different wait, in seconds). Check what's in force with
+`spl account rung show`.
+
+## 2. Invite each guardian
+
+Make an invite for each person, with a name you'll recognize:
+
+```bash
+spl session request POST /v1/account/guardians/invite --data '{"label":"Ana"}'
+```
+
+The answer gives you a link for that person. Send it to them yourself, in a way you trust.
+
+## 3. Your guardian accepts, on their own computer
+
+Your guardian runs:
+
+```bash
+spl guardian accept --home <your workspace's address> --token <the token from their link> --name Ana
+```
+
+It shows them their guardian check:
+
+> Your guardian check is {check}. Read it to the person who invited you when they ask for it.
+
+## 4. Ask them to read you their check, then add them
+
+Ask your guardian to read you the check on their screen, by phone or in person. Don't take it from the same
+message the invite went in. Then type it in:
+
+```bash
+spl account guardians arm --slot <slot> --check "<what they read you>"
+```
+
+They're added only if what you typed matches the guardian who accepted. If it doesn't, you'll see:
+
+> Ana wasn't added. Someone else may have opened the invite link. Make a new invite and give it to Ana yourself.
+
+If you leave out `--check`, the command asks you to:
+
+> Ask your guardian to read you their check, then add it with --check.
+
+An accepted guardian who isn't added within a day lapses, and you make a new invite.
+
+## 5. Your guardian keeps their part
+
+Your guardian picks up their part and keeps a copy somewhere safe:
+
+```bash
+spl guardian pickup --name Ana --out ana-part.json
+```
+
+One part alone reveals nothing. From time to time your guardian can check they still hold it with
+`spl guardian check --name Ana`.
+
+## If you lose every device
+
+Start a recovery from your new device with `spl face recover --request`, and ask your guardians to approve it.
+When enough have approved, the wait begins. If it was stopped from one of your devices and you didn't mean to
+stop it, start a new recovery with `spl face recover --request --new`. Your guardians will need to approve
+again, and the wait starts over.
