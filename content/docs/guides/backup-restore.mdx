@@ -167,10 +167,9 @@ refuse it for the same reasons, in the same words.
 
 A keys copy made by v0.277 also records two things inside its seal:
 
-- **Which workspace it belongs to.** A workspace that already has its own identity refuses a copy from a
-  different workspace, so you can't restore one workspace's keys into another by mistake. A fresh home, such as
-  a new install, has no identity yet, so it takes the workspace named in the copy: that's how restoring onto a
-  new machine works.
+- **Which workspace it belongs to.** A hosted workspace refuses a keys copy from a different workspace, so its
+  keys can't be replaced with another workspace's by mistake. On your own machine, restoring a copy makes this
+  home that copy's workspace, which is how restoring onto a new machine works. Restore only the copy you mean to.
 - **Its own length.** A copy that was cut short, for example by a failed download, is refused as incomplete,
   instead of looking like a wrong passphrase.
 
@@ -181,13 +180,14 @@ again first. Copies made before v0.277 still open in v0.277.{/* story D427: held
 | Code | What you see |
 |---|---|
 | `KEYS_COPY_PARTIAL` | "This saved copy is incomplete, so nothing was restored and your earlier copy is untouched. Try again, or choose an older copy." |
-| `KEYS_COPY_NEWER_FORMAT` | "This saved copy was made by a newer version of Syncropel than this workspace runs, so it can't be restored here. Update spl, then try again." |
+| `KEYS_COPY_NEWER_FORMAT` | "This saved copy was made by a newer version of Syncropel than this workspace runs, so it can't be restored here." On the command line it adds "Update spl, then try again." |
 | `KEYS_LINEAGE_MISMATCH` | "This saved copy belongs to a different workspace, so nothing was restored." |
 | `RESTORE_PASSPHRASE_MISMATCH` | "The passphrase didn't open this copy, or the copy is damaged. Nothing was changed. Check the passphrase and try again, or choose another copy." |
+| `RESTORE_PASSPHRASE_MISMATCH`, hosted | "This copy was locked with a different key from the one we tried, so nothing was changed. Try another copy." |
 | `KEYS_COPY_TAMPERED` | "The saved copy was changed after it was sealed, so nothing was restored." |
 | `KEYS_COPY_MISSING` | "This workspace has no saved copy to restore its keys from. Nothing was restored." |
 
-Restoring a self-hosted workspace onto a fresh home needs nothing beyond the copy and its passphrase.
+Restoring a self-hosted workspace onto a new machine needs nothing beyond the copy and its passphrase.
 
 ### Your task notes travel with the backup
 
