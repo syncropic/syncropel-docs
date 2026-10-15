@@ -93,16 +93,34 @@ nothing is known about the lease (no write-back runner), and the safe block's
 
 ## Words
 
-Approved sentences in the words manifest:
+Every surface draws one line per state, chosen by `host`. On a hosted
+workspace no line says "this machine": the person isn't at the machine, so
+hosted lines say "the machine this workspace runs on". The kernel half of the
+words manifest holds the first four rows below; the Studio's half holds the
+rest. Each sentence has one home.
 
-| Key | Words | Approved |
-|---|---|---|
-| `safe.holding` | "Saved off this machine. Last saved \{when\}." | D357 |
-| `safe.only_copy` | "This machine holds the only copy." | D357 |
-| `safe.unknown` | "We can't tell right now whether your work is saved off this machine." | D357 |
-| `safe.upload_ceiling` | "Saved on this machine. Files past your plan's \{size\} aren't copied off it." | D357 |
+| State | Self-hosted | Hosted | Approved |
+|---|---|---|---|
+| `holding` | "Saved off this machine. Last saved \{when\}." | "Saved off the machine this workspace runs on. Last saved \{when\}." | D357, D410 |
+| `only_copy` | "This machine holds the only copy." | "The machine this workspace runs on holds the only copy." | D357, D410 |
+| `null` | "We can't tell right now whether your work is saved off this machine." | "We can't tell right now whether your work is saved off the machine this workspace runs on." | D357, D410 |
+| files past the plan | "Saved on this machine. Files past your plan's \{size\} aren't copied off it." | "Saved on the machine this workspace runs on. Files past your plan's \{size\} aren't copied off it." | D357, D410 |
+| `paused` | "Saving is paused since \{when\}. Your work is on this machine, and it saves again by itself when \{reason_words\}." | "Saving is paused since \{when\}. Changes since then are only on the machine this workspace runs on, not in its saved copy. It saves again by itself when \{reason_words\}." | D367 |
+| `paused`, no time | "Saving is paused. Your work is on this machine." | "Saving is paused. Recent changes are only on the machine this workspace runs on, not in its saved copy." | D369 |
+| `paused`, unknown reason | The `paused` line up to its second sentence. | The `paused` line up to its second sentence. | D368 |
+| `paused`, `LEASE_HELD_BY_ANOTHER` | "Another copy of this workspace is the one saving right now, so changes made here aren't saved off this machine." | "Another copy of this workspace is the one saving right now, so changes made here aren't saved off the machine this workspace runs on." | D368 |
+| `attaching` | "Reconnecting to your saved copy. Your work is on this machine." | "Reconnecting to your saved copy. Your work is on the machine this workspace runs on." | D382 |
+| `local_only` | "Saved on this computer only." | (not a hosted state) | D368 |
 
-{/* Story's per-host lines for paused, attaching and local_only (D367, D368, D369, D382) are not in the kernel half of docs/words/manifest.json at int 8d5ee9a11. Quote them here once they are in the manifest. Note: safe.holding and safe.only_copy say "this machine", which D367/D368 rule out for hosted lines; story to confirm. */}
+`{reason_words}` for `paused`:
+
+| `reason` | Words |
+|---|---|
+| `FLUSH_FAILING`, `TREE_UNREACHABLE` | "the storage service answers again" |
+| `KEY_REVOKED` | "the owner sets a new storage key" (self-hosted only; a hosted workspace draws the line up to its second sentence) |
+| `TREE_REFUSED`, `ATTACH_REFUSED` | "the saved copy accepts this workspace again" |
+
+A paused line never says "safe", and never says someone has been told.
 
 ## See also
 
