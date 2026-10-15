@@ -78,11 +78,13 @@ The `201` answer is the ask's answer plus `filed_by: "owner"` and
 `receipt_link`, a link for the owner to send the person:
 
 ```text
-{studio origin}/erase?home=<workspace https origin, URL-encoded>#r=<receipt, URL-encoded>
+{studio origin}/erase#home=<workspace https origin, URL-encoded>&r=<receipt, URL-encoded>
 ```
 
-The token rides the fragment, so it never reaches a server log, a Referer or
-an analytics beacon. Without a declared Studio origin the link uses the
+Everything rides the fragment and nothing rides a query, so neither the token
+nor which workspace the request came from reaches a server log, a Referer or
+an analytics beacon. The Studio also reads the older
+`/erase?home=…#r=…` form. Without a declared Studio origin the link uses the
 workspace's own origin. Refusals: `403 ERASURE_FORBIDDEN` for a caller who
 isn't the owner; `404 MEMBER_NOT_FOUND`; `409 ERASE_REQUEST_NOT_TAKEN` when
 that person already has a request or was already erased.
