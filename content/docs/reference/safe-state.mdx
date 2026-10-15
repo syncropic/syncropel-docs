@@ -1,0 +1,111 @@
+---
+title: Is my work saved
+description: The safe-state read since 0.277, one answer to "is my work saved off this machine" served on the workspace read, /v1/health and the ops summary. Its states, reasons and fields, and what null means.
+---
+
+Since 0.277 one function in the workspace decides whether your work is saved
+off the machine it runs on, and every place that says so reads that one
+answer. It is served as:
+
+| Where | Field | Who reads it |
+|---|---|---|
+| `GET /v1/self/workspace` | `workspace.safe` | the owner |
+| `GET /v1/health` | `safe` | the owner and the provisioning caller; the anonymous `/health` serves it with every fact `null` |
+| `GET /v1/ops/summary` | `safe` | the operator's ops view |
+
+`null` means not known. A surface never draws `null` as saved.
+
+## The block
+
+```json
+"safe": {
+  "state": "paused",
+  "since": 1760400000,
+  "reason": "FLUSH_FAILING",
+  "last_copied_at": 1760400000,
+  "backlog": { "records": 42, "oldest_secs": 610 },
+  "next_try_at": null,
+  "files": { "not_carried": 0, "why": null },
+  "lease": { "held": null },
+  "host": "hosted",
+  "read": { "shown": 1, "total": null, "withheld": null, "truncated": null, "window": null, "ambiguous": null, "pending": null }
+}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `state` | string or null | One of the states below. `null`: not known, or a reader with no standing. |
+| `since` | unix seconds or null | When this state began. For `paused`, the last copy that landed, else the first failure. |
+| `reason` | string or null | Why, for `paused`, `only_copy`, `local_only` and some `attaching`. A code, never a sentence. |
+| `last_copied_at` | unix seconds or null | The last time a save landed. |
+| `backlog.records` | integer or null | Records written here and not saved off the machine. |
+| `backlog.oldest_secs` | integer or null | Age of the oldest of them. `0` is nothing pending; `null` is not measured. |
+| `next_try_at` | unix seconds or null | When a refused reconnect is tried again. |
+| `files.not_carried` | integer | Files the saved copy doesn't carry. |
+| `files.why` | string or null | `plan_ceiling` (past the plan's size) or `unreadable`. |
+| `lease.held` | boolean or null | Whether this body holds the write lease. `null` when not known. |
+| `host` | string | `hosted` or `self`, so a surface picks the right words. |
+| `read` | object | The [read envelope](/docs/reference/read-envelope). `pending.state: attaching` while reconnecting. |
+
+## States
+
+| State | When |
+|---|---|
+| `holding` | Bound to its saved copy, attached, and saves are landing. |
+| `paused` | Saving has failed 3 times in a row, or has been failing for 5 minutes; or another copy of this workspace holds the lease; or a refused reconnect has lasted past 2 minutes. It returns to `holding` by itself when a save lands. |
+| `attaching` | Reconnecting to its saved copy: the first attach after a start, a reconnect, or a refusal still inside its 2-minute grace. |
+| `only_copy` | A hosted workspace that isn't bound to a saved copy, past its grace hour. |
+| `local_only` | A workspace on a laptop or server with no saved copy configured. |
+| `null` | Not known. |
+
+**A suspend and wake alone never reads as `paused`.** The decision reads failed
+saves, never the age of the oldest unsaved record by itself, so a hosted body
+that slept with a backlog reads `holding` (or `attaching` while its lease comes
+back) until a save actually fails.
+
+## Reasons
+
+| `reason` | With state | Meaning |
+|---|---|---|
+| `FLUSH_FAILING` | `paused` | Saves to the storage service are failing. |
+| `KEY_REVOKED` | `paused` | The storage key was revoked. |
+| `TREE_REFUSED` | `paused` | The saved copy refused this workspace. |
+| `TREE_UNREACHABLE` | `paused` | The saved copy can't be reached. |
+| `ATTACH_REFUSED` | `paused` | A reconnect stays refused. |
+| `LEASE_HELD_BY_ANOTHER` | `paused` | Another copy of this workspace is the one saving. |
+| `NOT_BOUND` | `only_copy`, `local_only`, `attaching` | No saved copy is bound. |
+
+Other codes may appear as `reason`; a surface that doesn't know one draws its
+host's general line.
+
+## Fields kept for one release
+
+`offsite.state`, `only_copy`, `binding_state` and `backup.status` are still
+served in 0.277, computed from this block so they can't disagree with it, and
+are removed in a later release. Read `safe`.
+
+## The lease
+
+Since 0.277 `writeback.lease.held` on `/v1/health` is `null`, not `false`, when
+nothing is known about the lease (no write-back runner), and the safe block's
+`lease.held` is `null` for a reader who can't see the holder. Read `null` as
+"not known".
+
+## Words
+
+Approved sentences in the words manifest:
+
+| Key | Words | Approved |
+|---|---|---|
+| `safe.holding` | "Saved off this machine. Last saved \{when\}." | D357 |
+| `safe.only_copy` | "This machine holds the only copy." | D357 |
+| `safe.unknown` | "We can't tell right now whether your work is saved off this machine." | D357 |
+| `safe.upload_ceiling` | "Saved on this machine. Files past your plan's \{size\} aren't copied off it." | D357 |
+
+{/* Story's per-host lines for paused, attaching and local_only (D367, D368, D369, D382) are not in the kernel half of docs/words/manifest.json at int 8d5ee9a11. Quote them here once they are in the manifest. Note: safe.holding and safe.only_copy say "this machine", which D367/D368 rule out for hosted lines; story to confirm. */}
+
+## See also
+
+- [What the workspace says about itself](/docs/reference/workspace-read) for the rest of the owner's workspace read, including `backup.keys_lineage`.
+- [Reads and paging](/docs/reference/read-envelope) for `read.pending`.
+- [Backup and recovery](/docs/guides/backup-restore) for how saving and restoring work.

@@ -1,0 +1,87 @@
+---
+title: Strict request bodies
+description: Since 0.277 a door refuses a request body that carries a field it doesn't take, with 422 UNKNOWN_FIELD naming the field. What is checked, what isn't, the refusal's shape, and how a client finds each door's accepted fields.
+---
+
+Since 0.277, every door that takes a JSON request body checks it against the
+fields that door accepts. A body that names any other field is refused with
+`422 UNKNOWN_FIELD`, and nothing is written. Before 0.277 many doors dropped a
+field they didn't know and went on, so a mistyped field (`adress`, `cann`) did
+something other than what the caller meant, and said nothing.
+
+## What is checked
+
+| Part of the request | Checked | Notes |
+|---|---|---|
+| A door's request body (the envelope) | yes | Every key, at every depth: objects inside objects and objects inside arrays. |
+| A nested object the door declares | yes | Named by its dotted path, for example `places[0].cann`. |
+| A record's `body` inside `POST /v1/records`, the batch door and sync | no | A record's body is opaque JSON. A registered kind's own validator may still refuse its declared fields. |
+| Query strings | no | Query parameters keep their own rules (for example `limit` on [paged lists](/docs/reference/read-envelope#paging)). |
+| Peer and third-party protocols | no | Federation manifest and pair doors, sync records, the relay doors, `/v1/proxy/messages`, `/v1/messages`, `/v1/mcp` and the OAuth doors keep forward compatibility on purpose. |
+
+## The refusal
+
+| Field | Value |
+|---|---|
+| HTTP status | `422` |
+| `object` | `error` |
+| `type` | `invalid_request` |
+| `code` | `UNKNOWN_FIELD` |
+| `message` | A developer sentence naming the field. |
+| `details.field` | The offending key by its dotted path, with array indexes: `adress`, `places[0].cann`, `entries[3].preset`. |
+
+```json
+{
+  "object": "error",
+  "type": "invalid_request",
+  "code": "UNKNOWN_FIELD",
+  "message": "unknown field `places[1].cann` in the request body. Remove it or correct the name; nothing was changed.",
+  "details": { "field": "places[1].cann" }
+}
+```
+
+Two things the refusal never carries:
+
+- **The field's value.** Only its name and path.
+- **The list of accepted fields.** That list is published on
+  `GET /v1/capabilities` (below), not echoed in errors.
+
+The person-facing sentence for this code, from the words manifest (story D357):
+"Something in this request wasn't understood, so nothing was changed."
+
+## Finding a door's accepted fields
+
+`GET /v1/capabilities` lists every door. A door's `accepted_body` is a JSON
+schema subset: each object level lists its `properties` and carries
+`"additionalProperties": false`, so a client can feature-detect a field before
+sending it. A test in the kernel (`schema_matches_struct`) keeps the published
+schema equal to what the door parses.
+
+| `accepted_body` shape | Meaning |
+|---|---|
+| An object with `properties` | Closed: only these keys, at this level. |
+| An array with `items` | Each element is checked against `items`, with its index in the path. |
+| No `properties` and no `items` | Opaque: not checked (a record's `body` is declared this way). |
+
+## Status changes from 0.276
+
+| On 0.276 the door... | Since 0.277 | Count at c1 |
+|---|---|---|
+| answered `400 UNKNOWN_FIELD` | `422 UNKNOWN_FIELD`, with `details.field` added | 74 doors, `POST /v1/records`' envelope among them |
+| dropped the key and answered `422 INVALID_BODY` (a required field missing) | `422 UNKNOWN_FIELD` | 52 doors |
+| dropped the key and answered another code, or succeeded | `422 UNKNOWN_FIELD` | the rest of 64 newly strict doors, among them `POST /v1/service-accounts`, which minted on 0.276 |
+
+{/* c1 note for the cut: the guardian and account doors (account_guardians.rs) still answer 400 UNKNOWN_FIELD without details.field on int 8d5ee9a11. Update this table when they move. */}
+
+## Migrating a client
+
+| Your client sends a field that... | What to do |
+|---|---|
+| the door never read | Delete it. It never did anything. |
+| the door read on 0.276 and now refuses | That's a kernel defect. Report the door and the field. |
+
+## See also
+
+- [The API reference](/docs/reference/api) for each door's request and response.
+- [Reads and paging](/docs/reference/read-envelope) for the query-string side of list doors.
+- [The API surface](/docs/reference/api-surface) for which doors are public.

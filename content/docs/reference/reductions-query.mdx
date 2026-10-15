@@ -1,0 +1,92 @@
+---
+title: Counting over a ledger
+description: POST /v1/reductions/query, the governed count, values, groups and stats over a declared ledger, the same door the assistant's query_reduction tool uses. Its body, its answers, the small-group floor and its refusals. Since 0.277.
+---
+
+`POST /v1/reductions/query` counts over a ledger a package declared. It is the
+one door for counts: a person's tables use it, and so does the assistant's
+`query_reduction` tool. Its row set is the ledger door's own row set, with the
+same admission, so a `count` equals the count the ledger itself shows, at any
+size. A count over a field you can't read is refused, never answered as a
+number over blanks.
+
+## The body
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `ledger` | string | yes | A declared ledger's id. |
+| `thread` | string | yes | The ledger's thread. |
+| `op` | string | yes | `count`, `values`, `groups` or `stats`. |
+| `column` | string | for `values`; for `groups` with an `agg` other than `count` | A declared column. |
+| `group_by` | array of string | for `groups` | One or two declared columns. |
+| `agg` | string | no | For `groups`: `count` (default), `sum`, `min` or `max`. |
+| `where` | object | no | `{column: scalar}`, exact match on declared columns. |
+| `stat` | string | no | For `stats`: one declared stat's label; omit for all. |
+| `params` | object | no | Reserved for a ledger view's parameters. |
+
+Any other field is refused `422 UNKNOWN_FIELD` (see [Strict request bodies](/docs/reference/request-bodies)).
+Scope: `records:read`.
+
+## The answer
+
+Every answer is `{object: "reduction_query", ledger, thread, op, ...}` plus the
+[read envelope](/docs/reference/read-envelope) as `read`, whose `total` is the
+ledger's own row count.
+
+| `op` | Fields |
+|---|---|
+| `count` | `count` (the matching rows), `total`, `suppressed`. With no `where`, also `served_from`. |
+| `values` | `values` (`[{value, count}]`, the top 200 by count), `other` (`{values, rows}` for the rest), `total`, `suppressed`. |
+| `groups` | `groups` (`[{key, count, value}]`, `value` being the `agg` over `column`), `agg`, `total`, `suppressed`. |
+| `stats` | `stats`, the ledger's declared stats as the ledger door computes them, and `total`. |
+
+When the scan behind a `count` left records unread, `count` and `total` are
+`null` and `read.window.kind` is `scan_ceiling`: the door doesn't serve a
+count of a part as a count of the whole.
+
+## The small-group floor
+
+A class declaration may set `sensitive`. For any reader but the owner, a group
+of fewer than 3 rows over a sensitive class is not served: `suppressed` says
+`{groups, floor: 3}`, and a `count` with a `where` that would land under the
+floor is `null`. The owner sees every group.
+
+## Refusals
+
+| Status | Code | When |
+|---|---|---|
+| 404 | `REDUCTION_UNKNOWN` | No such ledger, **or** one you can't see, **or** a thread you have no standing on. The answer is identical in all three. |
+| 400 | `REDUCTION_COLUMN_UNKNOWN` | A column the ledger doesn't declare. `details.column` names it. |
+| 400 | `REDUCTION_OP_UNKNOWN` | An `op` outside the four (developer only). |
+| 403 | `REDUCTION_FIELD_WITHHELD` | The count reads a field you can't read. `details.column` names it only to a reader who may see class names. |
+| | `AGG_BUDGET_EXCEEDED` | Too big to count in one go. |
+| 422 | `UNKNOWN_FIELD` | A body field the door doesn't take. |
+
+The same aggregate rule now holds on every count path: records-query
+aggregation, the standing query, the reductions door and ledger stats. Before
+0.277 they answered a number over the readable rows and listed the hidden
+field. On the ledger door, a stat over a field you can't read is served as
+`{label, value: null, code: "REDUCTION_FIELD_WITHHELD"}`.
+
+## The assistant's tool
+
+`query_reduction` takes the same arguments and goes through the same gate. It
+is offered to a run only while the workspace's `model_reads_ledgers` flag is
+on. On a hosted workspace that flag can be turned on only once the Privacy
+section on the assistant is published at version 4.4; until then the tool
+isn't offered. A run counts through the asker's own view: a run whose grant
+bounds its classes is told the count isn't available.
+
+## Words
+
+| Code | Words | Approved |
+|---|---|---|
+| `REDUCTION_FIELD_WITHHELD` | "This count uses a column you can't see, so it isn't shown." | D357 |
+| `REDUCTION_COLUMN_UNKNOWN` | "That list has no column named \{column\}." | D357 |
+| `read.suppressed` | "Groups with fewer than 3 aren't shown." | D357 |
+
+## See also
+
+- [Reads and paging](/docs/reference/read-envelope) for the `read` envelope this door serves.
+- [Body kinds](/docs/reference/body-kinds) for ledger and class declarations.
+- [Configuration](/docs/reference/configuration) for workspace flags.

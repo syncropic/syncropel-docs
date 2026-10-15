@@ -1,0 +1,104 @@
+---
+title: Reads and paging
+description: The read envelope a list or record answer carries since 0.277 (shown, total, withheld, truncated, window, ambiguous, pending), what null means in each, and how the members and invites lists page.
+---
+
+Since 0.277 an answer that serves a list or a record says what it is: how
+many items it shows, whether that is all of them, whether anything was kept
+from you, and whether it can answer right now. It says so in one object,
+`read`, with the same seven keys on every door that serves it. Every key is
+present; a fact that isn't known is `null`, never a missing key and never `0`.
+
+## The envelope
+
+```json
+"read": {
+  "shown": 50,
+  "total": 1240,
+  "withheld": null,
+  "truncated": null,
+  "window": null,
+  "ambiguous": null,
+  "pending": null
+}
+```
+
+| Key | Type | Meaning | `null` means |
+|---|---|---|---|
+| `shown` | integer | Items in this answer. | (never null) |
+| `total` | integer or null | The exact count of what you may see for this question. Set only from a real count: a ledger's own row count, the aggregate module's count, or a list the door holds whole. | Not counted. Never read it as zero. |
+| `withheld` | object or null | Parts of something you can already see that were kept from you. | Nothing withheld, **or** you have no standing to be told. The two are deliberately identical. |
+| `withheld.count` | integer | How many parts. | |
+| `withheld.classes` | array or null | The field classes, sorted. | You may not see class names. |
+| `truncated` | object or null | The answer was cut. | Not cut. |
+| `truncated.at` | integer | Where it was cut. | |
+| `truncated.next` | string or object | The cursor, or the constructed call, that continues it. | |
+| `window` | object or null | The read looked at only part of the set. | It looked at the whole set. |
+| `window.kind` | string | `newest` (only the newest `size` were searched), `scan_ceiling` (a scan stopped at its ceiling), `bound` (a declared bound), `page` (one page of a paged list). | |
+| `window.size` | integer | The window's size. | |
+| `ambiguous` | array or null | The ids a position named when it named more than one record (a thread and clock can). | Not ambiguous. |
+| `pending` | object or null | This can't be answered completely right now. | Answerable now. |
+| `pending.state` | string | `attaching` (the saved copy is reconnecting after a start), `counting` (a count is still being made), `unknown`. | |
+| `pending.since` | integer or null | Unix seconds. | |
+| `pending.retry_after_secs` | integer or null | When to ask again. | |
+
+### Rules a client can rely on
+
+- **A total needs a proof.** A count of a window, a page or the newest N is
+  never served as `total`.
+- **Withheld only within standing.** If you can't see a thing at all, an answer
+  about it is the same as for a thing that doesn't exist. `withheld` is only
+  ever said about something you can already see.
+- **Partial is said.** Treat a non-null `truncated`, `window` or `pending` as
+  "this answer is partial", and say so.
+
+### Which doors serve it
+
+List and record answers on the `GET` doors `/v1/capabilities` declares, among
+them the records doors, search, the members and invites lists, ledgers, runs
+and `POST /v1/reductions/query`. At 0.277's first candidate, 42 `GET` doors
+that serve a list do not carry `read`; a kernel law keeps that list shrinking.
+Older completeness keys on the doors that gained `read` are still served,
+computed from it.
+
+## Paging
+
+`GET /v1/members` and `GET /v1/invites` page through one cursor primitive.
+
+| Query parameter | Values | Default |
+|---|---|---|
+| `limit` | `1` to `200` | absent: every row, up to 1,000 |
+| `cursor` | A `next_cursor` from an earlier answer to the same reader | absent: from the start |
+
+| Situation | Answer |
+|---|---|
+| No `limit`, 1,000 rows or fewer | Every row. `read.shown` = `read.total`. |
+| No `limit`, more than 1,000 rows | The next 1,000, `read.truncated` (`at` is how far you have read, `next` the cursor) and `next_cursor`. Nothing is cut without saying so. |
+| `limit` given | One page: `read.shown` is this page, `read.total` the whole list, and `next_cursor` while rows remain (no `truncated`: you asked for a page). A paged members answer carries `rows` only; `data` and `access` are whole-list shapes. |
+| `limit` outside 1..200 | `400 INVALID_QUERY`, `details.field: "limit"` |
+| A tampered or expired cursor, or one issued to another reader | `400 CURSOR_INVALID` |
+
+Rows come in a stable order, so a page boundary holds when rows are added
+while you page: members by `(member_since, row_id)`, invites by
+`(issued_at, invite_id)`. A cursor lives one hour and belongs to the reader it
+was issued to.
+
+The CLI's `spl member list` and `spl invite list` follow `next_cursor` to the
+end.
+
+## Words
+
+Approved sentences for these codes, from the words manifest:
+
+| Code | Words | Approved |
+|---|---|---|
+| `CURSOR_INVALID` | "This list changed since that page. Start again from the top." | D357 |
+| `read.suppressed` | "Groups with fewer than 3 aren't shown." | D357 |
+
+{/* Story owes or the Studio holds: the list-level lines for shown/total, shown first, withheld, and pending (D363). They are not in the kernel half of docs/words/manifest.json at int 8d5ee9a11; quote them here once they are. */}
+
+## See also
+
+- [Counting over a ledger](/docs/reference/reductions-query) for `read` on governed counts.
+- [Is my work saved](/docs/reference/safe-state) for `pending: attaching` and the safe state.
+- [Strict request bodies](/docs/reference/request-bodies) for the body side of a door.

@@ -62,6 +62,33 @@ since v0.236 `identity_reason`, a code a surface can route on: `sealed`,
 `seal_failed`, or `not_yet_run` when no successful backup is on file. See
 [Backup and recovery](/docs/guides/backup-restore).
 
+### `backup.keys_lineage`
+
+Since 0.277, what this workspace seals its keys copies under, for checking that
+a copy belongs to it. Served on this read and, to the provisioning caller, on
+`/health` under `backup_status.keys_lineage`.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `lineage_id` | string | The workspace a keys lineage started on: `SPL_BACKUP_LINEAGE_ID` when provisioning stamped it, else the lineage adopted from a restore, else the provisioning instance id, else a `local-<hex>` id minted once. 1 to 64 of `A-Z a-z 0-9 . _ -`. |
+| `root_id` | string | The root the copies are locked under. |
+| `pass_kind` | string | `derived` when provisioning derived the backup passphrase (`SPL_BACKUP_PASS_KIND=derived`); `chosen` otherwise, including when nothing says. |
+| `pass_check` | string or null | For `derived` only: `HMAC-SHA256(passphrase, "spl-backup-passphrase-check:v1")` as **exactly 64 lowercase hex characters** (`^[0-9a-f]{64}$`). `null` for `chosen`, and when no passphrase is set. |
+
+A person-chosen passphrase never gets a `pass_check`: a fast, unsalted tag
+beside a copy would let anyone holding the copy test guesses quickly. Since
+0.277 every new keys copy is `SPLKEYS4`, which carries the lineage in its
+authenticated header; a restore refuses a copy from a different lineage only
+when an explicit stamp conflicts (`KEYS_LINEAGE_MISMATCH`), and otherwise adopts
+the copy's lineage. 0.276 can't open a `SPLKEYS4` copy.
+
+## `safe`
+
+Since 0.277, `workspace.safe` is the one answer to "is my work saved off this
+machine". Its states, reasons and fields are on
+[Is my work saved](/docs/reference/safe-state). `offsite.state`, `only_copy`,
+`binding_state` and `backup.status` are still served in 0.277, computed from it.
+
 ## `writeback`
 
 Present when the body holds the write lease on a repository; explicitly `null`
@@ -107,3 +134,4 @@ distinct from not known.
 - [Actor doors](/docs/reference/actor-doors) for `assistants[]`, shape, history and revert.
 - [Doctor](/docs/operate/doctor) for the same facts as rows a terminal reads with the daemon down.
 - [Backup and recovery](/docs/guides/backup-restore) and [Portability](/docs/guides/portability).
+- [Is my work saved](/docs/reference/safe-state) for the `safe` block.

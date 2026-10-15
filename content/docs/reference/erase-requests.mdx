@@ -1,0 +1,197 @@
+---
+title: Erase requests
+description: The doors through which a person asks for what they wrote to be erased and the owner answers Erase or Don't erase, the receipt token that reads the outcome, and the refusals by name. Since 0.277.
+---
+
+Since 0.277 a person who reaches a workspace through a link (a guest) can ask
+for what they wrote there to be erased. The request goes to the workspace's
+owner, who answers **Erase** or **Don't erase**. Nothing is erased before the
+owner confirms. The person reads what happened with a receipt token that only
+they hold, and that keeps working after their access ends.
+
+A member keeps the immediate self-erase: `POST /v1/erasure` with the caller as
+the data subject still erases at once, because a member's session is not a
+forwardable link. Only a request from a link waits for the owner.
+
+## The doors
+
+| Door | Caller | Step-up | Answer |
+|---|---|---|---|
+| `POST /v1/erasure/requests` | The person's own credential (a guest, link or member session), or a page credential writing on behalf of its guest with `X-Syncropel-On-Behalf-Of` | none | `202` |
+| `POST /v1/erasure/requests/for` | The owner, filing for someone who lost their link | `erasure.request_for` | `201` |
+| `GET /v1/erasure/requests` | The owner | none | `200` list |
+| `POST /v1/decisions/{id}/decide` | The owner, on the request's queue item | `erasure.erase` for `erase` | `200` |
+| `POST /v1/erasure/requests/{id}/confirm` | The owner | `erasure.erase` | `200` |
+| `POST /v1/erasure/requests/{id}/decline` | The owner | none | `200` |
+| `POST /v1/erasure/requests/receipt` | No credential: the token is the credential | none | `200` |
+| `POST /v1/erasure/receipt` | No credential: the token is the credential | none | `200` |
+
+`/confirm`, `/decline` and the decide door call one function, so an answer
+from the queue and an answer from the CLI are the same act.
+
+## Asking: `POST /v1/erasure/requests`
+
+| Body field | Type | Required | Notes |
+|---|---|---|---|
+| `note` | string | no | 1 to 500 characters, shown to the owner. It is marked as outside content. |
+
+Any other field is refused `422 UNKNOWN_FIELD` (see [Strict request bodies](/docs/reference/request-bodies)).
+
+```json
+{
+  "object": "erase_request",
+  "received": true,
+  "request": "erq_...",
+  "receipt": "<token>",
+  "say": "Your request is with <workspace>. They confirm it before anything is erased. Keep this page's link to see what happens."
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `request` | The request's id. One request per person: a second ask finds the first. |
+| `receipt` | The receipt token. **Served in this answer only**, and stored hashed. Present it only in a POST body, never in a URL. |
+| `say` | The approved sentence (story D357), with the workspace's name. |
+
+Every other outcome of an ask (a credential that isn't a person's own, a
+revoked, expired or made-up link, an erased or ended guest, a duplicate) is the
+same answer, byte for byte: `409 ERASE_REQUEST_NOT_TAKEN`. A request with no
+credential at all gets the auth layer's `401`, as on every door.
+
+## Filing for someone: `POST /v1/erasure/requests/for`
+
+| Body field | Type | Required | Notes |
+|---|---|---|---|
+| `member` | string | yes | The person's principal, stable member id, or label. |
+| `note` | string | no | 1 to 500 characters. |
+
+The `201` answer is the ask's answer plus `filed_by: "owner"` and
+`receipt_link`, a link for the owner to send the person:
+
+```text
+{studio origin}/erase?home=<workspace https origin, URL-encoded>#r=<receipt, URL-encoded>
+```
+
+The token rides the fragment, so it never reaches a server log, a Referer or
+an analytics beacon. Without a declared Studio origin the link uses the
+workspace's own origin. Refusals: `404 MEMBER_NOT_FOUND`; `409
+ERASE_REQUEST_NOT_TAKEN` when that person already has a request.
+
+## The owner's list: `GET /v1/erasure/requests`
+
+`{object: "list", data: [...]}`, one row per request, waiting and decided. A
+request never expires.
+
+| Field | Meaning |
+|---|---|
+| `request` | The request's id. |
+| `ask_id` | Its queue item (a decision request). |
+| `state` | `waiting`, `erased`, `partial` or `declined`. |
+| `filed_by` | `person` or `owner`. |
+| `asked_at`, `age_secs` | When it was asked, and how long it has waited. No deadline is served. |
+| `name` | The person, by the name ladder. `null` once they are erased. |
+| `decided_at`, `reason`, `erasure_id` | Set once answered. |
+| `note`, `outside` | The person's note, with where it came from. Present only when a note was sent. |
+
+## Answering
+
+The request is a decision on the owner's queue with the options `erase` and
+`decline` (labels "Erase" and "Don't erase" in the words manifest).
+
+| Answer | Body | Effect |
+|---|---|---|
+| Decide door | `{"decision": "erase"}` | Runs the erase, exactly as `POST /v1/erasure` does, and ends the person's access. Step-up `erasure.erase`. |
+| Decide door | `{"decision": "decline", "reason": "..."}` | Records the decline. `reason` is optional, 0 to 500 characters, and shown to the person. |
+| `/confirm` | `{"acknowledges": ["linked_identity"]}` (optional) | Same as decide `erase`. |
+| `/decline` | `{"reason": "..."}` (optional) | Same as decide `decline`. |
+
+The answer: `{object: "erase_request", request, state, decision}`, plus
+`erasure` (the erase door's own answer) after an erase. `state` is `partial`
+when an arm of the erase couldn't finish; it finishes by itself.
+
+| Refusal | When |
+|---|---|
+| `404 NOT_FOUND` | No request with this id. |
+| `409 ALREADY_RESOLVED` | The request was already answered. |
+| `400 INVALID_DECISION` | A decision other than `erase` or `decline`. |
+| `403 ERASURE_FORBIDDEN` | The caller isn't the owner. |
+| `403 STEP_UP_REQUIRED` | A fresh step-up is needed. |
+
+## Reading the outcome
+
+### `POST /v1/erasure/requests/receipt`
+
+Body: `{"receipt": "<token>"}`. No credential.
+
+| Field | Meaning |
+|---|---|
+| `object` | `erase_request_status` |
+| `state` | `waiting`, `erased`, `partial` or `declined`. |
+| `asked_at` | When it was asked. |
+| `say` | The approved sentence for the state. |
+| `reason` | The owner's reason, on `declined` only (may be `null`). |
+| `erasure_id` | After an erase: opens the full receipt at `POST /v1/erasure/receipt` with the same token. |
+| `closure` | After an erase: what went, what was kept, and why. |
+
+Every non-answer (an unknown token, an empty one) is the same `404
+ERASURE_NOT_FOUND`; the door never says whether a token exists.
+
+### `POST /v1/erasure/receipt`
+
+Body: `{"erasure_id": "<id>", "receipt": "<token>"}`. The token may instead ride
+the `X-Syncropel-Erasure-Receipt` header. Answers the erasure's signed report.
+Every refusal is `404 ERASURE_NOT_FOUND`.
+
+### Deprecated: `GET /v1/erasure/{id}/receipt`
+
+0.276's receipt door carries the credential in its path. It is kept in 0.277
+for links people already hold and is **removed in 0.278**. Use
+`POST /v1/erasure/receipt`.
+
+## On `GET /v1/self`
+
+A person who has a request, for example a guest invited back, reads
+`erase_request {request, state, asked_at}` on their own `GET /v1/self`.
+
+## The `closure` block
+
+The erase answer, the signed report and both receipts carry one block:
+
+| Field | Meaning |
+|---|---|
+| `shredded` | Counts by class: `messages`, `derived`, `memories`, `own_plain`. A guest message sealed when written is always counted under `messages`. `own_plain` is 0 while the workspace's switch for a person's own plain records is off. |
+| `rederive_queued` | Summaries queued to be worked out again without the person. |
+| `kept[]` | `{class, count, say}` per kept class, served only when its count is above zero; `held` adds `reason`, the hold's own text. |
+| `derived_keys_listed` | Derived keys this erase destroyed and listed, so an older copy can't reopen them. |
+| `stamps_redacted` | Stamps rewritten to a stand-in. |
+| `state` | `complete` or `partial`. |
+| `left` | The arms still to finish, while `partial`. |
+
+Kept classes and their approved sentences:
+
+| Class | Words | Approved |
+|---|---|---|
+| `pending_policy` | "Kept: \{n\} things you wrote here that aren't messages, such as notes or table rows. Whether these are erased on request hasn't been decided, so they stay." | D401 |
+| `boundary_clear` | "Kept unchanged, including what you wrote: \{n\} records other people rely on." | D380 |
+| `before_sealing` | "Kept: \{n\} records written before this workspace could erase them. Your words in them are hidden wherever they're shown, and in copies kept off this machine. This machine's own daily backups still hold them until those backups are replaced." | D358 |
+| `held` | "Kept while a hold is in place. The reason given: “\{reason\}”" | D358 |
+
+{/* At 0.277's first candidate the closure serves before_sealing, pending_policy and held. The closure walker's boundary, boundary_clear and undeclared classes are contracted (C4b section 2a) and pending c2; the boundary and undeclared lines are not in the kernel half of the words manifest. Update this table at the cut. */}
+
+## Words
+
+| Code or state | Words | Approved |
+|---|---|---|
+| `ERASE_REQUEST_NOT_TAKEN` | "We couldn't take this request from this link. If you asked already, it's with \{workspace\}." | D357 |
+| received | "Your request is with \{workspace\}. They confirm it before anything is erased. Keep this page's link to see what happens." | D357 |
+| `waiting` | "Waiting for \{workspace\} to confirm. Asked \{date\}." | D357 |
+| `declined`, with a reason | "\{workspace\} didn't erase this. Their reason: “\{reason\}”" | D357 |
+| `declined`, no reason | "\{workspace\} didn't erase this, and didn't give a reason." | D357 |
+| `erased` | "Erased. Here's what went, what was kept, and why." | D357 |
+| `partial` | "Erasing was interrupted. It finishes by itself, and this page shows what's left." | D357 |
+
+## See also
+
+- [Strict request bodies](/docs/reference/request-bodies) for the 422 these doors share.
+- [The API surface](/docs/reference/api-surface) for the erase door and the other public doors.
+- [Scopes and permissions](/docs/reference/scopes-and-permissions) for step-up and the owner's authority.
