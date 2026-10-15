@@ -3,7 +3,7 @@ title: Guardians, on the command line
 description: Name people you trust to help you back in if you lose every device, and check each one before they're added.
 ---
 
-{/* story D431: a draft. Every command and flag below is for the kernel to check against int before this moves to content/docs/guides/. It stays out of content/ until then, and until Privacy "restore-and-guardians" 4.4 is published for hosted readers. The browser doesn't offer guardians, so this page is the only way in. */}
+{/* story D431: a draft; commands checked by the kernel (L224) except the invite verb, due in c2. Every command and flag below is for the kernel to check against int before this moves to content/docs/guides/. It stays out of content/ until then, and until Privacy "restore-and-guardians" 4.4 is published for hosted readers. The browser doesn't offer guardians, so this page is the only way in. */}
 
 Guardians are people you trust to help you get back into your workspace if you lose every device. No single
 guardian can get in alone: you choose how many of them must agree. When a recovery starts, it waits before it
@@ -28,6 +28,9 @@ Make an invite for each person, with a name you'll recognize:
 ```bash
 spl session request POST /v1/account/guardians/invite --data '{"label":"Ana"}'
 ```
+
+Run it on the computer your workspace runs on. From anywhere else, the request asks you to confirm it's you
+first, with your passkey, because adding a guardian is an important change.{/* story D431: switch this step to `spl account guardians invite --label Ana` when it lands on int (kernel L224, c2) */}
 
 The answer gives you a link for that person. Send it to them yourself, in a way you trust.
 
