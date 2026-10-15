@@ -159,6 +159,35 @@ removed stays revoked or removed: the lists of revoked keys and erased people ar
 |---|---|
 | `LIVE_TREE_NEWER` | The live workspace is newer than the copy. Nothing was restored. |
 
+### A keys copy names its workspace
+
+From v0.277, every way of restoring keys goes through one check before anything is restored: `spl backup
+restore-keys`, `spl repo restore`, `spl move` and the restore code all open a keys copy the same way, and
+refuse it for the same reasons, in the same words.
+
+A keys copy made by v0.277 also records two things inside its seal:
+
+- **Which workspace it belongs to.** A copy from a different workspace is refused, so you can't restore one
+  workspace's keys into another by mistake.
+- **Its own length.** A copy that was cut short, for example by a failed download, is refused as incomplete,
+  instead of looking like a wrong passphrase.
+
+**Older versions can't open the new copies.** A keys copy made by v0.277 or later can't be restored by v0.276
+or earlier. If you go back to an older version, restore from a keys copy made before you upgraded, or upgrade
+again first. Copies made before v0.277 still open in v0.277.
+
+| Code | What you see |
+|---|---|
+| `KEYS_COPY_PARTIAL` | "This saved copy is incomplete, so nothing was restored and your earlier copy is untouched. Try again, or choose an older copy." |
+| `KEYS_COPY_NEWER_FORMAT` | "This saved copy was made by a newer version of Syncropel than this workspace runs, so it can't be restored here. Update spl, then try again." |
+| `KEYS_LINEAGE_MISMATCH` | "This saved copy belongs to a different workspace, so nothing was restored." |
+| `RESTORE_PASSPHRASE_MISMATCH` | "The passphrase didn't open this copy, or the copy is damaged. Nothing was changed. Check the passphrase and try again, or choose another copy." |
+| `KEYS_COPY_TAMPERED` | "The saved copy was changed after it was sealed, so nothing was restored." |
+| `KEYS_COPY_MISSING` | "This workspace has no saved copy to restore its keys from. Nothing was restored." |
+
+A restore onto a fresh home takes the workspace named in the copy, so restoring a self-hosted workspace
+needs nothing beyond the copy and its passphrase.
+
 ### Your task notes travel with the backup
 
 From v0.272, task notes (`~/.syncro-data/`) travel with the off-machine copy, and the startup backup writes
