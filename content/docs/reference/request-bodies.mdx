@@ -13,7 +13,7 @@ something other than what the caller meant, and said nothing.
 
 | Part of the request | Checked | Notes |
 |---|---|---|
-| A door's request body (the envelope) | yes | Every key, at every depth: objects inside objects and objects inside arrays. |
+| A door's request body (the envelope) | yes | Every key, at every depth: objects inside objects and objects inside arrays. A few doors that check against a flat key list check the top level only. |
 | A nested object the door declares | yes | Named by its dotted path, for example `places[0].cann`. |
 | A record's `body` inside `POST /v1/records`, the batch door and sync | no | A record's body is opaque JSON. A registered kind's own validator may still refuse its declared fields. |
 | Query strings | no | Query parameters keep their own rules (for example `limit` on [paged lists](/docs/reference/read-envelope#paging)). |
@@ -46,6 +46,10 @@ Two things the refusal never carries:
 - **The list of accepted fields.** That list is published on
   `GET /v1/capabilities` (below), not echoed in errors.
 
+**Not yet at 0.277's first candidate:** the account and guardian doors still
+answer `400 UNKNOWN_FIELD`, with a message naming the field and no
+`details.field`.
+
 The person-facing sentence for this code, from the words manifest (story D357):
 "Something in this request wasn't understood, so nothing was changed."
 
@@ -54,8 +58,9 @@ The person-facing sentence for this code, from the words manifest (story D357):
 `GET /v1/capabilities` lists every door. A door's `accepted_body` is a JSON
 schema subset: each object level lists its `properties` and carries
 `"additionalProperties": false`, so a client can feature-detect a field before
-sending it. A test in the kernel (`schema_matches_struct`) keeps the published
-schema equal to what the door parses.
+sending it. A kernel test (`schema_matches_struct_on_every_people_door`) keeps
+the published schema equal to what the people doors (members, invites, roles
+and the like) parse; the other doors' schemas aren't compared by a test yet.
 
 | `accepted_body` shape | Meaning |
 |---|---|
@@ -71,7 +76,7 @@ schema equal to what the door parses.
 | dropped the key and answered `422 INVALID_BODY` (a required field missing) | `422 UNKNOWN_FIELD` | 52 doors |
 | dropped the key and answered another code, or succeeded | `422 UNKNOWN_FIELD` | the rest of 64 newly strict doors, among them `POST /v1/service-accounts`, which minted on 0.276 |
 
-{/* c1 note for the cut: the guardian and account doors (account_guardians.rs) still answer 400 UNKNOWN_FIELD without details.field on int 8d5ee9a11. Update this table when they move. */}
+{/* c1 note for the cut: the guardian and account doors (account_guardians.rs via account_log::bad) still answer 400 UNKNOWN_FIELD without details.field on int 2a7e60ce3. Remove the "Not yet" paragraph above when they move. */}
 
 ## Migrating a client
 

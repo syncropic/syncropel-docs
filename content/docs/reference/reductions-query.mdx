@@ -40,9 +40,11 @@ ledger's own row count.
 | `groups` | `groups` (`[{key, count, value}]`, `value` being the `agg` over `column`), `agg`, `total`, `suppressed`. |
 | `stats` | `stats`, the ledger's declared stats as the ledger door computes them, and `total`. |
 
-When the scan behind a `count` left records unread, `count` and `total` are
-`null` and `read.window.kind` is `scan_ceiling`: the door doesn't serve a
-count of a part as a count of the whole.
+When the scan behind an answer left records unread, `total` is `null` and
+`read.window.kind` is `scan_ceiling`: the door doesn't serve a count of a part
+as a count of the whole. A `count` with no `where` is then `null` too. A
+`count` with a `where`, and the `values` and `groups` counts, are over the rows
+the scan read; treat them as partial whenever `read.window` is set.
 
 ## The small-group floor
 
@@ -59,8 +61,12 @@ floor is `null`. The owner sees every group.
 | 400 | `REDUCTION_COLUMN_UNKNOWN` | A column the ledger doesn't declare. `details.column` names it. |
 | 400 | `REDUCTION_OP_UNKNOWN` | An `op` outside the four (developer only). |
 | 403 | `REDUCTION_FIELD_WITHHELD` | The count reads a field you can't read. `details.column` names it only to a reader who may see class names. |
-| | `AGG_BUDGET_EXCEEDED` | Too big to count in one go. |
+| 400 | `INVALID_BODY` | A body that doesn't fit its `op`: `group_by` naming more than 2 columns, `values` without `column`, `groups` without `group_by`, an `agg` outside the four, an `agg` other than `count` without `column`, or `stats` when the ledger declares no such stat. |
+| 503 | `READ_BUSY` | Too many heavy reads at once; `retry_after` says when to ask again. |
 | 422 | `UNKNOWN_FIELD` | A body field the door doesn't take. |
+
+`/v1/capabilities` also lists `AGG_BUDGET_EXCEEDED` for this door; at 0.277's
+first candidate the door's own code never answers it.
 
 The same aggregate rule now holds on every count path: records-query
 aggregation, the standing query, the reductions door and ledger stats. Before

@@ -65,15 +65,15 @@ since v0.236 `identity_reason`, a code a surface can route on: `sealed`,
 ### `backup.keys_lineage`
 
 Since 0.277, what this workspace seals its keys copies under, for checking that
-a copy belongs to it. Served on this read and, to the provisioning caller, on
-`/health` under `backup_status.keys_lineage`.
+a copy belongs to it. Served on this read and, to the owner and the
+provisioning caller, on `/health` under `backup_status.keys_lineage`.
 
 | Field | Type | Meaning |
 |---|---|---|
 | `lineage_id` | string | The workspace a keys lineage started on: `SPL_BACKUP_LINEAGE_ID` when provisioning stamped it, else the lineage adopted from a restore, else the provisioning instance id, else a `local-<hex>` id minted once. 1 to 64 of `A-Z a-z 0-9 . _ -`. |
 | `root_id` | string | The root the copies are locked under. |
 | `pass_kind` | string | `derived` when provisioning derived the backup passphrase (`SPL_BACKUP_PASS_KIND=derived`); `chosen` otherwise, including when nothing says. |
-| `pass_check` | string or null | For `derived` only: `HMAC-SHA256(passphrase, "spl-backup-passphrase-check:v1")` as **exactly 64 lowercase hex characters** (`^[0-9a-f]{64}$`). `null` for `chosen`, and when no passphrase is set. |
+| `pass_check` | string or null | For `derived` only: `HMAC-SHA256(passphrase, "spl-backup-passphrase-check:v1")` as **exactly 64 lowercase hex characters** (`^[0-9a-f]{64}$`). `null` for `chosen`, and when no passphrase is set or it is shorter than the minimum. |
 
 A person-chosen passphrase never gets a `pass_check`: a fast, unsalted tag
 beside a copy would let anyone holding the copy test guesses quickly. Since

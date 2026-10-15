@@ -29,11 +29,20 @@ forwardable link. Only a request from a link waits for the owner.
 `/confirm`, `/decline` and the decide door call one function, so an answer
 from the queue and an answer from the CLI are the same act.
 
+**These doors are behind the `erase_request_door` flag.** While it is off,
+every door above except `POST /v1/erasure/receipt` answers `409
+LEGAL_SECTION_NOT_LIVE` (the decide door too, on a request's queue item), with `flag`,
+`off: true` and the section it waits on in `details`; nothing is read or
+written. The flag is off by default (Syncropic's walker bodies aside). On a hosted workspace it can
+be turned on only once the Privacy section on your rights is published at
+version 4.4; on a self-hosted workspace it is the owner's switch
+(`POST /v1/flags/erase_request_door`).
+
 ## Asking: `POST /v1/erasure/requests`
 
 | Body field | Type | Required | Notes |
 |---|---|---|---|
-| `note` | string | no | 1 to 500 characters, shown to the owner. It is marked as outside content. |
+| `note` | string | no | 1 to 500 characters after trimming, shown to the owner. It is marked as outside content. A blank or longer note is refused `422 INVALID_BODY`. |
 
 Any other field is refused `422 UNKNOWN_FIELD` (see [Strict request bodies](/docs/reference/request-bodies)).
 
@@ -49,7 +58,7 @@ Any other field is refused `422 UNKNOWN_FIELD` (see [Strict request bodies](/doc
 
 | Field | Meaning |
 |---|---|
-| `request` | The request's id. One request per person: a second ask finds the first. |
+| `request` | The request's id. One request per person: a second ask is refused `409 ERASE_REQUEST_NOT_TAKEN`, and the first request stands. |
 | `receipt` | The receipt token. **Served in this answer only**, and stored hashed. Present it only in a POST body, never in a URL. |
 | `say` | The approved sentence (story D357), with the workspace's name. |
 
@@ -74,8 +83,9 @@ The `201` answer is the ask's answer plus `filed_by: "owner"` and
 
 The token rides the fragment, so it never reaches a server log, a Referer or
 an analytics beacon. Without a declared Studio origin the link uses the
-workspace's own origin. Refusals: `404 MEMBER_NOT_FOUND`; `409
-ERASE_REQUEST_NOT_TAKEN` when that person already has a request.
+workspace's own origin. Refusals: `403 ERASURE_FORBIDDEN` for a caller who
+isn't the owner; `404 MEMBER_NOT_FOUND`; `409 ERASE_REQUEST_NOT_TAKEN` when
+that person already has a request or was already erased.
 
 ## The owner's list: `GET /v1/erasure/requests`
 
@@ -101,7 +111,7 @@ The request is a decision on the owner's queue with the options `erase` and
 | Answer | Body | Effect |
 |---|---|---|
 | Decide door | `{"decision": "erase"}` | Runs the erase, exactly as `POST /v1/erasure` does, and ends the person's access. Step-up `erasure.erase`. |
-| Decide door | `{"decision": "decline", "reason": "..."}` | Records the decline. `reason` is optional, 0 to 500 characters, and shown to the person. |
+| Decide door | `{"decision": "decline", "reason": "..."}` | Records the decline. `reason` is optional, 0 to 500 characters (blank is no reason; longer is `422 INVALID_BODY`), and shown to the person. |
 | `/confirm` | `{"acknowledges": ["linked_identity"]}` (optional) | Same as decide `erase`. |
 | `/decline` | `{"reason": "..."}` (optional) | Same as decide `decline`. |
 
@@ -113,8 +123,9 @@ when an arm of the erase couldn't finish; it finishes by itself.
 |---|---|
 | `404 NOT_FOUND` | No request with this id. |
 | `409 ALREADY_RESOLVED` | The request was already answered. |
-| `400 INVALID_DECISION` | A decision other than `erase` or `decline`. |
-| `403 ERASURE_FORBIDDEN` | The caller isn't the owner. |
+| `400 INVALID_DECISION` | A decision other than `erase` or `decline`, or a decide body carrying `signed_response`, `becomes_policy`, `amendment` or `decisions`. |
+| `403 ERASURE_FORBIDDEN` | The caller isn't the owner (`/confirm`, `/decline`). |
+| `403 NOT_THE_DECIDER` | The decide door: the caller isn't the one the queue item asks. |
 | `403 STEP_UP_REQUIRED` | A fresh step-up is needed. |
 
 ## Reading the outcome
@@ -144,8 +155,10 @@ Every refusal is `404 ERASURE_NOT_FOUND`.
 
 ### Deprecated: `GET /v1/erasure/{id}/receipt`
 
-0.276's receipt door carries the credential in its path. It still answers, for
-links people already hold, and is **deprecated**; use `POST /v1/erasure/receipt`.
+0.276's receipt door names the erasure in its path and takes the receipt in
+the `X-Syncropel-Erasure-Receipt` header. It still answers, for links people
+already hold, and is **deprecated**; use `POST /v1/erasure/receipt`, which
+takes both in the body.
 
 ## On `GET /v1/self`
 
@@ -158,24 +171,31 @@ The erase answer, the signed report and both receipts carry one block:
 
 | Field | Meaning |
 |---|---|
-| `shredded` | Counts by class: `messages`, `derived`, `memories`, `own_plain`. A guest message sealed when written is always counted under `messages`. `own_plain` is 0 while the workspace's switch for a person's own plain records is off. |
+| `shredded` | Counts by class: `messages`, `derived`, `memories`, `own_plain`, and `records` (the person's other sealed records, such as a sealed contact or a private item). A guest message sealed when written is always counted under `messages`. `own_plain` is 0 while the workspace's switch for a person's own plain records (`[erasure] shred_own_plain_records`) is off. |
 | `rederive_queued` | Summaries queued to be worked out again without the person. |
-| `kept[]` | `{class, count, say}` per kept class, served only when its count is above zero; `held` adds `reason`, the hold's own text. |
+| `kept[]` | `{class, count, say}` per kept class, served only when its count is above zero; `held` adds `reason`, the hold's own text (one entry per distinct reason); `undeclared` adds `owner_notified`. `say` uses the singular form when `count` is 1. |
 | `derived_keys_listed` | Derived keys this erase destroyed and listed, so an older copy can't reopen them. |
 | `stamps_redacted` | Stamps rewritten to a stand-in. |
 | `state` | `complete` or `partial`. |
 | `left` | The arms still to finish, while `partial`. |
 
-Kept classes and their approved sentences:
+Kept classes and their approved sentences (the plural form; each has a
+singular form for a count of 1 in the words manifest):
 
 | Class | Words | Approved |
 |---|---|---|
+| `before_sealing`, self-hosted | "Kept: \{n\} records written before this workspace could erase them. Your words in them are hidden wherever they're shown, and in copies kept off this machine. This machine's own daily backups still hold them until those backups are replaced." | D424 |
+| `before_sealing`, hosted | "Kept: \{n\} records written before this workspace could erase them. Your words in them are hidden wherever they're shown, and in the workspace's saved copy. Backups kept on the machine this workspace runs on still hold them until those backups are replaced." | D424 |
 | `pending_policy` | "Kept: \{n\} things you wrote here that aren't messages, such as notes or table rows. Whether these are erased on request hasn't been decided, so they stay." | D401 |
+| `boundary` | "Kept as markers, with your words removed: \{n\} records other people rely on." | D410 |
 | `boundary_clear` | "Kept unchanged, including what you wrote: \{n\} records other people rely on." | D380 |
-| `before_sealing` | "Kept: \{n\} records written before this workspace could erase them. Your words in them are hidden wherever they're shown, and in copies kept off this machine. This machine's own daily backups still hold them until those backups are replaced." | D358 |
 | `held` | "Kept while a hold is in place. The reason given: “\{reason\}”" | D358 |
+| `undeclared`, to the person | "Kept: \{n\} records of a kind this workspace hasn't said how to erase. The owner has been told." | D410, D424 |
+| `undeclared`, on the owner's answer | "Kept: \{n\} records of a kind this workspace hasn't said how to erase. You've been sent a notice about them." | D410 |
 
-{/* At 0.277's first candidate the closure serves before_sealing, pending_policy and held. The closure walker's boundary, boundary_clear and undeclared classes are contracted (C4b section 2a) and pending c2; the boundary and undeclared lines are not in the kernel half of the words manifest. Update this table at the cut. */}
+When an erase keeps `undeclared` records, the owner is sent an
+`ERASE_KEPT_UNDECLARED` notice that names no one; the kinds go under its
+detail.
 
 ## Words
 

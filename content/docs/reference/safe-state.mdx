@@ -12,6 +12,7 @@ answer. It is served as:
 | `GET /v1/self/workspace` | `workspace.safe` | the owner |
 | `GET /v1/health` | `safe` | the owner and the provisioning caller; the anonymous `/health` serves it with every fact `null` |
 | `GET /v1/ops/summary` | `safe` | the operator's ops view |
+| `GET /v1/repo/tree/summary` | `safe` | the owner and provisioning's key |
 
 `null` means not known. A surface never draws `null` as saved.
 
@@ -38,21 +39,23 @@ answer. It is served as:
 | `since` | unix seconds or null | When this state began. For `paused`, the last copy that landed, else the first failure. |
 | `reason` | string or null | Why, for `paused`, `only_copy`, `local_only` and some `attaching`. A code, never a sentence. |
 | `last_copied_at` | unix seconds or null | The last time a save landed. |
+| `backlog` | object or null | `null` when `state` is `null`, or when there is no write-back runner. |
 | `backlog.records` | integer or null | Records written here and not saved off the machine. |
 | `backlog.oldest_secs` | integer or null | Age of the oldest of them. `0` is nothing pending; `null` is not measured. |
 | `next_try_at` | unix seconds or null | When a refused reconnect is tried again. |
+| `files` | object or null | `null` when `state` is `null`, or when there is no write-back runner. |
 | `files.not_carried` | integer | Files the saved copy doesn't carry. |
 | `files.why` | string or null | `plan_ceiling` (past the plan's size) or `unreadable`. |
 | `lease.held` | boolean or null | Whether this body holds the write lease. `null` when not known. |
 | `host` | string | `hosted` or `self`, so a surface picks the right words. |
-| `read` | object | The [read envelope](/docs/reference/read-envelope). `pending.state: attaching` while reconnecting. |
+| `read` | object | The [read envelope](/docs/reference/read-envelope). `shown` is 1, or 0 when `state` is `null`. `pending.state: attaching` while reconnecting. |
 
 ## States
 
 | State | When |
 |---|---|
 | `holding` | Bound to its saved copy, attached, and saves are landing. |
-| `paused` | Saving has failed 3 times in a row, or has been failing for 5 minutes; or another copy of this workspace holds the lease; or a refused reconnect has lasted past 2 minutes. It returns to `holding` by itself when a save lands. |
+| `paused` | Saving has failed 3 times in a row, or has been failing for 5 minutes; or saves were attempted and nothing has landed for 5 minutes while records wait; or another copy of this workspace holds the lease; or a refused reconnect has lasted past 2 minutes. It returns to `holding` by itself when a save lands. |
 | `attaching` | Reconnecting to its saved copy: the first attach after a start, a reconnect, or a refusal still inside its 2-minute grace. |
 | `only_copy` | A hosted workspace that isn't bound to a saved copy, past its grace hour. |
 | `local_only` | A workspace on a laptop or server with no saved copy configured. |
