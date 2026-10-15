@@ -95,7 +95,20 @@ Approved sentences for these codes, from the words manifest:
 | `CURSOR_INVALID` | "This list changed since that page. Start again from the top." | D357 |
 | `read.suppressed` | "Groups with fewer than 3 aren't shown." | D357 |
 
-{/* Story owes or the Studio holds: the list-level lines for shown/total, shown first, withheld, and pending (D363). They are not in the kernel half of docs/words/manifest.json at int 8d5ee9a11; quote them here once they are. */}
+The list-level lines a surface draws from `read`. They live in the Studio's
+half of the words manifest; each sentence has one home.
+
+| When | Words | Approved |
+|---|---|---|
+| `total` known and larger than `shown` | "Showing \{shown\} of \{total\}" | D363 |
+| `truncated` or `window`, `total` null | "Showing the first \{shown\}" | D363 |
+| `withheld` non-null | "1 not shown to you" / "\{n\} not shown to you", with the class words in parentheses when `classes` is served. Class words come from the manifest, never a raw class id. | D363 |
+| `pending.state: attaching` | "This workspace is reconnecting to its saved copy, so this list may be missing some items." | D363 |
+| `pending.state: counting` | "Still counting." | D363 |
+| `pending.state: unknown` | "This can't be counted right now." | D363 |
+
+A surface never turns a `null` into a number, and never says something is
+withheld when `withheld` is `null`.
 
 ## See also
 
