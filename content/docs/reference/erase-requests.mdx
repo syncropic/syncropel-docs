@@ -144,9 +144,8 @@ Every refusal is `404 ERASURE_NOT_FOUND`.
 
 ### Deprecated: `GET /v1/erasure/{id}/receipt`
 
-0.276's receipt door carries the credential in its path. It is kept in 0.277
-for links people already hold and is **removed in 0.278**. Use
-`POST /v1/erasure/receipt`.
+0.276's receipt door carries the credential in its path. It still answers, for
+links people already hold, and is **deprecated**; use `POST /v1/erasure/receipt`.
 
 ## On `GET /v1/self`
 
