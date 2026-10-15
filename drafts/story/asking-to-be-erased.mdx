@@ -3,7 +3,7 @@ title: Asking to be erased
 description: If you joined a workspace through a link, you can ask its owner to erase what you wrote there, and see what happened with a link only you hold.
 ---
 
-{/* story D411: a draft outside content/ on purpose. It moves to content/docs/guides/ and into meta.json only when the erase-request door is on where the reader is (the legal flag needs Privacy "rights" published, D389) and its rows pass. Until then no public page describes it (D12). */}
+{/* story D411/D427: a draft outside content/ on purpose. It moves to content/docs/guides/ and into meta.json only when the erase-request door is on where the reader is (off by default everywhere; a self-hosted owner can turn it on; hosted waits on Privacy "rights" 4.4, D389) and its rows pass. Held on the kernel keeping the receipt door answering while the flag is off (D427); if it doesn't, this page must say the link stops working when the owner turns the feature off. */}
 
 This page is for people who joined someone else's workspace through a link, as a guest. If you're a member
 with your own account there, you can erase what you wrote yourself, straight away.
@@ -21,10 +21,11 @@ You'll see:
 workspace ends. Nobody else is given it, and the workspace keeps only a scrambled form it can't read back, so nobody can
 give you a new one. Keep it somewhere safe.
 
-If you asked already, asking again finds your first request. If the link you're using can't make a request,
-you'll see:
+Each person can make one request. If you ask again, or the link you're using can't make a request, you'll see:
 
 > We couldn't take this request from this link. If you asked already, it's with \{workspace\}.
+
+The same answer is given either way, so the page never shows whether someone has already asked.
 
 ## What the owner does
 

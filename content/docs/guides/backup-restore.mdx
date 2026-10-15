@@ -167,14 +167,16 @@ refuse it for the same reasons, in the same words.
 
 A keys copy made by v0.277 also records two things inside its seal:
 
-- **Which workspace it belongs to.** A copy from a different workspace is refused, so you can't restore one
-  workspace's keys into another by mistake.
+- **Which workspace it belongs to.** A workspace that already has its own identity refuses a copy from a
+  different workspace, so you can't restore one workspace's keys into another by mistake. A fresh home, such as
+  a new install, has no identity yet, so it takes the workspace named in the copy: that's how restoring onto a
+  new machine works.
 - **Its own length.** A copy that was cut short, for example by a failed download, is refused as incomplete,
   instead of looking like a wrong passphrase.
 
 **Older versions can't open the new copies.** A keys copy made by v0.277 or later can't be restored by v0.276
 or earlier. If you go back to an older version, restore from a keys copy made before you upgraded, or upgrade
-again first. Copies made before v0.277 still open in v0.277.
+again first. Copies made before v0.277 still open in v0.277.{/* story D427: held on kernel b19's SPLKEYS3 row (a 0.276.0 copy opened by 0.277); remove this sentence at the cut if the row isn't green */}
 
 | Code | What you see |
 |---|---|
@@ -185,8 +187,7 @@ again first. Copies made before v0.277 still open in v0.277.
 | `KEYS_COPY_TAMPERED` | "The saved copy was changed after it was sealed, so nothing was restored." |
 | `KEYS_COPY_MISSING` | "This workspace has no saved copy to restore its keys from. Nothing was restored." |
 
-A restore onto a fresh home takes the workspace named in the copy, so restoring a self-hosted workspace
-needs nothing beyond the copy and its passphrase.
+Restoring a self-hosted workspace onto a fresh home needs nothing beyond the copy and its passphrase.
 
 ### Your task notes travel with the backup
 
