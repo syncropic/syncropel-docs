@@ -253,9 +253,14 @@ at risk right now; `oldest unflushed: none` is a measured nothing pending;
 ingest clock (an in-memory store), and it is never a zero. The row warns when
 that record has waited six cadences even if the last flush was a second ago,
 because a fresh flush that left old records behind is the case the old rule
-missed. The same age is on `/health` and the workspace read as
+missed. The same age is in the workspace read and on `/v1/health` as
 `writeback.oldest_unflushed_age_secs` (null, 0, or N), never computed as now
-minus the last flush, which is largest exactly when nothing is wrong. The row
+minus the last flush, which is largest exactly when nothing is wrong. From
+v0.279, `/v1/health` serves the writeback detail (the epoch, the backlog, this
+age and the watermarks) to the owner, an admin, a member with coarse access,
+the provision key and the local socket. An anonymous `/health` carries only
+`writeback.attach` and `writeback.attach_fact`, the attach state and its code,
+so read the detail with the owner's credential or through the socket. The row
 also names how many records the last derived-plane refresh folded against the
 ceiling it refuses at, so a body approaching that ceiling is warned before the
 refresh refuses rather than after (the ceiling is a stopgap that buys weeks
