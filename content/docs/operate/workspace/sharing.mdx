@@ -26,7 +26,7 @@ optionally time-bounded.
 ## Bundle a thread
 
 ```bash
-spl share th_a48c... --to did:sync:dev:alice
+spl share send th_a48c... --to did:sync:dev:alice
 ```
 
 What happens:
@@ -65,7 +65,7 @@ Records often reference parents and refs in other threads. Bundle them
 all:
 
 ```bash
-spl share th_a48c... --to did:sync:dev:alice --include-deps
+spl share send th_a48c... --to did:sync:dev:alice --include-deps
 ```
 
 `--include-deps` walks the parent and ref graph recursively and
@@ -73,13 +73,13 @@ includes every reachable record. Use this when the bug repro spans
 multiple threads (e.g. a workspace's manifest in one thread, the
 records that exposed the fold bug in another).
 
-There's a configurable depth limit; reach for `--max-deps-depth N` if
+There's a configurable depth limit; reach for `--depth N` if
 you have unusually deep chains.
 
 ### Time-bound the consent
 
 ```bash
-spl share th_a48c... --to did:sync:dev:alice --expires 7d
+spl share send th_a48c... --to did:sync:dev:alice --expires 7d
 ```
 
 The consent record carries an expiry clock. After 7 days, Alice's

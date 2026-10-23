@@ -37,7 +37,7 @@ Pair establishment is a one-shot CLI handshake that exchanges DIDs, signs a mani
     participant BNet as Bob instance
     participant B as Bob (responder)
 
-    A->>ANet: spl federation pair https://bob.example/
+    A->>ANet: spl federation pair add https://bob.example/
     ANet->>BNet: GET /.well-known/syncropel
     BNet-->>ANet: federation manifest<br/>(DID, sig, pair_endpoint)
     ANet->>ANet: verify Ed25519 signature<br/>over manifest body
@@ -74,7 +74,7 @@ Before either instance runs `spl federation pair`:
 ### Create a pair
 
 ```bash
-spl federation pair https://bob.example/
+spl federation pair add https://bob.example/
 ```
 
 This is the headline command — discover, verify, handshake, persist, all in one. Output:
@@ -243,7 +243,7 @@ spl debug thread-diff <local-pair-record-id> <bob-pair-record-id>
 
 # 4. If the divergence is irreparable, revoke + re-pair.
 spl federation revoke <pair_id>
-spl federation pair https://bob.example/
+spl federation pair add https://bob.example/
 ```
 
 Re-pairing is cheap. The historical cursor on the new pair starts at the current peer clock; you don't get the missed records back unless you also restore from snapshots, but you get a clean slate.

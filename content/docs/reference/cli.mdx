@@ -561,7 +561,7 @@ spl config responders-remove --did did:sync:agent:deprecated
 ## Dispatch
 
 ```bash
-spl dispatch <actor> "goal" [--thread ID] [--budget 1.0] [--timeout 600]
+spl dispatch send <actor> "goal" [--thread ID] [--budget 1.0] [--timeout 600]
 ```
 
 ## Inference — `spl infer`
@@ -782,7 +782,7 @@ Worker state roots are persistent across fleet restarts. Next `spl fleet start -
 spl fleet list                       # Snapshot: DID, endpoint, status, role, uptime
 spl fleet show <did>                 # Detailed view of one instance
 spl fleet ping <did>                 # HTTP /health reachability + latency check
-spl fleet status [--live]            # Aggregate: live/stale/archived counts + frozen ns
+spl fleet status                    # Aggregate: live/stale/archived counts + frozen ns
 ```
 
 `spl fleet list` reads the coordinator's `th_instance_registry` fold. Each instance is classified as `live` (heartbeat within last N seconds), `stale` (2-3 N windows old), or `archived` (older than 3N).
@@ -865,8 +865,7 @@ The `spl federation` verb is the canonical surface for federation pair managemen
 
 ```bash
 # Establish (the one-command primitive)
-spl federation pair <peer-url>                  # Discover + verify + handshake + persist
-spl federation pair add <peer-url> [--auto-approve]   # Same; explicit verb
+spl federation pair add <peer-url>              # Discover + verify + handshake + persist
 
 # Lifecycle CRUD
 spl federation list [--json]                    # All pairs with state column

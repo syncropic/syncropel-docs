@@ -22,7 +22,7 @@ crosses the line.
 | Actor registration record | always | The DID, display name, category, and metadata |
 | Records authored by the actor | always | Every INTEND / DO / KNOW / LEARN the actor emitted |
 | Trust observations **for** the actor | always | Wilson-LB inputs that fed `trust(actor, ...)` |
-| Memories **of** the actor | `--include-memories` (default: on) | The actor's stored `spl memory` entries |
+| Memories **of** the actor | `--include-memories` (default: skill and insight only) | The actor's stored `spl memory` entries |
 
 ## What does NOT move
 
@@ -42,11 +42,8 @@ crosses the line.
 # Exports to stdout as NDJSON (one record per line)
 spl actor export did:sync:agent:dev > /tmp/dev-actor-export.ndjson
 
-# Drop memories if the target doesn't need them
-spl actor export did:sync:agent:dev --no-memories > /tmp/dev-actor-export.ndjson
-
-# Discount trust contributions by 0.5 on import (see Trust discounting below)
-spl actor export did:sync:agent:dev --trust-discount 0.5 > /tmp/dev-actor-export.ndjson
+# Include every memory type (the default is skill and insight memories only)
+spl actor export did:sync:agent:dev --include-memories > /tmp/dev-actor-export.ndjson
 ```
 
 Content is a newline-delimited JSON stream — safe to `gzip`, `scp`, or

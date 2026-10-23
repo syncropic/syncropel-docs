@@ -91,7 +91,7 @@ spl init
 Start the instance as a foreground process the first time so you can see what it's doing:
 
 ```bash
-spl serve --foreground
+spl serve
 ```
 
 You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it as an instance:
@@ -117,7 +117,7 @@ Restart the instance with `--insecure-localhost`. It binds 127.0.0.1 only and di
 
 ```bash
 spl stop
-spl serve --foreground --insecure-localhost &
+spl serve --insecure-localhost &
 
 curl -fsS -X POST http://127.0.0.1:9100/v1/bootstrap/service-account \
   -H 'content-type: application/json' \

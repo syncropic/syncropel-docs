@@ -119,7 +119,7 @@ Open Syncropel Studio at [`syncropel.com`](https://syncropel.com) (connected to 
 You can also subscribe from the CLI:
 
 ```bash
-spl thread records <thread_id> --watch
+spl watch <thread_id>
 ```
 
 Now go back to Claude Code and prompt:
@@ -143,7 +143,7 @@ You'll see the actor's record-emission history, the threads it participates in, 
 For an audit-grade view of every MCP call:
 
 ```bash
-spl thread records th_audit_records --filter "body.actor.startsWith('did:sync:agent:claude')"
+spl thread records th_audit_records --json | jq '.[] | select(.body.actor | startswith("did:sync:agent:claude"))'
 ```
 
 The audit thread `th_audit_records` carries a metadata record per emission. There is no separate "MCP call log" — Syncropel already has it.

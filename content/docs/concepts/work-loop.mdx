@@ -143,7 +143,7 @@ The preview reports which transport a start would take, and every run's outcome 
 A loop can carry an optional `task_budget` — a per-loop ceiling on turns, tokens, or USD cost that overlays the tier's daily limits. When set, the budget is **visible to the language model** in its system prompt, so the model can pace its own work and wrap up gracefully as the budget shrinks. When the budget is hit, the loop ends with `budget_exhausted` and the `budget_kind` field names which one.
 
 ```bash
-spl work-loop "Summarise this week's dispatches" --max-turns 8 --usd-budget 0.50
+spl work-loop "Summarise this week's dispatches" --max-turns 8
 ```
 
 ## Repeated-failure guardrail
