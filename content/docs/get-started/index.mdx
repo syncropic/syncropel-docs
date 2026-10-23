@@ -1,42 +1,49 @@
 ---
 title: Get Started
-description: The installation-to-live-workspace journey for Syncropel. Install the CLI, initialize your identity, start your workspace, and pair devices.
+description: Start here. Create your workspace in your browser in a minute or two, or set one up on your own computer.
 ---
 
-This section takes you from "I just heard about Syncropel" to "I have a secure workspace running with a browser paired to it." It is intentionally more detailed than the [Quickstart](/docs/start). Read Quickstart if you want the 10-minute happy path; read this section if something went wrong on your first try, or if you're setting up a machine that will do real work.
+There are two ways in. Most people want the first.
 
-## Map
+```
+           ┌──────────────────────────────────┐
+           │   Do you want to install things?  │
+           └────────────────┬─────────────────┘
+                 no         │         yes
+          ┌─────────────────┴──────────────────┐
+          ▼                                    ▼
+  Use it in your browser               Run it on your own computer
+  (we run it for you)                  (developers, self-hosting)
+  ─ Create your workspace              ─ Install spl
+  ─ Plans and billing                  ─ First run
+  ─ Your hosted workspace              ─ Connect the command line
+```
 
-| # | Page | What it covers |
-|---|---|---|
-| 0 | [Pricing](/docs/get-started/pricing) | Local is free. One hosted workspace is free per person, with no card; more are $25 per month each with a 30-day free trial. |
-| 1 | [Hosted workspace signup](/docs/get-started/hosted) | Skip install: sign up at syncropel.com and get a fully-portable workspace ready in about two minutes. |
-| 2 | [Install](/docs/get-started/install) | Download and install `spl` on Linux, Windows, or macOS. Pin versions. Verify. |
-| 3 | [First run](/docs/get-started/first-run) | `spl init`, your identity, the `~/.syncro/` tree, and `config.toml`. |
-| 4 | [Your first hour](/docs/get-started/first-hour) | The first question your workspace asks, the register, and your assistant answering. |
-| 5 | [The assistant](/docs/get-started/the-assistant) | The chief of staff: your default assistant, and what you can read, change, and replace. |
-| 6 | [Pairing a browser or phone](/docs/get-started/pairing) | QR pairing, manual pairing, revocation. |
-| 7 | [Troubleshooting](/docs/get-started/troubleshooting) | Diagnostic tree for the failure modes real users have hit. |
-| 8 | [Reset and uninstall](/docs/get-started/reset-uninstall) | Clean reset, full uninstall per platform, what survives. |
+## Use it in your browser
 
-## Suggested reading order
+| Page | What it covers |
+|---|---|
+| [Create your workspace](/docs/get-started/hosted) | Sign up, pick your address, land in your workspace. |
+| [Set up your organization](/docs/get-started/set-up-your-organization) | A workspace for your organization, Pro, and your organization's name. |
+| [Plans and billing](/docs/get-started/pricing) | Free and Pro, moving between them, your bill. |
+| [Your hosted workspace](/docs/get-started/your-hosted-workspace) | How your work is kept, sleeping and waking, pausing and deleting. |
+| [Your first hour](/docs/get-started/first-hour) | The first things your workspace asks, and your assistant answering. |
+| [The assistant](/docs/get-started/the-assistant) | Who you talk to in your workspace. |
+| [Joining a workspace](/docs/get-started/joining-an-instance) | Someone invited you: what happens next. |
 
-**First time, want a hosted workspace.** Read [Hosted workspace signup](/docs/get-started/hosted): the syncropel.com flow gets you to a working workspace without installing anything. Then `spl token save <bearer>` to get the CLI talking to your hosted workspace, then jump to [Pairing](/docs/get-started/pairing) for additional devices.
+Then the guides: [Organization names](/docs/guides/organization-names), [Keeping your access](/docs/guides/keeping-your-access), [Files in the Studio](/docs/guides/files-in-studio), [Find](/docs/guides/find).
 
-**First time installing locally.** Start at [Install](/docs/get-started/install), proceed through [First run](/docs/get-started/first-run), then [Pairing](/docs/get-started/pairing) once you want a browser or second device on the same workspace.
+## Run it on your own computer
 
-**Pairing a second device.** Jump to [Pairing](/docs/get-started/pairing).
+For developers and anyone who wants to run Syncropel on hardware they control.
 
-**Something is broken right now.** [Troubleshooting](/docs/get-started/troubleshooting) first, then [Reset and uninstall](/docs/get-started/reset-uninstall) if you need to start over.
+| Page | What it covers |
+|---|---|
+| [Install](/docs/get-started/install) | Download and install `spl` on Linux, Windows or macOS. |
+| [First run](/docs/get-started/first-run) | Your identity, the `~/.syncro/` folder and `config.toml`. |
+| [Connect the command line](/docs/get-started/connect-the-command-line) | Point `spl` at a hosted workspace. |
+| [Pairing a browser or phone](/docs/get-started/pairing) | Add a device to a workspace you run yourself. |
+| [Troubleshooting](/docs/get-started/troubleshooting) | The failures people have actually hit, and the fix. |
+| [Reset and uninstall](/docs/get-started/reset-uninstall) | Start over, or remove it. |
 
-## What "Syncropel" means on your machine
-
-`spl` is a single binary. Once installed, it is both the CLI (`spl task list`, `spl intend …`) and the server (`spl serve`). They communicate over a local Unix socket on Linux and macOS, and over TCP on Windows. The server persists everything it knows to `~/.syncro/hub.db`, a SQLite file.
-
-That's the whole system. No Docker required, no separate language runtime, no external database. The pages in this section are about getting that one binary installed correctly and pointing it at a well-formed `~/.syncro/` directory.
-
-## See also
-
-- [Quickstart](/docs/start): the 10-minute walkthrough
-- [Operator Runbook](/docs/operate/runbook): day-2 operations once your workspace is doing real work
-- [`spl doctor`](/docs/operate/doctor): one-command diagnostic when a workspace is misbehaving
+The [Quickstart](/docs/start) is the ten-minute version of this path.

@@ -1,13 +1,43 @@
 ---
 title: Syncropel Documentation
-description: A shared, append-only log that human and AI teammates build on together. Every intent, action, and observation is recorded, and the system learns from what gets written.
+description: Your own workspace where you, the people you work with and your AI assistants keep conversations, tasks, files and decisions in one place.
 ---
 
-## Two paths to a working instance
+## What Syncropel is
 
-**Hosted**: fastest. Sign up at [syncropel.com/sign-up](https://syncropel.com/sign-up); a private Syncropel workspace is ready at `<your-label>.syncropel.app` in about two minutes. No install, no machine to maintain. One hosted workspace is free per person, with no card (1 GB of storage, a small amount of computing capacity and a one-time inference allowance); more are $25 per month each with a 30-day free trial ([pricing](/docs/get-started/pricing)). Walkthrough: [Hosted workspace signup](/docs/get-started/hosted).
+Syncropel gives you a **workspace**: your own place, at your own address, where you, the people you invite and your AI assistants work together. Conversations, tasks, files and decisions stay in one place, and you can see what was done and why.
 
-**Self-hosted**: install `spl` on a machine you maintain:
+```
+                    alice.syncropel.app  (your workspace)
+   ┌───────────────────────────────────────────────────────────┐
+   │   conversations · tasks · files · decisions · assistant    │
+   └───────────▲───────────────────▲───────────────────▲───────┘
+               │                   │                   │
+          you, in the         people you          your assistant
+          Studio (browser)    invite
+```
+
+## Start here
+
+- **[Create your workspace](/docs/get-started/hosted).** Sign up at [syncropel.com](https://syncropel.com) and you're in a minute or two later. Your first workspace is free, with no card.
+- **[Plans and billing](/docs/get-started/pricing).** Free and Pro, and moving between them.
+- **[Your hosted workspace](/docs/get-started/your-hosted-workspace).** How your work is kept, and pausing or deleting.
+- **[The assistant](/docs/get-started/the-assistant).** Who you talk to in your workspace.
+- **[Organization names](/docs/guides/organization-names).** A name for your organization that others can find.
+
+Where things live:
+
+```
+syncropel.com ─── sign up ───▶ <your-name>.syncropel.app   your workspace, opened in the Studio
+account.syncropel.com ──────── your workspaces, plan and billing, organization names
+docs.syncropel.com ─────────── you are here
+```
+
+---
+
+## For developers
+
+Syncropel also runs on your own computer, and everything in a workspace can be reached from code.
 
 ```bash
 # Linux + macOS
@@ -20,15 +50,9 @@ irm https://get.syncropic.com/spl.ps1 | iex
 spl init && spl serve
 ```
 
-Both paths run the same binary, expose the same APIs, and sync with each other. Pick by where you want the data and who handles uptime: full comparison on the [Hosted workspace signup](/docs/get-started/hosted) page.
+Follow the [Quickstart](/docs/start) for a five-minute walkthrough, or jump to the [TypeScript SDK](/docs/guides/typescript-sdk) or [Python SDK](/docs/guides/python-sdk). A hosted workspace works from the command line too: [Connect the command line](/docs/get-started/connect-the-command-line).
 
-Follow the [Quickstart](/docs/start) for a 5-minute walkthrough: first task with trust evidence. Or read [Get Started](/docs/get-started) for the deeper, multi-page onboarding journey covering both paths.
-
-If you're integrating from code, jump to the [TypeScript SDK](/docs/guides/typescript-sdk) or [Python SDK](/docs/guides/python-sdk).
-
----
-
-## What a Syncropel thread looks like
+### What a Syncropel thread looks like
 
 Every coordination event (chat, task, code change, tool call, observation, intent) becomes a record. Records group into threads. Threads produce trust:
 
@@ -43,7 +67,7 @@ fix-checkout-timeout              5 records · 3 actors
                    captured · next similar issue replays the solution
 ```
 
-`●` is human; `○` is an AI agent or system. Every record is immutable, content-addressed, and signed by its actor. The `LEARN` at the end is captured as a reusable pattern: next time the same shape of issue appears, the solution replays automatically.
+`●` is human; `○` is an AI agent or system. Every record is content-addressed and signed by its actor. The `LEARN` at the end is captured as a reusable pattern: next time the same shape of issue appears, the workspace can reuse what worked.
 
 That same thread can be queried via the [TypeScript SDK](/docs/guides/typescript-sdk), [Python SDK](/docs/guides/python-sdk), or [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others). Hosted workspaces ship with **[the chief of staff](/docs/get-started/the-assistant)**, a default conversational assistant that responds in any thread you open by typing, so you do not have to wire anything up.
 

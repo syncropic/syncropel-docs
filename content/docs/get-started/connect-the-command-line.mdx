@@ -1,0 +1,62 @@
+---
+title: Connect the command line
+description: For developers. Point the spl command line at your hosted workspace and give each device its own key.
+---
+
+This page is for people who work from a terminal. You don't need the command line to use Syncropel: everything a person does day to day is in the Studio, in your browser.
+
+The `spl` command line talks to a workspace on your own machine by default. To make it talk to your hosted workspace instead, you tell it two things: **where the workspace lives** (`SPL_SERVE_URL`) and **which key to use** (`spl token save`).
+
+## One-time setup
+
+```bash
+# 1. Install the CLI (skip if already installed)
+curl -sSf https://get.syncropic.com/spl | sh           # Linux / WSL. Windows: irm https://get.syncropic.com/spl.ps1 | iex
+
+# 2. Point the CLI at your hosted workspace
+export SPL_SERVE_URL=https://<label>.syncropel.app
+
+# 3. Connect this machine. Studio's Connect button (or the ready screen's
+#    CLI option) gives you a device key; save it:
+spl token save <token>
+```
+
+`spl token save` stores the key in a file only you can read. After that, every `spl` command uses it automatically.
+
+To keep the address across new terminal windows, add the export to your shell's startup file (`~/.bashrc`, `~/.zshrc`, etc.):
+
+```bash
+echo 'export SPL_SERVE_URL=https://<label>.syncropel.app' >> ~/.bashrc
+```
+
+## Check that it works
+
+```bash
+spl status
+spl thread list
+spl task add "First task on hosted" --priority normal --domain meta
+spl task list
+```
+
+`spl status` prints which address it is using and whether your key is accepted. `spl thread list` and `spl task list` should show your workspace's threads and tasks (empty if you haven't added anything yet).
+
+If you get a `401`, connect this machine again and save the new key (`spl token save <token>`), and check that `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, open `<label>.syncropel.app/health` in a browser: the workspace may be waking up after a quiet period, so give it a few seconds.
+
+## A separate key for each device (recommended)
+
+Create a separate key for each device so you can switch one off without affecting the others:
+
+```bash
+spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.app --scopes admin
+```
+
+`spl pair` prints a one-click link, a QR code, and plain text: pick whichever fits. For the command line on the same machine, the simplest path is to copy the printed key and run `spl token save <new-token>`. If the laptop is ever lost, you can switch off just that key.
+
+`--scopes admin` gives the key full control of the workspace: it can read and change everything, including creating and switching off other keys. Without it, a key named like this one can read and add records but cannot manage keys or settings.
+
+See [Service accounts and tokens](/docs/get-started/service-accounts) for the longer version, including narrowing what a key can do and replacing keys.
+
+## See also
+
+- [Create your workspace](/docs/get-started/hosted)
+- [Install spl](/docs/get-started/install)
