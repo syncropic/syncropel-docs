@@ -23,7 +23,7 @@ Person-facing words for these codes come from the kernel's words manifest. Quote
 - `READ_IN_FLIGHT`: "Something you asked for is still loading. Try again in a moment."
 - `READ_STOPPED_BY_ERASE`: "This export stopped partway because the workspace changed. Run it again." The screen never says an erase happened. This page can name the cause, but a person-facing message must not.
 
-These three lines (approved D548) join the kernel's words manifest in 0.280. A 0.279 binary does not serve them yet and serves its earlier kernel wording.
+These three lines (approved D548) are the words 0.279 serves.
 
 ## Counts
 
@@ -68,7 +68,7 @@ Who can filter on what:
 - **Own writes.** `POST /v1/records/query` takes `"own_writes": true` and serves the records the caller's own credential wrote (the service account, session or grant). On that surface body filters and sort are admitted, except on a field withheld by class, seal or erase. An aggregate or `group_by` with `own_writes` is `400 INVALID_QUERY`. Own writes follow the service account, so rotating its token (`POST /v1/tokens/{id}/rotate`) keeps them. Minting a replacement account does not. A sparse lineage with no other filter scans to fill a page, so filter by `body.kind`.
 - **Find.** A guest's or member's `find` (MCP and `GET /v1/find`) is refused with the same code, because find matches body text. Read the records of the conversations you're in instead: `read_thread`, or `POST /v1/records/query` by kind.
 
-Person-facing words (approved D548): "Only the workspace's owner can search or filter by this." It joins the kernel's words manifest in 0.280. A 0.279 binary serves its earlier kernel wording.
+Person-facing words (approved D548): "Only the workspace's owner can search or filter by this." This is the wording 0.279 serves.
 
 ## Sequences a narrowed reader sees are its own
 
