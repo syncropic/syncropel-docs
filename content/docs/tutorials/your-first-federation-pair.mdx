@@ -66,7 +66,7 @@ Both should report a green status with their DIDs visible in the `instance_did` 
 ## 2. Initiate the pair from alice
 
 ```bash
-spl-alice federation pair http://127.0.0.1:9202
+spl-alice federation pair add http://127.0.0.1:9202
 ```
 
 What you'll see, in order:
@@ -219,7 +219,7 @@ State is the fold over this thread. Pause/resume/revoke commands all emit record
 
 You exercised Syncropel's **federation primitive** end-to-end:
 
-1. **One command established the relationship.** `spl federation pair <url>` ran a 3-roundtrip handshake (manifest discovery → nonce-protected handshake → reciprocal SA mint), persisted signed pair records on both sides, and returned. No hand-edited config file. No copy-pasted bearer tokens.
+1. **One command established the relationship.** `spl federation pair add <url>` ran a 3-roundtrip handshake (manifest discovery → nonce-protected handshake → reciprocal SA mint), persisted signed pair records on both sides, and returned. No hand-edited config file. No copy-pasted bearer tokens.
 2. **Operator approval is structural, not bypassable.** Bob's instance raised a decision request and refused to complete until an operator approved. The approval is itself a signed record — auditable forever. Auto-approval is opt-in via a CEL decision policy (see the [federation pair guide — auto-approval](/docs/guides/federation-pair#auto-approval-via-cel)) for trusted contexts; default is manual.
 3. **`spl sync` consults the pair store automatically.** The old antipattern (`spl sync ... --peer-token sk_...`) doesn't exist on this command. The pair record holds the credential; sync looks it up.
 4. **Records are content-addressed across stewards.** Alice's record id == bob's record id for the same record. There is no "alice-side id" and "bob-side id." This is what makes CRDT-style merge trivial: same id → same record, no conflicts possible.
@@ -240,6 +240,6 @@ The pair primitive is the gate to everything else federation does — async rela
 |---|---|---|
 | `peer served /.well-known/syncropel but no federation_manifest key` | The peer instance doesn't have an identity configured. The manifest is generated from the local key. | On the peer instance: `spl identity show`. If it reports `no identity`, run `spl identity generate`. Then re-try the pair from the initiating side. |
 | `pair_handshake_rejected: unauthenticated_initiator` | TLS verification failed. Either the peer URL doesn't serve a valid cert, or you forgot `--insecure-localhost` on a local-only setup. | For local two-instance dev: ensure both instances started with `--insecure-localhost`. For real cross-host: confirm both sides serve TLS. The flag is dev-only and refused on hosts other than `127.0.0.1`. |
-| The approval times out (alice's CLI prints `still pending after 60s`) | Bob's operator didn't approve in the 60-second window. The pair is still in `establishing` state. | The original `pair_pending.v1` decision on bob's side stays valid until bob explicitly rejects it or it TTLs out. Re-run `spl federation pair <url>` from alice — it'll mint a new nonce and the operator can approve the second attempt. |
+| The approval times out (alice's CLI prints `still pending after 60s`) | Bob's operator didn't approve in the 60-second window. The pair is still in `establishing` state. | The original `pair_pending.v1` decision on bob's side stays valid until bob explicitly rejects it or it TTLs out. Re-run `spl federation pair add <url>` from alice — it'll mint a new nonce and the operator can approve the second attempt. |
 | `unpaired_peer` on `spl sync` | You're syncing from a URL or DID that doesn't match any pair record on this side. | Run `spl federation list` to confirm what pairs exist on this side. If you expected one but it's missing, the pair was never completed (handshake interrupted) — re-run `spl federation pair`. |
 | Pair shows `degraded` state | Peer was unreachable for >24 hours, or a sync call hit a 401 (token expired or revoked). | Run `spl federation refresh <peer-did>` to re-fetch the manifest and revalidate. If the peer is permanently gone, `spl federation revoke <peer-did>` cleanly closes out the pair. |
