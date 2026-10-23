@@ -74,7 +74,7 @@ Person-facing words (approved D548): "Only the workspace's owner can search or f
 
 For a guest, a grained credential or a class-bounded run, `as_of_seq` (also `min_seq_met`, a subscription's `watermark_seq`, a watch stream's cursor, a batch's `committed_through`, `rights.as_of_seq`) is the highest sequence among the rows that reader is admitted, its own `min_seq` echoed, or 0. It doesn't move for a write the reader can't see, and it can go down when the reader's access shrinks. Never treat it as global or only-rising. Compare it only with sequences the same reader was served. The owner, an admin and a coarse member keep the workspace value.
 
-Named limit (0.280, SKL-4916): each row a narrowed reader is served still carries its workspace `sequence`, so the gap between two rows it can see counts the writes in between.
+Named limit, to be fixed in 0.280: each row a narrowed reader is served still carries its workspace `sequence`, so the gap between two rows it can see counts the writes in between.
 
 ## Server-Timing
 
