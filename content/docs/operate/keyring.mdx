@@ -65,13 +65,13 @@ echo 'export SPL_TOKEN="spl_prod_sa_XXXXXXXXXXXXXXXX_YYYYYYYYYYYYYYYYYYYYYYYYYYY
 
 ### 3.2 Enable enforcement
 
-Emit a `core.engine_config` LEARN record that flips `auth.required` to true:
+Emit a `core.engine_config` LEARN record that flips `auth.required` to true. It is a records-door write, as described in [Store bounds](/docs/operate/store-bounds): `actor` is your own member id and `clock` is one more than your highest clock on that thread.
 
 ```bash
-spl learn \
-  --thread th_engine_config \
-  --body '{"topic":"auth_required","enabled":true}' \
-  --actor did:sync:system:engine
+curl -X POST http://127.0.0.1:9100/v1/records \
+  -H "Authorization: Bearer $SPL_TOKEN" -H 'content-type: application/json' \
+  -d '{"thread":"th_engine_config","actor":"<your member id>","act":"LEARN","clock":<next clock>,
+       "body":{"topic":"auth_required","enabled":true}}'
 ```
 
 ### 3.3 Restart the instance

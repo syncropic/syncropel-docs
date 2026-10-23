@@ -106,11 +106,11 @@ Bearer-token authentication for `spl serve` is governed by two config surfaces:
 **1. Server-side toggle** — a LEARN record on `th_engine_config`:
 
 ```bash
-# Enable enforcement
-spl learn \
-  --thread th_engine_config \
-  --body '{"topic":"auth_required","enabled":true}' \
-  --actor did:sync:system:engine
+# Enable enforcement (a records-door write, as in Store bounds: set actor and clock)
+curl -X POST http://127.0.0.1:9100/v1/records \
+  -H "Authorization: Bearer $SPL_TOKEN" -H 'content-type: application/json' \
+  -d '{"thread":"th_engine_config","actor":"<your member id>","act":"LEARN","clock":<next clock>,
+       "body":{"topic":"auth_required","enabled":true}}'
 ```
 
 | Field | Type | Default | Description |
@@ -147,10 +147,7 @@ resolution takes the higher of the invite-stamped tier and the assignment.
 **2. CORS allow-list** — a separate LEARN record:
 
 ```bash
-spl learn \
-  --thread th_engine_config \
-  --body '{"topic":"auth_cors_origins","origins":["https://your-app.example.com"]}' \
-  --actor did:sync:system:engine
+spl config auth-set-cors-origins https://your-app.example.com
 ```
 
 CORS headers are sent only when `auth.required = true`. With auth off, CORS is permissive by default.
@@ -166,10 +163,7 @@ Configure the provider used for [semantic search](/docs/guides/search). Without 
 Managed via `spl config embedding-provider set|show|clear` (see the [CLI reference](/docs/reference/cli#embedding-provider)). Both commands write a LEARN record on `th_engine_config`; the instance rebuilds its embedder on broadcast — no restart.
 
 ```bash
-spl learn \
-  --thread th_engine_config \
-  --body '{"topic":"embedding_provider","provider":{"kind":"ollama","endpoint":"http://localhost:11434","model":"nomic-embed-text"}}' \
-  --actor did:sync:system:engine
+spl config embedding-provider set ollama --endpoint http://localhost:11434 --model nomic-embed-text
 ```
 
 | Field | Type | Default | Description |
@@ -189,10 +183,7 @@ Configure one or more store-and-forward relays for [async federation](/docs/guid
 Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation--pair-sync)). Each mutating subcommand writes a LEARN record:
 
 ```bash
-spl learn \
-  --thread th_engine_config \
-  --body '{"topic":"federation.relay","url":"https://relay.syncropel.com","for_pair":"all","enabled":true}' \
-  --actor did:sync:system:engine
+spl config relay set https://relay.syncropel.com --for-pair all
 ```
 
 | Field | Type | Default | Description |

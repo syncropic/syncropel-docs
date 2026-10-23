@@ -52,11 +52,13 @@ release. A record only ever sets the numbers; it never widens the reach, and
 the forbidden-tool set stays the binary's.
 
 A tier record names only the fields it changes; every field it omits keeps the
-constant. To lower Trial's daily spend and raise its turn ceiling, for example:
+constant. To lower Trial's daily spend and raise its turn ceiling, for example (a records-door write, as described in [Store bounds](/docs/operate/store-bounds)):
 
 ```bash
-spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
-  --body '{"kind":"core.engine.tier.v1","tier":"trial","max_turns":9,"daily_cost_cap_usd":2.5}'
+curl -X POST http://127.0.0.1:9100/v1/records \
+  -H "Authorization: Bearer $SPL_TOKEN" -H 'content-type: application/json' \
+  -d '{"thread":"th_engine_config","actor":"<your member id>","act":"LEARN","clock":<next clock>,
+       "body":{"kind":"core.engine.tier.v1","tier":"trial","max_turns":9,"daily_cost_cap_usd":2.5}}'
 ```
 
 A workspace with no tier record for a tier yields the constant, byte-identical
@@ -70,8 +72,10 @@ By default a defined actor resolves to Trial. To put an actor on a higher rung,
 write an `actor_tier` assignment (also a config LEARN on `th_engine_config`):
 
 ```bash
-spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
-  --body '{"kind":"core.engine.config.v1","topic":"actor_tier","actor":"did:sync:agent:dev","tier":"paid"}'
+curl -X POST http://127.0.0.1:9100/v1/records \
+  -H "Authorization: Bearer $SPL_TOKEN" -H 'content-type: application/json' \
+  -d '{"thread":"th_engine_config","actor":"<your member id>","act":"LEARN","clock":<next clock>,
+       "body":{"kind":"core.engine.config.v1","topic":"actor_tier","actor":"did:sync:agent:dev","tier":"paid"}}'
 ```
 
 Latest wins; an empty `tier` clears the assignment. Resolution takes the higher

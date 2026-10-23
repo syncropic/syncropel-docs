@@ -28,13 +28,17 @@ The transport is decided per run, at start, by the tier of the principal the run
 Both keys are one config record on `th_engine_config`, live for the next run to start. There is no restart and no release in either direction, which is the point: a transport problem in production has to be one write away from off.
 
 ```bash
-# The operator's own runs, sandboxed too
-spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
-  --body '{"kind":"core.engine.config.v1","topic":"work_loop_transport","transport":"sandboxed"}'
+# The operator's own runs, sandboxed too (records-door writes, as in Store bounds: set actor and clock)
+curl -X POST http://127.0.0.1:9100/v1/records \
+  -H "Authorization: Bearer $SPL_TOKEN" -H 'content-type: application/json' \
+  -d '{"thread":"th_engine_config","actor":"<your member id>","act":"LEARN","clock":<next clock>,
+       "body":{"kind":"core.engine.config.v1","topic":"work_loop_transport","transport":"sandboxed"}}'
 
 # The rollback for everyone else: members back in process (not recommended on a hosted instance)
-spl know --thread th_engine_config --actor did:sync:system:engine --act LEARN \
-  --body '{"kind":"core.engine.config.v1","topic":"work_loop_transport_members","transport":"in_process"}'
+curl -X POST http://127.0.0.1:9100/v1/records \
+  -H "Authorization: Bearer $SPL_TOKEN" -H 'content-type: application/json' \
+  -d '{"thread":"th_engine_config","actor":"<your member id>","act":"LEARN","clock":<next clock>,
+       "body":{"kind":"core.engine.config.v1","topic":"work_loop_transport_members","transport":"in_process"}}'
 ```
 
 Check what the running service took, not only what was written:
