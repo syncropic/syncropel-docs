@@ -21,10 +21,10 @@ spl audit export --since 65m | \
     --data-binary @-
 ```
 
-Elasticsearch's bulk API accepts JSONL natively — no format translation needed. Each line in the export becomes one indexed document. The `_bulk` endpoint expects alternating action and document lines, but `spl audit export` already emits in that shape when the `--bulk-format elastic` flag is set:
+Elasticsearch's bulk API accepts JSONL natively — no format translation needed. Each line in the export becomes one indexed document. The `_bulk` endpoint expects alternating action and document lines, but `spl audit export` emits plain JSONL, so interleave the action lines with `jq`:
 
 ```bash
-spl audit export --since 65m --bulk-format elastic | \
+spl audit export --since 65m | jq -c '{"index":{}}, .' | \
   curl -s -X POST "https://elastic.example.com:9200/syncropel-audit/_bulk" \
     -H "Content-Type: application/x-ndjson" \
     -H "Authorization: ApiKey $ELASTIC_API_KEY" \

@@ -28,16 +28,14 @@ On **their** side — they add a pair pulling from you:
 
 ```bash
 # They need your DID, your endpoint URL, and the thread ID.
-spl fleet sync add \
-  --peer-did "did:sync:user:alice" \
-  --peer-url "https://alice.example.com:9100" \
-  --thread "$TASK_THREAD"
+spl fleet sync add "did:sync:user:alice" "$TASK_THREAD" \
+  --peer-url "https://alice.example.com:9100"
 
 # Verify the pair landed and is pulling.
-spl fleet sync pairs
+spl fleet sync list
 
 # Check for changes right now (instead of waiting for the background pull).
-spl fleet sync pull --thread "$TASK_THREAD"
+spl fleet sync kick <pair-id>
 ```
 
 Within a few seconds of every record you emit on `TASK-0042`, their instance ingests it. Records arrive, signatures are verified against your DID, and the consent filter runs — if you and your teammate are in different namespaces, the filter stops propagation unless a consent grant exists.

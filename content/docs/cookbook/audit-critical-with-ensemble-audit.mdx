@@ -144,11 +144,7 @@ Also: `consensus` on compliance reasoning is only meaningful if the LLMs can pro
 Register the compliance officer actor:
 
 ```bash
-spl actor register \
-  --did did:example:compliance-officer \
-  --kind actor \
-  --capability "compliance:audit" \
-  --trust-hint 0.95
+spl actor register did:example:compliance-officer --category user --display-name "Compliance officer"
 ```
 
 Then configure a webhook or have them open an SSE session to `GET /v1/responders/did:example:compliance-officer/inbound`. For test runs, a webhook to `webhook.site` that you manually reply against is the easiest loop.

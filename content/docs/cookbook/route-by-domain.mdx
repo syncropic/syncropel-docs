@@ -16,15 +16,13 @@ Two routing rules. One per domain. Authored as CEL expressions.
 spl config add-rule \
   --name "route-code-to-dev" \
   --expression "record.act == 'INTEND' && record.body.domain == 'code'" \
-  --target "did:sync:agent:dev" \
-  --priority 100
+  --target "did:sync:agent:dev"
 
 # Route every INTEND with domain=ops to the ops bot.
 spl config add-rule \
   --name "route-ops-to-bot" \
   --expression "record.act == 'INTEND' && record.body.domain == 'ops'" \
-  --target "did:sync:agent:ops-bot" \
-  --priority 100
+  --target "did:sync:agent:ops-bot"
 
 # Verify what's loaded.
 spl config list-rules
@@ -38,17 +36,17 @@ Try it:
 # This dispatches to did:sync:agent:dev.
 spl task add "Refactor the auth middleware" \
   --alias REFACTOR-001 \
-  --assigned-to did:sync:agent:dev \
+  --assign did:sync:agent:dev \
   --domain code
 
 # This dispatches to did:sync:agent:ops-bot.
 spl task add "Rotate the TLS cert on api.example.com" \
   --alias CERT-ROTATE-001 \
-  --assigned-to did:sync:agent:ops-bot \
+  --assign did:sync:agent:ops-bot \
   --domain ops
 ```
 
-Or let the rule route for you by omitting `--assigned-to` — the routing cascade will pick up the domain-based rule when it hits step 3 (see [The Engine — routing cascade](/docs/concepts/engine#routing-cascade)).
+Or let the rule route for you by omitting `--assign` — the routing cascade will pick up the domain-based rule when it hits step 3 (see [The Engine — routing cascade](/docs/concepts/engine#routing-cascade)).
 
 ## The trade-off
 
