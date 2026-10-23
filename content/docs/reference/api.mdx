@@ -1228,6 +1228,24 @@ curl -s http://localhost:9100/v1/members \
 
 Rows carry `member` (the DID), `status`, `scopes`, and `expires_at`. A non-admin caller receives exactly their own row — a one-row answer is complete, not truncated.
 
+Since v0.279.0 each person row also carries the fields below, and `GET /v1/principals` serves the same name fields:
+
+| Field | Meaning |
+|---|---|
+| `display_name` | The person's name, or `null` when nothing names them. Type it as nullable. No door serves an id, a DID's tail or a handle as a name. |
+| `name_source` | Where the name came from. `"none"` when `display_name` is null. Never null. |
+| `standing` | `member`, `guest` or `other_workspace`, decided from the owner set, grants and seats, never from the shape of a DID. Absent for a principal never seen, an erased one, and anything that isn't a person. `other_workspace` names no workspace. |
+| `is_owner` | `true` only for the workspace's owner. Present on every seen person's row. A never-seen or erased row carries none. |
+| `handle` | Owner-only on `/v1/members`: the member's label, beside the name and never as it. |
+
+`fallback` and `workspace_label` are no longer served for people. When `display_name` is null, draw the stand-in from `standing` and `is_owner`. The command line prints "Unnamed member", "A guest", "Someone from another workspace" and "The owner". {/* story: draft (these four stand-in words come from the changelog; story D530/D531/D539 are cited there, confirm they are the approved forms) */} An erased person reads exactly as one never seen: the same row but for `id`, with no `standing`. The owner's erase-request queue (`GET /v1/erasure/requests`) carries the requester's `handle` the same way, read live and never stored.
+
+Migration from 0.278: type `display_name` as nullable (`@syncropel/sdk` does), and stop reading `fallback` and `workspace_label`.
+
+### Forget where I was
+
+`POST /v1/private/kept/purge` forgets every kept slot the caller wrote ("forget where I was here"). It runs on the caller's own session with a fresh step-up. It takes no subject (`422 UNKNOWN_FIELD` if you send one) and answers `{object: "kept_purge", count}`. A second call answers `0`.
+
 ### Adopt
 
 ```bash

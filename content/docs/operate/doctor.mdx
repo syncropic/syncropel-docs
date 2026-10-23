@@ -266,6 +266,10 @@ ceiling it refuses at, so a body approaching that ceiling is warned before the
 refresh refuses rather than after (the ceiling is a stopgap that buys weeks
 on a fast-growing body, and the row is what says when).
 
+## tree drift
+
+Since v0.279.0 a boot census compares the off-machine tree with the store by name. `tree_drift` fails while the tree lacks records the store holds at or below the flush cursor. `tree_drift_unchecked` warns, with its reason, when the census can't run: a hosted workspace holds no storage credential of its own, and a namespace-scoped tree or an unreachable tree reads the same. `tree_drift_pending` shows in the notes while the census runs. An unbound workspace has no row. `spl repo drift <locator>` checks any of them by hand. {/* story: draft */}
+
 ## triggers
 
 Whether scheduled work would actually happen. Passes with `N configured, none
