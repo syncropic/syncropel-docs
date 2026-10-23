@@ -33,7 +33,7 @@ A by-id read of anything absent, unreachable or undeclared answers `{record: nul
 
 An app's code receives the raw actor ids of the records it reads, exactly what `POST /v1/records/query` serves that viewer.
 
-Person-facing words, from the manifest: {/* story: draft (all four approved D540/D357 in the manifest; placement here for story to confirm) */}
+Person-facing words, from the manifest:
 
 - `APP_READS_INVALID`: "This app's list of what it reads has a problem, so it wasn't saved." followed by the reason line.
 - `APP_NOT_FOUND`: "This app isn't available to you."
@@ -53,9 +53,11 @@ Stage 1 lets the owner publish an app's files as a page at the workspace's own a
 - A site file an erase withheld is served nulled by every door: `{path: null, sha256: null, removed_by_erase: true}`, to the owner too.
 - Overrides: `SPL_SITES_DOOR_URL` (the publishing service's address) and `SITES_RECEIPT_PUBLIC_KEY` (normally fetched from `GET /v1/sites/keys`).
 
-Not in this stage: a node sealed to a person is never published (`SITE_SOURCE_PRIVATE`). Two apps holding one address after a merge import fold to the older claim. The assistant has no publish tool, so the owner proposes.
+A node sealed to a person is never published (`SITE_SOURCE_PRIVATE`).
 
-Person-facing words for the refusals come from the manifest (approved D540, D541 and D545). Quote the manifest entry for each code, don't write new ones. Examples: {/* story: draft (approved entries quoted; placement for story to confirm) */}
+Not in this stage: two apps holding one address after a merge import fold to the older claim. The assistant has no publish tool, so the owner proposes.
+
+Person-facing words for the refusals come from the manifest (approved D540, D541 and D545). Quote the manifest entry for each code, don't write new ones. Examples:
 
 - `SITE_THREAD_KERNEL_ONLY`: "Only the workspace itself writes a page's history, so this wasn't saved."
 - `SITE_FILE_NOT_OWNERS`: "That file wasn't added by the owner, so it can't go on a page."

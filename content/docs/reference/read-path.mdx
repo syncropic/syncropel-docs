@@ -19,8 +19,11 @@ Named limit: a body's first open after a cold start can hold one scan past 3 s, 
 
 Person-facing words for these codes come from the kernel's words manifest. Quote them, don't paraphrase:
 
-- `READ_BUDGET_EXCEEDED`: "This is taking longer than it should, so it stopped. Try again in a moment." {/* story: draft (approved D539 in the manifest; placement on this page for story to confirm) */}
-- `READ_IN_FLIGHT` and `READ_STOPPED_BY_ERASE`: the manifest holds kernel drafts only, owed to story. Until ruled, the kernel serves "Your last read is still running. Trying again in a moment." and "Something was erased while this export ran, so it stopped. Run it again." {/* story: draft (both are unapproved kernel drafts in docs/words/manifest.json; need a ruling) */}
+- `READ_BUDGET_EXCEEDED`: "This is taking longer than it should, so it stopped. Try again in a moment."
+- `READ_IN_FLIGHT`: "Something you asked for is still loading. Try again in a moment."
+- `READ_STOPPED_BY_ERASE`: "This export stopped partway because the workspace changed. Run it again." The screen never says an erase happened. This page can name the cause, but a person-facing message must not.
+
+These three lines (approved D548) join the kernel's words manifest in 0.280. A 0.279 binary does not serve them yet and serves its earlier kernel wording.
 
 ## Counts
 
@@ -45,7 +48,7 @@ A page cursor (`next_cursor`, sent back as `cursor`) is opaque and sealed. Send 
 - A cursor page carries the total, so later pages don't count again. An erase recounts the carried total silently.
 - Ledger row cursors (`before=<clock>`) are a different cursor and are unchanged.
 
-Person-facing words for `CURSOR_INVALID`: "This list changed since that page. Start again from the top." {/* story: draft (approved D357 in the manifest) */}
+Person-facing words for `CURSOR_INVALID`: "This list changed since that page. Start again from the top."
 
 ## Filtering is decided by who you are
 
@@ -61,11 +64,11 @@ Who can filter on what:
 
 - **The owner** (the owner's session or key, local trust, or an unrestricted admin credential) reads everything. An admin credential carrying a grain, a read bound or a rooms marker is narrowed like anyone else.
 - **Everyone else** can filter on the routing fields only: `body.kind`, `schema_version`, `idem`, `classes_read`, `declassified`, and the record's own fields (`thread`, `actor`, `act`, `clock`, `id`). A member can't filter, sort or group on other body fields, even ones they can read.
-- **Declared surfaces** admit more: a held view in a room, and a ledger view or reduction whose `serves.class` names its audience (`views[].serves: {class, level?}`), admit filter, sort, group and values on the columns a plain read serves that class.
+- **Declared surfaces** admit more: a held view on a conversation, and a ledger view or reduction whose `serves.class` names its audience (`views[].serves: {class, level?}`), admit filter, sort, group and values on the columns a plain read serves that class.
 - **Own writes.** `POST /v1/records/query` takes `"own_writes": true` and serves the records the caller's own credential wrote (the service account, session or grant). On that surface body filters and sort are admitted, except on a field withheld by class, seal or erase. An aggregate or `group_by` with `own_writes` is `400 INVALID_QUERY`. Own writes follow the service account, so rotating its token (`POST /v1/tokens/{id}/rotate`) keeps them. Minting a replacement account does not. A sparse lineage with no other filter scans to fill a page, so filter by `body.kind`.
-- **Find.** A guest's or member's `find` (MCP and `GET /v1/find`) is refused with the same code, because find matches body text. Read the room's records instead: `read_thread`, or `POST /v1/records/query` by kind.
+- **Find.** A guest's or member's `find` (MCP and `GET /v1/find`) is refused with the same code, because find matches body text. Read the records of the conversations you're in instead: `read_thread`, or `POST /v1/records/query` by kind.
 
-Person-facing words: the manifest entry for `QUERY_FIELD_NOT_READABLE` is empty and owed to story; the kernel serves "You can't filter, sort or group by a field you can't read." until ruled. {/* story: draft (unapproved kernel draft; entry in docs/words/manifest.json is owed) */}
+Person-facing words (approved D548): "Only the workspace's owner can search or filter by this." It joins the kernel's words manifest in 0.280. A 0.279 binary serves its earlier kernel wording.
 
 ## Sequences a narrowed reader sees are its own
 

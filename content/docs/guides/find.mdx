@@ -124,7 +124,7 @@ conversation before acting on it:
 { "name": "find", "arguments": { "q": "deploy checklist", "limit": 5 } }
 ```
 
-Since v0.279.0 this is the owner's tool. For a guest or a member, `find` (over MCP and `GET /v1/find`) is refused with `400 QUERY_FIELD_NOT_READABLE`, the same answer whether or not the term exists, because find matches body text. A non-owner reads their room's records with `read_thread`, or with `POST /v1/records/query` by kind. See [Reads, budgets and cursors](/docs/reference/read-path#filtering-is-decided-by-who-you-are). {/* story: draft */}
+Since v0.279.0 this is the owner's tool. For a guest or a member, `find` (over MCP and `GET /v1/find`) is refused with `400 QUERY_FIELD_NOT_READABLE`, the same answer whether or not the term exists, because find matches body text. A non-owner reads the records of the conversations they're in with `read_thread`, or with `POST /v1/records/query` by kind. See [Reads, budgets and cursors](/docs/reference/read-path#filtering-is-decided-by-who-you-are).
 
 ## Index health and rebuild
 

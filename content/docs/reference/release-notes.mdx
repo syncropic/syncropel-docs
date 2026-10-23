@@ -9,33 +9,34 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 ---
 
-## 0.279.0 (line to come from story)
+## 0.279.0 "Only The Name You Chose"
 
-{/* story: the release line and heading are story's. This heading is a working title. Every bullet below is a draft. Avoid semicolons per D521. */}
+**Someone who hasn't chosen a name shows as "Unnamed member" or "A guest" instead of a code.**
 
-**Reads that can't pile up, names that are never an id, and the first way to publish a page.** {/* story: draft */}
-
-- **A read can't run away.** Every read now has a time limit. One that goes over answers "This is taking longer than it should, so it stopped. Try again in a moment." {/* story: draft */} Only one big read per person runs at a time, and an export that an erase overtakes stops and has to be run again. See [Reads, budgets and cursors](/docs/reference/read-path). {/* story: draft */}
-- **Nobody is named by an id.** A member who hasn't been named shows as "Unnamed member", a guest as "A guest", and a person from another workspace as "Someone from another workspace". {/* story: draft */} Only the owner sees a member's handle, beside the name and never as it. {/* story: draft */}
-- **Lists you page through are sealed.** A page marker only works for the person it was given to and only when sent back unchanged. A list left open across the upgrade starts again from the top. {/* story: draft */}
-- **What others can search and filter is narrower.** A guest or member can no longer search a workspace's text or filter on fields they can't read. They read their room's conversations instead. {/* story: draft */}
-- **Timing details are the owner's.** Only the owner sees how long each step of a request took. {/* story: draft */}
-- **Forget where I was.** You can clear every place a workspace has kept for you in one step. {/* story: draft */}
-- **Signatures mean who signed.** A signature now verifies only against the key of the person it names. A blueprint's signing time is inside its signature. {/* story: draft */}
-- **An erased person leaves fewer traces.** An erased person's identity is gone from sealed records' copies off the machine, from exports, and from the record of who decided something. A person's sign-in that an erase ended says so after a restart. {/* story: draft */}
-- **Saved copies are checked by name.** `spl doctor` compares the off-machine copy with the workspace and fails if the copy lacks records the workspace holds. {/* story: draft */}
-- **Apps that read, and pages you publish.** Both are off on hosted workspaces for now. An app can read what it declares and nothing else. The owner can publish an app's files as a page at the workspace's address, after approving it. See [Apps that read, and published pages](/docs/reference/apps-and-sites). {/* story: draft */}
+- **People without a name aren't shown by a code.** A member who hasn't chosen a name shows as "Unnamed member", a guest as "A guest", a person from another workspace as "Someone from another workspace", and an owner with no name as "The owner". No door serves an id, the tail of an identity or a handle as a person's name. The members list shows a member's handle to the owner only, beside the name and never as it.
+- **Long reads stop instead of piling up.** Every read has a time limit. One that goes over answers "This is taking longer than it should, so it stopped. Try again in a moment." Each person runs one large read at a time, and an export that an erase overtakes stops and has to be run again. See [Reads, budgets and cursors](/docs/reference/read-path).
+- **Page markers are sealed.** A page marker works only for the person it was given to, and only when it's sent back unchanged. A list left open across the upgrade starts again from the top.
+- **What others can search and filter is narrower.** A guest or a member can't search a workspace's text. Outside what a workspace declares, they can filter only by kind and by a record's own fields. They read the conversations they're in instead.
+- **Timing details are the owner's.** Only the owner sees how long each step of a request took.
+- **Forget where I was.** One request clears everything a workspace kept about where you were in it (`POST /v1/private/kept/purge`).
+- **Signatures mean who signed.** A signature verifies only against the key of the one it names as signing. A blueprint's signing time is inside its signature.
+- **An erased person leaves fewer traces.** Records sealed from 0.279 on carry no identifier for the person in the saved copy. Records sealed earlier still do, and the erase receipt says so. An erased person who decided something leaves nothing for an export to name them by. A sign-in that an erase ended says so after a restart.
+- **Saved copies are checked by name.** `spl doctor` compares the off-machine copy with the workspace and fails when the copy lacks records the workspace holds. Where the check can't run, as on a hosted workspace, it says so.
+- **Apps that read, and pages you publish.** Both are off on hosted workspaces. An app reads only what it declares, and only what the person using it can already read. The owner can publish an app's files as a page at the workspace's address, after approving it. See [Apps that read, and published pages](/docs/reference/apps-and-sites).
 - **For the command line and the API.**
   - Page cursors from 0.278 or earlier are refused with `CURSOR_INVALID`. Start the walk again.
   - `/v1/principals` serves `display_name: null`, `name_source: "none"` and `standing` for an unnamed person. `fallback` and `workspace_label` are gone.
   - A record count that takes too long is `read.total: null` with `read.total_at_least`. Send `"total": "skip"` to skip counting.
   - New refusals: `503 READ_BUDGET_EXCEEDED`, `429 READ_IN_FLIGHT`, `409 READ_STOPPED_BY_ERASE`, `400 QUERY_FIELD_NOT_READABLE`, `403 SITE_THREAD_KERNEL_ONLY`.
-  - Anonymous `/health` no longer shows write-back activity. Send the owner's bearer or read through the socket.
+  - An anonymous `/health` shows only the write-back attach state. Send the owner's bearer, or read through the socket, for the detail.
   - `th_site_*` threads belong to the kernel. A client write there is refused.
 - **Known.**
-  - Files uploaded before 0.279 have no recorded writer, so re-save one to publish it. {/* story: draft */}
-  - Restore a 0.279 copy with 0.279 or later, or other people's sealed records come back as gaps. {/* story: draft */}
-  - A guest can still tell roughly how many writes happened between two rows it can see. Fixed in 0.280. {/* story: draft */}
+  - Files uploaded before 0.279 have no recorded writer. Save one again to publish it.
+  - Restore a copy saved by 0.279 or later with 0.279 or later. An older version brings other people's sealed items back as gaps, and restoring again with 0.279 or later fills them.
+  - A guest can still tell roughly how many writes happened between two rows it can see.
+
+---
+
 ## Reads As You
 
 **Your assistant now reads as the person who asked it, and once it has read something from outside your workspace, it asks you before it acts. A list that shows only part of something says so, and a run says in one word what it's doing and why it stopped.**

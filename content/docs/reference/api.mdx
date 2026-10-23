@@ -1238,7 +1238,7 @@ Since v0.279.0 each person row also carries the fields below, and `GET /v1/princ
 | `is_owner` | `true` only for the workspace's owner. Present on every seen person's row. A never-seen or erased row carries none. |
 | `handle` | Owner-only on `/v1/members`: the member's label, beside the name and never as it. |
 
-`fallback` and `workspace_label` are no longer served for people. When `display_name` is null, draw the stand-in from `standing` and `is_owner`. The command line prints "Unnamed member", "A guest", "Someone from another workspace" and "The owner". {/* story: draft (these four stand-in words come from the changelog; story D530/D531/D539 are cited there, confirm they are the approved forms) */} An erased person reads exactly as one never seen: the same row but for `id`, with no `standing`. The owner's erase-request queue (`GET /v1/erasure/requests`) carries the requester's `handle` the same way, read live and never stored.
+`fallback` and `workspace_label` are no longer served for people. When `display_name` is null, draw the stand-in from `standing` and `is_owner`. The command line prints "Unnamed member", "A guest", "Someone from another workspace" and "The owner". An erased person reads exactly as one never seen: the same row but for `id`, with no `standing`. The owner's erase-request queue (`GET /v1/erasure/requests`) carries the requester's `handle` the same way, read live and never stored.
 
 Migration from 0.278: type `display_name` as nullable (`@syncropel/sdk` does), and stop reading `fallback` and `workspace_label`.
 
