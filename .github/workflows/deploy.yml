@@ -36,6 +36,9 @@ jobs:
       - name: Vocabulary lint
         run: python3 tools/lint-vocabulary.py --mode error content/docs
 
+      - name: Internal links and anchors
+        run: python3 tools/check-anchors.py content/docs
+
       - name: Build static site
         run: npm run build
 
