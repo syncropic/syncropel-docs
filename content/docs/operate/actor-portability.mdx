@@ -5,7 +5,7 @@ description: Export an actor's identity + work trail from one Syncropel instance
 
 ## The problem
 
-Actor identities in Syncropel are content-addressed DIDs (e.g.
+Actor identities in Syncropel are DIDs (e.g.
 `did:sync:agent:dev`). If you're moving from a self-hosted instance to
 a managed one, consolidating across teams, or sunsetting an instance,
 you want the actor's **work trail** to move with them — not just the
@@ -21,7 +21,7 @@ crosses the line.
 |---|---|---|
 | Actor registration record | always | The DID, display name, category, and metadata |
 | Records authored by the actor | always | Every INTEND / DO / KNOW / LEARN the actor emitted |
-| Trust observations **for** the actor | always | Wilson-LB inputs that fed `trust(actor, ...)` |
+| Trust observations **for** the actor | always | The observations that fed the actor's trust scores |
 | Memories **of** the actor | `--include-memories` (default: skill and insight only) | The actor's stored `spl memory` entries |
 
 ## What does NOT move
@@ -63,8 +63,7 @@ spl actor import /tmp/dev-actor-export.ndjson --merge
 ```
 
 The import is **transactional**: either the entire trail is ingested or
-none of it, so a partial failure doesn't leave the target in a
-mixed-state.
+none of it, so a partial failure doesn't leave the target half-imported.
 
 ## Trust discounting
 
@@ -106,10 +105,8 @@ See [Consent model](/docs/guides/consent) for details.
 
 ## Idempotency
 
-`spl actor import` is **idempotent** at the record-id level. Running
-the same export twice produces the same records; the store's
-content-addressing ensures duplicates are not stored twice. This makes
-`spl actor import` safe to re-run on transient failures.
+`spl actor import` is safe to run again. Importing the same export twice
+does not store any record twice, so you can re-run it after a transient failure.
 
 ## When you might migrate
 

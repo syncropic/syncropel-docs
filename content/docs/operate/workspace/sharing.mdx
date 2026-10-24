@@ -1,6 +1,6 @@
 ---
 title: Sharing a thread for bug repro
-description: spl share bundles a thread (with consent) into a single command a recipient can replay against their own instance. Built in, signature-verified, time-bounded.
+description: spl share bundles a thread (with consent) into a single command a recipient can replay against their own instance. Signature-verified and time-bounded.
 ---
 
 `spl share <thread>` is the canonical "send me your repro" workflow.
@@ -15,7 +15,7 @@ It's the right tool for:
 - A user reports a workspace bug; you want the exact records that
   reproduced it.
 - A developer asks a teammate to look at a thread they can't easily
-  reach (different namespace, different instance, federated peer).
+  reach (different namespace, different instance, or a federated peer).
 - An auditor needs a snapshot of a thread for offline review.
 
 It's **not** the right tool for installing a workspace — that's
@@ -73,8 +73,7 @@ includes every reachable record. Use this when the bug repro spans
 multiple threads (e.g. a workspace's manifest in one thread, the
 records that exposed the fold bug in another).
 
-There's a configurable depth limit; reach for `--depth N` if
-you have unusually deep chains.
+Use `--depth N` to limit how far it follows chains.
 
 ### Time-bound the consent
 
@@ -83,8 +82,8 @@ spl share send th_a48c... --to did:sync:dev:alice --expires 7d
 ```
 
 The consent record carries an expiry clock. After 7 days, Alice's
-attempt to replay the bundle will be rejected by signature verification
-(the consent has aged out). Use this for sensitive bundles where
+attempt to replay the bundle will be rejected
+(the consent has expired). Use this for sensitive bundles where
 "forever access" is the wrong default.
 
 You can also revoke a share early by emitting a
@@ -108,8 +107,8 @@ What happens:
 3. It checks the consent hasn't expired.
 4. It validates each record's signature against the actor DIDs in the
    bundle.
-5. It replays the records into Alice's instance — by default into an
-   ephemeral in-memory store so prod data isn't touched.
+5. It replays the records into Alice's instance — by default into a
+   temporary in-memory store so your real data isn't touched.
 6. It prints a summary:
 
    ```
@@ -126,18 +125,15 @@ default store instead of an ephemeral one. The records carry their
 original actor DIDs, so they don't pollute Alice's audit trail with
 phantom authorship — they're clearly marked as replayed.
 
-## Why a records-native flow
+## What a share is made of
 
-`spl share` doesn't introduce any new wire format. It's built from
-existing record kinds:
+`spl share` uses ordinary records and files:
 
 - `core.consent.v1` 
-  authorizes specific access from a specific sender to a specific
-  recipient with optional expiry.
+  gives a specific recipient access, with an optional expiry.
 - The bundle file is just JSONL canonical records — the same shape
   `spl thread snapshot` produces.
-- Replay goes through the normal ingest path, including signature
-  verification.
+- Replay checks every signature as records are added.
 
 If you can `spl thread snapshot` a thread and `spl thread restore` it
 on another instance, you can `spl share` it. The consent record is

@@ -4,8 +4,8 @@ description: The 10 connection-state failure modes the syncropel.com workspace c
 ---
 
 When the Studio workspace can't reach an instance, the connection is in
-exactly one of ten states. Every state has a clear UI signal and a
-one-line fix. This page maps each state to its symptom and remedy so
+exactly one of ten states. Every state has a clear sign on screen and a
+short fix. This page maps each state to its symptom and remedy so
 you can resolve issues without opening DevTools.
 
 ## Quick diagnose
@@ -46,8 +46,7 @@ browser has no stored credential for this instance's DID.
 
 **Fix (fastest, no CLI)**: if you kept a key to this place, open **+ add a connection** and paste the whole line; you are back in as the same person ([Keeping your access](/docs/guides/keeping-your-access)). Members and guests without the CLI should always start here.
 
-**Fix (operator with the CLI)**: Run `spl pair --device browser-<name>`. The
-CLI's first line of output is now a single clickable URL of the form
+**Fix (operator with the CLI)**: Run `spl pair --device browser-<name>`. The CLI's first line of output is a single clickable URL of the form
 `https://syncropel.com/pair#<encoded-payload>`. Click it (or copy
 into your browser). The page decodes the link, verifies the token,
 stores the credential, and redirects you to `/tasks` — all
@@ -55,7 +54,7 @@ without typing or scanning anything. The token rides in the URL fragment
 (after the `#`), which never reaches any server: it stays inside your
 browser.
 
-**Fix (older clients or no clickable URL)**: paste the QR or payload
+**Fix (no clickable URL)**: paste the QR or payload
 into the pairing card. Add `--scopes admin` if you want access to
 admin-only routes.
 
@@ -65,7 +64,7 @@ admin-only routes.
 expired-pairing screen.
 
 **Why**: Stored credential is rejected by the instance — usually because
-the instance's data was nuked since pairing (instance DID changed) or
+the instance's data was wiped since pairing (so its DID changed) or
 the token was revoked.
 
 **Fix**: if you kept a key, paste it into **+ add a connection** first; a revoked or expired bearer does not spend your key, and you come back under the same grant. Otherwise open `/diagnose` and click "Reset pairing", then re-pair
@@ -78,7 +77,7 @@ Some panels render; others show an inline `ApiErrorPanel` saying the
 token is missing a specific scope.
 
 **Why**: `/v1/health` succeeds + the credential is valid, but two or
-more `/v1/*` endpoints have returned `403 SCOPE_FORBIDDEN` in the
+more API endpoints have returned `403 SCOPE_FORBIDDEN` in the
 last 60 seconds. The token is real but doesn't have the scopes this
 view needs.
 
@@ -98,7 +97,7 @@ Or scope it more narrowly to the resources you actually need.
 
 **Why**: Chrome's Private Network Access policy blocks `https://syncropel.com`
 from fetching `http://127.0.0.1` without an explicit ACK from the
-instance. Older instance builds didn't ACK the PNA preflight.
+instance. Older versions of the instance don't answer that browser check.
 
 **Fix**: Upgrade the instance: `curl -sSf https://get.syncropic.com/spl | sh && spl stop && spl serve`. Or grant PNA permission
 manually in `chrome://settings/content/insecureprivatenetwork`.
@@ -108,13 +107,9 @@ manually in `chrome://settings/content/insecureprivatenetwork`.
 **Symptom**: Banner says "Connecting…" and the `InstanceChooser` card
 appears with a list of detected instances.
 
-**Why**: 2+ candidate URLs returned 200 from `/health` (loopback +
-LAN + manually entered URL). The user has to pick one before the
-state machine can classify it.
+**Why**: Two or more addresses answered `/health` (this machine, your LAN, or a URL you entered). You have to pick one.
 
-**Fix**: Click the instance you want. The state machine remembers it
-as the preferred URL via IndexedDB, so subsequent loads skip the
-chooser.
+**Fix**: Click the instance you want. The browser remembers your choice, so later loads skip the chooser.
 
 ### 7. Mobile cold start
 
@@ -122,8 +117,7 @@ chooser.
 banner shows the `MobileLocalWelcome` cards (QR pair + URL paste +
 browse).
 
-**Why**: Phones cannot run a Syncropel instance. The localhost probe
-baseline is replaced with explicit pairing affordances.
+**Why**: Phones cannot run a Syncropel instance. The page offers pairing options instead.
 
 **Fix**: Pair via QR from a desktop / laptop instance. Or paste a URL
 to an instance you've reached on your LAN.
@@ -133,10 +127,9 @@ to an instance you've reached on your LAN.
 **Symptom**: Amber banner says "DEV MODE · auth bypassed".
 
 **Why**: Instance was started with `auth.required = false`, typically
-during dev with `--insecure-localhost` or on an old instance that predates the secure default. Functional but not safe to expose.
+during development with `--insecure-localhost`. Functional but not safe to expose.
 
-**Fix**: Restart with `auth.required = true` (the default in current
-releases) once you've finished dev work. Or leave as-is for ephemeral
+**Fix**: Restart with `auth.required = true` (the default) once you've finished dev work. Or leave as-is for ephemeral
 test instances on `--port 9200 --memory`.
 
 ### 9. Connected (secure)
@@ -153,9 +146,7 @@ queries succeeded.
 **Symptom**: Banner says "Connecting…" and the dashboard renders a
 generic unreachable panel.
 
-**Why**: One of the fall-through states — `remote_unreachable`,
-`cors_blocked`, `daemon_too_old`, `daemon_error`, `token_insufficient`.
-These don't have dedicated Phase 1 surfaces yet.
+**Why**: Some other problem reaching the instance, such as it being unreachable, blocked by CORS, too old, or returning an error.
 
 **Fix**: Open `/diagnose` → "Recent API errors" to see the
 underlying `code` + `message` from the instance. Most often it's
@@ -175,15 +166,14 @@ The instance returns a structured error envelope on every 4xx response:
 }
 ```
 
-The `/local` workspace surfaces these in `<ApiErrorPanel>` with a
-copy-paste suggested fix per code.
+The workspace shows these with a suggested fix you can copy.
 
 | Code | Meaning | Remediation |
 |---|---|---|
 | `AUTH_REQUIRED` | No bearer token sent | `spl pair --device browser-<name>` and retry |
 | `AUTH_INVALID` | Token rejected (expired, revoked, or instance changed) | Reset pairing on `/diagnose`, then re-pair |
 | `SCOPE_FORBIDDEN` | Token valid but missing required scope | Re-pair with `--scopes admin` (or narrower scope per use) |
-| `NOT_FOUND` | Endpoint not available on this instance version | Upgrade the instance or stop using this view |
+| `NOT_FOUND` | Endpoint not available on this instance | Upgrade the instance or stop using this view |
 | `CORS` | Origin not on instance's CORS allowlist | `spl config auth-set-cors-origins https://syncropel.com http://localhost:3000 && spl stop && spl serve` |
 | `PNA` | Browser blocked the cross-origin → loopback fetch | Upgrade the instance or grant PNA permission in browser |
 | `NETWORK` | Couldn't reach the instance | `spl serve --status` and verify with `curl http://localhost:9100/health` |

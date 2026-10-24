@@ -28,11 +28,11 @@ The audit runs against `~/.syncro/secrets/` and `~/.syncro/keys/`. A failed audi
 
 ### Token-at-rest format
 
-Bearer tokens are never stored in the record store as issued. Only a hash lands; the token is shown ONCE at mint time and never persisted in the instance. If you misplace a token, mint a new one.
+Your instance never stores a bearer token as issued. It keeps only a hash. The token is shown ONCE, when you create it. If you misplace a token, mint a new one.
 
 ### Per-instance keypair scope
 
-The identity keypair is per-instance, content-addressed via `did:key`. Rotating the keypair (regenerating the DID) **invalidates all federation pairs** — peers cache the DID and reject pair traffic from a different keypair. Recovery: re-run `spl federation pair` after rotation.
+The identity keypair belongs to one instance (its `did:key`). Rotating the keypair (regenerating the DID) **invalidates all federation pairs** — peers cache the DID and reject pair traffic from a different keypair. Recovery: re-run `spl federation pair` after rotation.
 
 ### Bootstrap discipline
 
@@ -95,15 +95,15 @@ A stolen laptop without full-disk encryption yields your keys. A discarded SSD w
 
 On a hosted instance the operator of the host can access the instance's keys, as with any hosted service; run locally if that is unacceptable. Self-hosting users on shared compute (a VM where another tenant has root) should treat the deployment as compromised by default.
 
-### Audit-emission completeness for portability
+### Audit trail for exports and imports
 
-Every export/import operation emits a `core.portability.event.v1` LEARN record on `th_audit_portability`. Operators auditing "who exported actor X when" or "who initiated instance import" fold this thread:
+Every export or import writes a `core.portability.event.v1` record on `th_audit_portability`. To find out who exported an actor, or who started an instance import, read this thread:
 
 ```bash
 spl thread records th_audit_portability -o json | jq '.[] | .body'
 ```
 
-This audit thread does NOT prevent the export from happening — auth scope (`Admin` for instance-level export, `RecordsRead` for `GET /v1/actors/*/export`) is what gates access. The audit makes consequential ops forensically traceable.
+This audit thread does NOT prevent the export from happening — auth scope (`Admin` for instance-level export, `RecordsRead` for `GET /v1/actors/*/export`) is what gates access. The audit lets you trace who did what.
 
 ## Threat model summary
 
@@ -112,28 +112,26 @@ This audit thread does NOT prevent the export from happening — auth scope (`Ad
 | Casual file enumeration on multi-user host | ✓ | 0600 file permissions |
 | Instance-user-only attacker (no root) | ✓ | 0600 file permissions |
 | Network-only attacker (over HTTP) | ✓ | Bearer-token auth (on by default) |
-| Replay of leaked bearer token | ✓ | Server-side validation against the stored hash |
+| Use of a leaked bearer token | ✓ | Revoke the token; tokens are checked against a stored hash |
 | Host root / instance-user compromise | ✗ | (mitigation: host hardening, full-disk encryption) |
 | Cloud-sync of identity dir | ✗ | (mitigation: explicit exclusion) |
 | Forensic disk imaging | ✗ | (mitigation: full-disk encryption) |
 | Accidental git commit | ✗ | (mitigation: `.gitignore`) |
 | Cross-tenant on shared compute | ✗ | (mitigation: platform-level tenant isolation) |
 | Audit gap on portability ops | ✓ | `th_audit_portability` |
-| A work loop reading the provider credential or the operator's bearer | ✓ (sandboxed transport, the default for every non-operator tier; opt-in for the operator's own runs) | separate isolated process, no network, no view of the instance home, one scoped credential handed to it at start |
-| A same-user process reading the daemon's environment or memory | ✓ | the daemon's process is protected and credentials are moved out of its environment at boot |
-| A run declaring its own success or its own permission to act | ✓ | the instance writes the tool verdict and the outcome; the run credential cannot write either kind |
+| A run reading the provider credential or the operator's bearer | ✓ (sandboxed transport, the default for every non-operator tier; opt-in for the operator's own runs) | separate isolated process, no network, no view of the instance home, one scoped credential |
+| A same-user process reading the workspace's environment or memory | ✓ | the workspace process is protected and credentials are kept out of its environment |
+| A run declaring its own success or its own permission to act | ✓ | the instance writes the tool verdict and the outcome; a run cannot write either |
 
-## Protection domains and the work loop
+## What a run cannot do
 
-Every tool a work loop can reach is classified by protection domain before it is offered, and the domains order: `sandboxed` < `mediated` < `kernel-trust-domain`. A sandboxed worker executes only what its domain allows and asks the kernel for everything else through five doors on a local socket. The daemon checks each isolation layer before it hands the run its credential. The order is the guarantee: a worker that could not be isolated is stopped having never held a credential.
+A sandboxed run cannot grant itself anything. Three things it cannot say about itself:
 
-Three things a run cannot say about itself:
+- **Whether it was allowed to act.** Every tool call is judged by the instance against your live permission rules and recorded as `core.work.tool_verdict.v1` before it runs. A run cannot write that record.
+- **Whether it succeeded.** The instance writes the outcome and checks the run's claim against what its tools did: a run whose every tool call failed is not a success whatever its final answer says. The outcome carries `tool_calls_ok` and `tool_calls_failed`.
+- **What tools it has.** An actor's declared tool list limits its runs. A declaration can narrow what a tier allows, never widen it.
 
-- **Whether it was allowed to act.** Every tool call is judged by the instance over the live permission rules and recorded as `core.work.tool_verdict.v1` before it runs. The run credential cannot write that kind.
-- **Whether it succeeded.** The instance writes the outcome, counts the turns itself, requires a clean exit, and checks the claim against the thread's own tool tally: a run whose every tool call failed is not a success whatever its final answer says. The outcome carries `tool_calls_ok` and `tool_calls_failed`.
-- **What tools it has.** A defined actor's declared tool list bounds its runs on both transports; a declaration can narrow a tier and never widen one.
-
-Host tools (`bash` and the filesystem set) are wired for the operator's own machine only. The rollback for the whole transport is one config record; see [The sandboxed transport](./sandboxed-transport).
+Host tools (`bash` and the file tools) are available on the operator's own machine only. To turn the sandboxed transport off, write one config record; see [The sandboxed transport](./sandboxed-transport).
 
 ## See also
 

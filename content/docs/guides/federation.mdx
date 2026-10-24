@@ -1,17 +1,16 @@
 ---
 title: Federation — pairing two instances
-description: Set up record sync between two Syncropel instances. Covers identity setup, creating pairs, how propagation works, cross-namespace consent, and the common misconfigurations.
+description: Set up record sync between two Syncropel instances by hand. Covers identity setup, creating sync pairs, cross-namespace sharing, and common problems.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-<Callout type="info" title="There's a one-command path now">
-  **`spl federation pair <peer-url>`** does everything below in one command —
-  discovers the peer manifest, runs the handshake, mints reciprocal tokens,
-  persists pair records on both sides, and `spl sync` consults the pair store
-  automatically. Most operators should follow the
-  [pair primitive guide](./federation-pair) instead. This page documents the
-  manual sync setup for reference.
+<Callout type="info" title="There's a one-command way">
+  **`spl federation pair add <peer-url>`** does everything below in one command.
+  It finds the peer, sets up access on both sides, and lets `spl sync` use
+  the pair automatically. Most people should follow the
+  [federation pairing guide](./federation-pair) instead. This page covers
+  the manual setup.
 </Callout>
 
 ## Who this is for
@@ -22,25 +21,25 @@ If you're trying to *find* peer instances you don't yet have URLs for, start wit
 
 ## How federation works
 
-A **pair** is a unidirectional, thread-scoped subscription. When you create a pair on instance B pointing at instance A for thread T, you are saying: *"B will continuously pull changes for thread T from A."* Records emitted on A (in thread T) will appear on B.
+A **sync pair** is a one-way subscription to one thread. When you create a pair on instance B pointing at instance A for thread T, you are saying: *"B keeps pulling changes for thread T from A."* Records written on A in thread T appear on B.
 
 Three things to keep in mind:
 
-- **Pair direction is data flow direction, inverted.** A pair on B pointing at A means records flow A → B.
-- **Bidirectional sync means two pairs — one on each side.** There is no "bidirectional" flag.
-- **Pairs are per-thread.** Syncing five threads means five pairs.
+- **A pair points at the source.** A pair on B pointing at A means records flow from A to B.
+- **Two-way sync needs two pairs**, one on each side.
+- **Each pair covers one thread.** Syncing five threads takes five pairs.
 
-Records are signed when emitted and verified when received. Duplicate records are automatically de-duplicated by their content hash, so replaying the same record twice has no effect.
+Records are signed when written and checked when received. Receiving the same record twice has no effect.
 
 ## Prerequisites
 
 - `spl` installed on both instances. Verify with `spl version`.
 - Both instances reachable from each other over HTTP. If one is behind NAT or bound to `127.0.0.1`, see the troubleshooting section.
-- Each instance has an identity configured. Run `spl init` once on a fresh install — it generates a keypair and a `did:key:...` identity in `~/.syncro/config.toml`. Upgraded instances without a DID in config need `spl init --force` once.
+- Each instance has an identity configured. Run `spl init` once on a fresh install — it creates a key and a `did:key:...` identity in `~/.syncro/config.toml`. If your config has no identity, run `spl init --force` once.
 
 ## Walk-through: pair two local instances
 
-For demonstration, let's run two instances on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250. The same commands apply when the instances are on different machines.
+As an example, run two instances on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250. The same commands apply when the instances are on different machines.
 
 ### 1. Start both instances
 
@@ -83,7 +82,7 @@ curl -X POST http://localhost:9250/v1/sync/pairs \
     -d "{\"peer_did\":\"$DID_A\",\"peer_url\":\"http://localhost:9200\",\"thread_id\":\"th_federation_demo\"}"
 ```
 
-The response includes a `pair_id` you'll use for status, pause, and remove.
+The response includes a `pair_id`, which you use to check status, pause, and remove the pair.
 
 ### 4. Emit on A, observe on B
 
@@ -91,7 +90,7 @@ The response includes a `pair_id` you'll use for status, pause, and remove.
 # On instance A
 SYNCROPEL_HOME=/tmp/spl-a spl intend --thread th_federation_demo "hello from A"
 
-# Give the sync loop a moment (poll interval defaults to 5 seconds)
+# Wait a moment (it checks every 5 seconds by default)
 sleep 6
 
 # On instance B, query the thread
@@ -110,7 +109,7 @@ SYNCROPEL_HOME=/tmp/spl-a spl fleet sync add \
     "$DID_B" th_federation_demo
 ```
 
-Now records emitted on either side appear on the other within the sync poll interval.
+Now records emitted on either side appear on the other within a few seconds.
 
 ### 6. Inspect pair status
 
@@ -121,15 +120,15 @@ spl fleet sync status <pair_id>
 
 The `state` field shows one of:
 
-- `starting` — pair just created, first poll hasn't completed yet
-- `running` — actively syncing, last poll succeeded
+- `starting` — the pair was just created and hasn't checked yet
+- `running` — syncing, and the last check succeeded
 - `paused` — pair is paused via `spl fleet sync pause <pair_id>`
-- `failing` — pair is retrying with exponential backoff; `last_error` has the reason
+- `failing` — the pair keeps retrying, waiting longer each time; `last_error` has the reason
 - `stopped` — pair has been removed
 
 ### 7. Monitor mesh health at a glance
 
-Once you have several pairs running, the `spl status` command shows a Federation block with every pair on one line each — direction arrow, peer handle, thread, records/minute, lag, error state. It's the easiest way to answer "is anything wrong right now?" without diving into individual pair detail.
+Once you have several pairs, `spl status` shows a Federation section with one line per pair: direction, peer, thread, records per minute, delay, and any error. It is the quickest way to see whether anything is wrong.
 
 ```
 Federation (5 pairs: 3 running, 1 failing, 1 paused)
@@ -141,12 +140,12 @@ Federation (5 pairs: 3 running, 1 failing, 1 paused)
 
 For machine-readable access use `spl status --json` or query the endpoints directly:
 
-- **`GET /v1/sync/health`** — aggregate mesh health: pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency across all pairs, top slowest pairs, top error-prone pairs, any active drift alerts.
-- **`GET /v1/sync/pairs/{id}/stats`** — per-pair detail: rolling rate, latency histogram, error count in the last hour, poll interval state, cumulative counters.
+- **`GET /v1/sync/health`** — overall health: pairs by state, records received per hour and per minute, delivery delay across all pairs, the slowest and most error-prone pairs, and any active alerts.
+- **`GET /v1/sync/pairs/{id}/stats`** — one pair: current rate, delay, errors in the last hour, and totals.
 
-## Peer discovery — finding other instances without hand-configured URLs
+## Peer discovery — finding other instances without typing URLs
 
-You don't have to hand-configure every `peer_did` + `peer_url`. The `spl fleet sync peers discover` command surfaces peers found via four mechanisms:
+You don't have to enter every `peer_did` and `peer_url` by hand. `spl fleet sync peers discover` finds peers in four ways:
 
 ```bash
 spl fleet sync peers discover                            # Try all methods
@@ -156,32 +155,32 @@ spl fleet sync peers discover --method did-sync --namespace acme-corp
 spl fleet sync peers discover --method static            # Peers from config
 ```
 
-**mDNS (LAN broadcast)** — on the same local network, instances advertise themselves on `_syncropel._tcp.local` and discover each other in under a second. Listener is on by default; the broadcaster is off by default (opt in with `[sync.discovery] mdns_broadcast = true` in `~/.syncro/config.toml`).
+**mDNS (LAN broadcast)** — on the same local network, instances can advertise themselves on `_syncropel._tcp.local` and find each other in under a second. Listening is on by default. Advertising is off by default; turn it on with `[sync.discovery] mdns_broadcast = true` in `~/.syncro/config.toml`.
 
-**did:web resolution** — if you know a peer's domain (e.g., `alice.dev`), the resolver does a standard HTTPS GET to `https://alice.dev/.well-known/did.json` and extracts the peer's endpoint. No directory service required. Publish your own domain-hosted DID document with `spl identity publish-did-web --domain alice.dev`.
+**did:web resolution** — if you know a peer's domain (e.g., `alice.dev`), Syncropel reads `https://alice.dev/.well-known/did.json` to find the peer's address. No directory service is needed. Publish your own with `spl identity publish-did-web --domain alice.dev`.
 
-**did:sync directory lookup** — for peers registered in a shared directory (either `discovery.syncropel.com` or a self-hosted one), list all peers in a given namespace, then resolve each DID to its current endpoint.
+**did:sync directory lookup** — for peers registered in a shared directory (`discovery.syncropel.com` or your own), list the peers in a namespace and look up each one's address.
 
-**Static config** — for air-gapped or debugging scenarios, list peers directly in `~/.syncro/config.toml`.
+**Static config** — for isolated networks or debugging, list peers directly in `~/.syncro/config.toml`.
 
-**Discovery never creates pairs automatically.** You always review the discovered list and explicitly run `spl fleet sync add <did> <thread>` for the peers you want.
+**Discovery never creates pairs for you.** Review the list, then run `spl fleet sync add <did> <thread>` for each peer you want.
 
 ## Pair error codes
 
-When a pair is in `failing` state, `last_error` uses structured codes:
+When a pair is `failing`, `last_error` holds one of these codes:
 
 | Code | Meaning | Fix |
 |---|---|---|
 | `CONNECT_REFUSED` | Peer instance not reachable | Check peer is running; if cross-machine, make sure it's not bound only to `127.0.0.1` |
 | `TIMEOUT` | Peer didn't respond in time | Network slow or peer overloaded |
 | `DNS_FAILURE` | `peer_url` hostname doesn't resolve | Typo in the URL, or DNS is unavailable |
-| `HTTP_4XX` | Peer rejected the request | Check namespaces registered, consent grants, signatures |
-| `HTTP_5XX` | Peer instance error | Check the peer's logs |
-| `PARSE_ERROR` | Peer returned malformed JSON | Version mismatch, or the peer isn't an `spl` instance |
+| `HTTP_4XX` | Peer rejected the request | Check that the namespaces are registered, and check consent grants and signatures |
+| `HTTP_5XX` | Error on the peer | Check the peer's logs |
+| `PARSE_ERROR` | Peer returned malformed JSON | The peers run incompatible versions, or the peer isn't an `spl` instance |
 
 ## Cross-namespace sharing
 
-By default, records in one namespace are not visible to a peer in a different namespace — the consent filter blocks them. To grant cross-namespace consent, use `spl consent grant` on the source instance:
+By default, records in one namespace are not visible to a peer in a different namespace — consent blocks them. To grant cross-namespace consent, use `spl consent grant` on the source instance:
 
 ```bash
 spl consent grant --to-namespace partner-team --hash-levels L0,L1,L2,L3
@@ -217,16 +216,16 @@ Namespaces must be registered before records in them can be emitted:
 spl namespace create X --description "..."
 ```
 
-This is an intentional security default. Namespaces are never created implicitly.
+This is a deliberate safety default. Namespaces are never created implicitly.
 
 ### "Pulls return zero records on a thread that should have some"
 
-Check the consent filter. If the source and target namespaces differ and there's no matching consent grant, records are filtered out silently. `spl consent list` on the source shows active grants.
+Check consent. If the source and target namespaces differ and there's no matching consent grant, records are filtered out silently. `spl consent list` on the source shows active grants.
 
 ## What's next
 
-- **[Federation concept](/docs/concepts/federation)** — the high-level model, consent, signatures, conflict resolution
+- **[Federation concept](/docs/concepts/federation)** — how federation works
 - **[Consent management](/docs/guides/consent)** — the full flow for cross-namespace grants
-- **[Authentication & Service Accounts](/docs/operate/keyring)** — the bearer-token + signature composition used at peer boundaries
-- **[API reference: /v1/sync/*](/docs/reference/api)** — the HTTP surface, for building clients
+- **[Authentication & Service Accounts](/docs/operate/keyring)** — how bearer tokens and signatures work between peers
+- **[API reference: /v1/sync/*](/docs/reference/api)** — the HTTP API, for building clients
 - **[CLI reference: spl fleet sync](/docs/reference/cli)** — all subcommands

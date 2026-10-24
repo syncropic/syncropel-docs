@@ -1,15 +1,15 @@
 ---
-title: Audit-critical decisions with ensemble + audit
-description: Fan out a compliance question to three LLMs, consensus-fold their answers, then require a trusted compliance officer to audit the folded result before it's committed.
+title: Audit-critical decisions with several AI models and a check
+description: Ask three AI models a compliance question, combine their answers, then require a trusted compliance officer to check the result before it is saved.
 ---
 
 ## Problem
 
-You run a regulated service. Some decisions (grant a customer a waiver, approve a refund above a ceiling, sign off on a disclosure) need a compliance stamp even though the actual reasoning is well within LLM capability. You want an ensemble of LLMs to reason about the decision AND a named compliance officer to approve the folded result before anything commits.
+You run a regulated service. Some decisions (granting a customer a waiver, approving a refund above a limit, signing off a disclosure) need a compliance sign-off even though an AI model can do the reasoning. You want several AI models to reason about the decision AND a named compliance officer to approve the combined result before anything is saved.
 
 ## Recipe
 
-`ensemble_with_audit` orchestration. Three LLMs reason in parallel, `consensus` fold combines them, then the compliance officer audits. Obligation resolution is `validation_error` — any inconsistency halts the query rather than silently last-writer-wins.
+The `ensemble_with_audit` pattern. Three AI models answer at the same time, `consensus` combines their answers, then the compliance officer checks the result. Conflicts are handled with `validation_error`: any inconsistency stops the query, instead of the last answer silently winning.
 
 ```json
 {
@@ -64,18 +64,18 @@ spl infer --query-file compliance-query.json --wait --poll-timeout-secs 86400
 
 ## What happens
 
-1. Executor validates query.
-2. Hard-filter + relevance yields the three LLMs and the compliance officer.
-3. Dispatches three CALLs to the LLMs in parallel (the auditor is held back).
-4. Awaits LLM responses — `min_quorum: 2` means at least 2 must respond.
-5. Runs `consensus` fold on the primary responses.
-6. Dispatches ONE CALL to the compliance officer with the folded answer as `input`.
-7. Awaits the officer's DO.
-8. Evaluates `audit.approved == true` against the officer's response.
-9. On approve: commits the ensemble's folded answer as the KNOW, with an `audit` field attached.
-10. On reject: commits a KNOW with `body.audit.rejected: true` + the officer's `body.rationale`. The decision is NOT executed.
+1. The query is checked.
+2. The three AI models and the compliance officer are chosen.
+3. The three AI models are asked at the same time. The officer is not asked yet.
+4. It waits for their answers. `min_quorum: 2` means at least 2 must reply.
+5. `consensus` combines their answers.
+6. The combined answer is sent to the compliance officer.
+7. It waits for the officer's reply (a `DO` record).
+8. It checks `audit.approved == true` in that reply.
+9. If approved: the combined answer is saved as the result (a `KNOW`), with an `audit` field attached.
+10. If rejected: a `KNOW` is saved with `body.audit.rejected: true` and the officer's `body.rationale`. The decision is NOT carried out.
 
-## Expected KNOW on approval
+## Result when approved
 
 ```json
 {
@@ -105,7 +105,7 @@ spl infer --query-file compliance-query.json --wait --poll-timeout-secs 86400
 }
 ```
 
-## Expected KNOW on rejection
+## Result when rejected
 
 ```json
 {
@@ -123,23 +123,23 @@ spl infer --query-file compliance-query.json --wait --poll-timeout-secs 86400
 }
 ```
 
-Downstream systems that route on `body.approved` will skip executing the waiver. The record is durable; nothing is lost.
+Systems that act on `body.approved` will skip the waiver. The record is kept, so nothing is lost.
 
-## Why validation_error?
+## Why `validation_error`?
 
-`obligation_resolution: "validation_error"` means: if any responses carry conflicting modifiers (one with `body.fulfills: "..."`, another with `body.cancels: "..."`), the executor halts with `obligation_conflict` instead of silently picking one. For compliance work you want a halt, not a silent resolution.
+`obligation_resolution: "validation_error"` means: if answers conflict (one has `body.fulfills: "..."` and another `body.cancels: "..."`), the query stops with `obligation_conflict` instead of quietly picking one. For compliance work you want it to stop.
 
-Set it to `last_writer_wins` (the default) when conflicts are rare and you're okay with Syncropel picking; set it to `fulfills_wins` when you've modelled your flow such that any fulfillment should preempt cancellation.
+Use `last_writer_wins` (the default) when conflicts are rare and you are happy for Syncropel to pick the latest. Use `fulfills_wins` when a fulfilment should always win over a cancellation.
 
 ## The trade-off
 
-`ensemble_with_audit` is the most expensive pattern. You pay for the primary fan-out AND for the auditor's CALL. If the auditor is human, you pay with latency too — an overnight escalation window is normal.
+`ensemble_with_audit` is the most expensive pattern. You pay for all the AI models AND for the auditor's step. If the auditor is a person, you also wait: an overnight window is normal.
 
-Use this pattern when the cost of a wrong decision exceeds the cost of the audit. Skip it when the decision is reversible, low-stakes, or already covered by a higher-level approval gate.
+Use it when a wrong decision would cost more than the audit. Skip it when the decision can be undone, matters little, or is already covered by another approval.
 
-Also: `consensus` on compliance reasoning is only meaningful if the LLMs can produce structurally comparable bodies. Prompt them to emit the same JSON shape — decision + rationale + approved-boolean — or `consensus` will tie every response into its own bucket and degrade to `best_of`.
+Also, `consensus` only works if the models give answers in the same shape. Ask them all for the same JSON (decision, rationale and an approved true/false), or every answer counts as different and `consensus` falls back to `best_of`.
 
-## Run this against a dev instance
+## Try it on a test workspace
 
 Register the compliance officer actor:
 
@@ -147,10 +147,10 @@ Register the compliance officer actor:
 spl actor register did:example:compliance-officer --category user --display-name "Compliance officer"
 ```
 
-Then configure a webhook or have them open an SSE session to `GET /v1/responders/did:example:compliance-officer/inbound`. For test runs, a webhook to `webhook.site` that you manually reply against is the easiest loop.
+Then set up a webhook for them, or have them open a live-updates (SSE) connection to `GET /v1/responders/did:example:compliance-officer/inbound`. For a test, the easiest way is a webhook to `webhook.site` that you reply to by hand.
 
 ## See also
 
-- **[Orchestration Patterns — ensemble_with_audit](/docs/guides/inference/orchestration-patterns#pattern-ensemble_with_audit)** — full pattern description.
-- **[Query Anatomy — obligation_resolution](/docs/guides/inference/query-anatomy#side-effects)** — the three resolution modes.
-- **[Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence)** — variant where a human is the fallback rather than the mandatory audit.
+- **[Orchestration Patterns — ensemble_with_audit](/docs/guides/inference/orchestration-patterns#pattern-ensemble_with_audit)** — full description of the pattern.
+- **[Query Anatomy — obligation_resolution](/docs/guides/inference/query-anatomy#side-effects)** — the three ways of handling conflicts.
+- **[Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence)** — a version where a person is the fallback rather than a required check.

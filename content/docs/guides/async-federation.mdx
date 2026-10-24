@@ -1,30 +1,30 @@
 ---
 title: Async federation — pairing across offline peers
-description: Use a store-and-forward relay so your laptop and phone can participate in a federation without staying online together. Covers what the relay protects, what it sees, and how to fall back to synchronous federation when both peers are reachable.
+description: Use a relay so instances that are rarely online together can still share records. Covers what the relay protects, what it can see, and how it works alongside direct federation.
 ---
 
 ## Who this is for
 
-You have two Syncropel instances that are rarely online at the same time — a laptop and a mobile device, two teammates in different time zones, or a hosted instance and a home server that sleeps overnight. Standard [synchronous federation](/docs/guides/federation-pair) requires both peers to be reachable during the sync window; async federation works around that with a store-and-forward relay.
+You have two Syncropel instances that are rarely online at the same time, such as a laptop and a phone, two teammates in different time zones, or a hosted instance and a home server that sleeps overnight. [Direct federation](/docs/guides/federation-pair) needs both to be reachable at the same time. A relay holds records for you until the other side comes online.
 
-If your instances are always-on with good network paths to each other, use synchronous federation — it has fewer moving parts. This guide is for the case where they aren't.
+If your instances are always on and can reach each other, use direct federation. It is simpler. This guide is for when they can't.
 
 ## What async federation unlocks
 
-A relay is a dumb mailbox addressed by receiver DID. Senders deposit envelopes (signed record bundles); receivers poll or long-poll for their mailbox when they come online. The relay does not verify signatures — that's end-to-end, on the receiver. It does not see record semantics inside encrypted envelopes.
+A relay is a simple mailbox addressed by the receiver's DID (its identity). Senders drop off envelopes (signed bundles of records). Receivers collect them when they come online. The relay does not check signatures; the receiver does. It cannot read records inside encrypted envelopes.
 
 This means:
 
-- **Laptops and phones can participate.** The relay retains envelopes for up to 30 days; you don't lose records because you closed your lid.
-- **No scheduling coordination.** Sender and receiver never need to be online together.
-- **No public-IP requirement on either side.** Both peers reach the relay outbound; no one is accepting inbound connections.
-- **Fallback to direct delivery.** Senders try direct HTTPS first when available; the relay is the backup path, not the only path.
+- **Laptops and phones can take part.** The relay keeps envelopes for up to 30 days, so closing your lid loses nothing.
+- **No scheduling.** Sender and receiver never need to be online together.
+- **No public address needed.** Both sides connect out to the relay, and neither accepts incoming connections.
+- **Direct delivery still works.** Senders try a direct connection first. The relay is the backup.
 
 ## Setup
 
 ### Pick a relay
 
-ships with a free public relay at `https://relay.syncropel.com`. Use it for experimentation, personal federation, or small community use. For sovereignty or scale, [run your own](/docs/operate/relay).
+A free public relay is available at `https://relay.syncropel.com`. Use it for experimentation, personal federation, or small community use. For sovereignty or scale, [run your own](/docs/operate/relay).
 
 ### Configure it on the receiving side
 
@@ -44,7 +44,7 @@ spl config relay set https://relay.syncropel.com --for-pair all
 spl config relay set https://private-relay.example.com --for-pair did:sync:user:alice
 ```
 
-After configuration, restart `spl serve` — inbound receive tasks spawn at instance startup.
+After you set a relay, restart `spl serve` so it starts collecting from it.
 
 ```bash
 spl stop
@@ -76,39 +76,37 @@ spl config relay clear --for-pair did:sync:user:alice
 
 ## How it works end-to-end
 
-1. **Sender emits a record** on a thread that has a federation pair pointing at the relay for the target peer.
-2. **Sender's instance builds an envelope** — signs its payload with the sender's DID key, addresses it by receiver DID, and tries direct HTTPS to the receiver first.
-3. **If direct fails** (receiver offline, no route, DNS timeout), the sender deposits the envelope at the configured relay via `POST /v1/mailbox/<receiver-did>`.
-4. **Relay queues the envelope** under the receiver's DID and returns 202 Accepted.
-5. **Receiver polls** `GET /v1/mailbox/<receiver-did>/receive` on its next federation sweep.
-6. **Receiver verifies signatures**, ingests the records into its local store, and sends `POST /v1/mailbox/<receiver-did>/ack` to remove them from the relay.
-7. **Records propagate** through the receiver's normal federation merge path — folded into threads, trust updated, etc.
+1. **The sender writes a record** on a thread that is shared with the peer through the relay.
+2. **The sender's instance packs an envelope**, signs it with the sender's key, addresses it to the receiver's DID, and tries a direct connection first.
+3. **If that fails** (receiver offline, no route, timeout), the sender drops the envelope at the relay with `POST /v1/mailbox/<receiver-did>`.
+4. **The relay holds the envelope** under the receiver's DID and answers 202 Accepted.
+5. **The receiver collects** with `GET /v1/mailbox/<receiver-did>/receive`.
+6. **The receiver checks the signatures**, saves the records, and sends `POST /v1/mailbox/<receiver-did>/ack` so the relay removes them.
+7. **The records appear** in the receiver's threads like any other shared records.
 
-Duplicate envelopes are idempotent — content-addressed IDs mean replaying has no effect. Acks are a hint; even if the receiver never acks, envelopes expire from the relay after their TTL (default 30 days).
+Receiving the same envelope twice is harmless. If the receiver never acknowledges, the envelope still expires from the relay after 30 days.
 
 ## What the relay protects
 
-- **Authenticity**: envelopes are signed by sender DID. A tampered or impersonated envelope fails signature verification at the receiver and is dropped.
-- **Integrity**: records are content-addressed — a mutated record has a different ID, which the receiver detects.
-- **Replay resistance**: envelope IDs are deterministic, so re-deposit is idempotent. A captured-and-replayed envelope is de-duplicated by the relay and wouldn't cause additional side effects at the receiver either (content-addressed records are idempotent).
+- **Authenticity**: envelopes are signed by the sender. A tampered or forged envelope fails the check at the receiver and is dropped.
+- **Integrity**: a changed record no longer matches its ID, and the receiver detects it.
+- **Replay**: sending the same envelope again has no extra effect.
 
 ## What the relay does *not* protect
 
-- **Sender/receiver metadata**: the relay sees which DID is talking to which. If that pairing alone is sensitive, you need an operator you trust, or run your own relay.
+- **Sender/receiver metadata**: the relay sees which DID is talking to which. If that pairing alone is sensitive, use a relay operator you trust, or run your own.
 - **Envelope sizes and timing**: visible to the operator even when contents are encrypted.
 - **Record contents when `encoding: plain`**: cleartext envelopes let a curious operator read your records.
 
-The relay is not an identity provider and not a trust anchor. If it disappeared tomorrow, your records would still be yours — senders retain local copies for ~7 days of retention, and direct delivery paths are independent.
+The relay does not vouch for anyone's identity. If it disappeared, your records would still be yours: senders keep local copies, and direct delivery works without it.
 
 ## Cost
 
-`relay.syncropel.com` is free. No signup, no rate-limit tiers, no API key. The only ceiling is per-receiver queue capacity (10,000 envelopes) and per-envelope TTL (30 days), both of which kick in only if a receiver is offline for very long stretches.
-
-Future hosted-instance tiers may meter relay traffic for premium accounts; for now `relay.syncropel.com` itself is unmetered for both self-hosted and hosted users.
+`relay.syncropel.com` is free. It needs no signup or API key. The only limits are 10,000 queued envelopes per receiver and a 30-day expiry per envelope. You only reach them if a receiver stays offline for a very long time.
 
 ## Pair with synchronous federation
 
-Async federation isn't exclusive with direct peering. The sender instance's federation logic tries direct HTTPS first and falls back to the relay:
+A relay does not replace direct federation. The sender tries a direct connection first and uses the relay if that fails:
 
 ```
 emit record
@@ -123,10 +121,10 @@ This means:
 
 - **Both peers online** → direct HTTP, relay untouched, minimum latency.
 - **Only sender online** → relay absorbs the envelope, receiver picks it up later.
-- **Only receiver online** → receiver polls relay, but nothing is queued yet; receiver waits.
-- **Neither online** → sender retains locally; when sender comes up, relay path activates.
+- **Only receiver online** → receiver checks the relay, finds nothing yet, and waits.
+- **Neither online** → sender keeps the records locally and sends them when it is next online.
 
-You don't choose one or the other. Configure both a federation pair (synchronous) and a relay (async fallback); the instance uses whichever works.
+You don't have to choose. Set up both a federation pair and a relay, and the instance uses whichever works.
 
 ## Troubleshooting
 
@@ -134,25 +132,22 @@ You don't choose one or the other. Configure both a federation pair (synchronous
 
 1. `spl config relay show` — is the URL what you expect? Catch-all vs peer-specific scoping matters.
 2. `spl config relay status` — does `/health` respond?
-3. Did you restart `spl serve` after setting the relay? Receive tasks spawn at startup only.
+3. Did you restart `spl serve` after setting the relay? It only starts collecting at startup.
 4. From the sender side: `spl fleet sync status` — does it show the relay as the delivery path? If it's still trying direct and failing, check whether the peer's federation URL is correct on the sender.
 
 ### Envelopes keep redelivering (appearing again after I thought I acked them)
 
-The receiver acks after successful ingest. If the receiver's instance crashes or is killed between receive and ack, the next poll re-fetches the envelopes. Idempotent ingest at the receiver means this is safe — no duplicate records land in your store, but your relay's ack counter lags for a beat.
+The receiver acknowledges after it saves the records. If it stops between receiving and acknowledging, the next check collects them again. This is safe: no duplicate records are saved.
 
-Persistent redelivery without crash means the ack POST is failing. Check network connectivity from the receiver to the relay; this is the same path as receive, so receive working and ack failing points at an intermittent network fault or a reverse-proxy timing out on the POST.
+If envelopes keep coming back without any crash, the acknowledgement is failing. Check the network between the receiver and the relay. Receiving works but acknowledging fails when the network is flaky or a proxy times out on the POST.
 
 ### I see a big backlog on `spl config relay status`
 
-The relay's `/metrics` endpoint (if you're operating the relay or have read access) exposes `relay_queue_size{did="<your-did>"}`. If that's climbing, your instance isn't draining fast enough. Options:
-
-- Increase poll frequency (uses a fixed cadence; a future version adds long-poll).
-- Check whether something is blocking on the receive path — `spl doctor` flags federation stalls.
+The relay's `/metrics` endpoint (if you're operating the relay or have read access) exposes `relay_queue_size{did="<your-did>"}`. If that keeps climbing, your instance isn't collecting fast enough. Run `spl doctor`, which flags stalled federation.
 
 ### I want to delete a relay-configured peer
 
-`spl config relay clear --for-pair <did>` writes a disabling LEARN record. The next broadcast removes the entry from the active config. Restart `spl serve` if you want the receive tasks for that peer to shut down immediately rather than at next natural cycle.
+`spl config relay clear --for-pair <did>` disables the entry. Restart `spl serve` to stop collecting for that peer right away.
 
 ## See also
 

@@ -1,18 +1,18 @@
 ---
 title: Query
-description: Filter records server-side with structured query documents. Supports nested body fields, logical combinators, pagination, and an EXPLAIN plan so you know when a filter hits an index.
+description: "Filter records with structured query documents: nested fields, and/or/not, pagination, and an explain option that shows whether a filter uses an index."
 ---
 
 ## Overview
 
-Query lets you ask the workspace: _"give me every record where X"_, with X expressed as a structured filter document. The filter runs server-side — nothing streams over the wire except the matches. This is the right tool for any query that touches more than one thread, any filter over body shape (`body.kind`, `body.priority`, `body._refs.*`), or any workload big enough that client-side filtering wastes bandwidth.
+Query lets you ask the workspace: _"give me every record where X"_, with X expressed as a structured filter document. The filter runs on the workspace, so only the matches are sent to you. Use it for any query that touches more than one thread, any filter over body shape (`body.kind`, `body.priority`, `body._refs.*`), or any data large enough that filtering in your own code would waste bandwidth.
 
 Two entry points:
 
 - **HTTP**: `POST /v1/records/query` with a JSON body describing the filter.
 - **SDK**: `client.richQuery({ filter, ... })` (TypeScript) or `await client.query(filter, ...)` (Python).
 
-This guide covers both surfaces, the filter AST, and how to use the `explain` flag to verify an index is being used.
+This guide covers both, the filter format, and how to use the `explain` flag to check that an index is being used.
 
 ## Quick Start
 
@@ -114,7 +114,7 @@ Top-level fields are AND-combined implicitly, so `$and` is usually only needed i
 
 ### Allowed field paths
 
-The parser restricts paths to a whitelist — callers cannot reach into private columns (`sig`, `canonical_json`) or invent paths that bypass the JSON1 layer.
+Only these paths are allowed. Other fields, such as signatures, can't be queried.
 
 - **Top-level columns**: `id`, `thread`, `actor`, `act`, `clock`, `data_type`, `namespace`, `created_at`
 - **Body paths**: `body.<segment>[.<segment>...]` where each segment matches `[A-Za-z0-9_-]+`
@@ -125,7 +125,7 @@ So `body.kind`, `body.priority`, and `body._refs.music_artist` all work; `body` 
 
 ```json
 {
-  "filter":   { /* AST described above */ },
+  "filter":   { /* the filter described above */ },
   "thread":   "th_optional_scope",
   "sort":     { "clock": -1 },
   "limit":    100,
@@ -134,37 +134,28 @@ So `body.kind`, `body.priority`, and `body._refs.music_artist` all work; `body` 
 }
 ```
 
-- **`thread`** — optional thread-scope. Shorthand for adding `{ "thread": "th_..." }` to the filter. Uses the thread index directly.
-- **`sort`** — single-key document; value is `1` for ascending, `-1` for descending. Example: `{ "clock": -1 }` (newest first), `{ "created_at": 1 }` (oldest first), `{ "body.priority": -1 }` (highest priority first — but see [Indexed Field Registry](./body-kind-manifest) for why you'll want to declare body fields first).
-- **`limit`**: default 100, clamped to 1000. Asking for more returns 1000 rows and `capped: true`; read `capped` to know a page is partial. `matched_total` is disclosure-aware (it is served only when nothing was withheld from you, and otherwise counts the rows *you* may see), so it is a count over your own view rather than over the workspace, and it is still not a substitute for `capped` when deciding whether you have the whole answer.
+- **`thread`** — optional thread-scope. Shorthand for adding `{ "thread": "th_..." }` to the filter. This is fast.
+- **`sort`** — single-key document; value is `1` for ascending, `-1` for descending. Example: `{ "clock": -1 }` (newest first), `{ "created_at": 1 }` (oldest first), `{ "body.priority": -1 }` (highest priority first, but see [Indexed Field Registry](./body-kind-manifest) for why you'll want to declare body fields first).
+- **`limit`**: default 100, clamped to 1000. Asking for more returns 1000 rows and `capped: true`; read `capped` to know a page is partial. `matched_total` counts only the rows *you* are allowed to see, so it can be lower than the workspace's real total. Use `capped`, not `matched_total`, to decide whether you have the whole answer.
 - **`offset`** — for pagination. Prefer `{ "clock": { "$gt": last_clock } }` as a cursor once you have one — cursor-style pagination is cheaper than deep offsets.
-- **Counts and pages:** a count that takes more than 250 ms answers `read.total: null` with `read.total_at_least`; send `"total": "skip"` to count nothing. Page cursors are sealed: send `next_cursor` back unchanged as `cursor`, or get `400 CURSOR_INVALID`. A read past its budget answers `503 READ_BUDGET_EXCEEDED`. See [Reads, budgets and cursors](/docs/reference/read-path).
+- **Counts and pages:** a count that takes more than 250 ms answers `read.total: null` with `read.total_at_least`; send `"total": "skip"` to count nothing. Send `next_cursor` back unchanged as `cursor`, or you get `400 CURSOR_INVALID`. A read that takes too long answers `503 READ_BUDGET_EXCEEDED`. See [Reads, budgets and cursors](/docs/reference/read-path).
 - **Who can filter on what:** outside the owner, a filter, sort or group is allowed on the routing fields (`body.kind`, the record's own fields) and on declared surfaces; any other body field is `400 QUERY_FIELD_NOT_READABLE {field}`. `"own_writes": true` serves the caller's own writes with body filters. See [the rules](/docs/reference/read-path#filtering-is-decided-by-who-you-are).
-- **`explain`** — when `true`, the response includes a `plan` describing which fields used a top-level column (indexed), and which fields fell to the body-scan path.
+- **`explain`** — when `true`, the response includes a `plan` describing which fields used an index and which fields had to scan record bodies.
 
 ## The same grammar, from inside an actor
 
-A work-loop actor reaches this filter language through its `query_thread`
-tool rather than over HTTP, and it is the same grammar running through the
-same governed door:
+An actor working on a task uses this same filter format through its `query_thread`
+tool instead of HTTP, with the same access rules:
 
 ```json
 {"thread": "th_library", "filter": {"body.kind": "track.v1", "body.labeled": false}, "count_only": true}
 ```
 
-`count_only` answers how many without returning the rows, which is how an
-actor counts a large thread inside its budget instead of paging it into
-context. Because it is the same door, a sandboxed run takes the identical
-path and discloses exactly what its credential could read anyway.
+`count_only` returns how many records match without returning them, so an
+actor can count a large thread without loading it all. A sandboxed run sees
+exactly what its credential could read anyway.
 
-Two refusals are worth knowing. A field path that is not addressable comes
-back named (`unknown field path: kind` — body fields are `body.<path>`), and
-it is named the same way on both transports rather than degrading into a
-storage error in the sandbox. And a filter that matched nothing is reported
-differently from a thread the run cannot see: the first says the filter is
-valid and matched nothing here, the second says the thread may hold records
-outside this run's view. Neither is proof of absence, and an actor that
-confuses them will state one as the other.
+Two messages are worth knowing. A field path that can't be used is named in the error (`unknown field path: kind`; body fields are `body.<path>`). And "the filter matched nothing" is reported differently from "the thread may hold records outside this run's view". Neither proves nothing exists, so don't treat them as the same answer.
 
 ## Using `explain`
 
@@ -189,7 +180,7 @@ Example response:
 }
 ```
 
-The plan says `body.kind` was matched by scanning record bodies, a full scan without the right index. To upgrade that to an expression index scan, declare a [body-kind manifest](./body-kind-manifest):
+The plan says `body.kind` was matched by scanning record bodies, a slow scan. To make it use an index, declare a [body-kind manifest](./body-kind-manifest):
 
 ```bash
 spl config add-body-kind-manifest \
@@ -212,7 +203,7 @@ After the workspace reloads config, queries on `body.kind` are served from the n
 }
 ```
 
-The `thread` shortcut hits the primary index directly. Cheap regardless of corpus size.
+The `thread` shortcut is fast however much data you have.
 
 ### "All tasks assigned to a specific agent"
 
@@ -240,7 +231,7 @@ Declare `body.kind` + `body.assigned_to` in a manifest to avoid the body scan on
 }
 ```
 
-`created_at` is a top-level column; no manifest needed.
+`created_at` is already indexed; no manifest needed.
 
 ### "Reference lookup"
 
@@ -268,28 +259,28 @@ References stored via `Ref.*` constructors in the SDK live at `body._refs.<entit
 
 ## Limits & Failure Modes
 
-- **Filter depth**: parser handles arbitrarily nested `$and`/`$or`, but the generated SQL complexity grows with nesting. Keep filters under ~10 levels for predictability.
-- **Type mismatches**: comparing a body field that is sometimes a string and sometimes an object returns no match; the comparison uses the stored JSON type, so `$.x = "foo"` will not match when the stored `$.x` is an object. Use `$exists: true` if you only need to check presence.
+- **Filter depth**: nested `$and`/`$or` works, but deep nesting gets slower. Keep filters under about 10 levels.
+- **Type mismatches**: comparing a body field that is sometimes a string and sometimes an object returns no match; the comparison uses the stored type, so a text filter won't match when the stored value is an object. Use `$exists: true` if you only need to check presence.
 - **No joins**: the filter operates on one record at a time. For "records where another record referencing them exists", compose two queries client-side.
-- **Fail-open SDK transport**: both SDKs return an empty record list (not an exception) on network/5xx failures. Check `result.records.length` — zero is ambiguous between "no matches" and "transport failed". Use the `onEmit` hook or the raw HTTP call if you need to distinguish.
+- **SDKs on network errors**: both SDKs return an empty record list (not an exception) on network or server errors. An empty list can mean "no matches" or "the request failed". Use the `onEmit` hook or the raw HTTP call if you need to tell them apart.
 
 ## A query can be a record (`core.query.v1`)
 
-Everything above is the query *mechanism* — a filter you send and a result you read. When a query is worth **keeping** — a view you return to, a scope you want named, a standing question — it graduates to a record: the body kind **`core.query.v1`**.
+Everything above is a filter you send and a result you read. When a query is worth **keeping** (a view you return to, a named scope, a standing question), you save it as a record of kind **`core.query.v1`**.
 
-The same primitive spans the whole lifecycle. A one-off filter, a saved View, and a standing (live) query are not different kinds — they are one `core.query.v1` record at different stages, kept on the `th_queries` thread. The record carries:
+A one-off filter, a saved View and a standing (live) query are all the same kind of record, `core.query.v1`, kept on the `th_queries` thread. The record carries:
 
-- **`pipeline`** — the bounded filter/facet/sort/window (the same filter you would send directly).
+- **`pipeline`** — the filter, facets, sort and window (the same filter you would send directly).
 - **`name`** — required once the query is `saved`.
-- **`saved` / `live`** — lifecycle flags: `saved` promotes a typed-once filter to a durable View; `live` marks it a standing query.
-- **`provenance`** — where it came from: `source_thread` (the conversation that shaped it), `trigger_record`, `derived_from` (a prior query it was forked from).
+- **`saved` / `live`** — lifecycle flags: `saved` turns a one-time filter into a lasting View; `live` makes it a standing query.
+- **`provenance`** — where it came from: `source_thread` (the conversation that shaped it), `trigger_record`, `derived_from` (an earlier query it was copied from).
 
-A saved View has a durable identity and history you can revisit and share, rather than a request you re-type. Queries are saved and promoted in the workspace (the Studio scope bar). There is no CLI command for them: you write a `core.query.v1` record like any other.
+A saved View has a lasting identity and history you can revisit and share, so you don't have to retype it. Queries are saved and promoted in the workspace (the Studio scope bar). There is no CLI command for them: you write a `core.query.v1` record like any other.
 
-`core.query.v1` is distinct from **`core.graph.query.v1`** (a request to walk a peer's graph across a federation). A similar word for a different thing; the two are not interchangeable.
+`core.query.v1` is distinct from **`core.graph.query.v1`** (a request to explore a connected workspace's graph). The two are different and not interchangeable.
 
 ## Next Steps
 
-- [**Body-Kind Manifests**](./body-kind-manifest) — declare which body fields to index so rich-query filter predicates scan instead of sort.
-- [**CEL Expressions**](./cel-expressions) — when the filter needs to compose with engine-side logic (triggers, routing, preconditions), CEL is the right layer.
+- [**Body-Kind Manifests**](./body-kind-manifest) — declare which body fields to index so filters on those fields run fast.
+- [**CEL Expressions**](./cel-expressions) — when you need conditions for triggers, routing or preconditions, use CEL.
 - [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk) — full client reference.

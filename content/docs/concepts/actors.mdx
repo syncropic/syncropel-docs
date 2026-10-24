@@ -1,67 +1,65 @@
 ---
 title: Actors
-description: Every participant, human, AI agent, service account, system component, is an actor with a DID, a trust profile, and a memory. The protocol treats them uniformly.
+description: Every participant, whether a person, an AI agent, a service account or a system component, is an actor with an identity, a trust record and a memory.
 ---
 
 ## Overview
 
-An actor is any entity that emits records. A person typing at a terminal, an AI agent running in a subprocess, a CI pipeline posting via HTTP, a federation peer syncing records from across the network, all of them are actors. Syncropel does not distinguish "user" from "agent" at the data plane. Everyone produces the same record shape and accumulates the same kind of trust evidence.
+An actor is anyone or anything that writes records: a person at a terminal, an AI agent, a CI pipeline calling the HTTP API, or a paired workspace syncing records. Syncropel treats them all the same way. Everyone writes the same kind of record and builds up trust the same way.
 
-This uniformity is the design. A hybrid human-AI team needs a model where "who did it" is a first-class field with consistent semantics; two separate identity models (one for humans, one for AIs) would force every downstream consumer, trust, governance, audit, to branch. The actor model collapses that into one.
+Because "who did it" works the same for people and AI, trust, permissions and audit don't need separate rules for each.
 
-An actor consists of four pieces: a DID (the permanent handle), a trust profile (domain-scoped evidence), a memory (persistent context across sessions), and, for anything calling the HTTP API, an authenticator (a bearer token, a federation signature, or a keychain-held private key).
+An actor has four parts: an identity (its DID), a trust record, a memory that lasts across sessions, and, for anything calling the HTTP API, a way to prove who it is (a bearer token, a signature, or a private key in your keychain).
 
 ## DID: the permanent handle
 
-Every actor has a Decentralized Identifier:
+Every actor has a DID, a permanent identifier:
 
 ```
 did:sync:user:alice          - a human
 did:sync:agent:dev           - an AI development agent
 did:sync:agent:reviewer      - an AI review agent
-did:sync:system:engine       - the runtime itself (emits notifications)
-did:sync:system:intelligence - the runtime's reasoning agent
+did:sync:system:engine       - the workspace itself (writes notifications)
+did:sync:system:intelligence - the workspace's proposing agent
 did:sync:system:sa_abc123    - a service account (bearer-token authenticated)
-did:key:z6Mk...              - a self-describing public-key identity
-did:web:alice.dev            - a domain-rooted identity
+did:key:z6Mk...              - an identity based on a public key
+did:web:alice.dev            - an identity tied to a domain you control
 ```
 
-The last segment (`alice`, `dev`, `reviewer`) is a human-readable label, the suffix is arbitrary. What matters is the full DID, because that's what every record carries in `record.actor` and what trust and routing key on.
+The last part (`alice`, `dev`, `reviewer`) is just a readable label. What matters is the full DID, because every record carries it and trust and routing use it.
 
-Three properties hold across all DIDs:
+Three things hold for every DID:
 
-1. **Permanence.** Once trust is accumulated under a DID, it does not migrate to a different one. Swap the AI model behind `did:sync:agent:dev` and its trust persists, the DID is the identity, not the underlying model.
-2. **Global uniqueness at the namespace level.** Two records with `actor = did:sync:user:alice` on the same namespace mean the same person. Two people named Alice at different orgs get different DIDs (`did:sync:user:alice@acme` vs `did:sync:user:alice@bigcorp`) or different namespaces.
-3. **No authority needed.** `did:key` is self-describing (the DID *is* the public key). `did:web` resolves over HTTPS at a domain you control. `did:sync` resolves through the Syncropic-hosted or self-hosted directory. Pick whichever matches your trust model.
+1. **Permanence.** Trust built up under a DID stays with it. If you swap the AI model behind `did:sync:agent:dev`, its trust stays: the DID is the identity, not the model.
+2. **Uniqueness within a namespace.** Two records from `did:sync:user:alice` in the same namespace are from the same person. Two people named Alice at different organizations get different DIDs (such as `did:sync:user:alice@acme`) or live in different namespaces.
+3. **No central authority needed.** `did:key` is the public key itself. `did:web` is found over HTTPS at a domain you control. `did:sync` is found through the Syncropic-hosted or your own directory. Pick the one that matches how you want to establish trust.
 
-## The three-layer separation
-
-Actor identity is layered to make model changes invisible to anyone but the operator:
+## Identity, model and session
 
 | Layer | What it is | How often it changes |
 |---|---|---|
-| **Identity (DID)** | The permanent handle. `did:sync:agent:dev`. | Never. |
-| **Implementation** | The current implementation backing the actor, which AI model, which CLI binary, which version of your fine-tune. | Occasionally, a model upgrade, a new adapter version. |
-| **Session** | The currently-running process or session. PID, port, token. | Every session. |
+| **Identity (DID)** | The permanent handle, such as `did:sync:agent:dev`. | Never. |
+| **Implementation** | What currently backs the actor: which AI model, which tool, which version. | Occasionally. |
+| **Session** | The running process or session. | Every session. |
 
-When you upgrade the AI model behind `did:sync:agent:dev`, its DID and trust profile don't change. The accumulated `trust(did:sync:agent:dev, code)` stays where it was, because the evidence is about *what this actor produced under review*, not about *which model produced it*.
+When you upgrade the AI model behind `did:sync:agent:dev`, its DID and trust don't change, because trust reflects what the actor produced under review, not which model produced it.
 
-This also means the trust evidence is worth reading carefully when you *do* swap an implementation. If the new model is meaningfully different, you may want to reset trust manually (emit a `LEARN` record marking the change) rather than letting old evidence persist.
+If the new model is meaningfully different, you may want to reset trust by writing a `LEARN` record that marks the change, rather than letting old evidence carry over.
 
 ## Actor kinds
 
 The second-to-last segment of the DID classifies the actor's kind:
 
 - **`user`**: a human, typically with a keyboard. Emits records via `spl intend/do/know/learn`, through the web UI, or via SDK calls.
-- **`agent`**: an AI. Usually dispatched via an adapter (`cli_adapter`, `proxy_adapter`). Every AI in a dispatched session is a distinct agent DID.
-- **`system`**: a Syncropel component. Writes notifications (`did:sync:system:engine`), proposes routing rules (`did:sync:system:intelligence`), emits governance denials (`did:sync:system:governance`).
+- **`agent`**: an AI. Usually started through an adapter (`cli_adapter`, `proxy_adapter`). Each AI in a session has its own agent DID.
+- **`system`**: a Syncropel component. It writes notifications (`did:sync:system:engine`), proposes routing rules (`did:sync:system:intelligence`) and records permission denials (`did:sync:system:governance`).
 - **`service`**: a machine calling the HTTP API. Phones, CI pipelines, webhooks, federation peers. Authenticated by bearer token minted from `spl service-account create`.
 
-Syncropel treats all four uniformly for trust, routing, and governance. The distinction is editorial, it helps the `spl actor list` view group them and helps humans reading audit logs make sense of what they're looking at.
+Trust, routing and permissions treat all four the same. The kind only helps `spl actor list` group them and helps people reading audit logs.
 
 ## Registration and the actor registry
 
-Before an actor appears in routing rules or CEL expressions, it should be registered:
+Register an actor before you use it in routing rules or expressions:
 
 ```bash
 spl actor register did:sync:agent:reviewer --display-name "Reviewer"
@@ -69,13 +67,13 @@ spl actor list
 spl actor show did:sync:agent:reviewer
 ```
 
-Registration writes a `LEARN` record to `th_actor_registry`. The current registry is built from that thread, and it is what `record.actor` resolution and the CEL `trust()` function consult. Unknown DIDs aren't rejected, they can still appear in `record.actor`, but they won't be found by name-based routing until registered.
+Registration writes a `LEARN` record to `th_actor_registry`. The registry is read from that thread. Unregistered DIDs are not rejected, but name-based routing won't find them until they are registered.
 
-You usually only register every non-human actor you dispatch to. Users can register themselves through `spl init`, which sets up their identity; they don't need to re-register every fresh session.
+Register each non-human actor you hand work to. People are set up by `spl init` and don't need to register again.
 
 ## Trust: domain-scoped evidence
 
-Trust is the visible output of the actor model. Every completed task that passes review adds success evidence; every rejection adds failure evidence. The system tracks this per `(actor, domain, judged_by)`:
+Trust shows how reliable an actor has been. Every completed task that passes review adds success evidence; every rejection adds failure evidence. Syncropel tracks it per actor and area of work (domain):
 
 ```
                           ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
@@ -86,13 +84,13 @@ did:sync:agent:dev      ops              1       4   0.012
 did:sync:agent:reviewer research         0       0   0.000
 ```
 
-Trust starts at zero. With few observations, the score stays conservative. With many observations, it converges to the empirical success rate. See [Trust](/docs/concepts/trust) for the full model: how recent results outweigh old ones, why self-evaluation is structurally ignored, and how the score shapes what a member may do on its own.
+Trust starts at zero. With few observations, the score stays conservative. With many observations, it converges to the empirical success rate. See [Trust](/docs/concepts/trust) for how recent results outweigh old ones, why self-evaluation doesn't count, and how the score shapes what a member may do on its own.
 
-Trust is domain-scoped on purpose. An actor can be excellent in `code` and untrusted in `ops`. Routing rules that match on domain will correctly prefer one actor for code and another for ops without needing a second score.
+Trust is domain-scoped on purpose. An actor can be excellent in `code` and untrusted in `ops`. Routing rules that match on domain can prefer one actor for code and another for ops.
 
 ## Memory: persistent context across sessions
 
-Most actors accumulate memories, learned preferences, techniques, gotchas, references, that persist across session restarts:
+Actors build up memories (preferences, techniques, gotchas, references) that last across sessions:
 
 ```bash
 spl memory list                         # list an actor's memories
@@ -103,36 +101,25 @@ spl memory remove <name>
 spl memory search <keyword>
 ```
 
-Memories are stored as LEARN records on the actor's memory thread. There are four kinds: `user` (stable user preferences), `feedback` (corrections applied in past sessions), `project` (state of ongoing work), and `reference` (useful URLs, conventions, file locations).
+Memories are stored as `LEARN` records on the actor's memory thread. There are four kinds: `user` (stable user preferences), `feedback` (corrections applied in past sessions), `project` (state of ongoing work), and `reference` (useful URLs, conventions, file locations).
 
-When an agent CLI adapter dispatches an agent, it loads the agent's manual from `~/.syncro/<agent>-prompt.md` and the agent's memories from the memory thread, then appends both to the session system prompt. That's how an agent remembers "Alice doesn't want emojis in commit messages" across sessions even though the underlying LLM has no persistent memory of its own.
+When an agent starts, Syncropel loads its manual from `~/.syncro/<agent>-prompt.md` and its memories, and adds both to the session's instructions. That is how an agent remembers "Alice doesn't want emojis in commit messages" even though the AI model itself remembers nothing between sessions.
 
 ## Authenticators: how actors prove they're themselves
 
-For CLI work on the local instance, no authenticator is needed, the actor is inferred from `config.toml` or `SPL_ACTOR` env var. For HTTP API calls, an authenticator is required once the instance has `auth.required = true` (the default):
+For command-line work on your own workspace, no proof is needed: the actor comes from `config.toml` or the `SPL_ACTOR` environment variable. HTTP API calls need one when `auth.required = true` (the default):
 
-- **Bearer tokens**: minted per service account via `spl service-account create`. Injected by the SDK, the CLI, federation peers, and webhooks. Revocable per-token via `spl service-account revoke`.
-- **Signed records for federation**: every record pulled from a peer carries its author's signature. The signature is verified against the actor's DID document on ingest.
-- **Keychain-held private keys**: for operators running their own `did:key` or `did:web` identity. The key lives in `~/.syncro/secrets/`; the instance signs on the actor's behalf.
+- **Bearer tokens**: minted per service account via `spl service-account create`. Used by the SDKs, the CLI, paired workspaces and webhooks. Revocable per-token via `spl service-account revoke`.
+- **Signed records for federation**: every record pulled from a paired workspace carries its author's signature, which is checked when the record arrives.
+- **Keychain-held private keys**: for operators running their own `did:key` or `did:web` identity. The key lives in `~/.syncro/secrets/`; the workspace signs on the actor's behalf.
 
-See the [security model](/docs/operate/security-model) for the full auth workflow, first-SA bootstrap, token lifecycle, federation pairing, emergency recovery.
+See the [security model](/docs/operate/security-model) for sign-in, your first service account, tokens, pairing and recovery.
 
-## The words an actor runs under
+## The instructions an actor runs under
 
-An actor's instructions are a record, not a file. A prompt record carries
-the text (or, for a long document, a reference to a stored blob), an
-optional role (constitution, map, procedures, manual, charter), and the
-actor it was written for. An actor's definition names its prompt by record
-id, and prompts compose: a prompt may cite earlier prompts as its parents,
-and the chain renders oldest first, so a charter reads as constitution,
-then the instance map, then the actor's own procedures.
+An actor's instructions are a record, not a file. A prompt record holds the text (or a reference to a stored document for long ones), an optional role (constitution, map, procedures, manual, charter), and the actor it is for. The actor's definition names its prompt by record ID. Prompts can build on earlier prompts: the chain reads oldest first, so a charter reads as constitution, then the workspace map, then the actor's own procedures.
 
-When a run starts, the instance resolves that chain and stamps the resolved
-prompt's id on the run's record next to the definition it ran under. So
-"which words produced this run" is answered from the log, even after the
-definition has moved on. A prompt that cannot be resolved (missing, the
-wrong kind, a blob the instance does not hold) refuses the run and names
-the record; there is no silent fallback to a default prompt.
+When a run starts, Syncropel resolves the chain and records which prompt the run used, next to the definition it ran under. You can always answer "which instructions produced this run" from the log, even after the definition has changed. If the prompt can't be found or is the wrong kind, the run is refused and the record is named. Syncropel never falls back to a default prompt.
 
 ```json
 {
@@ -144,140 +131,79 @@ the record; there is no silent fallback to a default prompt.
 }
 ```
 
-Write it as a record on any thread, then point the actor at it with
-`"system_prompt_ref": "record:<id>"` in its definition.
+Write it as a record on any thread, then point the actor at it with `"system_prompt_ref": "record:<id>"` in its definition.
 
 ## The threads an actor may read
 
-A defined work-loop actor can declare the threads that are its domain:
+A work-loop actor can declare the threads that are its domain:
 
 ```json
 {"work_loop": {"tools": ["query_thread", "record_note"], "reads": ["th_library"]}}
 ```
 
-Each declared thread lands on the run's credential as standing read
-authority, so a sandboxed run opens with its domain visible instead of
-discovering, one refusal at a time, that it was born blind. The declaration
-is a grant, which means it is bounded, revocable and reviewable: a bounded
-member may declare reads only over threads its own credential could read
-(an uncovered thread refuses with the thread named), and revoking the
-member cascades to everything the definition minted.
+Each declared thread is given to the run as standing read access, so a sandboxed run starts able to see its own domain. The declaration is a grant, so it is limited, revocable and reviewable. A limited member can declare reads only over threads it could already read, and an uncovered thread is refused with the thread named. Revoking the member removes everything its definition granted.
 
 ## How an actor reads
 
-Reading the substrate has three rungs, and an actor is never expected to
-guess at any of them.
+An actor has three ways to read, in order:
 
-`search_records` and `list_threads` find where data lives, so an actor never
-has to invent a thread id. `query_thread` reads a thread it has found and
-prints one line per record; each line ends with `+fields:` naming the body
-fields the preview did not show, so the actor can ask for them by name rather
-than guessing at a schema. When a preview is not enough, `read_record` takes
-that row's thread and clock and returns one record whole, along with the
-record's `version` so the actor can cite exactly what it read.
+1. `search_records` and `list_threads` find where data lives, so an actor never has to guess a thread ID.
+2. `query_thread` reads a thread and prints one line per record. Each line ends with `+fields:` naming the body fields the preview did not show, so the actor can ask for them by name.
+3. `read_record` takes a row's thread and clock and returns one whole record, with its `version` so the actor can cite exactly what it read.
 
-An actor can also ask instead of paging. `query_thread` takes a `filter` over
-body field paths and a `count_only` flag:
+An actor can also ask a question instead of paging. `query_thread` takes a `filter` over body fields and a `count_only` flag:
 
 ```json
 {"thread": "th_library", "filter": {"body.kind": "track.v1", "body.labeled": false}, "count_only": true}
 ```
 
-The filter runs through the same governed read door as every other query, so
-it discloses exactly what the run's credential could see anyway, and the
-sandboxed transport takes the identical path.
+The filter shows only what the run's credential could see anyway.
 
-Three answers that look alike are kept apart on purpose, because an actor
-that confuses them draws a confident wrong conclusion:
+Three similar answers are kept apart so an actor does not draw a wrong conclusion:
 
-- a field **no record carries** renders `(absent)`, and a request where *no*
-  named field exists anywhere is an error naming the fields that do
-- a field carried as **null** renders `null`, which is a fact about the record
-- an **empty answer** always names its bound: nothing visible to this run's
-  credential is not the same as nothing anywhere
+- A field **no record carries** shows `(absent)`. If none of the named fields exist anywhere, you get an error naming the fields that do.
+- A field set to **null** shows `null`, which is a fact about the record.
+- An **empty answer** says what it covers: nothing visible to this run's credential is not the same as nothing anywhere.
 
 ## When an actor asks a person to act
 
-An actor that cannot meet its goal calls `request_decision`, which is the only
-correct way to stop short. If the reason is `decision_required`, the refusal
-also becomes a real question: a `core.work.decision_request.v1` a person can
-answer from the decisions door, the your-call lane, or the run's own row.
+An actor that cannot meet its goal calls `request_decision`, the only correct way to stop short. If the reason is `decision_required`, the refusal also becomes a question a person can answer from [your call](/docs/guides/your-call) or from the run's own row.
 
-A proposal may carry `claims` about the records it depends on:
+A proposal may include `claims` about the records it depends on:
 
 ```json
 {"thread": "th_library", "clock": 12, "field": "body.labeled", "equals": false, "version": "<record id>"}
 ```
 
-Syncropel re-derives each claim from the log **before** anybody is asked to
-act on it. A claim that does not hold comes back to the actor as an error
-naming what the record actually says, so it corrects its own proposal rather
-than a person being handed something untrue. An optional `version` is the
-record id the actor read; citing one that has since changed says re-read
-rather than re-think.
+Syncropel checks each claim against the log before anyone is asked to act on it. A claim that does not hold goes back to the actor as an error saying what the record actually contains, so the actor fixes its own proposal. If a `version` is cited and the record has since changed, the actor is told to re-read it.
 
-## When the environment corrects an actor
+## When Syncropel corrects an actor
 
-An actor is not left alone with its own reasoning. After every tool call the
-Syncropel may add an observation, which the actor sees on its next turn beside
-the tool's own result, never in place of it. An actor repeating the same call
-with identical arguments is told so; an actor circling a thread that keeps
-coming back empty is told that too; and a tool call from a reply that hit the
-output limit is never executed at all, because arguments cut off mid-write
-can parse cleanly and still be incomplete.
+After a tool call, Syncropel may add an observation that the actor sees on its next turn, next to the tool's result. An actor repeating the same call is told so. An actor circling a thread that keeps coming back empty is told that too. A tool call from a reply that was cut off by the output limit is never run, because arguments cut off mid-write can look complete and still be wrong.
 
-Every one of those interventions is a `core.work.observation.v1` record
-naming the rule that fired, so a run that changed course for a reason the
-model did not choose says so, and you can read why.
+Each of these is a `core.work.observation.v1` record naming the rule that fired, so you can read why a run changed course.
 
 ## An actor that defines actors
 
-Every work-loop actor holds three read-and-propose tools beside the
-substrate ones. `list_actors` is the roster: every defined actor with its
-definition's record id, its tools, its words, whether it is enabled, and its
-trust standing per domain. `explain_run` is one run's row: state, turns,
-spend against ceiling, the tool-call tally, the definition and prompt it
-ran under, the open ask. `propose_definition` is the one act: it writes a
-decision request to the operator carrying a complete blueprint and the diff
-against what is installed, and the run waits on the answer.
+Every work-loop actor has three extra tools. `list_actors` lists every defined actor with its definition ID, tools, instructions, whether it is enabled, and its trust per domain. `explain_run` describes one run: state, turns, spend against its ceiling, the tool-call count, the definition and prompt it ran under, and the open question. `propose_definition` writes a decision request to the workspace owner with a complete blueprint and the difference from what is installed. The run waits for the answer.
 
-Approval installs. When the operator approves such a request, the instance
-installs the blueprint as the approver, bounded by the approver's own
-grant, exactly as if they had installed it themselves, and stamps the new
-definition with who proposed it and which request approved it. Nothing the
-proposing actor does can shorten that; it cannot write a definition, and an
-actor running in the sandbox cannot even reach the door.
+Approval installs. When the owner approves, the blueprint is installed as the approver, limited by the approver's own permissions, exactly as if they had installed it. The new definition records who proposed it and which request approved it. The proposing actor cannot shortcut this: it cannot write a definition, and an actor running in the sandbox cannot even reach the approval step.
 
-The **harness engineer** (`did:sync:agent:harness`) is the first actor
-defined this way: an ordinary actor whose domain is the other actors. It
-reads the roster first on every run, reads runs before proposing changes,
-and ends an onboarding conversation with a proposal. It is judged
-second-order: a verdict on a run under a definition it proposed also moves
-its standing in the `harness` domain, and it may never verdict such a run
-itself (`400 VERDICT_SELF_JUDGMENT`). Install it with
-`scripts/install_harness_engineer.sh` from the source repository; the script
-writes its charter as a chain of prompt records, installs the signed
-blueprint through the consent gate, and makes it the actor that answers a
-fresh thread's first message.
+The **harness engineer** (`did:sync:agent:harness`) is an actor defined this way, whose area of work is the other actors. It reads the actor list first on every run, reads runs before proposing changes, and ends an onboarding conversation with a proposal. Its trust is judged one step removed: a verdict on a run under a definition it proposed also moves its standing in the `harness` domain, and it may never give a verdict on such a run itself (`400 VERDICT_SELF_JUDGMENT`).
 
-A definition may declare its own per-run `budget_usd` and `max_turns`. A
-caller's explicit values still win; when a run is started with none (a
-thread default answering a person, a run started without a budget), the
-definition's ceilings apply.
+A definition may set its own per-run `budget_usd` and `max_turns`. Values you give explicitly when starting a run win. When a run is started with none, the definition's limits apply.
 
 ## What actors don't do
 
-Worth naming explicitly because the actor model is compact.
+**Actors don't carry capability grants.** A DID is *who*, not *what they can do*. Permission comes from namespaces, permission rules and consent grants (for pairing). An actor with a valid bearer token hitting a namespace they don't have permission records for still gets a 403.
 
-**Actors don't carry capability grants.** A DID is *who*, not *what they can do*. Authorization comes from namespace narrowing, permission rules (CEL), and consent grants (for federation). An actor with a valid bearer token hitting a namespace they don't have permission records for still gets a 403.
+**Actors don't have private state known only to themselves.** Everything is records. An agent's memory, preferences and history are all in the log, which is how a new session picks up where the last one left off.
 
-**Actors don't have private state known only to themselves.** Everything is records. An agent's memory, preferences, history, all of it is in the log. This is how a dispatched session picks up where the last one left off, and how audit can answer "what did this actor ever do" in one query.
-
-**Actors don't own their records.** A record's `actor` field says who *emitted* it; it does not grant that actor ongoing authority over the record. Corrections, cancellations, and supersessions can come from any actor with permission, not just the original.
+**Actors don't own their records.** A record's `actor` says who wrote it, not who controls it. Any actor with permission can correct or cancel it, not just the original author.
 
 ## What's next
 
-- **[Work loops](/docs/concepts/work-loop)**: the engine-managed plan/act/check primitive an actor can run for multi-step work.
+- **[Work loops](/docs/concepts/work-loop)**: the plan, act and check cycle an actor runs for multi-step work.
 - **[Trust](/docs/concepts/trust)**: the evidence model that ranks actors per domain.
 - **[Records](/docs/concepts/records)**: what actors produce.
 - **[Threads](/docs/concepts/threads)**: the coordination context actors participate in.

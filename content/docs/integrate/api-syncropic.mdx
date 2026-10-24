@@ -1,6 +1,6 @@
 ---
 title: api.syncropic.com — managed inference
-description: OpenAI-compatible inference gateway for Syncropel customers. Use any OpenAI SDK with your Syncropel API key — one endpoint, multiple models, audit on your own records, subscription-aware quotas.
+description: "OpenAI-compatible inference gateway for Syncropel customers. Use any OpenAI SDK with your Syncropel API key: one endpoint, several models, usage records in your own workspace, and quotas that follow your subscription."
 ---
 
 ## TL;DR
@@ -9,14 +9,14 @@ description: OpenAI-compatible inference gateway for Syncropel customers. Use an
 
 - One endpoint, multiple frontier models, no per-provider API keys
 - OpenAI Chat Completions wire shape — every major SDK works without changes
-- Subscription-aware quotas that compose with your hosted instance billing
-- Per-call audit records on your own instance — full cost + token + tier visibility
+- Quotas that follow your subscription and appear on your hosted workspace bill
+- A record of every call in your own workspace, with cost, tokens and tier
 
-Most Syncropel customers don't call `api.syncropic.com` directly — your hosted instance does it for you when your CLI or workspace runs an LLM-backed task. This page is for customers who want to call it programmatically (CLI scripts, application backends, custom agents).
+Most customers don't call `api.syncropic.com` directly. Your hosted workspace does it for you when your CLI or workspace runs a model-backed task. This page is for customers who want to call it programmatically (CLI scripts, application backends, custom agents).
 
 ## What it is
 
-A managed inference gateway. One HTTPS endpoint, OpenAI-compat wire shape, multiple frontier models behind it. You configure once and get the right backing model for whichever model name you ask for.
+A managed inference gateway. One HTTPS endpoint, OpenAI-compat wire shape, multiple frontier models behind it. You set it up once and get the right model for whichever model name you ask for.
 
 ```
                     ┌────────────────────────┐
@@ -25,7 +25,7 @@ your client / app ─→│ api.syncropic.com      │─→ backing model
                     └────────────────────────┘
 ```
 
-You don't manage per-model API keys. Your Syncropel subscription gates the call, the gateway picks the appropriate backend, and you get a normal OpenAI-shaped response back. Audit records land on your instance so cost and usage are queryable.
+You don't manage per-model API keys. Your Syncropel subscription gates the call, the gateway picks the right model, and you get a normal OpenAI-style response back. Records of each call land in your workspace so cost and usage are queryable.
 
 ## Authentication
 
@@ -39,13 +39,13 @@ Three valid bearer types:
 
 | Bearer | Issued by | Use case |
 |---|---|---|
-| **Per-instance bearer** | Hosted instance provisioning | Your hosted instance uses this automatically |
+| **Workspace bearer** | Hosted workspace setup | Your hosted workspace uses this automatically |
 | **User-issued API key** | `syncropel.com/account/api-keys` | Your scripts and apps; revocable per-key |
-| **Self-host bearer** | Your own `spl serve` | Self-host customers running their own instance |
+| **Self-host bearer** | Your own `spl serve` | Customers running their own workspace |
 
-Mint a user-issued API key at [syncropel.com/account/api-keys](https://syncropel.com/account/api-keys). Store the value in a secret manager — the plaintext is shown once at mint time.
+Mint a user-issued API key at [syncropel.com/account/api-keys](https://syncropel.com/account/api-keys). Store the value in a secret manager. It is shown only once, when you create it.
 
-For local dev:
+For local testing:
 
 ```bash
 export SYNCROPEL_API_KEY=sk-...your-key...
@@ -96,12 +96,12 @@ Response headers expose Syncropel-specific cost data:
 | Header | Meaning |
 |---|---|
 | `X-Syncropic-Cost-Cents` | Cost of this call in USD cents (with markup applied) |
-| `X-Syncropic-Tier` | Tier the call was served from (paid / anonymous / self-host) |
+| `X-Syncropic-Tier` | Tier the call was served from (paid, anonymous or self-host) |
 | `X-Syncropic-Request-ID` | Trace ID for support; include when filing tickets |
 
 ## Quick start (any OpenAI SDK)
 
-Because the wire shape is OpenAI-compatible, any OpenAI SDK works by changing the base URL:
+Because the API is OpenAI-compatible, any OpenAI SDK works by changing the base URL:
 
 ### Python (openai package)
 
@@ -175,9 +175,9 @@ for chunk in stream:
 
 Notes:
 
-- **Tokens-on-delivery accounting.** You're billed for what was actually streamed to your client, not what the backing model produced. If you cancel the connection mid-stream, the audit record reflects the partial token count.
-- **Audit records carry a `stream_state` field** — `"completed"` for normal stream end, `"client_disconnect"` if your client closed the connection before the model finished.
-- **Tier gates run up-front.** Subscription, rate limit, and bearer cap are evaluated *before* the upstream call begins; a 429 or 402 surfaces as a normal HTTP response, not as an SSE error frame.
+- **You pay for what you receive.** You are billed for what was actually streamed to your client. If you cancel mid-stream, the record shows the partial token count.
+- **Records carry a `stream_state` field**: `"completed"` for a normal end, `"client_disconnect"` if your client closed the connection before the model finished.
+- **Limits are checked first.** Subscription, rate limit and bearer cap are checked *before* the request starts, so a 429 or 402 comes back as a normal HTTP response, not inside the stream.
 - **Anonymous tier supports streaming** on the included model. Same per-IP throttle as non-streaming.
 
 ## Available models
@@ -240,18 +240,18 @@ Other common error codes:
 | HTTP | `error.code` | Meaning |
 |---|---|---|
 | 401 | `invalid_bearer` | Bearer token doesn't match a known issuer |
-| 401 | `invalid_jwt_signature` | Bearer was a JWT but signature doesn't verify |
+| 401 | `invalid_jwt_signature` | The bearer was a JWT whose signature doesn't verify |
 | 402 | `subscription_required` | No active subscription; upgrade or use anonymous tier |
 | 402 | `quota_exceeded` | Subscription monthly cap exceeded |
 | 429 | `rate_limited` | Per-minute rate limit hit; retry after `retry_after_seconds` |
-| 503 | `provider_error` | Backing model degraded; retry or try a different model |
+| 503 | `provider_error` | The model is having problems; retry or try a different model |
 | 503 | `internal_error` | Gateway error; report `request_id` to support |
 
 Every error response includes a `request_id` — include it in support tickets for fast triage.
 
-## Audit on your own records
+## A record of every call
 
-Every successful call emits an audit record on your hosted instance, under the `th_audit_api_usage` thread. Each record carries:
+Every successful call writes a record in your hosted workspace, on the `th_audit_api_usage` thread. Each record carries:
 
 - `cost_usd` — what the call cost you
 - `tokens_input`, `tokens_output` — what was billed
@@ -267,15 +267,15 @@ spl thread records th_audit_api_usage -o json \
   | jq '.[] | .body | {cost_usd, model, tokens_input, tokens_output}'
 ```
 
-Monthly cost reconciliation is a record query — no external billing dashboard needed.
+You can check monthly costs with a record query, with no separate billing dashboard.
 
 ## Why use api.syncropic.com vs. a model provider directly
 
 You don't *have* to. If you already have an API key for a specific model provider, you can call them directly. The gateway's value is in three properties:
 
 1. **One endpoint, many models.** Switch from one model to another by changing one model string. No new API key, no new SDK.
-2. **Subscription-aligned billing.** Your monthly invoice rolls inference into the same bill as your hosted instance plus included credit, instead of N separate provider invoices.
-3. **Audit on your own records.** Cost and usage land on your instance as records, queryable like any other data.
+2. **One bill.** Your monthly invoice includes inference alongside your hosted workspace, with included credit, instead of several provider invoices.
+3. **Usage in your own records.** Cost and usage land in your workspace as records, queryable like any other data.
 
 For pure cost: direct provider access can be cheaper if you only ever use one provider. For multi-model workflows or unified billing + audit, the gateway pays for itself.
 
@@ -283,4 +283,4 @@ For pure cost: direct provider access can be cheaper if you only ever use one pr
 
 - [Pricing](/docs/get-started/pricing) — subscription tiers + included credit
 - [User-issued API keys](https://syncropel.com/account/api-keys) — mint, revoke, scope
-- [HTTP API reference](/docs/reference/api) — Syncropel instance API (different endpoint, same auth model)
+- [HTTP API reference](/docs/reference/api) — the Syncropel workspace API (a different endpoint with the same sign-in)

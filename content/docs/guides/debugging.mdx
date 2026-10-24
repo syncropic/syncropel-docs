@@ -1,13 +1,13 @@
 ---
 title: Debugging Syncropel
-description: When something isn't doing what you expect — instance won't respond, a task is stuck in the wrong status, a record didn't route — this is the order to reach for tools.
+description: When something isn't working (the server doesn't respond, a task is stuck in the wrong status, a record didn't route), use these tools in this order.
 ---
 
 ## When to use this guide
 
 You're staring at output you don't understand. A `spl status` returned something wrong, a task is in a status you didn't expect, a record didn't trigger the routing rule you thought it would, or the instance isn't responding at all. Before you start grepping logs, work through these tools in order.
 
-The four debugging commands (`spl doctor`, `spl debug replay`, `spl debug thread-diff`, `spl audit export`) cover ~95% of the failure modes you'll hit operating Syncropel. Each one is read-only — none of them mutate state, so you can use them freely without worrying about making things worse.
+Four commands (`spl doctor`, `spl debug replay`, `spl debug thread-diff`, `spl audit export`) cover most problems. Each is read-only, so you can run them freely without making anything worse.
 
 ## Order of operations
 
@@ -25,11 +25,11 @@ The four debugging commands (`spl doctor`, `spl debug replay`, `spl debug thread
 6. tail ~/.syncro/logs/spl.log  ─── last resort: read raw instance output
 ```
 
-Don't jump to step 6 until you've exhausted 1-5. The reason: structured tools tell you "what is broken" much faster than logs tell you "what happened in order".
+Try steps 1-5 before the log. They tell you what is broken much faster than the log tells you what happened.
 
 ## Step 1: `spl doctor` — is the instance healthy?
 
-If you don't know whether the problem is in the instance or your understanding of the instance, run `spl doctor` first. It executes 7 read-only checks and prints PASS/WARN/FAIL with a short reason for each:
+If you don't know whether the problem is in the instance or your understanding of the instance, run `spl doctor` first. It runs 7 read-only checks and prints PASS/WARN/FAIL with a short reason for each:
 
 ```bash
 spl doctor
@@ -55,9 +55,9 @@ Exit code:
 | 1 | At least one WARN, no FAIL |
 | 2 | At least one FAIL |
 
-This is suitable for cron — wire `spl doctor --json` into your monitoring pipeline and alert on exit code != 0. The JSON output is one object per check with `name`, `status`, `detail`.
+You can run it on a schedule: add `spl doctor --json` to your monitoring and alert on a non-zero exit code. The JSON output has one object per check with `name`, `status` and `detail`.
 
-### What each check actually means
+### What each check means
 
 **instance reachable** — `GET /health` returns 200. If this fails, the instance is not running OR not bound to localhost:9100 OR you're pointing `SPL_SERVE_URL` somewhere wrong.
 
@@ -67,11 +67,11 @@ This is suitable for cron — wire `spl doctor --json` into your monitoring pipe
 
 **store path agreement** — the instance's reported store URL matches what the config file says it should be. A WARN here means either the instance was started with an explicit `--store` override, or two instances are running against different stores and you're talking to the wrong one.
 
-**intelligence** — the engine's intelligence agent's enabled state and model. Disabled is fine if you didn't set up an API key; if you did and this says disabled, your key isn't being read.
+**intelligence** — whether the built-in AI assistant is enabled, and which model it uses. Disabled is fine if you didn't set up an API key; if you did and this says disabled, your key isn't being read.
 
-**engine config thread** — `th_engine_config` has at least one record. A WARN means config_loader had nothing to load — your routing rules / fold rules / permission rules / health checks are all empty.
+**engine config thread** — your settings thread (`th_engine_config`) has at least one record. A WARN means there is nothing to load, so your routing rules, status rules, permission rules and health checks are all empty.
 
-**expression cache** — the CEL expression cache stats. A cold cache (0 entries) is normal on a freshly-restarted instance. A WARN means the hit rate is suspiciously low (under 50%) which could indicate the instance is recompiling expressions every evaluation.
+**expression cache** — how well the expression cache is working. An empty cache is normal just after a restart. A WARN means the hit rate is under 50%, which may mean expressions are being recompiled each time.
 
 ### When doctor catches something
 
@@ -112,20 +112,18 @@ spl debug replay th_be084400f080b84313c90321ffda6eae8ffca3b51c05abc13ebbf7403a60
   Final status: review (4 records)
 ```
 
-The arrow (`→`) marks records that caused a status transition. The yellow status text confirms which one moved the task between states. Reading this:
+The arrow (`→`) marks records that changed the task's status. Reading this:
 
-- **clock 0**: task created → inbox (no transition arrow because there was nothing before)
-- **clock 1**: dev marked it active via `spl task start` → transition to `active`
-- **clock 2**: dev claimed completion → transition to `review`
-- **clock 3**: dev claimed completion AGAIN → no transition (still review)
+- **clock 0**: the task was created and went to inbox (no arrow, because there was nothing before it).
+- **clock 1**: dev ran `spl task start`, and the task became `active`.
+- **clock 2**: dev reported it done, and the task became `review`.
+- **clock 3**: dev reported it done again. No change; it is still in `review`.
 
-Now you can see why the task isn't approved: there's no KNOW record from a *different actor* with a `verdict` field. The `spl task done` from dev moved the task to review, but no evaluator has approved it yet. The fix: have a distinct reviewer actor run `spl task approve TASK-0042`.
-
-This kind of investigation used to require reading raw record JSON and tracing the fold logic by hand. Now it's one command.
+Now you can see why the task isn't approved: there is no KNOW record with a `verdict` from a *different actor*. The `spl task done` from dev moved the task to review, but no evaluator has approved it yet. The fix: have a distinct reviewer actor run `spl task approve TASK-0042`.
 
 ### Replay against any thread, not just tasks
 
-The first argument can be a task alias OR a literal thread ID. For non-task threads (e.g. `th_engine_config`, an decision thread, a dispatch thread) you'll see the same record-by-record fold trace. Useful for understanding why a routing rule fired or didn't fire, or what decision-gate decisions have been made on a particular intelligence proposal.
+The first argument can be a task alias OR a literal thread ID. For other threads (for example `th_engine_config`, a decision thread or a dispatch thread) you see the same record-by-record trace. It helps you see why a routing rule fired or didn't, or what was decided about a particular AI proposal.
 
 ```bash
 spl debug replay th_engine_config | head -10
@@ -146,7 +144,7 @@ spl debug thread-diff
   PROPERTY                  th_be084400f080b8431…    th_03f822528448c2a04…
   record count              4                         8
   participants              2                         3
-  fold status               review                    approved
+  status                    review                    approved
 
   Act distribution:
     DO             1                         1
@@ -157,8 +155,8 @@ spl debug thread-diff
 Right away you can see:
 
 - The good one has 3 participants vs 2. Likely the missing participant is the evaluator.
-- It has 5 KNOW records vs 2 — additional KNOWs are usually verdicts and fold-rule outputs.
-- Its fold status is `approved`, the bad one is `review`.
+- It has 5 KNOW records vs 2 — the extra ones are usually verdicts.
+- Its status is `approved`; the other is `review`.
 
 The structural delta points at the missing piece without you having to read both record streams in full. Once you have the hypothesis, drop back to `spl debug replay` on each side to confirm.
 
@@ -170,7 +168,7 @@ If the problem looks like access denial, permission, or governance — "I tried 
 spl audit export --since 1h
 ```
 
-This emits one JSON object per line for every security-relevant record in the last hour: system actor writes, decision-gate decisions, dispatch outcomes, governance events. Each line carries a `category` tag so you can filter:
+This emits one JSON object per line for every security-relevant record in the last hour: system actions, approval decisions, dispatch outcomes and governance events. Each line carries a `category` tag so you can filter:
 
 ```bash
 spl audit export --since 1h --categories decision
@@ -181,9 +179,9 @@ spl audit export --since 24h --thread th_be084400...
 
 The output is JSONL — each line is independent, suitable for piping to `jq`, ingest into Splunk/Elastic/Loki, or grep. See [SIEM Integration](/docs/guides/siem-integration) for production pipeline recipes.
 
-### What's NOT in audit export today
+### What audit export does not include
 
-HTTP middleware permission denials are currently `tracing::warn!` events in the instance log, not records. They show up in `~/.syncro/logs/spl.log` filtered with `grep "PERMISSION DENIED"` but won't appear in `spl audit export`. Promoting them to first-class audit records is tracked as a follow-up — for now, log + audit are two complementary streams.
+Permission denials on HTTP requests are written to the server log, not to the audit export. Find them with `grep "PERMISSION DENIED" ~/.syncro/logs/spl.log`.
 
 ## Step 6: read the instance log
 
@@ -198,7 +196,7 @@ The log is JSON-line format. The fields you'll care about most:
 | Field | Meaning |
 |---|---|
 | `level` | `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE` |
-| `target` | The Rust module emitting the log |
+| `target` | The part of the server that wrote the line |
 | `actor` | The DID involved in the operation |
 | `thread` | The thread ID being touched |
 | `record` | Record ID for ingest events |
@@ -208,9 +206,6 @@ Useful filters:
 ```bash
 # All permission denials
 grep "PERMISSION DENIED" ~/.syncro/logs/spl.log
-
-# Reconciler decisions
-grep "syncropel_engine::reconciler" ~/.syncro/logs/spl.log | tail -20
 
 # Errors only
 grep '"level":"ERROR"' ~/.syncro/logs/spl.log | tail -20
@@ -227,7 +222,7 @@ grep "th_be084400" ~/.syncro/logs/spl.log
 spl debug replay <task-alias>
 ```
 
-Look for a KNOW record with `body.verdict = "accept"` from an actor different from the one who claimed completion. If none exists, the task hasn't been evaluated yet. The fold rule requires distinct evaluator and executor — that's the separation-of-duties gate.
+Look for a KNOW record with `body.verdict = "accept"` from an actor different from the one who claimed completion. If none exists, the task hasn't been evaluated yet. Syncropel requires the reviewer to be a different actor from the one who did the work.
 
 ### "I created a CEL routing rule but it's not firing"
 
@@ -238,17 +233,17 @@ spl expr eval '<your-cel-expression>' --context routing --record '<sample-record
 spl debug replay <thread-where-record-landed>  # which records ARE on that thread?
 ```
 
-If the rule loads, compiles, evaluates true on a sample, but isn't firing on real records, check the instance log for `reload_config: processing LEARN record` to confirm the rule was actually reloaded after you added it.
+If the rule loads, compiles, evaluates true on a sample, but isn't firing on real records, check the instance log for `reload_config: processing LEARN record` to confirm the rule was reloaded after you added it.
 
 ### "The instance won't start"
 
 ```bash
 spl doctor                       # what's the current state?
-tail -50 ~/.syncro/logs/spl.log  # what was the last thing the instance said?
+tail -50 ~/.syncro/logs/spl.log  # what did the server last report?
 ls -la ~/.syncro/run/            # is there a stale PID file?
 ```
 
-Most start failures are: port already in use, stale PID file, or a corrupt SQLite store. The runbook covers each: see [Instance lifecycle](/docs/operate/runbook#instance-lifecycle).
+Most start failures are: port already in use, stale PID file, or a corrupt database. The runbook covers each: see [Instance lifecycle](/docs/operate/runbook#instance-lifecycle).
 
 ### "I think permissions are denying my requests"
 
@@ -256,14 +251,14 @@ Most start failures are: port already in use, stale PID file, or a corrupt SQLit
 spl config list-permission-rules            # what rules are loaded?
 spl config show                              # is enforcement enabled?
 grep "PERMISSION DENIED" ~/.syncro/logs/spl.log | tail -20   # what got denied?
-spl audit export --since 1h --categories decision                # decision-gate decisions in the same window
+spl audit export --since 1h --categories decision                # approval decisions in the same window
 ```
 
 If you've locked yourself out, see [`spl config permissions-unlock`](/docs/reference/cli#emergency-recovery).
 
 ### "I deleted the record store by accident"
 
-Don't restart the instance. The destructive backup gotcha will overwrite your good backup the moment a fresh instance starts. See [Backup discipline](/docs/operate/runbook#backup-discipline) — restore from off-host first.
+Don't restart the server. Starting a fresh server overwrites your good startup backup. See [Backup discipline](/docs/operate/runbook#backup-discipline) — restore from off-host first.
 
 ### "A namespace claim is being rejected and I don't know why"
 
@@ -272,15 +267,15 @@ spl namespace list                    # what's actually in the registry?
 spl namespace show <claimed-ns>       # walk the ancestor chain
 ```
 
-The `show` output marks each ancestor with `✓` (Active) or `✗` (Archived/Deleted). If any ancestor is non-Active, the descendant is rejected — that's the [monotonic narrowing rule](/docs/concepts/namespaces#the-narrowing-rule).
+The `show` output marks each ancestor with `✓` (Active) or `✗` (Archived/Deleted). If any ancestor is non-Active, the descendant is rejected — that is the [narrowing rule](/docs/concepts/namespaces#the-narrowing-rule).
 
 ## What these tools don't cover
 
 A few things still require reading the log:
 
-- **Trust score derivation traces** — `spl trust` shows current scores, but not the per-record evidence chain that produced them. To see the evidence, read the verdict records on the actor's trust thread directly.
-- **Dispatch internals** — when a dispatch fails, you see the failure in the task thread, but not the adapter-side timings, retries, or sub-thread tool calls. Pull these from the instance log.
-- **Performance regressions** — the expression cache stats are exposed by doctor, but per-rule evaluation timings live only in the log.
+- **How a trust score was reached.** `spl trust` shows current scores, not the evidence behind them. Read the verdict records for the actor to see it.
+- **Dispatch details.** When a dispatch fails you see the failure on the task thread, but not timings, retries or tool calls. Find those in the server log.
+- **Slow rules.** `spl doctor` shows expression cache statistics, but per-rule timings are only in the log.
 
 The tools above cover the everyday investigation surface.
 

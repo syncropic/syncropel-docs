@@ -1,11 +1,11 @@
 ---
 title: Your identity & recovery
-description: Your Syncropel identity is one portable identity that follows you across every device and workspace. This page explains what it is, how signing in on a new device works, and, most importantly, how to back it up so you never lose access.
+description: Your Syncropel identity follows you across every device and workspace. This page explains how signing in on a new device works and how to back up your identity so you never lose access.
 ---
 
-Your Syncropel identity is **one portable identity that follows you everywhere**. The same identity owns your content whether you reach it from your laptop, your phone, the web, or a self-hosted workspace. Nothing you create is tied to a single device. It's tied to *you*.
+Your Syncropel identity **follows you everywhere**. The same identity owns your content whether you reach it from your laptop, your phone, the web, or a workspace you run yourself. Nothing you create is tied to a single device. It's tied to *you*.
 
-This page explains what your identity is, how it stays the same across devices, and how to back it up so you never lose access.
+This page explains how your identity stays the same across devices, and how to back it up so you never lose access.
 
 ## One identity, many devices
 
@@ -13,7 +13,7 @@ When you sign in (on the web at syncropel.com or by connecting `spl` on a machin
 
 **Lost a device? Just sign in again.** Your content is owned by your sign-in identity, not by any machine. A stolen laptop or a reinstalled phone costs you nothing: sign in on the next device and everything you own is there. You don't need a recovery phrase for this. Everyday continuity rides entirely on being able to sign in.
 
-That is the story for a workspace **you own**. For a place somebody else let you into (a night, a project, a teammate's workspace), your way back on a new device is a key you keep yourself: see [Keeping your access](/docs/guides/keeping-your-access). The recovery phrase on this page protects the master identity of a workspace operator; the kept key re-opens one door for one person. They are different things and both are real.
+That is the story for a workspace **you own**. For a place somebody else let you into (a night, a project, a teammate's workspace), your way back on a new device is a key you keep yourself: see [Keeping your access](/docs/guides/keeping-your-access). The recovery phrase on this page protects the identity of whoever runs a workspace; a kept key re-opens one workspace for one person. They are different things and both are real.
 
 You can see your current identity any time:
 
@@ -29,10 +29,10 @@ You can have more than one way to sign in (for example an email address and a Go
 
 ## Your recovery phrase
 
-Everyday access rides on signing in. But your identity also has a deeper, self-owned layer: a **recovery phrase**, a sequence of 24 ordinary words that *is* your identity at its root. With it, you can rebuild your identity from scratch on any device, with no dependence on any sign-in provider.
+Everyday access rides on signing in. But your identity also has a **recovery phrase**: 24 ordinary words that are your identity at its root. With it, you can rebuild your identity on any device, without any sign-in provider.
 
 <Callout type="info">
-The recovery phrase lives on workspaces running **master identity mode**. Hosted workspaces are adopting it progressively; on a machine you maintain yourself, start with `spl init --master` (or set `SPL_IDENTITY_MODE=master` before init). On a workspace not yet in master mode, the commands below report that they aren't available. Your everyday sign-in continuity (above) is unaffected.
+The recovery phrase is available on workspaces that use **master identity mode**. On a machine you look after yourself, turn it on with `spl init --master` (or set `SPL_IDENTITY_MODE=master` before `spl init`). On a workspace without it, the commands below tell you they aren't available. Your everyday sign-in continuity (above) is unaffected.
 </Callout>
 
 Reveal your recovery phrase like this:
@@ -67,13 +67,13 @@ Run this on a fresh install. Your identity comes back **exactly as it was**: sam
 spl identity recover --shamir-share "<share-1>" --shamir-share "<share-2>" --shamir-share "<share-3>"
 ```
 
-Recovery is deterministic: the same phrase always rebuilds the same identity, on any device, forever.
+The same phrase always rebuilds the same identity, on any device.
 
 ## Why this matters
 
-- **Sign-in is convenience; the recovery phrase is ownership.** Day to day, you just sign in and your stuff is there. But if you ever lose access to a sign-in method, the recovery phrase is what guarantees you can still get your identity, and everything you own, back.
-- **No one can lock you out.** Because your identity can be rebuilt from a phrase you alone hold, your access doesn't ultimately depend on any company or provider staying available.
-- **Back it up once, early.** The best time to save your recovery phrase is right after you first set up your identity. Do it before you've created anything you'd hate to lose.
+- **Sign-in is convenience; the recovery phrase is ownership.** Day to day, you just sign in and your stuff is there. But if you ever lose a sign-in method, the recovery phrase lets you get your identity, and everything you own, back.
+- **No one can lock you out.** Because only you hold the phrase, your access doesn't depend on any company or sign-in provider.
+- **Back it up once, early.** The best time to save your recovery phrase is right after you first set up your identity. Do it before you create anything you'd hate to lose.
 
 ## What to do right now
 

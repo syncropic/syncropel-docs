@@ -1,25 +1,17 @@
 ---
 title: Body-Kind Manifests
-description: Declare which body fields for a given body.kind should be indexed. The instance creates SQLite expression indexes at config reload so rich-query filters on nested body fields stay fast as your record log grows.
+description: Speed up queries that filter on fields inside a record's body by declaring which fields to index for a given body.kind.
 ---
 
-## Why Manifests Exist
+## Why manifests exist
 
-Records are stored with the full body as a JSON blob. A query filter like `{ "body.title": "Yesterday" }` compiles to:
+A query that filters on a field inside a record body, such as `{ "body.title": "Yesterday" }`, has to check every record unless the field is indexed. With a few hundred records that is instant. With a few million, each query can take seconds.
 
-```sql
-SELECT * FROM records WHERE json_extract(body, '$.title') = ?1
-```
+A **body-kind manifest** tells the workspace which fields of a given `body.kind` to index. Once a field is indexed, queries that filter or sort on it are fast. You don't change your queries; they simply get faster.
 
-Without any backing index, SQLite must walk every record, decode its JSON, read `$.title`, and compare. At a few hundred records this is instant; at a few million it's seconds per query.
+Manifests are stored as settings, so they follow the same rules as other settings: they reload automatically, they inherit through [namespaces](/docs/concepts/namespaces), and changes are recorded.
 
-A **body-kind manifest** is a stored declaration that some subset of fields for a given `body.kind` should be backed by a SQLite **expression index** — `CREATE INDEX ... ON records(json_extract(body, '$.title'))`. SQLite's planner uses the index transparently the moment it sees the matching `json_extract` expression in a `WHERE` clause (which is exactly what query emits). No code changes needed by the caller; the speedup is purely declarative.
-
-Manifests are the single-source-of-truth for "which body paths matter enough to index" in a given deployment. They live as LEARN records on `th_engine_config`, so they follow the same reload + namespace-inheritance + audit trail rules as every other engine-config record.
-
-## Declaring a Manifest
-
-Use the CLI — the command validates the kind grammar and field paths before POSTing the LEARN record:
+## Declare a manifest
 
 ```bash
 spl config add-body-kind-manifest \
@@ -30,9 +22,9 @@ spl config add-body-kind-manifest \
   --description "Music catalog — indexed for lookup and chronology"
 ```
 
-Within about a second the instance reloads its configuration and creates an index for each declared field. Queries that filter on those fields are served from the index from then on.
+The command checks the kind and field paths before saving. Within about a second the workspace reloads and indexes each field you declared.
 
-## Listing Manifests
+## List manifests
 
 ```bash
 spl config list-body-kind-manifests
@@ -46,11 +38,11 @@ music.catalog.track              yes      body.title, body.artist_id, body.year
 2 manifest(s)
 ```
 
-`spl config list-body-kind-manifests -o json` emits the same data as a JSON array for scripting.
+`spl config list-body-kind-manifests -o json` prints the same data as JSON for scripts.
 
-## Updating or Disabling
+## Update or disable
 
-Re-adding the same `--kind` creates a new LEARN record; the config loader's latest-wins rule means the new manifest replaces the old one. To disable without deleting:
+Adding the same `--kind` again replaces the earlier manifest. To disable one without deleting it:
 
 ```bash
 spl config add-body-kind-manifest \
@@ -59,63 +51,45 @@ spl config add-body-kind-manifest \
   --disable
 ```
 
-A disabled manifest is stored but its fields are not applied: indexes that already exist stay in place, and new ones are not created.
+A disabled manifest creates no new indexes. Indexes that already exist stay in place, because keeping an index costs little. Treat `--disable` as "stop creating new indexes", not "undo the last one".
 
-This is intentional: an index has no ongoing cost at read time, it is cheap to keep around, and the failure mode of "dropped an index an operator actually wanted" is worse than "left an index declared long ago." Treat `--disable` as "stop creating new ones" rather than "undo the last one."
+## Field path rules
 
-## Field Path Rules
+- A path must start with `body.`. Fields such as `thread`, `actor` and `clock` are already indexed, and listing them is an error.
+- A path must look like `body.<segment>[.<segment>...]`, where each segment uses only letters, digits, `_` and `-`.
+- Nested paths work. `body._refs.music_artist` indexes that exact path.
+- An invalid path is skipped and the rest of the manifest still applies.
 
-- MUST start with `body.` — top-level columns (`thread`, `actor`, `clock`, ...) are already indexed by the base schema, and listing them here is a config error.
-- MUST match `body.<segment>[.<segment>...]` where each segment is `[A-Za-z0-9_-]+`.
-- Nested paths work — `body._refs.music_artist` creates an index on that exact JSON path.
-- Invalid paths are logged and dropped at config load; the rest of the manifest still applies.
+## When to declare a field
 
-## When to Declare a Field
+**Declare** a field when:
 
-**Declare** when:
+- You filter on it regularly.
+- You sort on it.
+- You expect more than about 10,000 records of that `body.kind`.
 
-- You use it in a rich-query `filter` regularly.
-- You `sort` on it.
-- You're about to cross ~10k records in a given `body.kind`.
+**Skip** a field when:
 
-**Skip** when:
+- You only use it after a query has already returned a small set of results.
+- The query mostly filters by `thread` or `actor`, which are already fast.
+- The field holds nested JSON rather than a single value. Indexing it doesn't help.
 
-- The field is only ever used client-side after `queryThread()` returns a small slice.
-- The query is dominated by `thread` / `actor` filters — those already hit the base indexes and the body filter is a cheap post-filter.
-- The field stores structured JSON that is always dereferenced into scalars client-side — expression indexes on non-scalar `json_extract` results don't help.
+## What manifests don't do
 
-## What Manifests Don't Do
+Manifests only make queries faster. They are not a security or validation layer:
 
-Manifests are a storage optimization, not a security or validation layer:
+- They don't check the shape of new records. A record without the declared fields is saved normally.
+- They don't stop you filtering on fields you didn't declare. Those queries still work, only more slowly.
+- They apply to existing records too. Once an index is created, it covers every record already saved.
 
-- They do NOT validate body shape on ingest — a record whose body doesn't contain the declared fields ingests normally; the index simply doesn't match it.
-- They do NOT prevent a non-declared field from being filtered — query still works, it just scans.
-- They are NOT used at ingest time — the ingest path is unchanged. Existing records become searchable via the new index the moment it is created (SQLite builds the index over all rows at `CREATE INDEX` time).
+## Namespaces
 
-## Namespace Behavior
+Manifests inherit through the [namespace hierarchy](/docs/concepts/namespaces). A child namespace sees its parent's manifests and can override one by declaring the same `kind` with a different field list.
 
-Manifests inherit through the [namespace hierarchy](./namespaces) like every other engine-config record. A parent namespace's declaration is visible from children; a child can override by declaring the same `kind` with a different `indexed_fields` list. At resolution time, child wins.
+One caveat: all records live in one table, so an index applies to every namespace, even if you declared the manifest in a child namespace. The namespace is kept for tracking, but the index is not limited to it.
 
-**Important caveat**: the SQLite backend holds one `records` table for the entire deployment — indexes are global. Declaring a manifest in a child namespace still creates an index that applies to all rows. The `namespace` field on the manifest is recorded for audit and governance traceability but the index itself is not scoped. This is a known asymmetry — if per-namespace physical isolation ever becomes a requirement it will be a separate ADR.
+## See also
 
-## Observability
-
-The config-loader logs a line per manifest at `info` level during reload:
-
-```
-config: loaded body-kind manifest kind="music.catalog.track" namespace="default" field_count=3 enabled=true
-```
-
-The SqliteStore applies them at `debug` level per field:
-
-```
-apply_body_kind_manifests: expression index ready index="idx_body_kind_music_catalog_track_title" field="body.title" kind="music.catalog.track"
-```
-
-Enable `info` logging (`RUST_LOG=syncropel_engine=info`) when authoring a new manifest to confirm it landed and applied.
-
-## See Also
-
-- [**Query**](./query) — the read-side companion that benefits from these indexes.
-- [**Namespaces**](./namespaces) — how manifest inheritance works with the broader namespace hierarchy.
-- [**CEL Expressions**](./cel-expressions) — for decision logic that composes with rich-query results.
+- [Query](/docs/guides/query): the read side that benefits from these indexes.
+- [Namespaces](/docs/concepts/namespaces): how inheritance works.
+- [CEL Expressions](/docs/guides/cel-expressions): decision logic that works with query results.

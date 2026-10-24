@@ -1,85 +1,77 @@
 ---
 title: Pair, share, invite (devices + holders)
-description: How to add a phone or a colleague to a Syncropel workspace — issue a one-time invite, scan or click the link, and your device or your colleague's home instance walks away holding its own credential.
+description: "How to add a phone or a colleague to a Syncropel workspace: create a one-time invite, then scan or click the link."
 ---
 
 ## What this is
 
-<Callout type="info" title="This flow is CLI-first">
-Invites are issued and managed with `spl invite` (or the `/v1/invites/*` API). The invite **redemption** page — what the recipient opens — is a built-in browser page on your workspace. Studio's **+ add a connection** pane manages what a person holds (connections, keys, devices), and members with a mint grant make guest links from a thread; issuing invites in bulk is still the CLI. The steps below use the CLI.
+<Callout type="info" title="Invites are issued from the command line">
+You create and manage invites with `spl invite` (or the `/v1/invites/*` API). The person you invite opens a page on your workspace to accept. In Studio, the **+ add a connection** pane manages what a person holds (connections, keys, devices), and members with permission to invite can make guest links from a thread. Creating invites in bulk is a command-line task. The steps below use the command line.
 </Callout>
 
-`spl serve` gives you a built-in flow for adding either of two things to a running instance:
+An invite is a one-time link that adds one of two things to your workspace:
 
-1. **A new device of yours** — a phone, a tablet, a fresh laptop. It joins as a _guest holder_ — Syncropel mints a **principal** (a custodial anchor, the guest DID kept as its label) under a guest-classed grant, and a bearer parented to that grant for the device; the device stores the credential in browser IDB. Revoking the grant ends the bearer, and the guest can [keep a key](/docs/guides/keeping-your-access) to come back on another device.
-2. **A federated colleague** — someone who's already paired with their _own_ instance and wants access to yours. They join as a _federated holder_ — Syncropel verifies a cryptographic attestation signed by their home instance, then mints a workspace-bound bearer scoped to whatever you granted.
+1. **A new device of yours**, such as a phone, a tablet or a fresh laptop. It joins as a guest and the device keeps its own credential. If you revoke the invite's access, the device is signed out. The guest can [keep a key](/docs/guides/keeping-your-access) to come back on another device.
+2. **A colleague with their own workspace.** They sign in with the identity from their own workspace, and your workspace checks that identity before it gives them access scoped to what you granted.
 
-Both flows share one primitive: `core.invite.v1`. A single body kind, one record on the workspace's `th_invites` thread, one signed URL, two redeem paths. This guide is operator-facing.
-
-There is a third invite shape not covered here: the **membership invite** (`spl invite create --member`), whose redemption mints a member principal on the roster — an identity your teammate's reviews are signed with — with scopes for the whole instance rather than one thread. See [Add a teammate](/docs/tutorials/add-a-teammate).
+There is a third kind, the **membership invite** (`spl invite create --member`). It adds a teammate to your member list, so their reviews are signed as them, with access to the whole workspace rather than one thread. See [Add a teammate](/docs/tutorials/add-a-teammate).
 
 ## Who this is for
 
-- Operators who want to add their phone or another device to their instance.
-- Operators inviting a colleague to a specific thread or namespace.
-- Anyone who needs to revoke access after the fact (lost device, team change, lost laptop).
+- People adding their phone or another device to their workspace.
+- People inviting a colleague to a specific thread or namespace.
+- Anyone who needs to revoke access later (lost device, team change).
 
-If you're integrating the invite flow into your own UI or CLI, read the [API reference](../reference/api) for the `/v1/invites/*` routes and the [body-kinds reference](../reference/body-kinds) for the on-the-wire envelope shapes.
+If you are building invites into your own app, see the [API reference](../reference/api) for the `/v1/invites/*` routes and the [body-kinds reference](../reference/body-kinds) for the record formats.
 
-## How it works in three minutes
+## How it works
 
-1. You issue an invite from the CLI, choosing:
-   - Optional **device label** (`--device-label "iPhone 15"`, `"Alice's laptop"`, `"dev-team-onboard"`)
-   - **Access level** — `--preset reader` (records:read), `contributor` (records:read+write, default), or `admin` (full instance ops). The default is contributor, not admin — you have to opt into handing out admin keys.
-   - **Expires in** — `--ttl <seconds>` (default 24 hours)
-   - **Max uses** — `--max-uses 1|5|10` (one-shot pair is the norm; multi-use is for "hand the QR around the room")
-2. Run it → Syncropel emits a `core.invite.v1` record and prints a signed link (the same URL doubles as the QR payload via the API response):
+1. You create an invite from the command line, choosing:
+   - An optional **device label** (`--device-label "iPhone 15"`, `"Alice's laptop"`).
+   - An **access level**: `--preset reader` (read records), `contributor` (read and write, the default) or `admin` (full control). You have to ask for admin explicitly.
+   - **Expires in**: `--ttl <seconds>` (default 24 hours).
+   - **Max uses**: `--max-uses 1|5|10`. One use is normal. More is for handing a QR code around a room.
+2. Run the command. It prints a signed link:
 
    ```bash
    spl invite create --preset contributor --ttl 900 --device-label "My phone"
    ```
 
-3. The recipient opens the link (or scans the QR):
-   - For a **guest** device: the `/i/<invite-id>` preview page generates a fresh keypair in the browser via `SubtleCrypto`, POSTs to `/v1/invites/<id>/redeem`, gets back a bearer, and hands the holder off to `syncropel.com/pair/complete` which writes the credential into IDB and lands them on the workspace.
-   - For a **federated** holder: the recipient clicks "Sign in using which identity?", picks a paired profile, their home instance signs an attestation, the issuer verifies the signature against the holder's DID document, and the same handoff completes.
-4. Every issued invite shows up in `spl invite list` with its current state — `active`, `redeemed`, `revoked`, `expired`, or `exhausted`. Revoke is one command; bulk-revoke wipes every expired or exhausted invite in one call.
+3. The recipient opens the link (or scans the QR code):
+   - A **guest** device sees a preview page, presses the pair button, and lands in your workspace with its own credential.
+   - A **colleague with their own workspace** chooses which identity to sign in with. Their workspace vouches for them, and they land in yours.
+4. `spl invite list` shows each invite's state: `active`, `redeemed`, `revoked`, `expired` or `exhausted`. Revoking is one command, and you can clear every expired or exhausted invite in one go.
 
 ## Step-by-step: pair your phone
 
-1. On the machine that talks to your workspace, issue a short-lived one-shot invite:
+1. On the machine that talks to your workspace, create a short-lived, single-use invite:
 
    ```bash
    spl invite create --preset contributor --ttl 900 --max-uses 1 --device-label "My phone"
    ```
 
-2. The command prints the signed pair link. To get a scannable QR on the same terminal, use `spl pair --device "My phone" --url "<your instance URL>"` instead — it renders the QR directly; the invite link works equally well pasted into the phone's browser.
-3. On the phone, open the link (typed, pasted, or scanned). Safari / Chrome opens the preview page → "Pair with this workspace" button.
-4. Tap it. The browser generates a keypair, calls your workspace, gets back a bearer, redirects to `syncropel.com/pair/complete?...`, writes the credential to IDB, lands on your workspace.
-5. Back on the desktop, `spl invite list` shows the invite flipped from `active` to `redeemed`.
+2. The command prints the signed link. For a scannable QR code in the terminal, run `spl pair --device "My phone" --url "<your instance URL>"` instead. The link also works pasted into the phone's browser.
+3. On the phone, open the link (typed, pasted or scanned). The preview page shows a "Pair with this workspace" button.
+4. Tap it. The phone is signed in to your workspace.
+5. Back on the desktop, `spl invite list` shows the invite changed from `active` to `redeemed`.
 
-## Step-by-step: invite a federated colleague
+## Step-by-step: invite a colleague from another workspace
 
-Premise: Bob has his own instance at `bob.syncropel.app` and is already paired to it. Alice wants Bob to see a specific thread on `alice.syncropel.app`.
+Bob has his own workspace at `bob.syncropel.app`. Alice wants Bob to see a specific thread on `alice.syncropel.app`.
 
-1. Alice issues the invite from her CLI:
+1. Alice creates the invite:
 
    ```bash
    spl invite create --preset reader --device-label "Bob (federated)"
    ```
 
-   Pick `reader` if Bob only needs to read. For a thread-scoped grant or to restrict the holder type to `federated`, issue via the API instead — `POST /v1/invites` with `scope_target: {"kind": "thread", "thread_id": "..."}` and `accept_holder_types: ["federated"]` (see the [API reference](../reference/api#pair-share-invite)).
-2. Alice sends Bob the pair link (Slack, email, signed URL — Syncropel signs the URL so it's tamper-evident).
-3. Bob clicks the link. The URL routes him to `syncropel.com/pair?invite=<url>`; the pair page detects `accept_holder_types: federated` and shows the **Federated holder** flow at `/pair/federated`.
-4. Bob picks his paired profile (`bob.syncropel.app`). The pair page calls `POST bob.syncropel.app/v1/invites/sign-attestation` — Bob's home instance signs the holder_proof.
-5. It then calls `POST alice.syncropel.app/v1/invites/<id>/redeem` with `holder_type: federated`, Bob's DID, and the holder_proof.
-6. Alice's instance:
-   - Looks up Bob's DID document
-   - Verifies the cryptographic signature against the signer key
-   - Verifies the issued-at-ms is within the freshness window (±60s)
-   - Mints a workspace-bound bearer scoped to whatever Alice granted
-7. Bob's browser stores the new credential, adds `alice.syncropel.app` to his profile list, lands on Alice's instance.
+   Choose `reader` if Bob only needs to read. To limit the invite to one thread, or to colleagues with their own workspace only, create it through the API instead: `POST /v1/invites` with `scope_target: {"kind": "thread", "thread_id": "..."}` and `accept_holder_types: ["federated"]` (see the [API reference](../reference/api#pair-share-invite)).
+2. Alice sends Bob the link by chat or email. The link is signed, so any change to it is detected.
+3. Bob opens the link and chooses the workspace he is signed in to (`bob.syncropel.app`).
+4. Bob's workspace vouches for him, and Alice's workspace checks that proof. The proof must be recent, within 60 seconds.
+5. Bob lands in Alice's workspace with access scoped to what Alice granted, and `alice.syncropel.app` is added to his list of workspaces.
 
-The audit row on Alice's side shows `holder_did = did:sync:user:bob`, `holder_pubkey = <Bob's key>`, and the granted scopes.
+Alice's audit trail shows Bob's identity and the access he was given.
 
 ## Who may invite, and with what role
 
@@ -97,35 +89,31 @@ The audit row on Alice's side shows `holder_did = did:sync:user:bob`, `holder_pu
 | `HOLDER_KEY_UNPROVEN` | A returning guest couldn't prove it's the same guest. |
 | `SESSION_FORBIDDEN` | This person hasn't been given the ability to invite. |
 
-## Revoke + audit
+## Revoke and audit
 
-- **Revoke one**: `spl invite revoke <invite_id>`. Idempotent — revoking again returns "already revoked" without erroring.
-- **Bulk revoke**: `spl invite bulk-revoke expired` / `spl invite bulk-revoke exhausted` sweeps every invite in that state in one call.
-- **See the trail**: `spl invite audit` lists the invite events recorded on `th_audit_invites` — every redeem (with holder DID), every revoke (with revoker actor + reason), every refused redeem (with the refusal reason: `expired`, `revoked`, `holder_type_mismatch`, `bad_proof`, `freshness_violation`, etc.).
+- **Revoke one invite**: `spl invite revoke <invite_id>`. Revoking again is harmless and reports "already revoked".
+- **Revoke in bulk**: `spl invite bulk-revoke expired` or `spl invite bulk-revoke exhausted` clears every invite in that state.
+- **See the history**: `spl invite audit` lists every redeem (with who), every revoke (with who and why), and every refused redeem with its reason, such as `expired`, `revoked`, `holder_type_mismatch`, `bad_proof` or `freshness_violation`.
 
-## Renew your bearer
+## Renew a device's credential
 
-Long-running devices can rotate their bearer ahead of expiry to slide the window forward: hash the current bearer (sha256) to derive the `token_id`, then `POST /v1/tokens/<token_id>/rotate` with the current bearer in the `Authorization` header — the response carries a fresh bearer with a new expiry. Self-only — Syncropel rejects rotation attempts from a bearer that doesn't match the path.
+A long-running device can renew its credential before it expires. Take the SHA-256 hash of the current credential to get its `token_id`, then call `POST /v1/tokens/<token_id>/rotate` with the current credential in the `Authorization` header. The response carries a new credential with a new expiry. A device can only renew its own credential.
 
 ## Templates
 
-If you find yourself issuing the same shape repeatedly ("dev team onboarding: contributor, 7 days, 5 uses, labeled with date"), save it as a template via `POST /v1/invite-templates` (the desired invite shape as the body) and list your saved shapes with `spl invite templates`.
+If you keep creating the same kind of invite (for example, contributor access for 7 days, 5 uses), save it as a template with `POST /v1/invite-templates` and list your templates with `spl invite templates`. Templates persist across sessions.
 
-Templates are stored as `core.invite_template.v1` records on `th_invite_templates` (admin-scoped to your operator); they survive across sessions.
+## What you can rely on
 
-## What Syncropel guarantees
-
-The threat model spells out the guarantees in full. The load-bearing ones:
-
-- **Defense-in-depth**: every operator endpoint checks _both_ the bearer scope _and_ the consent grant. A bearer with `admin` scope but no `th_invites:write` grant cannot issue invites.
-- **Federated holder proofs are mandatory, never optional**: redeem requests with `holder_type: federated` MUST carry a valid Ed25519 attestation signed by the holder's home instance, with a fresh issued-at-ms. Syncropel refuses (and audits) on `bad_proof`, `key_unknown`, or `freshness_violation`.
-- **Audit thread parity**: every redeem / revoke / refusal on `th_invites` mirrors to `th_audit_invites`. The mirror runs in the same transaction so partial state ("redeem succeeded but audit didn't") cannot happen.
-- **Federation pair revoke cascades**: when you delete a federation pair, every federated-holder bearer issued through that pair is revoked in the same transaction. Stops "I removed the pair but their bearer still works" silently broken state.
-- **Always-admin auth on operator routes**: even on a workspace configured `auth.required = false`, the operator endpoints (`/v1/invites`, `/v1/invites/audit`, `/v1/invites/bulk-revoke`, `/v1/invite-templates`, `/v1/tokens/*/rotate`) refuse anonymous callers. The auth-off master switch covers data-plane endpoints; the admin gate is independent.
+- **Two checks on every invite action.** Creating an invite needs both an admin-level credential and permission to invite. An admin credential alone is not enough.
+- **Colleague sign-in always needs proof.** A colleague from another workspace must present a valid, recent proof signed by their own workspace. Otherwise the invite is refused and the refusal is recorded.
+- **Nothing half-done.** A redeem, revoke or refusal is always recorded in the audit trail together with the action itself.
+- **Removing a federation pair signs out its colleagues.** When you delete a federation pair, everyone who joined through it loses access at once.
+- **Invite commands always need admin sign-in.** Even if you turn authentication off for data endpoints, the invite endpoints (`/v1/invites`, `/v1/invites/audit`, `/v1/invites/bulk-revoke`, `/v1/invite-templates`, `/v1/tokens/*/rotate`) refuse anonymous callers.
 
 ## Reference
 
-- [API reference](../reference/api) — every `/v1/invites/*` route, request/response shape, error codes.
-- [Body-kinds reference](../reference/body-kinds) — `core.invite.v1`, `core.invite.event.v1`, `core.invite_template.v1`, `core.api_token.activity.v1`.
-- [`@syncropel/sdk` `client.invites.*`](./typescript-sdk#invites) — typed SDK surface.
-- [API reference — pair, share, invite](../reference/api#pair-share-invite) — design rationale, threat model, identity model, scope grammar, and the full set of routes.
+- [API reference](../reference/api) for every `/v1/invites/*` route, with request and response shapes and error codes.
+- [Body-kinds reference](../reference/body-kinds) for `core.invite.v1`, `core.invite.event.v1`, `core.invite_template.v1` and `core.api_token.activity.v1`.
+- [`@syncropel/sdk` `client.invites.*`](./typescript-sdk#invites) for the typed SDK.
+- [API reference: pair, share, invite](../reference/api#pair-share-invite) for scopes and the full set of routes.

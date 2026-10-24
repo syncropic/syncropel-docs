@@ -1,15 +1,15 @@
 ---
 title: Cost-bounded query waterfall
-description: Try the cheap LLM first, escalate to mid-tier only if the answer is weak, and only pull in the expensive model if nothing else worked — all bounded by a 5-cent ceiling.
+description: Try the cheap AI model first, move to a stronger one only if the answer is weak, and use the most expensive only as a last resort, all within a 5-cent limit.
 ---
 
 ## Problem
 
-You have a classification task that's trivial 80% of the time and hard 20% of the time. Always calling the most capable LLM is wasteful. Always calling the cheapest one is wrong. You want a cascade that stops as soon as it finds a confident answer, and hard-stops if cumulative spend passes 5 cents.
+You have a classification task that is easy 80% of the time and hard 20% of the time. Always using the strongest AI model wastes money. Always using the cheapest gives wrong answers. You want to try models in turn, stop as soon as one is confident, and stop for good if spending passes 5 cents.
 
 ## Recipe
 
-The `waterfall` orchestration pattern — stages tried in order, early exit on acceptance, hard budget ceiling.
+The `waterfall` pattern: models are tried in order, it stops as soon as an answer is accepted, and it never goes over the budget.
 
 ```bash
 spl infer "Classify this review as positive / negative / neutral: 'great product fast shipping'" \
@@ -24,7 +24,7 @@ spl infer "Classify this review as positive / negative / neutral: 'great product
   --wait
 ```
 
-Under the hood the CLI builds this orchestration spec:
+The command builds this setup:
 
 ```json
 {
@@ -38,7 +38,7 @@ Under the hood the CLI builds this orchestration spec:
 }
 ```
 
-For stages-with-accept-expression specifically (not directly CLI-exposed), emit via SDK or `--query-file`:
+To set your own acceptance condition (not available as a command option), use an SDK or `--query-file`:
 
 ```json
 {
@@ -71,7 +71,7 @@ For stages-with-accept-expression specifically (not directly CLI-exposed), emit 
 }
 ```
 
-Pipe it to `spl infer`:
+Run it with `spl infer`:
 
 ```bash
 spl infer --query-file waterfall-query.json --wait
@@ -93,51 +93,51 @@ thread: th_6b8a21...
 know_record: 4c3f87a2...
 ```
 
-Haiku returned confidence 0.94, passed the 0.85 acceptance threshold, done. Total cost: a tenth of a cent.
+Haiku returned confidence 0.94, which passes the 0.85 acceptance threshold, so it stopped there. Total cost: a tenth of a cent.
 
 ## The escalation path (stage 2 wins)
 
 When Haiku returns `confidence: 0.68`:
 
-1. Stage 1 response lands. Fold runs (`best_of` on 1 response = that response).
-2. `accept_expression` evaluates against the fold output. `0.68 >= 0.85` is false.
-3. Executor writes `infer.orchestration.waterfall.state.v1` with stage=0, failed.
-4. Dispatches stage 2 (Sonnet). Sonnet returns `confidence: 0.89`.
-5. Fold on stage 2 response. Acceptance fires. KNOW commits.
+1. Stage 1's answer arrives. With one answer, `best_of` just takes it.
+2. The acceptance condition is checked: `0.68 >= 0.85` is false.
+3. A record notes that stage 1 failed.
+4. Stage 2 (Sonnet) is asked. It returns `confidence: 0.89`.
+5. That passes, so the answer is saved as the result.
 
 Total cost for the cascade: Haiku + Sonnet ≈ $0.012.
 
 ## The budget ceiling
 
-`max_cost_usd: 0.05` is checked **between stages**, not per response. Before dispatching each stage, the executor sums all CALL costs so far against the ceiling. If adding the estimated cost of the next stage would exceed it, the executor emits `infer.error.v1` with `code: "cost_budget_exceeded"` and halts.
+`max_cost_usd: 0.05` is checked **between stages**. Before each stage, the total spent so far plus the estimated cost of the next stage is compared with the limit. If it would go over, the query stops with an `infer.error.v1` record with `code: "cost_budget_exceeded"`.
 
-That means the cascade can spend up to the ceiling but never goes over. If stage 3 (Opus) would blow the budget, it never fires — you get an error KNOW with the accumulated cost visible in the body.
+So the cascade can spend up to the limit but never past it. If stage 3 (Opus) would break the budget, it is never run, and you get an error record showing the cost so far.
 
 ## The trade-off
 
-`waterfall` serialises stages. Stage 2 waits for stage 1 to complete. That's its value (skip expensive stages if a cheap one wins) and its cost (worst-case latency is sum-of-all-stages).
+`waterfall` runs stages one after another. Stage 2 waits for stage 1. That is its benefit (skip expensive stages when a cheap one works) and its cost (the worst case takes as long as all stages added together).
 
-If your stages have wildly different latencies — say Haiku 3s, Opus 30s — a cascade's worst case is roughly stage 1 + stage 2 + stage 3 = ~40s. Fan-out with `consensus` fires them in parallel and finishes in max(stages) ~= 30s. The cascade is cheaper on the common case, slower on the worst case.
+If your models take very different times (say Haiku 3 seconds, Opus 30), the worst case is about 40 seconds in total. Asking all of them at once with `consensus` takes about 30 seconds, the time of the slowest. The cascade is cheaper in the usual case and slower in the worst case.
 
-Also note: `waterfall_first` (the **fold** function) is a different thing — it picks the first acceptable response from a batch that all arrived in parallel. The `waterfall` **orchestration** pattern above dispatches stages sequentially. See [Fold Functions — waterfall_first](/docs/guides/inference/fold-functions#function-waterfall_first).
+Note that `waterfall_first` is something different: it picks the first acceptable answer from a group that were all asked at once. The `waterfall` pattern above asks one at a time. See [Fold Functions — waterfall_first](/docs/guides/inference/fold-functions#function-waterfall_first).
 
-## Run this against a dev instance
+## Try it on a test workspace
 
-With haiku, sonnet, and opus configured as providers, the query above runs end-to-end. Watch the records land on the query's thread:
+With Haiku, Sonnet and Opus set up as providers, the query above runs as written. Watch the records arrive on the query's thread:
 
 ```bash
 spl thread records <thread-id>
 ```
 
 You'll see:
-- INTEND with the query body.
-- One CALL per dispatched stage, with cost in `body.cost_estimate_usd`.
-- DO records from responders.
-- LEARN records on `body.kind: infer.orchestration.waterfall.state.v1` between stages.
-- Final KNOW.
+- An `INTEND` with the query.
+- One `CALL` for each stage that ran, with its cost in `body.cost_estimate_usd`.
+- `DO` records with each model's answer.
+- `LEARN` records between stages, with `body.kind: infer.orchestration.waterfall.state.v1`.
+- The final `KNOW`.
 
 ## See also
 
-- **[Orchestration Patterns — waterfall](/docs/guides/inference/orchestration-patterns#pattern-waterfall)** — full description + state persistence.
-- **[Query Anatomy — SideEffects](/docs/guides/inference/query-anatomy#side-effects)** — all cost / latency fields.
-- **[Summarize with consensus](/docs/cookbook/summarize-research-paper-consensus)** — fan-out alternative when you want variance reduction over cost minimisation.
+- **[Orchestration Patterns — waterfall](/docs/guides/inference/orchestration-patterns#pattern-waterfall)** — full description.
+- **[Query Anatomy — SideEffects](/docs/guides/inference/query-anatomy#side-effects)** — all the cost and time-limit fields.
+- **[Summarize with consensus](/docs/cookbook/summarize-research-paper-consensus)** — asking all models at once, when you want reliability more than low cost.

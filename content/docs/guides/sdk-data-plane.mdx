@@ -1,15 +1,15 @@
 ---
 title: Files & blobs (data plane)
-description: Read and write files programmatically with the TypeScript SDK — the three-step write with compare-and-swap, streaming reads, directory operations, publishing durable artifacts, and material search.
+description: "Read and write files from the TypeScript SDK: safe writes that detect conflicts, reads, directory operations, publishing lasting copies, and search."
 ---
 
-Records are the coordination layer — small, immutable, content-addressed. **Files are the data plane**: arbitrary bytes (documents, images, datasets, build outputs) that live in a per-namespace virtual filesystem and are addressed by path. The TypeScript SDK exposes the whole data plane under `client.data` (available in `@syncropel/sdk` 0.8.0+).
+Records are small and unchangeable, and they carry the coordination. **Files** hold everything else: documents, images, datasets and build outputs. They live in a per-namespace file area and are addressed by path. The TypeScript SDK exposes all of this under `client.data`.
 
 ```typescript
 import { Client, Identity } from "@syncropel/sdk";
 
 const client = new Client({
-  endpoint: "https://your-instance.syncropel.app",
+  endpoint: "https://your-workspace.syncropel.app",
   identity: Identity.static("did:example:my-app"),
   apiKey: process.env.SYNCROPEL_TOKEN,
 });
@@ -25,11 +25,11 @@ const text = await client.data.readText("/files/notes.md");
 
 ## How writing differs from emitting
 
-There's one important contract difference from the record methods (`emit`, `query`): **the data plane surfaces errors instead of failing open.** A record `emit` returns `{ success: false }` on transport trouble so a UI never crashes; but a *write* that hits a quota, a conflict, or a malformed path **throws** — a dropped write must never look like a success. The data plane raises `SyncropelDataError`, which you catch and handle.
+File methods handle errors differently from the record methods (`emit`, `query`). A record `emit` returns `{ success: false }` on network trouble so a UI never crashes. A file *write* that hits a quota, a conflict or a bad path **throws**, because a lost write must never look like a success. It raises `SyncropelDataError`, which you catch and handle.
 
 ## Writing a file
 
-`client.data.write` performs the full three-step write — initiate, upload (chunked for large files), commit — in one call, and returns the stored content hash.
+`client.data.write` does the whole write in one call, uploading large files in chunks, and returns the stored content hash.
 
 ```typescript
 const result = await client.data.write({
@@ -37,18 +37,18 @@ const result = await client.data.write({
   data: pdfBytes,                  // Uint8Array | ArrayBuffer | string
   contentType: "application/pdf",  // optional; inferred from the path otherwise
 });
-// result.contentHash — SHA-256 of the stored bytes
+// result.contentHash — checksum (SHA-256) of the stored bytes
 // result.sizeBytes   — bytes written
 ```
 
-`data` accepts a `string` (encoded UTF-8), a `Uint8Array`, or an `ArrayBuffer`. Large files are uploaded in chunks automatically; you don't manage the upload session.
+`data` accepts a `string` (encoded UTF-8), a `Uint8Array`, or an `ArrayBuffer`. Large files are uploaded in chunks automatically.
 
-### Safe edits with compare-and-swap
+### Safe edits (conflict detection)
 
-To avoid silently clobbering a concurrent change (another tab, or an agent writing the same file), pass `expectedHash`:
+To avoid overwriting a change made at the same time (another tab, or an agent writing the same file), pass `expectedHash`:
 
 ```typescript
-// 1. Read the current file + remember its hash.
+// 1. Get the current file's hash.
 const { contentHash } = await client.data.stat("/files/notes.md");
 
 // 2. Write only if the file is still what we read.
@@ -56,7 +56,7 @@ try {
   await client.data.write({
     path: "/files/notes.md",
     data: edited,
-    expectedHash: contentHash,   // compare-and-swap
+    expectedHash: contentHash,   // only write if unchanged
   });
 } catch (e) {
   if (e instanceof SyncropelDataError && e.isConflict) {
@@ -66,15 +66,15 @@ try {
 }
 ```
 
-`expectedHash` has three modes:
+`expectedHash` works three ways:
 
 | Value | Behaviour |
 |---|---|
-| *omitted* | Last-writer-wins — unconditional overwrite. |
-| a hash string | **Compare-and-swap** — write only if the path's current hash matches. |
-| `null` | **Create-only** — fail if the path already exists. |
+| *omitted* | The last write wins and overwrites. |
+| a hash string | Write only if the file's current hash matches. |
+| `null` | Create only: fails if the path already exists. |
 
-On a conflict the write throws `SyncropelDataError` with `isConflict === true`, `expectedHash` (what you asserted), and `currentHash` (the file's real hash) — everything you need to drive a reload-or-overwrite prompt.
+On a conflict the write throws `SyncropelDataError` with `isConflict === true`, `expectedHash` (what you expected), and `currentHash` (the file's real hash) — everything you need to drive a reload-or-overwrite prompt.
 
 ## Reading
 
@@ -106,26 +106,26 @@ await client.data.rm("/files/reports", { recursive: true });
 
 ## Publishing durable artifacts
 
-A file under `/files` is mutable working storage. **Publishing** promotes a file to a content-addressed, durable artifact (an immutable snapshot you can reference by hash):
+A file under `/files` is working storage that you can edit. **Publishing** makes a lasting, unchangeable copy that you can reference by its hash:
 
 ```typescript
 const { contentHash, pinState } = await client.data.publish("/files/report.pdf");
-// The artifact is now pinned + content-addressed; the original /files path stays editable.
+// The published copy is kept permanently; the original /files path stays editable.
 ```
 
 ## Finding materials
 
-`materials` is a typed, byte-free view over your files — ideal for a picker or a search box (it returns metadata, not content):
+`materials` searches your files and returns details only, not file contents. It suits a picker or a search box:
 
 ```typescript
 const hits = await client.data.materials({ q: "budget", limit: 20 });
-// resolve a single node's metadata without fetching bytes:
+// get one file's details without fetching its contents:
 const node = await client.data.node("/files/reports/q3.md");
 ```
 
 ## Provenance ("made by you")
 
-Every file records **who made it and when**. A file you create through the SDK or the API reads as authored by you — not "adopted" from somewhere. `stat().provenance` carries it:
+Every file records **who made it and when**. A file you create through the SDK or the API shows you as its author. `stat().provenance` carries it:
 
 ```typescript
 const { provenance } = await client.data.stat("/files/notes.md");
@@ -134,11 +134,11 @@ const { provenance } = await client.data.stat("/files/notes.md");
 
 For a feed across many files (a "recently made by" view), use `client.data.provenance()`.
 
-## Quota & capabilities
+## Quota and limits
 
 ```typescript
 const { used, quota } = await client.data.usage();          // bytes
-const caps = await client.data.capabilities();              // limits, chunk size, version
+const caps = await client.data.capabilities();              // limits and chunk size
 ```
 
 ## Error handling
@@ -159,7 +159,7 @@ try {
 }
 ```
 
-Reads (`read`, `list`, `stat`, …) throw the same `SyncropelDataError` on a real error — a missing file or a permission denial surfaces, it doesn't silently return empty.
+Reads (`read`, `list`, `stat`, …) throw the same `SyncropelDataError` on a real error — a missing file or a permission denial surfaces, it doesn't quietly return nothing.
 
 ## Types
 
@@ -167,5 +167,5 @@ Reads (`read`, `list`, `stat`, …) throw the same `SyncropelDataError` on a rea
 
 ## What's next
 
-- [TypeScript SDK](/docs/guides/typescript-sdk) — records, threads, folds, and the rest of the client surface.
-- [Files](/docs/concepts/files) — the conceptual model behind the virtual filesystem.
+- [TypeScript SDK](/docs/guides/typescript-sdk) — records, threads, and the rest of the client.
+- [Files](/docs/concepts/files) — how files work in Syncropel.

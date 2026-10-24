@@ -5,75 +5,9 @@ description: Provision an instance, get past the first-run auth chicken-and-egg,
 
 ## Audience
 
-This page is for the operator standing up an `spl serve` instance for real work — laptop, server, container, or a Syncropic-hosted instance. It covers the lifecycle from `spl init` to teardown without re-deriving the architecture from first principles.
+This page is for the operator standing up an `spl serve` instance for real work — laptop, server, container, or a Syncropic-hosted instance. It covers the lifecycle from `spl init` to teardown .
 
 If something is broken right now, jump to [Recovery](/docs/operate/runbook#recovery-from-corruption-or-data-loss) on the runbook page. The lifecycle below assumes you're starting clean.
-
-## How the engine actually runs
-
-The instance implements four cooperating loops over an immutable record log. Every operational decision below — when to back up, how to read a probe, what to drain before stopping — makes more sense once the loops are visible.
-
-<Mermaid
-  caption="The four engine loops. State is computed from records; none of the loops mutate anything outside the record log."
-  chart={`flowchart LR
-    Client["HTTP / CLI client"] --> Ingest
-
-    subgraph INGEST["INGEST (per-record, &lt;100μs)"]
-        Ingest["validate"] --> Canon["canonical_json"]
-        Canon --> Hash["SHA-256 id"]
-        Hash --> Store[("RecordStore")]
-        Store --> Bcast["broadcast"]
-    end
-
-    Bcast --> Queue["reconcile_queue"]
-    Bcast --> Tick
-    Bcast --> Cfg["config_loader"]
-
-    subgraph RECONCILE["RECONCILE (per-thread, fixed-point)"]
-        Queue --> Match["match routing rules"]
-        Match -- "rule hit" --> Exec["dispatch / adapter"]
-        Match -- "no rule + user actor" --> Intel["intelligence agent"]
-        Intel --> Exec
-        Exec --> Produced["produced records"]
-        Produced --> Ingest
-    end
-
-    subgraph TICK["TICK (timer)"]
-        Tick["trust outcomes"] --> Wilson["Wilson LB + CUSUM"]
-    end
-
-    subgraph CRON["CRON (scheduled)"]
-        Decay["trust decay"] --> Crys["crystallization"]
-        Crys --> Aitl["decision timeout sweep"]
-    end`}
-/>
-
-The internal layers follow the same structure. Nothing above depends on anything below it; the engine is portable along any of the dashed boundaries (Records / Algebra and Trust are portable to the browser).
-
-<Mermaid
-  caption="spl instance internal layering. Strict layering, no upward dependencies."
-  chart={`flowchart TD
-    algebra["Records / Algebra"]
-    trust["Trust"]
-    store["Store"]
-    ai["AI Providers"]
-    expr["Expressions"]
-    engine["Engine"]
-    protocol["API / Protocol"]
-    spl["spl"]
-
-    algebra --> trust
-    algebra --> store
-    store --> engine
-    trust --> engine
-    ai --> engine
-    expr --> engine
-    engine --> protocol
-    protocol --> spl
-
-    classDef wasmsafe stroke-dasharray: 4 2;
-    class algebra,trust wasmsafe;`}
-/>
 
 ## 1. Provisioning
 
@@ -152,7 +86,7 @@ spl config auth-set-cors-origins https://syncropel.com https://app.example.com
 
 ## 4. Backup discipline
 
-> **CRITICAL — read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. The recovery drill that ships with the instance source tree was written specifically because operators conflated the two.
+> **CRITICAL — read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. 
 
 ### What the instance does for you
 
@@ -193,7 +127,7 @@ Right before an upgrade, a permission rule rollout, or a destructive migration:
 cp ~/.syncro/hub.db ~/.local/share/syncropel/backups/hub.db.before-$(date +%Y%m%d-%H%M%S)
 ```
 
-The instance does not need to be stopped — SQLite makes this safe — but it does need to not be in the middle of a heavy write burst. Watch `spl status` first.
+You do not need to stop the instance, but avoid doing this during a burst of heavy writing. Watch `spl status` first.
 
 ### Restore
 
@@ -203,7 +137,7 @@ cp ~/.local/share/syncropel/backups/<instance-key>/hub.db.bak ~/.syncro/hub.db
 spl serve
 ```
 
-On startup, trust scores and engine config rebuild from `KNOW`/`DO` and `LEARN` records respectively. Task content files and alias mappings live in `~/.syncro-data/` and are unaffected by `hub.db` operations — they survive on their own.
+On startup, trust scores and configuration are rebuilt from your records. Task content files and alias mappings live in `~/.syncro-data/` and are unaffected by `hub.db` operations — they survive on their own.
 
 > **WSL2 / UNC paths.** If `~/.syncro/` resolves to a UNC path (`\\wsl.localhost\...`) when accessed from Windows tooling, SQLite's file locks behave erratically. Keep `hub.db` on a native Linux filesystem (the WSL home directory itself) and copy backups out via `cp` rather than letting Windows Explorer touch them.
 
@@ -214,8 +148,8 @@ Three probe surfaces, three intended consumers.
 | Path | Returns | Use for |
 |---|---|---|
 | `GET /health` | `200 ok` if process is alive and bound | Load-balancer liveness / platform health checks |
-| `GET /v1/engine/health` | JSON with reconcile counters, queue depth, decision pending count | Operator readiness, alerting |
-| `GET /v1/engine/health` (with `details=true`) | Full per-loop breakdown including expression-cache stats | Capacity planning, debugging |
+| `GET /v1/engine/health` | JSON with processing counters, queue depth, and pending decision count | Operator readiness, alerting |
+| `GET /v1/engine/health` (with `details=true`) | Full breakdown including rule-cache stats | Capacity planning, debugging |
 
 Liveness:
 
@@ -238,16 +172,16 @@ curl -fsS http://localhost:9100/v1/engine/health | jq
 # }
 ```
 
-`reconcile_queue_depth` should be near zero in steady state. A growing queue with stable ingest is the signal that an adapter has stalled; check `/v1/engine/health?details=true` for which thread is backed up, then `spl debug replay <thread>` to walk the records.
+`reconcile_queue_depth` should be near zero when things are steady. A growing queue while records keep arriving means an adapter has stalled; check `/v1/engine/health?details=true` for which thread is backed up, then `spl debug replay <thread>` to walk the records.
 
-CEL hot-path observability:
+Rule cache statistics:
 
 ```bash
 curl -fsS http://localhost:9100/v1/engine/expression_cache/stats | jq
-# Healthy: hit rate > 99%, avg compile < 100μs, size << capacity (1024).
+# Healthy: hit rate > 99%, average compile time < 100μs, size well under the capacity (1024).
 ```
 
-A compile-error spike in this endpoint usually means a bad CEL config record landed; check `spl config list-rules` and the most recent LEARN on `th_engine_config`.
+A spike in compile errors usually means a bad rule was added; check `spl config list-rules` and the most recent configuration record.
 
 ## 6. Teardown
 
@@ -272,7 +206,7 @@ This sends `SIGTERM`. The instance finishes pending writes, closes the socket, a
 
 ### Reclaim space (optional)
 
-The record store reclaims freed pages lazily, so the store file does not shrink on its own after an upgrade migration or a large deletion. With the instance stopped, compact the store file with your database tooling to reclaim it. Budget roughly twice the file size in free disk and expect an exclusive lock for the duration (minutes on multi-gigabyte ledgers). Do not compact a running instance.
+The store file does not shrink on its own after an upgrade or a large deletion. With the instance stopped, compact the store file with your database tooling to reclaim it. Budget roughly twice the file size in free disk and expect an exclusive lock for the duration (minutes on multi-gigabyte ledgers). Do not compact a running instance.
 
 ### Archive
 

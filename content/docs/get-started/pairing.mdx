@@ -1,21 +1,21 @@
 ---
-title: Pairing a Browser or Phone
-description: Use `spl pair` to attach a browser, phone, or other device to your workspace with its own scoped service account and token. One-click URL, QR-code flow, manual pairing for headless hosts, and revocation.
+title: Pairing a browser or phone
+description: Use `spl pair` to connect a browser, phone or other device to your workspace with its own limited account and token. Covers the one-click link, the QR code, manual pairing for servers, and removing a device.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
-Your CLI talks to your workspace via `~/.syncro/token`. Browsers and phones can't read that file, so they need their own service account and token. `spl pair` wraps the whole "create a scoped account, render a token, show it in a form the other device can consume" flow in one command.
+Your command line uses the token in `~/.syncro/token`. Browsers and phones can't read that file, so each needs its own service account and token. `spl pair` does it all in one command: it creates a limited account, creates a token, and shows it in a form the other device can use.
 
 ## Why pairing exists
 
-A fresh browser pointed at `syncropel.com` has no way to authenticate to your local workspace. It doesn't know what instance URL to hit, and even if it did, it has no token. Three ways to solve this:
+A browser on `syncropel.com` has no way to sign in to a workspace on your computer. It doesn't know the address, and it has no token. There are three ways to fix that:
 
-1. **Paste the token manually.** Works, but painful: tokens are 40-plus characters and typing them on a phone keyboard is error-prone.
+1. **Paste the token manually.** Works, but painful: tokens are over 40 characters long and easy to mistype on a phone.
 2. **Share the CLI's token with the browser.** Bad: the CLI's token is usually `admin`-scoped and the browser doesn't need that.
-3. **Pair.** Create a fresh, narrowly-scoped service account just for this device, hand its token to the device, and let the device store it.
+3. **Pair.** Create a new service account with limited access just for this device, and give its token to the device.
 
-Pairing is path 3. It produces a device-specific service account you can revoke independently if the device is lost.
+Pairing is option 3. Each device gets its own service account, which you can remove if the device is lost.
 
 ## `spl pair`
 
@@ -28,13 +28,13 @@ spl pair \
 
 The command:
 
-1. Creates a new service account named after your device, bound to your user DID, with the scopes you named.
+1. Creates a new service account named after your device, linked to your identity, with the scopes you chose.
 2. Creates a token on the new account.
-3. Renders the pairing payload three ways: pick the one that fits the situation.
+3. Shows the pairing details three ways. Use the one that suits the device.
 
 ### Output: three ways to pair
 
-The CLI prints all three in order of friction. Pick whichever is easiest for the device you're trying to pair.
+The command prints all three, easiest first. Use whichever is easiest for your device.
 
 **1. One-click URL: the fastest path.** First line of the output is a clickable URL of the form:
 
@@ -42,30 +42,30 @@ The CLI prints all three in order of friction. Pick whichever is easiest for the
 https://syncropel.com/pair#<encoded-payload>
 ```
 
-Click it (or copy it into the browser you want to pair). The page reads the encoded payload, verifies the token against your workspace, stores the credential in the browser, and drops you on `/tasks`: no typing, no scanning, no copy/paste.
+Click it (or copy it into the browser you want to pair). The page checks the token with your workspace, saves it in the browser, and takes you to `/tasks`. You don't type, scan or paste anything.
 
-The token rides in the URL fragment (the part after `#`), which never reaches any server. After the credential is stored, the browser replaces the URL bar with `/tasks` so the token doesn't sit in browser history either.
+The token is in the part of the link after `#`, which is never sent to any server. Once it is saved, the address bar changes to `/tasks` so the token isn't left in your browser history.
 
-**2. QR code: for phones with a camera.** Underneath the URL, the CLI renders a QR code that encodes the same payload. Open `syncropel.com` on the phone, choose the QR tab, and point the camera at your terminal. Same end state: credential stored, dashboard loads.
+**2. QR code: for phones with a camera.** Underneath the URL, the CLI renders a QR code that encodes the same payload. Open `syncropel.com` on the phone, choose the QR tab, and point the camera at your terminal. The result is the same.
 
-**3. Plain-text payload: for paste flows.** Below the QR is the raw `url` / `token` / `device` triple, ready to paste into any device that can't click a URL or scan a QR (a headless server, a script, a config file).
+**3. Plain-text payload: for paste flows.** Below the QR is the plain `url`, `token` and `device` values, ready to paste into any device that can't click a URL or scan a QR (a headless server, a script, a config file).
 
-All three end at the same place: the device stores the URL and token in encrypted local storage and uses them on every subsequent API call.
+All three end at the same place: the device stores the address and token securely and uses them for every request after that.
 
 ### What the dashboard shows at each stage
 
-`syncropel.com` distinguishes a small set of connection states so you can tell at a glance what your workspace wants from you:
+`syncropel.com` shows your connection state with a coloured dot, so you can tell at a glance what to do:
 
 | State | Dot | What it means |
 |---|---|---|
-| No instance reachable | gray | `localhost:9100` isn't responding. Start `spl serve`. |
-| Connected, insecure mode | amber `DEV MODE` | `--insecure-localhost`: auth bypassed, fine for solo dev. |
+| Workspace not reachable | gray | `localhost:9100` isn't responding. Start `spl serve`. |
+| Connected, insecure mode | amber `DEV MODE` | `--insecure-localhost`: sign-in is off, fine when working alone. |
 | Pair required | amber | Your workspace wants a token; this browser has none. Run `spl pair` and click the printed URL. |
 | Connected, secure | green | Paired, token valid, records stream normally. |
-| Token expired or revoked | red | Your token was nuked. Click **Re-pair** to run through pairing again. |
-| Browser blocked the connection | gray | Chrome's local-network protection refused the fetch. The dashboard explains recovery. |
+| Token expired or revoked | red | Your token was removed or has expired. Click **Re-pair** to run through pairing again. |
+| Browser blocked the connection | gray | Chrome's local-network protection blocked the request. The dashboard explains how to fix it. |
 
-For the full set of failure modes, see [Troubleshooting](/docs/get-started/troubleshooting).
+For other problems, see [Troubleshooting](/docs/get-started/troubleshooting).
 
 ### On a phone or iPad
 
@@ -74,7 +74,7 @@ For the full set of failure modes, see [Troubleshooting](/docs/get-started/troub
 | Action | When to use |
 |---|---|
 | **Scan pairing QR** | You're standing next to your laptop and just ran `spl pair --device browser-mobile`. Point the phone camera at the printed QR. |
-| **Enter instance URL** | Your workspace is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
+| **Enter workspace URL** | Your workspace is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
 
 If you previously paired this phone and the workspace URL is stored, the dashboard connects to it directly and skips the welcome screen.
 
@@ -82,7 +82,7 @@ If you're seeing this welcome screen on a desktop and you do have a workspace at
 
 ### Choose `--url` carefully
 
-`--url` is the address the **target device** will call: not your workspace's view of itself.
+`--url` is the address the **device you are pairing** will use to reach your workspace, not the address your workspace uses for itself.
 
 | Situation | URL to pass |
 |---|---|
@@ -91,7 +91,7 @@ If you're seeing this welcome screen on a desktop and you do have a workspace at
 | Phone or iPad on the same private network (Tailscale, VPN) | `http://100.x.y.z:9100` (the private network address of the host) |
 | Over the public internet via reverse proxy | `https://your-host.example.com` (the proxy's public URL) |
 
-If the device can't reach the URL, the pairing saves but every request fails. Pick a URL that makes sense for where the device actually lives.
+If the device can't reach the URL, the pairing is saved but every request fails. Pick a URL that makes sense for where the device actually lives.
 
 ### Scopes to give a device
 
@@ -102,11 +102,11 @@ The `--device` label sets a sensible default scope for you, so you usually don't
 | `browser-*` (e.g. `browser-chrome`) | `admin` | Pairing a browser to drive the full dashboard. Most common case. |
 | `viewer-*` (e.g. `viewer-bigscreen`) | `records:read` | Read-only display surface (a screen, a status board). |
 | `emitter-*` (e.g. `emitter-linear`) | `records:read,records:write` | An integration that writes records but doesn't need to administer your workspace. |
-| Anything else | `records:read,records:write` | Conservative default with a hint suggesting one of the prefixes above. |
+| Anything else | `records:read,records:write` | Limited access by default, with a hint to use one of the prefixes above. |
 
 If the default isn't what you want, override with `--scopes` (comma-separated list). For example, `--scopes records:read` creates a viewer-only token regardless of device prefix.
 
-The general rule: start narrow. `admin` is appropriate for a browser driving the dashboard but rarely the right choice for a phone or an integration. Add scopes when a feature actually fails on a token, not preemptively.
+The general rule: start narrow. `admin` is appropriate for a browser driving the dashboard but rarely the right choice for a phone or an integration. Add scopes only when something fails for lack of them.
 
 ## Manual pairing (headless servers)
 
@@ -138,7 +138,7 @@ Exactly three fields:
 - **`token`**: the bearer token. Used as `Authorization: Bearer <token>` on every request.
 - **`device`**: the display name you chose. Surfaced by the device so the user can tell one paired workspace from another.
 
-Nothing else is transmitted. The token itself is the authentication proof; the URL tells the device where to send requests; the device name is presentation only.
+Nothing else is transmitted. The token proves who the device is, the URL says where to send requests, and the device name is only a label.
 
 ## Listing paired devices
 
@@ -146,37 +146,37 @@ Nothing else is transmitted. The token itself is the authentication proof; the U
 spl service-account list
 ```
 
-Devices paired via `spl pair` show up as regular service accounts: the only difference from a bootstrap account is their scopes and the fact that they were created after auth was already on.
+Devices paired with `spl pair` show up as ordinary service accounts, with the scopes you gave them.
 
 ## Revoking a lost device
 
 If a phone is lost or a laptop is stolen, revoke the service account that was paired to it:
 
 ```bash
-spl service-account list                       # find the SA by device name
-spl service-account revoke <sa_id>             # irreversible; every token for this SA dies
+spl service-account list                       # find the account by device name
+spl service-account revoke <sa_id>             # cannot be undone; every token for this account stops working
 ```
 
-The device continues to hit your workspace with its old token and every request now returns `401 AUTH_INVALID`. Your other paired devices are unaffected.
+The device can still try its old token, but every request now returns `401 AUTH_INVALID`. Your other paired devices are unaffected.
 
-If you want to give the device a fresh token without retiring the whole service account (for example, when rolling tokens quarterly):
+If you want to give the device a fresh token without removing the whole service account (for example, when you replace tokens regularly):
 
 ```bash
 spl token rotate <sa_id>
 ```
 
-Then re-pair that device with the new token. The old token dies; the service account identity stays.
+Then re-pair that device with the new token. The old token stops working; the service account stays.
 
 ## Common pitfalls
 
 **"Pairing succeeded but the browser shows connected-no-records."** The device stored the URL and token but the token doesn't have `records:read`. Check `spl service-account list` and re-pair with wider scopes.
 
-**"The QR code doesn't scan."** Most terminals render blocky Unicode. If your terminal doesn't support it, copy the plain-text payload printed under the QR code instead. Alternatively, widen the terminal and re-run: some QR libraries need a minimum cell size.
+**"The QR code doesn't scan."** Some terminals can't draw the QR code properly. Copy the plain-text details printed under it instead, or make the terminal window bigger and run the command again.
 
-**"I paired my phone but it can't reach my workspace over Wi-Fi."** `--url 127.0.0.1:9100` only reaches the host itself. Your phone needs the host's LAN IP. Check `ip addr` or `ifconfig` on the host and re-pair.
+**"I paired my phone but it can't reach my workspace over Wi-Fi."** `--url 127.0.0.1:9100` only reaches the host itself. Your phone needs your computer's address on the home network. Find it with `ip addr` or `ifconfig` and pair again.
 
 ## See also
 
-- [Security model](/docs/operate/security-model): bearer tokens, service accounts, what's on-disk
-- [Troubleshooting](/docs/get-started/troubleshooting): diagnostic tree for the most common failure modes
-- [Operator runbook](/docs/operate/runbook): day-2 operations once your workspace is doing real work
+- [Security model](/docs/operate/security-model): tokens, service accounts, what is stored on disk
+- [Troubleshooting](/docs/get-started/troubleshooting): step-by-step fixes for the most common problems
+- [Operator runbook](/docs/operate/runbook): running your workspace day to day

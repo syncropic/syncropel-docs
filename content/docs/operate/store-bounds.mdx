@@ -3,25 +3,25 @@ title: Bounding a workspace's storage
 description: How a workspace keeps itself under a disk ceiling. The whole-store ceiling, what it refuses and what it never refuses, the embedding cache bound and its sweep, telemetry retention, why eviction caps growth without giving disk back, and how hosted workspaces are bounded.
 ---
 
-A workspace's store is one file, and by default nothing bounds its size. That is
-the right default on a workstation, where you own the disk and the daemon has
+A workspace's store is one file, and by default nothing bounds its size. That
+is the right default on a workstation, where you own the disk and the workspace has
 no business refusing your work. It is the wrong default on a small volume,
-where the failure mode was the daemon dying rather than refusing. A workspace
-can say what fills its disk and be bounded. Every bound defaults to none, so
+where the workspace would crash instead of refusing. You can see what fills
+your disk and set a limit. Every bound defaults to none, so
 nothing changes until you declare one.
 
 ## What fills the disk
 
-Measured on a 2,321 MB copy of the reference workspace:
+Example from a 2,321 MB workspace:
 
 | Part | Share | What it is |
 |---|---|---|
 | Records and their indexes | 24.8% | The work itself: threads, records, decisions |
-| Embedding cache | 34.1% | Derived data for semantic search, regenerable |
+| Embedding cache | 34.1% | Data for semantic search, rebuildable |
 | Telemetry | 39.7% | Timings and counters the workspace writes about itself |
 | Other | about 1.8% | Everything else |
 
-Three quarters of a workspace's disk is derived data. That is why the bounds
+In this example, three quarters of the disk is rebuildable data. That is why the bounds
 below act on the caches first and only refuse ordinary writes as the backstop.
 
 ## The whole-store ceiling
@@ -39,8 +39,8 @@ rather than merging into it, so a bound you set by mistake can be lifted by
 writing a record that omits it.
 
 The policy is one LEARN record on the workspace's config thread,
-`th_engine_config`, written through the records door; there is no `spl config`
-verb for it yet. `actor` is your own member id (`GET /v1/self` reports it) and
+`th_engine_config`, written through the records API. There is no `spl config`
+command for it. `actor` is your own member id (`GET /v1/self` reports it) and
 `clock` is one more than your highest clock on that thread
 (`GET /v1/threads/th_engine_config/state` reports `actor_clocks`):
 
@@ -77,30 +77,25 @@ Two kinds of write pass regardless of the ceiling, and both are load-bearing:
 1. **A config write.** The ceiling is declared in a config record, so refusing
    config writes would lock you out of the only way to raise it. You can always
    lift the ceiling from inside a full workspace.
-2. **A record the workspace writes about itself.** The daemon's own
-   bookkeeping (lifecycle, audit, the write-back trail) is what you need intact
-   to diagnose and recover a full workspace. A ceiling that silenced the
-   instrument panel at the moment it matters would be worse than no ceiling.
+2. **A record the workspace writes about itself.** The workspace's own
+   bookkeeping (lifecycle, audit, copy-to-repository trail) is what you need to
+   diagnose and recover a full workspace, so it is never refused.
 
 ### When the size cannot be read
 
 If the store cannot report its size, the ceiling is not enforced and writes
 proceed. A workspace that cannot report its size is not a workspace under its
 ceiling, and taking a workspace down because an instrument is missing is the
-worse error. The unreadable case is surfaced in `spl doctor` (below) rather
-than in the write path.
+worse error. `spl doctor` (below) reports this case.
 
 ## The embedding cache bound
 
-Embeddings are derived and regenerable, so exceeding `max_embedding_bytes`
+Embeddings can be rebuilt, so exceeding `max_embedding_bytes`
 never refuses anything. Instead a scheduled sweep evicts the oldest embeddings
-until the cache is under its bound. The sweep runs alongside the workspace's
-other periodic jobs, does nothing at all when no bound is declared, and is
-cheap when there is nothing to do, so it honours a new bound promptly.
+until the cache is under its bound. The sweep runs on a schedule, does nothing when no bound is declared, and picks up a new bound promptly.
 
 The cost is that semantic search covers a narrower window of time. The
-workspace reports that window rather than leaving you to discover it: the
-store composition carries `embedding_window`, and the doctor row prints
+workspace reports that window rather than leaving you to discover it: the store size breakdown carries `embedding_window`, and the doctor row prints
 "semantic search covers `<from>` to `<to>`".
 
 ## Telemetry retention
@@ -112,35 +107,26 @@ map names each kind and its retention in days; `0` purges that kind on the next
 sweep. Kinds you do not name keep the 30-day default. Like the store bounds,
 the newest record replaces the whole map.
 
-Why a window at all: telemetry exists to answer questions about the last few
-seconds to hours, and a generous forensic look-back of 30 days is plenty. On
-the reference workspace it was the largest single consumer of disk, so hosted
-workspaces on small volumes are provisioned with tighter windows than the
-workstation default.
+Telemetry exists to answer questions about the recent past, and 30 days is plenty. It can be the largest single user of disk, so hosted workspaces on small volumes use tighter windows than the workstation default.
 
 ## Eviction caps growth; it does not give disk back
 
-This is the sentence to remember. Deleting rows reduces a table's charge but
-not the file: freed pages are reused for later writes, and only a full VACUUM
-returns space to the disk. A VACUUM needs roughly the file's size again in
-free space to run, which is exactly what a full workspace has run out of.
+This is the sentence to remember. Deleting records frees space inside the file, and new writes reuse it, but the file stays the same size. Only a full compaction (a SQLite `VACUUM`) returns space to the disk. Compaction needs roughly the file's size again in free space, which is exactly what a full workspace has run out of.
 
-Measured: a 12.4 MB store with two thirds of its rows deleted stayed exactly
-12.4 MB while the table's charge fell from 12,320,768 to 4,399,104 bytes. A
-full VACUUM then took the file to 4.1 MB.
+In one test, a 12.4 MB store with two thirds of its records deleted stayed 12.4 MB until it was compacted, which brought it to 4.1 MB.
 
 Two consequences:
 
 - Set the ceiling with headroom under the disk. A workspace that actually
-  fills its volume cannot vacuum its way out.
+  fills its volume cannot compact its way out.
 - Retention and eviction are how you stop a store growing. They are not how
-  you shrink one. To shrink one, stop the daemon and vacuum while there is
+  you shrink one. To shrink one, stop the workspace and compact it while there is
   still free space, or move to a larger volume.
 
 ## The doctor row
 
 `spl doctor` carries a `store size` row that reads the store's size, its
-ceiling, and (with the composition walk, which costs under a second on a 2 GB
+ceiling, and (the breakdown takes under a second on a 2 GB
 store) the split above. The wording depends on where you are:
 
 | State | Row |
@@ -155,29 +141,22 @@ store) the split above. The wording depends on where you are:
 An absent number is unknown, never zero. When the embedding cache is empty the
 row says so in place of the window.
 
-The same numbers are on the health door for a poller: `GET /v1/engine/health`
+The same numbers are available to a monitoring script: `GET /v1/engine/health`
 carries `store.total_bytes`, `store.ceiling_bytes` and `store.over_ceiling`
 for free, and `store.composition` (`records_bytes`, `embeddings_bytes`,
 `telemetry_bytes`, `other_bytes`, `embedding_window`) only when you ask with
-`?store_composition=1`, because the composition walk is the part that costs.
+`?store_composition=1`, because the breakdown is the slow part.
 
 ## Hosted workspaces
 
 The hosted policy is sized to the tier. A hosted **free** workspace comes
-with 1 GB of storage and is designed to boot with a whole-store ceiling set
+with 1 GB of storage and starts with a whole-store ceiling set
 below it (800 MB), so the refusal above fires while there is still room to
-act; the ceiling arrives as the same `store_bounds` record described above,
-seeded once at first configuration, so it can be lifted or changed later with
-a newer record. A hosted **paid** workspace has more storage and no ceiling by
+act. The ceiling is the same `store_bounds` record described above, so you can lift or change it later by writing a newer record. A hosted **paid** workspace has more storage and no ceiling by
 default, the same as a workstation. Either can declare or change its own
 bounds with the record above.
 
-<Callout type="info">
-The free hosted tier is open. A free workspace boots with a
-whole-store ceiling (about 800 MiB of store on a 1 GB volume), seeded once at
-configuration. A paid workspace and a local workstation carry no ceiling by
-default; either can declare or change its own bounds with the record above.
-</Callout>
+
 
 <Callout type="info">
 Your data stays in your workspace. The bounds on this page decide when your

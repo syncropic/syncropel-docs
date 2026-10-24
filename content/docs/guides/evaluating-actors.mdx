@@ -1,6 +1,6 @@
 ---
 title: Evaluating actors
-description: Score an eval suite against an actor and judge one record over another. The improvement loop scores structure and substance apart, treats a definition's facet as its identity, and compares regressions per axis.
+description: Score an eval suite against an actor, and record that one result beat another. Structure and substance are scored separately, so regressions show up on the right axis.
 ---
 
 ## Overview
@@ -10,18 +10,13 @@ preference between two results:
 
 - **`spl eval`** scores an eval suite against an actor and reads that
   actor's graded history.
-- **`spl judge`** records that one record beat another, writing a
-  `core.verdict.pair.v1` that names the features that differed.
+- **`spl judge`** records that one result beat another, along with the features that made the difference.
 
-Together they are the improvement loop: you measure a candidate actor
-definition, compare it against the one it succeeds, and keep a durable
-record of which was better and why.
+Together they let you measure a candidate actor definition, compare it with the one it replaces, and keep a lasting record of which was better and why.
 
 ## Scoring a suite: `spl eval score`
 
-An eval suite is a thread of `core.eval.case.v1` records. Scoring folds
-those cases against an actor's runs and writes **one** kernel-authored
-`core.eval.run.v1`.
+An eval suite is a thread of test cases (`core.eval.case.v1` records). Scoring compares those cases with an actor's runs and writes **one** result record (`core.eval.run.v1`).
 
 ```bash
 spl eval score <suite> \
@@ -33,31 +28,22 @@ spl eval score <suite> \
 |---|---|
 | `<suite>` | The eval thread holding the `core.eval.case.v1` records |
 | `--actor <did>` | The actor whose runs are scored |
-| `--definition <64-hex>` | The content address of the definition being graded |
+| `--definition <64-hex>` | The ID of the definition being graded |
 
-The definition is required: a grade with no definition names nothing. The
-scorer matches the runs against that definition's own id (or its facet, see
-below) and refuses to grade over zero matching runs, so a grade always
-measures work that actually ran under the named definition.
+The definition is required, so every grade names what it measured. Scoring refuses to grade if no runs used that definition, so a grade always reflects work that actually ran under it.
 
 ### Execution is a separate step
 
-`spl eval score` does not run the cases. A suite is N runs of 30 to 60
-seconds each, so you run the cases first, with `spl` against the actor, and
-then score what the log already holds. Scoring reads the run log; it does
-not produce it.
+`spl eval score` does not run the cases. A suite is many runs of 30 to 60 seconds each, so run the cases first against the actor, then score the runs that exist.
 
 ### Structure and substance are scored apart
 
 The score keeps two axes separate and **never averages them**:
 
-- **Structure** is whether the run was well-formed (for example, terminal
-  with no failed tool calls).
+- **Structure** is whether the run was well-formed (for example, it finished with no failed tool calls).
 - **Substance** is whether it did the right thing.
 
-A case that has **no run** is **excluded** from the substance figure rather
-than counted as a failure, and every substance figure carries its own
-denominator so two scores are only compared when they cover the same cases.
+A case with **no run** is left out of the substance figure instead of counting as a failure. Each substance figure shows how many cases it covers, so compare two scores only when they cover the same cases.
 
 ## Reading the history: `spl eval history`
 
@@ -68,26 +54,17 @@ spl eval history <actor>
 This shows an actor's graded history by definition: is it getting better,
 and on which axis. Because the two axes are never blended, a candidate that
 fixed every failed tool call but started answering the wrong question shows
-structure up and substance down, instead of a single blended number that
-moves by zero and hides the regression.
+structure up and substance down, rather than one blended number that hides the regression.
 
-## The definition's identity is its facet
+## A definition is identified by how the actor behaves
 
-A definition's identity is its **facet**, not its record id. Who installed
-it, where it came from, and how much it is trusted all move the record's id
-without changing how the actor behaves. The eval anchor stamps the facet
-beside the definition, so a candidate measured **before** approval and the
-same candidate **after** it are recognized as one definition. That is what
-makes scoring a candidate worth doing.
+Who installed a definition, where it came from, and how much it is trusted can all change without changing how the actor behaves. Scoring therefore identifies a definition by its behaviour (its "facet"), not by its record ID. A candidate you measure **before** approval is recognized as the same definition **after** approval.
 
-A **trial** applies a candidate definition to a single run and installs
-nothing: it is bounded by the same define-door checks as a real install,
-with the incumbent's record id cleared and the run marked, so you can
-measure a candidate against the incumbent without changing the instance.
+A **trial** applies a candidate definition to a single run and installs nothing. It follows the same checks as a real install, so you can measure a candidate against the current definition without changing your workspace.
 
 ## Judging one record over another: `spl judge`
 
-`spl judge` records a preference between two records by content address:
+`spl judge` records a preference between two records, by ID:
 
 ```bash
 spl judge <winner> over <loser> \
@@ -106,10 +83,7 @@ The literal word `over` sits between the two 64-hex ids. Options:
 | `--thread <THREAD>` | The thread the verdict lands on (default: the winner's thread) |
 | `--actor <ACTOR>` | The judging actor (default from `SPL_ACTOR` or config) |
 
-This writes a `core.verdict.pair.v1` naming the features that differed. A
-regression fold compares each definition against the one it succeeded, per
-axis, so a pair verdict is a durable, per-axis record of which result was
-better and on what grounds.
+This writes a verdict (`core.verdict.pair.v1`) naming the features that differed. Each definition is compared with the one it replaced, axis by axis, so a verdict is a lasting record of which result was better and why.
 
 ## Machine-readable output
 

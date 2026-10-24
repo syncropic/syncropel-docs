@@ -1,13 +1,12 @@
 ---
 title: Content overrides (Tier 2)
-description: Author a core.site.v1 record to override the L0 identity card's content slots — name, mission, links, Connect button. The spl site family wraps the lifecycle; the record shape is portable.
+description: Author a core.site.v1 record to override the L0 identity card's content slots — name, mission, links, Connect button. The spl site commands manage it; the record is portable.
 ---
 
 Tier 2 is the record-driven layer of [the instance site](/docs/operate/site).
-You author a `core.site.v1` record on the `th_site` thread and the
-renderer applies its `content` slots on top of the L0 default. The
-`spl site` family wraps the verb shapes; the underlying record is the
-same one a fleet seed script or a backup restore would emit.
+You author a `core.site.v1` record on the `th_site` thread and the instance applies its `content` slots on top of the L0 default. The
+`spl site` commands manage it; the record is the
+same one a fleet seed script or a backup restore would write.
 
 ## The shape
 
@@ -42,9 +41,8 @@ absent to keep the L0 default for that field.
 
 ### `content` slots
 
-Every field is optional. Slot-by-slot fall-through to the L0 default
-means partial overrides are first-class — you can set just the name and
-leave everything else at the default.
+Every field is optional. Any slot you leave out keeps the L0 default, so you can set just the name and
+leave everything else as is.
 
 | Slot | Type | What it overrides | L0 default |
 | --- | --- | --- | --- |
@@ -72,21 +70,16 @@ links with a `↗` glyph and `target="_blank"` automatically when
 }
 ```
 
-The `indicator` field accepts `"live"` today, which surfaces a small
-animated green dot next to the label — used for status surfaces. Other
-indicators may land in later versions.
+The `indicator` field accepts `"live"`, which shows a small
+animated green dot next to the label — used for status surfaces. 
 
-### `theme` (status note)
+### `theme` (limit)
 
-The `theme.accent` field is part of the record schema, but the renderer does not yet thread theme overrides from the
-record into the inline `:root` block. Setting `theme.accent` via record
-is currently a no-op visually. The accent override IS reachable today
-via the [Tier 3 filesystem overlay](/docs/operate/site/filesystem-overlay)'s
-`theme.css`. The record shape will not change when record-side support arrives.
+The `theme.accent` field is part of the record, but the page does not apply it. Setting `theme.accent` in the record has no visible effect. To change the accent, use `theme.css` in the [Tier 3 filesystem overlay](/docs/operate/site/filesystem-overlay).
 
 ## The `spl site` family
 
-The CLI wraps the record lifecycle. Every verb emits or queries records;
+The CLI manages the record for you. Every command reads or writes records;
 there is no separate state file.
 
 ### Initialise a draft
@@ -158,7 +151,7 @@ spl site connect unset
 ### Theme accent
 
 ```bash
-spl site theme --accent "#c2410c"   # set the accent (record-side; see status note above)
+spl site theme --accent "#c2410c"   # set the accent (no visible effect; see the limit above)
 spl site theme --unset              # clear the override
 ```
 
@@ -180,9 +173,7 @@ spl site publish
 ```
 
 Promotes the current draft to `lifecycle: "published"`. The next
-`GET /` serves it. Publishing emits a new record (with a higher clock
-than the existing published record), so the old version stays in the
-record log — walking `th_site` shows the full history of edits.
+`GET /` serves it. Publishing adds a new record, so the old version is kept — reading `th_site` shows the full history of edits.
 
 ### Archive
 
@@ -190,14 +181,13 @@ record log — walking `th_site` shows the full history of edits.
 spl site archive
 ```
 
-Archives the current published record. After archival the resolver
-falls back to the L0 default; the L0 floor is preserved. To return to
+Archives the current published record. After archival the instance
+falls back to the L0 default. To return to
 the published content, publish a new draft.
 
-## What the record log looks like
+## What the history looks like
 
-After a typical authoring session, the `th_site` thread carries one
-or two records per content version:
+After a typical editing session, the `th_site` thread holds one or two records per version:
 
 ```
 th_site
@@ -209,15 +199,13 @@ th_site
 └── PUT  clock=5   lifecycle=published   (spl site publish again)
 ```
 
-Walking the thread:
+To read it:
 
 ```bash
 spl thread records th_site -o json | jq '.records[] | {clock, lifecycle: .body.lifecycle}'
 ```
 
-To revert to an earlier published version, copy that record's `body`,
-emit it again with a fresh clock. There is no destructive rewrite —
-every change is an append.
+To go back to an earlier published version, copy that record's `body` and write it again as a new record. Nothing is ever overwritten; every change is added.
 
 ## Fleet seeding
 
@@ -225,7 +213,4 @@ For instances provisioned from a blueprint or scripted from a fleet
 runbook, the record is what you check in. Keep your `core.site.v1`
 document in version control alongside your provisioning scripts, then
 POST it through `/v1/records` with the operator's DID as `actor` as a
-post-provision step. Because the record is content-addressed, the same
-file produces the same site on every instance you seed it into — which
-makes a checked-in site record the simplest way to keep a fleet's
-landing pages consistent.
+post-provision step. The same file produces the same site on every instance you seed it into, so a checked-in site record is the simplest way to keep a fleet's landing pages consistent.

@@ -5,7 +5,7 @@ description: Create a task with success criteria, complete it, and see trust evi
 
 ## What you'll learn
 
-Tasks in Syncropel are more than work items — they carry a hypothesis and success criteria. When a task completes and is reviewed, the outcome feeds into trust scores that improve future work.
+Tasks in Syncropel are more than work items: they carry success criteria. When a task is completed and reviewed, the outcome feeds into trust scores.
 
 ## Create a task
 
@@ -17,7 +17,7 @@ spl task add "Add input validation to the signup form" \
 
 The output shows a thread ID and an alias (like `TASK-0001`) that you can use as a shorthand.
 
-A task can be born with its relations, and they are written as real edges rather than prose:
+A task can be born with its relations, and they are saved as real links rather than prose:
 
 ```bash
 spl task add "Validate the phone field too" --alias TASK-0002 \
@@ -25,7 +25,7 @@ spl task add "Validate the phone field too" --alias TASK-0002 \
   --depends-on TASK-0001
 ```
 
-`--parent` names the task this one is a child of, `--fixes` names a defect thread this one fixes, and `--depends-on` blocks this task until the named ones are approved. Each accepts an alias, a thread id or a record id, and each becomes a `parents` edge on the new task's first record (also listed under `body.relations`), so the thread graph sees the relation. Every reference is resolved before anything is written: an alias that does not exist, or a thread you cannot read, refuses the whole command with exit code 2 and nothing lands.
+`--parent` names the task this one is a child of, `--fixes` names a defect thread this one fixes, and `--depends-on` blocks this task until the named ones are approved. Each accepts an alias, a thread id or a record id, and each is saved as a link on the new task's first record (also listed under `body.relations`), so the relation shows up in the thread graph. Every reference is checked before anything is saved. If an alias does not exist or you cannot read a thread, the whole command fails with exit code 2 and nothing is saved.
 
 ## View your tasks
 
@@ -87,10 +87,10 @@ ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
 did:sync:user:you       code            1       1   0.246
 ```
 
-Each approved task adds evidence. Over time, trust scores reflect real track records — not opinions or permissions.
+Each approved task adds evidence. Over time, trust scores reflect real track records, not opinions or permissions.
 
 ## What's next
 
 - [Work with threads](/docs/tutorials/first-thread) — understand how tasks relate to threads
 - [Task management guide](/docs/guides/task-management) — the full task lifecycle
-- [How trust works](/docs/concepts/trust) — the evidence-based trust model
+- [How trust works](/docs/concepts/trust) — how trust is earned

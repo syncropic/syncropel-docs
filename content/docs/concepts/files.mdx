@@ -1,6 +1,6 @@
 ---
 title: Files
-description: Every Syncropel instance has a filesystem — a place for your working files, published artifacts, connected drives, and files derived from your threads.
+description: "Every Syncropel workspace has a filesystem: a place for your working files, published files, connected drives and files from your threads."
 ---
 
 Every Syncropel instance has a **filesystem** — a place to keep files. You
@@ -9,10 +9,8 @@ computer, except it lives with your instance and follows you wherever you
 reach that instance from.
 
 Files are kept separately from [records](/docs/concepts/records). Records are
-the small, immutable facts that make up your coordination history; files are
-the bytes — documents, datasets, images, exports. Keeping them apart means a
-large upload never slows down your record history, and your records stay a
-clean, fast log.
+the small facts that make up your history; files are documents, datasets,
+images and exports. Keeping them apart means a large upload never slows down your records.
 
 ## The four areas
 
@@ -35,9 +33,8 @@ cleaning, a report in progress. You can change or delete a working file at any
 time; nothing is fixed until you decide it is.
 
 When a file is finished, you **publish** it. Publishing copies the file into
-`/artifacts` and gives it a permanent address based on its exact contents — a
-*content hash*. That address never changes and always points at exactly those
-bytes. An artifact is read-only: it can never be altered or quietly swapped,
+`/artifacts` and gives it a permanent address based on its exact contents, called a
+*content hash*. That address never changes and always points at exactly that file. An artifact is read-only: it can never be altered or quietly swapped,
 so it's safe to share, cite, or depend on.
 
 ```bash

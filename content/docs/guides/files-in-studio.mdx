@@ -13,7 +13,7 @@ The Files tab is the same filesystem you reach with `spl fs`: anything you
 do here shows up there, and vice versa.
 
 <Callout>
-On a hosted workspace, files are not included in the kept copy yet. See [Your hosted workspace](/docs/get-started/your-hosted-workspace).
+On a hosted workspace, files are not included in the workspace's saved copy. See [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 </Callout>
 
 ## Open Files
@@ -115,8 +115,7 @@ those changes (or **Discard** them).
 ### When someone else changes the file
 
 If another tab, another collaborator, or an agent writes to the same file
-while you have it open, your next save can't land cleanly: you'd
-unknowingly overwrite their changes. Instead, the editor shows a **Conflict**
+while you have it open, your save would overwrite their changes. To prevent that, the editor shows a **Conflict**
 banner: your local edits stay on screen so you can copy them, and a
 **Reload** button discards them in favor of the latest version. Manually
 merge by copying your text aside first, reloading, then pasting.
@@ -153,8 +152,7 @@ Drag a file (or folder) from one place in the tree to another. The
 destination folder highlights as you drag over it; release to move.
 
 You can't move into `/artifacts`, `/threads`, or a read-only mount, and you
-can't move a folder into one of its own descendants: the editor catches
-both and shows a brief notice.
+can't move a folder into one of its own descendants: you see a brief notice if you try.
 
 ## Rename and delete
 
@@ -166,11 +164,9 @@ Right-click any file or folder to **Rename** or **Delete** it.
 - **Delete**: opens a confirmation dialog. Deleting a folder removes
   everything inside it.
 
-Both actions use the file's current content as a safety check: if the file
-changed underneath you between when the tree last loaded and when you act,
-you'll see a notice and the tree refreshes.
+If the file changed after the tree last loaded, you see a notice and the tree refreshes before anything happens.
 
-`/artifacts` and `/threads` reject renames and deletes by design.
+`/artifacts` and `/threads` are read-only, so you can't rename or delete files there.
 
 ## Quick find: `⌘K`
 
@@ -196,8 +192,8 @@ files appear as chips above the composer, and submitting the message
 attaches them to the record you emit.
 
 The recipient of your message (another person, an agent, or an integration)
-gets a pin to the exact bytes of each file at the moment you attached it.
-Even if you later edit the file, the message stays pinned to that version.
+gets the exact version of each file as it was when you attached it.
+If you edit the file later, the message still points to that version.
 
 You can also attach the file you're currently viewing without typing
 `@files`: every file viewer has a **Use in chat** button that adds it to
@@ -233,7 +229,7 @@ your assistants have been doing without scrolling through threads.
 ## What's next
 
 - [Files](/docs/concepts/files): the filesystem model (the four areas,
-  the working-file → artifact lifecycle, and privacy).
+  from working file to artifact, and privacy).
 - [Working with files from the command line](/docs/guides/filesystem):
   the same filesystem via `spl fs`.
 - [Threads](/docs/concepts/threads): where chat lives, and how attached

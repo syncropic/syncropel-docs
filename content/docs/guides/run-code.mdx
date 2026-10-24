@@ -1,53 +1,46 @@
 ---
 title: The run_code tool
-description: A member run can write a small JavaScript program that calls its own granted tools, run it on the instance's JavaScript runtime, and get structured data back. What it is, when a model reaches for it, and its bounds.
+description: Let a member run write a small JavaScript program that calls its granted tools and returns structured data. What it is, when it is used, and its limits.
 ---
 
 ## What it is
 
-`run_code` is a tool a work-loop run can be granted. Instead of making one
+`run_code` is a tool a run can be granted. Instead of making one
 tool call per step, the run writes a short JavaScript program that calls its
-other granted tools, and the instance runs that program on its JavaScript
-runtime. The program's tool calls go through the same governance every direct
-call does: the program cannot reach a tool the run was not granted.
+other granted tools, and your workspace runs it. The program's tool calls follow the same rules as direct calls: the program cannot reach a tool the run was not granted.
 
-The point is throughput over structure. When a task means "read sixty records,
-count the ones that match, and report the total", the discrete path is sixty
-tool calls the model has to shepherd one at a time. The program does it in one
-call and hands back a number.
+The point is speed on repetitive work. When a task means "read sixty records,
+count the ones that match, and report the total", the usual way is sixty
+separate tool calls. The program does it in one call and hands back a number.
 
-`run_code` is member-reachable, but only when the run owns the capability. A
-definition has to declare `run_code` in its tools for a run to see it, and the
-instance has to have the tool switched on (see [When it is offered](#when-it-is-offered)).
+A run can use `run_code` only when it has been given it. The member's definition has to list `run_code` in its tools, and the
+workspace has to have the tool switched on (see [When it is offered](#when-it-is-offered)).
 
 ## When a model reaches for it, vs discrete calls
 
-A model uses `run_code` when the work is a loop over many items, and discrete
-calls when the work is a handful of distinct steps. Measured behaviour: a task
-over twelve records tends to draw twelve to fifteen discrete calls; the same
-shape over sixty records draws one program in a few calls. The model decides;
-you do not route this.
+A model uses `run_code` when the work is a loop over many items, and separate
+calls when the work is a handful of distinct steps. For example, a task
+over twelve records tends to use twelve to fifteen separate calls; the same
+task over sixty records tends to use one program. The model decides;
+you don't.
 
-Two facts make programs reliable rather than clever:
+Two facts keep programs reliable:
 
 - **A program receives data, not prose.** A tool answer carries a `data`
-  field beside the rendered text. `run_code` hands the program the JSON for
-  the tools that hold structure, so a program reads `records[i].body`, not a
-  paragraph it has to parse. `query_thread` gives
+  field beside the text. `run_code` hands the program that JSON, so a program reads `records[i].body` instead of parsing a
+  paragraph. `query_thread` gives
   `{thread, total, shown, truncated, records: [...]}`, `read_record` gives one
   such record, `search_records` gives `{total, records}`.
-- **Each of those answers is bounded at 256 KiB.** A program that asks for
-  more gets a truncated, `truncated: true` result, not a runtime that runs out
-  of memory.
+- **Each of those answers is limited to 256 KiB.** A program that asks for
+  more gets a shortened result marked `truncated: true`.
 
-A program is for structured throughput, not for anything you cannot check
-against the records afterward. Read the data field of each tool answer, and
+Use a program for bulk work you can check afterward. Read the `data` field of each tool answer, and
 check the result against the records.
 
 ## The runtime it runs on
 
-Programs run in a WebAssembly-sandboxed JavaScript
-runtime the instance installs once. Inspect what your instance runs on:
+Programs run in a sandboxed JavaScript
+runtime that your workspace installs once. To see what yours runs on:
 
 ```bash
 spl runtime status
@@ -63,67 +56,60 @@ Programs run in the sandboxed runtime.
 offered:   yes (config topic run_code enabled)
 ```
 
-The runtime is pinned by a content address baked into the binary. `install`
-fetches exactly those bytes (the published URL contains the hash, and the hash
-is checked again after download), so a fetch can only succeed at the bytes it
-asked for:
+Each version of `spl` is tied to one exact runtime, and the download is checked after fetching:
 
 ```bash
 spl runtime install            # fetch and install the pinned runtime
-spl runtime install --from ./javascript.wasm   # from a local file, still pin-checked
-spl runtime remove             # fall back to the embedded interpreter
+spl runtime install --from ./javascript.wasm   # from a local file, still checked
+spl runtime remove             # fall back to the built-in interpreter
 ```
 
-If no runtime is installed, programs fall back to an embedded interpreter,
-which is weaker and works. A tool result names the engine it ran on
-(`ran on the compute substrate` or `embedded interpreter`), so a thread reader
-can tell which one answered without reading a log.
+If no runtime is installed, programs use a built-in interpreter,
+which is less capable but works. A tool result names which one it ran on
+(`ran on the compute substrate` or `embedded interpreter`).
 
 ## When it is offered
 
-`run_code` is a config switch, off until turned on, and a run only sees it
-when three things all hold:
+`run_code` is off until you turn it on, and a run only sees it
+when all three of these hold:
 
-1. The instance has the `run_code` config topic enabled (`offered: yes` in
+1. The workspace has the `run_code` config topic enabled (`offered: yes` in
    `spl runtime status`).
 2. The run's definition declares `run_code` in its tools.
-3. The run is on a tier whose reach includes it.
+3. The run is on a tier that includes it.
 
-If the switch is off, or the definition never declared it, the tool is simply
-absent from the run's reach. Nothing fails loudly; the model works with the
-discrete tools it has.
+If the switch is off, or the definition never listed it, the tool is simply
+not available to the run. Nothing fails; the model works with its other tools.
 
-## What the instance can reach
+## What your workspace can reach
 
-A program can only call tools the instance actually declares and the run was
-granted. To see what an instance can reach, without making a call to find out:
+A program can only call tools your workspace declares and the run was
+granted. To see them without making a call:
 
 ```bash
 spl tool list
 ```
 
-Each row reports whether the tool's credential resolves and whether its breaker
-is open, so you can tell a tool that cannot run right now from one that is
-simply not declared. For one tool in full:
+Each row shows whether the tool's credential works and whether the tool has been switched off after repeated failures, so you can tell a tool that cannot run right now from one that is
+simply not set up. For one tool in full:
 
 ```bash
 spl tool show <tool_id>
 ```
 
-## Bounds, in one place
+## Limits
 
-- A program runs inside the same sandbox the run does; on the sandboxed
-  transport that is a separate process with no network and no view of the
+- A program runs in the same sandbox as the run. On the sandboxed
+  transport that is a separate process with no network and no view of your
   home directory.
-- Its tool calls are governed exactly as direct calls are: no tool the run
-  lacks, and every call is still checked before it runs.
+- Its tool calls follow the same rules as direct calls: no tool the run
+  lacks, and every call is checked before it runs.
 - Each structured tool answer is capped at 256 KiB.
-- The program's compute is bounded by the run's own budget and turn ceiling,
-  not by a separate machine limit, so a program cannot outspend the run that
+- A program uses the run's own budget and turn limit, so it cannot outspend the run that
   wrote it.
 
 ## See also
 
 - [The sandboxed transport](/docs/operate/sandboxed-transport): where a member
-  run and its programs actually execute.
+  run and its programs execute.
 - [Tiers and entitlements](/docs/guides/tiers): which tier reaches which tools.

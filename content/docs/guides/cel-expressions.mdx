@@ -1,15 +1,13 @@
 ---
 title: CEL Expressions
-description: Write rules, gates, and predicates using Syncropel's canonical expression language — one syntax for triggers, routing, preconditions, fold rules, health checks, the decision gate, permissions, and fan-out join predicates.
+description: Write rules and conditions in one expression language. The same syntax works for triggers, routing, task preconditions, status rules, health checks, approval policies, permissions, and fan-out joins.
 ---
 
 ## Overview
 
-Syncropel uses **CEL (Common Expression Language)** as its canonical decision language. Every decision point in the system — event triggers, routing rules, task preconditions, status fold, health checks, the decision gate (the `aitl` evaluation context), and permissions — accepts CEL expressions. Write the predicate once; it works the same way everywhere.
+Syncropel uses **CEL (Common Expression Language)** for every condition you write: event triggers, routing rules, task preconditions, task status rules, health checks, approval policies (the `aitl` context), and permissions. You write the condition once and it works the same way everywhere.
 
-CEL is Google's type-safe, sandboxed expression language, used in production by Kubernetes admission controllers, gRPC, Envoy, Tekton, and GCP IAM. Syncropel extends CEL with a standard library exposing records, tasks, threads, trust, and system state.
-
-See the full specification in the expression language specification.
+CEL is Google's safe, type-checked expression language, also used by Kubernetes, gRPC and Envoy. Syncropel adds functions for records, tasks, threads, trust, and system state.
 
 ## Quick Start
 
@@ -19,7 +17,7 @@ Validate an expression without running it:
 spl expr check 'record.act == "KNOW" && record.body.verdict == "accept"' --context trigger
 ```
 
-Evaluate an expression against real instance state:
+Evaluate an expression against your workspace's current state:
 
 ```bash
 spl expr eval 'system.uptime_secs > 3600' --context health_check
@@ -27,20 +25,20 @@ spl expr eval 'system.uptime_secs > 3600' --context health_check
 
 Both commands report compile errors at the exact character position so you can fix syntax before shipping.
 
-## The Eight Contexts
+## The eight contexts
 
-Each decision point has its own evaluation context with a specific set of bindings. Expressions are always bound to ONE context — you specify it with `--context` on the CLI or `context:` in a stored record. A trigger expression referencing `tasks` will fail to compile, because `tasks` isn't bound in trigger context.
+Each place you use an expression has its own context, which decides which names you can use. You choose the context with `--context` on the command line. A trigger expression that uses `tasks` fails to compile, because `tasks` isn't available in the trigger context.
 
 | Context | Used For | Primary Bindings |
 |---|---|---|
 | `trigger` | Event triggers matching incoming records | `record`, `records`, `system`, `task()`, `trust()`, `thread()`, `now()`, `current_actor()` |
 | `routing` | Routing rules | `record`, `thread()`, `system`, `trust()`, `task()`, `now()`, `current_actor()`, `fanout_status()` ** |
 | `precondition` | Task readiness gating | `records`, `tasks`, `task()`, `trust()`, `thread()`, `now()`, `system`, `current_actor()` |
-| `fold_rule` | Task status derivation | `records` (the task thread), `task`, `thread()`, `now()`, `current_actor()` |
+| `fold_rule` | Working out a task's status | `records` (the task thread), `task`, `thread()`, `now()`, `current_actor()` |
 | `health_check` | `spl health check` predicates | `system`, `tasks`, `trust()`, `now()`, `current_actor()`, `fleet_instances_live()` ** |
-| `aitl` | Intelligence proposal disposition | `record`, `proposal_confidence`, `meta_trust`, `system`, `now()`, `current_actor()` |
-| `permission` | API request gating | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()`, `fleet_frozen_namespaces()` / `fleet_emergency_active()` ** |
-| `join` ** | Fan-out barrier — when is a parent INTEND satisfied? | `children`, `parent`, `now()` |
+| `aitl` | Deciding what to do with an AI proposal | `record`, `proposal_confidence`, `meta_trust`, `system`, `now()`, `current_actor()` |
+| `permission` | Allowing or denying requests | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()`, `fleet_frozen_namespaces()` / `fleet_emergency_active()` ** |
+| `join` ** | Fan-out: when is the parent intent satisfied? | `children`, `parent`, `now()` |
 
 ## Standard Library Reference
 
@@ -61,7 +59,7 @@ record.parents      // list<string>: parent record IDs
 
 ### `records`
 
-A list of records (available in `trigger`, `precondition`, `fold_rule` contexts). Use CEL's built-in macros:
+A list of records (available in the `trigger`, `precondition` and `fold_rule` contexts). Use CEL's built-in macros:
 
 ```
 records.exists(r, r.act == "KNOW" && r.body.topic == "feature_enabled")
@@ -72,7 +70,7 @@ records.map(r, r.cost_usd).reduce(acc, x, acc + x, 0.0)
 
 ### `task(alias)`
 
-Look up a single task by alias. Returns a projection:
+Look up a single task by alias:
 
 ```
 task("TASK-0163").status        // string: "approved", "blocked", "active", etc.
@@ -108,7 +106,7 @@ thread("th_abc...").participants    // list<string>: actor DIDs
 
 ### `trust(actor, domain)` and `trust_count(actor, domain)`
 
-Wilson lower-bound trust score + observation count:
+The trust score for an actor in a domain, and how many observations it is based on:
 
 ```
 trust("did:sync:agent:dev", "code") > 0.5
@@ -117,13 +115,13 @@ trust_count("did:sync:agent:dev", "code") >= 10   // require minimum evidence
 
 ### `system`
 
-Instance-level state (available in most contexts):
+Workspace state (available in most contexts):
 
 ```
 system.uptime_secs                             // int
 system.records_total                           // int
 system.threads_total                           // int
-system.daemon_version                          // string
+system.daemon_version                          // string: server version
 system.active_dispatches                       // list<Dispatch>
 system.active_dispatches.all(d, d.duration_secs < d.timeout_secs * 2)
 system.today.dispatches                        // int
@@ -143,15 +141,15 @@ current_namespace().startsWith("acme-corp/")   // scope to all descendants
 now()                                          // int: unix seconds
 ```
 
-`current_namespace()` was added alongside the [namespace hierarchy](/docs/reference/cli#namespaces). Returns the namespace ID the current evaluation is scoped to (defaults to `"default"` when unset). Use `.startsWith("parent/")` to match an entire subtree of the 5-level hierarchy. Per-record namespace is accessible via `record.body.namespace`.
+`current_namespace()` returns the namespace the expression is evaluated for (`"default"` if none is set). Use `.startsWith("parent/")` to match everything under a parent namespace. A record's own namespace is `record.body.namespace`. See [namespaces](/docs/reference/cli#namespaces).
 
-### `proposal_confidence` and `meta_trust` (decision-gate `aitl` context only)
+### `proposal_confidence` and `meta_trust` (`aitl` context only)
 
-For gating intelligence proposals:
+For deciding what to do with AI proposals:
 
 ```
 proposal_confidence                    // double in [0, 1]
-meta_trust.wilson_lb                   // double: intelligence's track record
+meta_trust.wilson_lb                   // double: the proposer's track record (a conservative score)
 meta_trust.total_proposals             // int
 meta_trust.accepted                    // int
 meta_trust.rejected                    // int
@@ -168,9 +166,9 @@ resource == "record_delete" && current_actor() == "did:sync:user:admin"
 
 ### Fleet bindings
 
-Added with the fleet primitives. Scoped to specific contexts to avoid cross-context leakage.
+These functions work only in the contexts named below.
 
-**`fleet_frozen_namespaces()`** — *Permission context only.* Returns a `list<string>` of namespace IDs currently under soft or hard freeze per the `th_fleet_control` fold. Used in the default permission rule template that denies new INTEND/DO/CALL in frozen namespaces:
+**`fleet_frozen_namespaces()`** — *Permission context only.* Returns a `list<string>` of namespace IDs currently under a soft or hard freeze. Used in the default permission rule that denies new INTEND/DO/CALL in frozen namespaces:
 
 ```text
 !fleet_frozen_namespaces().exists(ns,
@@ -178,20 +176,20 @@ Added with the fleet primitives. Scoped to specific contexts to avoid cross-cont
   (record.act == "INTEND" || record.act == "DO" || record.act == "CALL"))
 ```
 
-**`fleet_hard_frozen_past_grace()`** — *Permission context only.* Returns a `list<string>` of namespaces where a hard freeze has passed its grace window. Used in the terminal-deny rule:
+**`fleet_hard_frozen_past_grace()`** — *Permission context only.* Returns a `list<string>` of namespaces where a hard freeze is past its grace period. Used in the rule that denies everything at that point:
 
 ```text
 !fleet_hard_frozen_past_grace().exists(ns, record.body.namespace == ns)
 ```
 
-**`fleet_emergency_active()`** — *Permission context only.* Returns `bool`. True if an engine-wide emergency stop is active. Paired with an allow-only-reads clause:
+**`fleet_emergency_active()`** — *Permission context only.* Returns `bool`. True if an emergency stop is active. Paired with an allow-only-reads clause:
 
 ```text
 !fleet_emergency_active() ||
 (record.act == "GET" || record.act == "KNOW" || record.act == "LEARN")
 ```
 
-**`fleet_instances_live()`** — *Health check context only.* Returns `list<string>` of instance DIDs currently classified as live per the registry fold. Useful for health rules like "at least one worker must be reachable":
+**`fleet_instances_live()`** — *Health check context only.* Returns `list<string>` of instance DIDs currently live. Useful for health rules like "at least one worker must be reachable":
 
 ```text
 fleet_instances_live().filter(did, did.contains("worker-")).size() >= 1
@@ -201,7 +199,7 @@ fleet_instances_live().filter(did, did.contains("worker-")).size() >= 1
 
 ### `children` (Join context only)
 
-The list of completed child results for a fan-out parent. Available only in the join context, which is evaluated to determine when a fan-out parent INTEND is satisfied.
+The results reported so far by a fan-out's child tasks. Available only in the join context, which decides when the parent intent is satisfied.
 
 ```
 children                                    // list<ChildResult>
@@ -214,7 +212,7 @@ children.filter(c, c.verdict == "accept").size() >= 3   // k-of-n with K=3
 Each `ChildResult` has the fields:
 
 ```
-c.index              // int: subtask index (0-based, matches body.subtasks position)
+c.index              // int: subtask number (starts at 0, matches its position in body.subtasks)
 c.thread             // string: child thread ID
 c.worker             // string: worker DID that executed the subtask
 c.verdict            // string: "accept" | "reject" | "failed" | "timeout"
@@ -273,7 +271,7 @@ spl task add "ship v1.0" \
   --expression 'task("TASK-0163").status == "approved" && task("TASK-0164").status == "approved" && trust("did:sync:agent:dev", "code") > 0.5'
 ```
 
-The shortcut `--depends-on TASK-0163,TASK-0164` compiles to an equivalent CEL expression internally, so you can mix the legacy sugar with the expression form.
+The shortcut `--depends-on TASK-0163,TASK-0164` means the same thing, so you can mix both forms.
 
 ### Health Check for Stuck Dispatches
 
@@ -294,7 +292,7 @@ spl config add-health \
   --expression 'system.today.cost_usd < 10.0'
 ```
 
-### Decision-gate auto-apply of high-confidence proposals
+### Auto-apply high-confidence proposals
 
 ```bash
 spl config add-decision-policy \
@@ -304,7 +302,7 @@ spl config add-decision-policy \
   --expression 'proposal_confidence > 0.8 && meta_trust.wilson_lb > 0.7'
 ```
 
-### Permission: Users Can Only Approve Their Own Tasks
+### Permission: users can approve decisions
 
 ```bash
 spl config add-permission-rule \
@@ -314,7 +312,7 @@ spl config add-permission-rule \
   --expression 'current_actor().startsWith("did:sync:user:") && resource == "aitl_decide"'
 ```
 
-See the [Permission Enforcement](#permission-enforcement) section below for the full security model.
+See [Permission enforcement](#permission-enforcement) below.
 
 ## Debugging
 
@@ -327,44 +325,27 @@ $ spl expr check 'record.act == "KNO" && record.clock + "x"' --context trigger
 ✗ compile error: type error: cannot add int and string at column 36
 ```
 
-Type errors are caught at compile time, not at evaluation. A stored expression has already been validated before it reaches the runtime — the instance refuses to ingest a rule with bad CEL.
+Type errors are caught when the expression is checked, and a rule with invalid CEL is refused when you add it.
 
 ### Evaluation Errors
 
-Field-access errors against missing keys in `record.body.*` return runtime errors. These are data-dependent and can't be caught at compile time. Defend with `has()`:
+Reading a field that is missing from `record.body.*` gives an error when the expression runs. Check first with `has()`:
 
 ```
 has(record.body.priority) && record.body.priority == "critical"
 ```
 
-### Cache Stats
+## Performance
 
-Monitor the compiled expression cache (how often expressions hit vs recompile):
+Expressions are fast. A simple one evaluates in well under a millisecond, and a `records.exists` over 10,000 records takes under 100 ms. Expressions are cached after the first use. To see how the cache is doing:
 
 ```bash
 curl -s http://localhost:9100/v1/engine/expression_cache/stats | jq
 ```
 
-Fields: `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `avg_compile_micros`, `size`, `capacity`. A well-tuned instance under steady-state load should show hit rate >99%.
+## Permission enforcement
 
-## Performance
-
-The expression engine's performance characteristics:
-
-| Operation | Bound |
-|---|---|
-| Compile a typical expression | < 1 ms (once, at config load) |
-| Evaluate a simple expression | < 50 μs |
-| Evaluate a complex expression | < 500 μs |
-| `records.exists` over a 10K snapshot | < 100 ms |
-| `task()` lookup | < 5 ms |
-| `trust()` lookup | < 1 ms |
-
-Compiled expressions are cached in a 1024-entry LRU by default. Cache lifetime = instance process lifetime.
-
-## Permission Enforcement
-
-Permission rules are the one CEL feature that's **off by default** for backward compatibility. Enable them explicitly:
+Permission rules are **off by default**. Turn them on explicitly:
 
 ```bash
 # 1. Author an admin allow rule FIRST. It must cover EVERY resource
@@ -392,34 +373,33 @@ spl config add-permission-rule \
 spl config permissions-enable
 ```
 
-**Security model**: when enforcement is on, rules are evaluated in descending priority order. First match wins. If no rule matches, the request is **denied** (fail-closed). Every denial emits an audit log entry. `GET /health` is always exempt so liveness checks work.
+**How it works**: with enforcement on, rules are checked from highest priority to lowest, and the first match wins. If no rule matches, the request is **denied**. Every denial is logged. `GET /health` is always allowed.
 
-**Pre-flight check**: `spl config permissions-enable` simulates the disable path before flipping the switch. It refuses with a clear error and prints the exact `add-permission-rule` invocation needed when your loaded rules don't cover `(record_write, thread_read, config_read)` for the instance's `identity.actor`.
+**Safety check**: before turning enforcement on, `spl config permissions-enable` checks that you could still turn it off. If your rules don't cover `record_write`, `thread_read` and `config_read` for the workspace's own identity, it refuses and prints the `add-permission-rule` command you need.
 
-**Emergency unlock**: if you locked yourself out on an older version (or by other means — disabling the admin rule, dropping a deny rule, etc.), recovery is now one command instead of SQL surgery:
+**Emergency unlock**: if you lock yourself out (for example by disabling the admin rule), recover with:
 
 ```bash
-spl stop                  # the instance caches config in memory
-spl config permissions-unlock     # writes permissions_enabled=false directly to the store
-spl serve                # restart — enforcement is off
+spl stop                          # stop the server first
+spl config permissions-unlock     # turns enforcement off
+spl serve                         # restart; enforcement is off
 ```
 
-`permissions-unlock` opens the SQLite store directly and appends a `permissions_enabled=false` LEARN record on `th_engine_config`, bypassing the HTTP middleware that would otherwise deny the request. It refuses to run if the instance is still up (use `--force` to override the safety check). Only sqlite stores are supported — for `--memory` instances, just restart.
+`permissions-unlock` works on the local database directly, so permission rules can't block it. It refuses to run while the server is still up (use `--force` to override). It works only with the default local database. For a `--memory` server, just restart.
 
-## Migration from Legacy Forms
+## Older match forms
 
-All legacy match forms still work — CEL is additive, not replacing. When both CEL and a legacy form are present, CEL takes precedence.
+The simpler match options still work. If you give both an older form and an expression, the expression is used.
 
-| Decision point | Legacy form | CEL form (preferred) |
+| Where | Simple form | CEL form |
 |---|---|---|
 | Triggers | `--match "act=KNOW,body.topic=verdict"` | `--expression 'record.act == "KNOW" && record.body.topic == "verdict"'` |
 | Routing | `--domain code --act INTEND` | `--expression 'record.act == "INTEND" && record.body.domain == "code"'` |
 | Preconditions | `--depends-on TASK-0163,TASK-0164` | `--expression 'task("TASK-0163").status == "approved" && task("TASK-0164").status == "approved"'` |
 
-The legacy `--depends-on` sugar compiles to CEL internally, so there's no behavior difference — it's still the recommended path for the simple "all of these tasks approved" case.
+`--depends-on` behaves the same as the CEL form, and it is the easiest choice for "all of these tasks approved".
 
 ## References
 
-- **Spec**: the expression language specification — normative reference with test vectors
-- **CEL spec**: [github.com/google/cel-spec](https://github.com/google/cel-spec) — upstream language reference
-- **Rust implementation**: [github.com/clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust) — the `cel-interpreter` crate Syncropel uses
+- **CEL language reference**: [github.com/google/cel-spec](https://github.com/google/cel-spec)
+

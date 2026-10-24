@@ -1,21 +1,21 @@
 ---
-title: "Working with members: the doors"
-description: An integrator reference for the doors a person holds over the members they define. Defining and retiring a member, starting and reading its runs, its evaluation history, its daily usage, its memories, and moving it between workspaces, with the fields that matter and the refusals by name.
+title: "Working with members: the API"
+description: "API reference for the members a person defines: defining, shaping and retiring a member, starting and reading its runs, its evaluation history, daily usage, memories, and moving it between workspaces."
 ---
 
 A member is anyone or anything that works in a workspace: a person, or an
-automated agent a person defined. The doors on this page are the ones a person
-holds over the members they define. Every door takes an authenticated caller
-(a bearer token, or the local socket) and answers refusals in the standard
-envelope `{object: "error", code, message}`. The `{did}` in a path is the
-member's id, the `actor_did` the define door returns.
+automated agent a person defined. The endpoints on this page are the ones a person
+uses on the members they define. Every endpoint needs a signed-in caller
+(a bearer token, or the local socket) and returns errors in the standard
+format `{object: "error", code, message}`. The `{did}` in a path is the
+member's id, the `actor_did` returned when you define it.
 
 Two rules hold across all of them:
 
-- **You can only give what you have.** A member you define is bounded by your
+- **You can only give what you have.** A member you define is limited by your
   own authority, and revoking your access revokes every member you defined.
-- **A violation writes nothing.** Every bound is checked before the first
-  write, so a refused request leaves the workspace exactly as it was.
+- **A violation writes nothing.** Every limit is checked before anything
+  is saved, so a refused request leaves the workspace exactly as it was.
 
 ## Define a member
 
@@ -26,25 +26,25 @@ model under your authority.
 
 | Field | Meaning |
 |---|---|
-| `label` | Required. The human name. The member's id is derived from your id and this label, so the same label from you updates the same member (newest wins) while another person's identical label is a different member. |
+| `label` | Required. The human name. The member's id comes from your id and this label, so the same label from you updates the same member (the newest definition wins) while another person's identical label is a different member. |
 | `mechanism` | Defaults to `"llm"`. |
 | `trust_domain` | The domain its trust is scored under. |
-| `brief` | What the member is for, in words. Kept on the definition. |
-| `stands_on` | Definitions this one builds on. Kept on the definition. |
+| `brief` | What the member is for, in words. Saved with the definition. |
+| `stands_on` | Definitions this one builds on. Saved with the definition. |
 | `declares_kinds` | The record kinds it declares it writes. |
 | `default_on_new_threads` | `true` makes this member the one that answers on a new thread. |
 | `write_admit` | The kinds the member may write, as a list of clauses. Must be within what you may write yourself. |
 | `work_loop.model` | The model it runs on. |
-| `work_loop.system_prompt_ref` | Its prompt, as `record:<id>` of a prompt record. No other scheme is accepted. |
+| `work_loop.system_prompt_ref` | Its prompt, as `record:<id>` pointing to a prompt record. No other scheme is accepted. |
 | `work_loop.tools` | The tools it may use. Must be within your own reach. |
-| `work_loop.reads` | The threads it may read in every run. Must be threads you can read. |
-| `work_loop.budget_usd`, `work_loop.max_turns` | Per-run ceilings. |
-| `work_loop.daily_cost_cap_usd`, `work_loop.daily_loop_cap` | Per-day ceilings. A declared cap can only narrow your tier's. |
+| `work_loop.reads` | The threads it may read in every run. You must be able to read them yourself. |
+| `work_loop.budget_usd`, `work_loop.max_turns` | Per-run limits. |
+| `work_loop.daily_cost_cap_usd`, `work_loop.daily_loop_cap` | Per-day limits. A cap you set can only be lower than your plan's. |
 | `work_loop.conversation_loop` | Whether a conversational turn may act, not just answer. |
 | `work_loop.verification` | The verification mode for its runs. |
 
 **Response**: `201` with `{actor_did, definition}`, where `definition` is the
-id of the definition record. A run stamps this id, which is what makes the
+id of the definition record. Each run records this id, which is what makes the
 evaluation history below meaningful.
 
 **Refusals**
@@ -53,23 +53,23 @@ evaluation history below meaningful.
 |---|---|
 | `422 INVALID_BODY` | The body does not parse as a define request. |
 | `400 MISSING_FIELD` | `label` is absent or blank. |
-| `400 DEFINE_FIELD_INERT` | You sent `work_loop.reach` (a run's reach is its tier's, narrowed by `tools`) or `admit` (a read bound belongs on a credential, not a definition). Remove the field. |
+| `400 DEFINE_FIELD_INERT` | You sent `work_loop.reach` (a run's reach comes from your plan level, narrowed by `tools`) or `admit` (a read limit belongs on a credential, not a definition). Remove the field. |
 | `422 WORK_PROMPT_UNRESOLVED` | `system_prompt_ref` is not a `record:<id>` reference. |
 | `403 READS_NOT_COVERED` | `work_loop.reads` names a thread your credential cannot read. |
-| `403 DAILY_CAP_TOO_WIDE` | A daily cap wider than a bounded member's tier allows; a declared cap may only narrow. |
-| `403 TOOL_NOT_IN_REACH` | A tool your own tier forbids. |
+| `403 DAILY_CAP_TOO_WIDE` | A daily cap higher than a limited member's plan level allows. A cap can only be lower. |
+| `403 TOOL_NOT_IN_REACH` | A tool your own plan level does not allow. |
 | `403 WRITE_KIND_NOT_ADMITTED` | A `write_admit` kind beyond what you may write. |
-| `422 GRANT_REFUSED` | The member's derived permission failed validation. |
+| `422 GRANT_REFUSED` | The permission derived for the member failed validation. |
 
-The `403` bounds apply to a bounded member (a caller whose credential
-carries a write bound). The workspace's operator is unbounded and may define
-freely; runs are still clamped by tier at start.
+The `403` limits apply to a limited member (a caller whose credential
+has a write limit). The workspace's operator has no such limit and may define
+freely; runs are still held to the plan level when they start.
 
 ### Retire a member
 
 `DELETE /v1/actors/{did}/definition` retires it: its permission is revoked, it
 stops being a thread default, and its definition is disabled, in that order,
-so there is never a moment when it is runnable without its bound. Answers
+so it can never run without its limits. Answers
 `{object: "actor", did, retired: true}`.
 
 | Code | When |
@@ -82,37 +82,35 @@ A retired member can no longer be run as (see `RUN_ACTOR_NOT_COVERED` below).
 ### Shape a member
 
 `PATCH /v1/actors/{did}/definition` changes part of a definition without
-rewriting the rest. It is the workspace owner's door (the credential's admin
-bit); a member proposes a definition instead and never writes the chief. The
-body is partial and every field is optional; a field the door does not know
+rewriting the rest. Only the workspace owner can call it (the credential must have admin rights). A member proposes a definition instead and never edits the chief. The
+body is partial and every field is optional; a field the endpoint does not know
 is refused, never dropped:
 
 | Field | What it does |
 |---|---|
-| `display_name` | Renames the member (the same rules as the name door: never a person's name). |
-| `model` | One of the priced catalog the workspace read lists under `models[]`. Any other id is refused by name. |
-| `prompt` | The member's words, as text. They are written as a `core.actor.prompt.v1` record and the definition points at it, so every earlier wording stays on the ledger. |
+| `display_name` | Renames the member (the same rules as the naming rules: never a person's name). |
+| `model` | One of the priced models listed under `models[]` in the workspace read. Any other id is refused by name. |
+| `prompt` | The member's words, as text. They are saved as a `core.actor.prompt.v1` record and the definition points to it, so every earlier wording stays in history. |
 | `tools` | `{add: [...], remove: [...]}`. Adding a tool already held is a no-op; removing one not held is refused. |
-| `budget_usd`, `max_turns` | The run ceilings. |
+| `budget_usd`, `max_turns` | The run limits. |
 
-The result is checked under the same bounds the define door enforces, then
-written as one new definition record (the previous one is its parent), which
-the work loop picks up with no restart. The response is the member's row in
-the shape `GET /v1/self/workspace` serves under `assistants[]`, read back from
-the store, plus `definition_record_id` and, when words changed,
+The result is checked against the same limits as defining a member, then
+saved as one new definition record that links to the previous one. It applies
+without a restart. The response is the member's row in
+the shape `GET /v1/self/workspace` serves under `assistants[]`, plus `definition_record_id` and, when words changed,
 `prompt_record_id`. The next real reply's run stamps the chosen model; that is
 the proof the change took. From a terminal, `spl actor shape chief --model
 claude-sonnet-5 --prompt-file words.txt --add-tool judge --remove-tool run_code`
-drives the same door by the name you see, and `spl actor history chief` reads
+does the same thing by the name you see, and `spl actor history chief` reads
 the versions.
 
 | Code | When |
 |---|---|
-| `403 OWNER_ONLY` | The credential is not an admin one. |
+| `403 OWNER_ONLY` | The credential does not have admin rights. |
 | `404 ACTOR_UNKNOWN` | No definition exists for `{did}`. |
 | `409 ACTOR_RETIRED` | The member is retired; define it again instead. |
-| `409 ASSISTANT_WOULD_GO_MUTE` | The change would leave the member unable to answer (no model, `max_turns` 0, a budget of zero). Nothing is written. |
-| `422 MODEL_UNKNOWN` | The model is not in the priced catalog; the message names the catalog. |
+| `409 ASSISTANT_WOULD_GO_MUTE` | The change would leave the member unable to answer (no model, `max_turns` of 0, or a budget of zero). Nothing is written. |
+| `422 MODEL_UNKNOWN` | The model is not in the priced list; the message names the list. |
 | `422 TOOL_NOT_DECLARED` | A `tools.remove` entry the member does not hold. |
 | `400 NOTHING_TO_CHANGE` | An empty body. |
 
@@ -121,23 +119,17 @@ the versions.
 `GET /v1/actors/{did}/history?limit=20` lists the member's versions, newest
 first, each with `definition_record_id`, `at` (when it was written), `by`
 (who shaped it, else the definition's principal, else its author), the model,
-the words, the tools, the ceilings, and `changed`: the fields that differ from
+the words, the tools, the limits, and `changed`: the fields that differ from
 the version before it (`model`, `prompt`, `tools`, `budget_usd`, `max_turns`,
 `display_name`; the first version says `created`). Tools compare as a set and
 the words by their record, so reordering tools or writing the same words again
 is not a change. `total` counts every version and `truncated` says whether
-`limit` cut the list. Owner-only, like the shape door.
+`limit` cut the list. Owner only, like shaping a member.
 
 ### Revert
 
 `POST /v1/actors/{did}/definition/revert` with `{"version": "<definition_record_id>"}`
-puts a listed version back. It is written as a NEW version, never a delete:
-the target's facet and name are re-emitted as the newest definition, parented
-to the version it supersedes, so the history reads shaped, shaped, reverted
-and nothing on the ledger moves. The words come back by reference (the prompt
-record persists), and the result is checked under the same bounds the define
-and shape doors enforce, so a version whose tools or ceilings are outside
-today's reach is refused by name rather than restored as a wider way in. A
+puts a listed version back. It is saved as a NEW version, never a delete: the old version is copied as the newest definition, so the history reads shaped, shaped, reverted and nothing is lost. The words come back from the saved prompt record. The result is checked against the same limits as defining and shaping, so a version whose tools or limits are outside today's reach is refused by name. A
 revert never retires and never un-retires. The response is the member's row as
 the workspace read serves it, plus `reverted_to`. From a terminal, `spl actor
 revert chief <version>` takes the id or a prefix of twelve or more characters
@@ -145,12 +137,12 @@ as `spl actor history` prints it.
 
 | Code | When |
 |---|---|
-| `403 OWNER_ONLY` | The credential is not an admin one. |
+| `403 OWNER_ONLY` | The credential does not have admin rights. |
 | `404 ACTOR_UNKNOWN` | No definition exists for `{did}`. |
 | `404 VERSION_UNKNOWN` | The id is not one of this member's versions. |
 | `409 ACTOR_RETIRED` | The member is retired; define it again instead. |
 | `400 NOTHING_TO_CHANGE` | The version named is already the current one. |
-| `403 TOOL_NOT_IN_REACH`, `403 WRITE_KIND_NOT_ADMITTED` | The version violates today's bounds. |
+| `403 TOOL_NOT_IN_REACH`, `403 WRITE_KIND_NOT_ADMITTED` | The version breaks today's limits. |
 
 ## Start and read its runs
 
@@ -161,14 +153,13 @@ uses that member's model, prompt and tools.
 thread the run works on behalf of), `repo` (a declared repository, which
 gives the run a working tree), `consumes` and `promises` (the threads it reads
 from and lands on), `contract`, `verdict`, `revert` (its declared terms),
-`budget_usd`, `max_turns`, `verification` and `model_override`. Ceilings you
-supply only ever narrow the member's own.
+`budget_usd`, `max_turns`, `verification` and `model_override`. Limits you
+supply can only be lower than the member's own.
 
 **A trial**: pass `definition` (a `work_loop` object in the shape above) to
-run a candidate definition once without installing it. The trial is bounded by
-the same checks as the define door, and refused with the same codes followed by
-"No trial ran." A trial's run is marked so the evaluation history can tell a
-candidate from the live member.
+run a candidate definition once without installing it. The trial is held to
+the same checks as defining a member, and refused with the same codes followed by
+"No trial ran." A trial's run is marked so the evaluation history can tell a candidate from the live member.
 
 **Response**: `201` with the run row (below).
 
@@ -178,11 +169,11 @@ candidate from the live member.
 | `422 INVALID_DEFINITION` | `definition` is not a `work_loop` object. |
 | `422 WORK_PROMPT_UNRESOLVED` | The member's prompt reference does not resolve to a record. |
 | `400 REPO_UNKNOWN` | `repo` names a repository the workspace has not declared. |
-| `503 ADMISSION_CEILING` | The workspace is at its concurrent-run ceiling; the message carries both numbers. |
+| `503 ADMISSION_CEILING` | The workspace is at its limit for runs at once; the message gives both numbers. |
 
 `GET /v1/actors/{did}/runs` lists every run the member owns or executed,
 newest first, as `{object: "run_list", actor, count, truncated, data}`. The
-scan is bounded at 2,000 runs; `truncated: true` means the window may be
+list covers at most 2,000 runs; `truncated: true` means it may be
 incomplete.
 
 **The run row** (also served by `GET /v1/runs/{thread}`):
@@ -193,11 +184,11 @@ incomplete.
 | `actor`, `actor_name`, `model` | Who ran and on what. |
 | `goal`, `source_thread`, `domain` | What it was asked, for which thread, in which domain. |
 | `definition`, `prompt`, `frame` | The definition, prompt and opening words it ran under. |
-| `state` | `running`, `waiting_on_you` (an open decision), `done`, `stopped` (cancelled), or `stopped_short` (ended without completing). |
-| `turns`, `max_turns`, `spent_usd`, `ceiling_usd` | Progress against its ceilings. |
+| `state` | `running`, `waiting_on_you` (a decision is waiting), `done`, `stopped` (cancelled), or `stopped_short` (ended without completing). |
+| `turns`, `max_turns`, `spent_usd`, `ceiling_usd` | Progress against its limits. |
 | `started_at`, `ended_at`, `summary` | Its lifetime and its closing words. |
 | `ask` | The open decision on the run, if any. |
-| `tools`, `narrowed`, `transport` | What it was granted, what was withheld, and how it ran. |
+| `tools`, `narrowed`, `transport` | The tools it was given, the ones held back, and how it ran. |
 | `tool_calls_ok`, `tool_calls_failed` | The tally, so a `done` with every call failed is visible. |
 | `verb`, `needs`, `reason`, `evidence`, `candidates`, `reported_by` | The run's report: what it says it did, what it needs from you, and why it ended. |
 
@@ -209,8 +200,8 @@ To steer, answer or stop a live run, see
 `GET /v1/actors/{did}/evals` returns the member's graded history:
 `{object: "actor_evals", actor, grades, comparisons, scan_ceiling, capped}`.
 
-- `grades` are newest first, one per scoring (each call to the score door
-  below writes one). Each carries
+- `grades` are newest first, one per scoring (each scoring request
+  below saves one). Each carries
   `structure_score` and `substance_score` apart, never blended, and every
   substance figure carries `substance_scored` beside it, because a perfect
   score over two of ninety cases is not a measurement of ninety.
@@ -218,12 +209,12 @@ To steer, answer or stop a live run, see
 - `scan_ceiling` is 5,000 and `capped: true` means the history is partial.
 
 Grades are produced by `POST /v1/evals/score` with `{suite, actor,
-definition}` (`definition` is the id the define door returned), which scores the runs already on record against a suite's cases
-and writes one grade. It refuses `400 MISSING_FIELD` (any of the three
+definition}` (`definition` is the id returned when you defined the member), which scores the runs already on record against a suite's cases
+and saves one grade. It refuses `400 MISSING_FIELD` (any of the three
 absent), `400 NO_CASES` (the suite holds no cases) and
 `400 NO_RUNS_UNDER_DEFINITION` (no run by that member ran under that
 definition). It answers `201` with the grade and `runs_scored`, the number of
-runs the grade rests on. The commands over these doors are in
+runs the grade rests on. The commands for these endpoints are in
 [Evaluating actors](/docs/guides/evaluating-actors).
 
 ## Usage
@@ -231,11 +222,11 @@ runs the grade rests on. The commands over these doors are in
 `GET /v1/actors/{did}/usage` answers today's numbers for one member:
 `{object: "actor_usage", actor, window_kind: "daily", loop_count,
 input_tokens, output_tokens, cost_usd}`. A member that has not run today
-answers zeros rather than an error.
+returns zeros, not an error.
 
 ## Memory
 
-A member's memories are what it carries between runs. The doors:
+A member's memories are what it carries between runs. The endpoints:
 
 - `GET /v1/actors/{did}/memories` lists them as `{object: "list", data}`.
   Optional filters: `search` (matches name, description or tags), `domain`
@@ -271,8 +262,8 @@ bundle that cannot be applied answers `400 IMPORT_FAILED`.
 
 <Callout type="info">
 The bundle carries the member's identity, trust, memories, skills and
-patterns. It does not carry the definition the define door wrote (model,
-prompt, tools, bounds), because a definition is bounded by whoever defines it
+patterns. It does not carry the definition you created (model,
+prompt, tools, limits), because a definition is limited by whoever defines it
 in the receiving workspace. To move a defined member, import the bundle, then
 define it again with the same request; the label gives it a stable id.
 </Callout>
@@ -283,6 +274,6 @@ The command-line form and what does and does not move are in
 ## See also
 
 - [Actors and adapters](/docs/guides/actors-and-adapters): the concepts behind a member's definition.
-- [Tiers and entitlements](/docs/guides/tiers): the ceilings a run is clamped by.
+- [Tiers and entitlements](/docs/guides/tiers): the limits a run is held to.
 - [Running a goal](/docs/guides/running-a-goal): sitting inside a run from the command line.
-- [API reference](/docs/reference/api): every other door.
+- [API reference](/docs/reference/api): every other endpoint.

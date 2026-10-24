@@ -53,8 +53,7 @@ Shows all active threads with their latest activity, participant count, and reco
 
 ## Close a thread
 
-A thread closes when a KNOW fulfills its opening intent (frozen foundation
-F13). Pass `--fulfills` on the closing KNOW: bare, it resolves and fulfills
+A thread closes when a KNOW fulfills its opening intent. Pass `--fulfills` on the closing KNOW; on its own, it fulfills
 this thread's opening INTEND for you.
 
 ```bash
@@ -62,11 +61,8 @@ spl know "Migration complete, all services verified" --thread th_7f3a... --fulfi
 ```
 
 To fulfill a specific record rather than the thread's opening intent, name it:
-`--fulfills <record-id>`. Either way the KNOW carries `body.fulfills`, and the
-thread's state comes from its records: the status views read that
-`fulfills` link to mark the thread's work done. The complete record chain, from
-intent through execution to the fulfilling observation, is preserved as an
-immutable history.
+`--fulfills <record-id>`. Either way the KNOW carries `body.fulfills`, and the thread shows as done because of that link. The whole chain of records, from
+intent through the work to the closing observation, is kept as a history that never changes.
 
 ## Capture insights
 
@@ -76,10 +72,10 @@ After completing work, record what you learned:
 spl learn "Schema migrations should run in maintenance windows to avoid connection timeouts"
 ```
 
-LEARN records capture insights that improve future work. They persist in your actor memory and inform future decisions.
+LEARN records capture insights that improve future work. They are kept in your memory and inform future decisions.
 
 ## What's next
 
-- [How threads work](/docs/concepts/threads) — lifecycle, fork and merge, assertions
-- [How records work](/docs/concepts/records) — the 8-field immutable unit
+- [How threads work](/docs/concepts/threads) — how threads open, close, fork and merge
+- [How records work](/docs/concepts/records) — the unit everything is built from
 - [Task management](/docs/guides/task-management) — structured workflows with success criteria

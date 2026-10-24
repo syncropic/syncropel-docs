@@ -1,6 +1,6 @@
 ---
 title: Your call
-description: The one place that shows what is waiting on you. Decisions need an answer, heads-ups need only a nod, and suggestions from your workspace sit apart so they cannot outrank a person.
+description: The one place that shows what is waiting on you. Decisions need an answer, heads-ups need only a nod, and suggestions from your workspace are kept separate so they cannot outrank a person.
 ---
 
 ## What it is
@@ -9,7 +9,7 @@ description: The one place that shows what is waiting on you. Decisions need an 
 someone or something in your workspace needs you to settle, ranked so the most
 pressing sit at the top.
 
-It exists because the alternative is worse. Work that needs a person tends to
+Work that needs a person tends to
 scatter across threads, and anything scattered is eventually missed. One place
 means one thing to check.
 
@@ -19,7 +19,7 @@ Everything in your call is one of two shapes, and the difference matters more
 than it looks.
 
 **A decision** needs an answer from you. Someone asked which of two ways to go,
-or asked you to supply something only you have. A run may be stopped and waiting
+or asked you to supply something only you have. A run may be paused and waiting
 on it right now, which is why decisions are what the count counts.
 
 **A heads-up** needs only a nod. Something happened that you should know about.
@@ -42,9 +42,9 @@ noticed. These are worth seeing and they are **not** the same as a person asking
 you something, so they sit in their own band below rather than in the same
 ranked order.
 
-The reason is arithmetic. A workspace can produce hundreds of near-identical
-suggestions from ordinary activity, and if they shared a queue with real
-questions they would outrank people on volume alone.
+A workspace can produce hundreds of near-identical
+suggestions from ordinary activity. If they shared a list with real
+questions, they would crowd out people on volume alone.
 
 Identical suggestions are **merged into one row** with a count, because a
 suggestion made two hundred times is one suggestion. Settling any one of them
@@ -57,23 +57,21 @@ settles the whole group.
 3. **Then your own order**, if you have set one.
 
 When there is more waiting than can be counted exactly, you will see a figure
-with a plus on it. That is a floor, not an estimate: there are at least that
-many.
+with a plus on it. There are at least that many.
 
 ## Answering
 
 Answer a decision where you find it. You do not open anything first, and you do
-not go somewhere else to do it, because answering ten things through ten
-detours is how a queue stops being read.
+not go somewhere else to do it.
 
 Answering can also start work rather than only finish it. The first question a
-new workspace asks you is an ordinary decision in this lane, and answering it
-opens your first thread, titled with what you typed. If a run was parked waiting
+new workspace asks you is an ordinary decision, and answering it
+opens your first thread, titled with what you typed. If a run was paused waiting
 on your answer, it picks up where it stopped.
 
 ## From the command line
 
-The same lane, from a terminal. The command is named `register`:
+The same list, from a terminal. The command is named `register`:
 
 ```bash
 spl register
@@ -89,7 +87,7 @@ When the automatic order is not the order you want to work in:
 spl register weight <above> <below>
 ```
 
-Both arguments are item ids, and a prefix is enough. It persists as your own
+Both arguments are item IDs, and a prefix is enough. It is saved as your own
 preference. To take it back:
 
 ```bash
@@ -120,7 +118,7 @@ spl say "What changed on the roster today?"
 | `--thread <THREAD>` | Continue an existing thread instead of opening a new one |
 | `--wait <SEC>` | Seconds to wait for the reply (default `90`) |
 
-`spl say` is one round trip. For work you want to sit with, use
+`spl say` sends one message and prints one reply. For work you want to follow along with, use
 [`spl run`](./running-a-goal).
 
 ### Getting back in after time away
@@ -129,7 +127,7 @@ spl say "What changed on the roster today?"
 spl resume
 ```
 
-One re-entry summary answering three questions: where you were, what changed,
+One summary answering three questions: where you were, what changed,
 and what needs you. Point it at one place to get the summary for just that
 place:
 
@@ -149,5 +147,5 @@ spl resume --json
 
 ## Related
 
-- [Running a goal](./running-a-goal): start a run and sit with it.
+- [Running a goal](./running-a-goal): start a run and watch it work.
 - [Task management](./task-management): the task lifecycle behind many decisions.

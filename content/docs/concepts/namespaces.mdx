@@ -1,17 +1,17 @@
 ---
 title: Namespaces
-description: A 5-level hierarchy that scopes every record to a tenancy, project, environment, or job, with monotonic narrowing of capabilities from parent to child.
+description: A five-level hierarchy that scopes every record to an organization, project, environment or job. A child can only narrow what its parent allows.
 ---
 
 ## Overview
 
-A namespace is a scope. Every record in Syncropel belongs to exactly one namespace, and namespaces form a 5-level hierarchy where each level **narrows** the capabilities of the level above. Parent grants are inherited; children can only refine, never expand.
+A namespace is a scope. Every record belongs to exactly one namespace, and namespaces form a five-level hierarchy where each level **narrows** the one above. Children inherit from their parent and can only narrow it, never expand it.
 
-This is how Syncropel handles tenancy (one ORG can't see another's records), project isolation (your `payments` work doesn't leak into your `analytics` work), environment separation (`staging` and `production` are two different worlds), and per-job scoping (a single dispatch run gets its own JOB-level container that vanishes cleanly when done).
+Namespaces keep organizations apart (one ORG can't see another's records), keep projects separate (your `payments` work doesn't leak into `analytics`), separate environments (`staging` and `production`), and give a single run its own scope that can be cleaned up when done.
 
-If you skip this concept entirely, you get the implicit `default` namespace and everything Just Works. You only need to think about namespaces when your team gets bigger than one identity, when you want to separate a customer's data from your own, or when you're enforcing per-environment policies.
+If you skip namespaces, everything lives in the implicit `default` namespace and works fine. You only need them when your team grows beyond one identity, when you want to separate a customer's data from your own, or when you enforce per-environment policies.
 
-## The 5 levels
+## The five levels
 
 ```
 DEFAULT → ORG → PROJECT → ENV → JOB
@@ -19,13 +19,13 @@ DEFAULT → ORG → PROJECT → ENV → JOB
 
 | Level | Example ID | Purpose | When you'd create one |
 |---|---|---|---|
-| **DEFAULT** | `default` | System-wide baseline. Implicit, can't be deleted. | Never, it always exists. |
-| **ORG** | `acme-corp` | Tenant boundary. One company / team / customer. | When you onboard a second customer or split your team into independent units. |
+| **DEFAULT** | `default` | The baseline. Always exists and can't be deleted. | Never, it always exists. |
+| **ORG** | `acme-corp` | One company, team or customer. | When you onboard a second customer or split your team into independent units. |
 | **PROJECT** | `acme-corp/payments` | A workstream within an org. | When two projects under the same org need independent budgets, autonomy settings, or rule sets. |
-| **ENV** | `acme-corp/payments/staging` | A stage within a project. | When you have `staging` and `production` for the same project and you want CEL rules that only fire in one. |
-| **JOB** | `acme-corp/payments/staging/job-42` | A per-execution scope. | When a long-running dispatch needs its own ephemeral scope that can be cleaned up cleanly. |
+| **ENV** | `acme-corp/payments/staging` | A stage within a project. | When you have `staging` and `production` for the same project and you want rules that apply to only one. |
+| **JOB** | `acme-corp/payments/staging/job-42` | A per-execution scope. | When a long-running run needs its own temporary scope. |
 
-The maximum depth is 4 segments under DEFAULT. You can stop at any level, `acme-corp` (just ORG) is a complete, valid namespace.
+The maximum depth is four segments under DEFAULT. You can stop at any level: `acme-corp` alone is a valid namespace.
 
 ## How records get a namespace
 
@@ -45,15 +45,15 @@ Every record carries its namespace in `body.namespace`:
 }
 ```
 
-Records that omit `body.namespace` fall through to the implicit `default`. Every existing record continues working, `default` is always Active and always allowed.
+Records without `body.namespace` go in `default`, which is always Active.
 
 ## Lifecycle
 
 A namespace has three states:
 
 - **Active**: accepts records, enforces policy. The normal state.
-- **Archived**: read-only. No new records may target this namespace or any descendant. The audit history is preserved.
-- **Deleted**: soft delete. Treated as nonexistent for ingest, but kept in the registry for audit trail.
+- **Archived**: read-only. No new records may be written to this namespace or any namespace under it. History is kept.
+- **Deleted**: treated as nonexistent for new records, but kept for the audit trail.
 
 Transitions:
 
@@ -67,11 +67,11 @@ Transitions:
                   (re-create)
 ```
 
-You can re-activate an archived namespace by running `spl namespace create` again with the same ID, the latest record per ID wins, so a new Active LEARN supersedes the prior Archived one.
+To re-activate an archived namespace, run `spl namespace create` again with the same ID. The latest record wins.
 
 ## The narrowing rule
 
-The single most important property of namespaces: **a child can never claim capabilities its parent doesn't grant.** This is checked at every record ingest. The engine walks the ancestor chain from the record's claimed namespace up to DEFAULT, and rejects the record if any link is missing or non-Active.
+The single most important property of namespaces: **a child can never claim capabilities its parent doesn't grant.** Every time a record is written, Syncropel checks the namespace and every ancestor up to DEFAULT, and rejects the record if any is missing or not Active.
 
 ```
 Record claims:   acme-corp/payments/staging/job-42
@@ -99,17 +99,17 @@ Decision:        403 NAMESPACE_REJECTED
                   ancestor 'acme-corp/payments' is not Active in the registry."
 ```
 
-This is **monotonic narrowing**. Archiving an org cascades to every descendant immediately. There's no "hole" through which a deeper namespace can keep writing after its parent has been turned off.
+Archiving an org immediately stops writes to everything under it. A deeper namespace can't keep writing after its parent is turned off.
 
 ## Why this design
 
-Three concrete reasons the spec mandates this shape:
+This shape gives you:
 
-**1. Predictable cleanup.** When a customer leaves or a project ends, you archive the ORG-level namespace and you're done. Every JOB, ENV, and PROJECT record under it stops accepting writes. You never have to walk the descendant tree by hand or write cleanup queries against the database.
+**1. Simple cleanup.** When a customer leaves or a project ends, archive its top-level namespace. Everything under it stops accepting writes, and you don't need to clean up each piece by hand.
 
-**2. Tenancy without forking the engine.** The same instance serves multiple orgs without cross-contamination. An attacker who somehow obtains an ORG-level credential for `acme-corp` cannot inject records claiming `bigcorp` as their namespace, the registry doesn't have a `bigcorp` ancestor for them to pass through.
+**2. Separation between customers.** One workspace can serve several organizations. Someone with a credential for `acme-corp` cannot write records claiming `bigcorp`, because the registry has no `bigcorp` for them to pass through.
 
-**3. Policy composition is closed.** If namespaces also carry a policy, the resolved policy at any level is the *intersection* of every ancestor's policy. There is no way to add capability by going deeper. This makes audit feasible, you can answer "what could a job-42 dispatch ever do?" by looking at the chain of policies, no need to chase implicit grants.
+**3. No way to gain access by going deeper.** The effective policy at any level is the overlap of every ancestor's policy. You can answer "what could a job-42 run ever do?" by looking at the chain of policies.
 
 ## When NOT to use namespaces
 
@@ -117,21 +117,17 @@ Three concrete reasons the spec mandates this shape:
 - **You have one team and one production environment.** A single ORG is overkill, `default` is fine.
 - **You're prototyping.** Namespaces are about boundaries, and prototyping is about not having boundaries. Add namespaces when the boundaries become real (a second customer, a second product, a regulated environment).
 
-The implicit `default` namespace is always there, always Active, and never goes away. The namespace system is fully backward compatible with every pre-namespace record, you only think about namespaces when you actively need them.
+The `default` namespace is always there and always Active.
 
-## What's enforced today vs the spec
+## Known limits
 
-The current implementation covers the **existence layer** of the narrowing guarantee: every record's claimed namespace and every ancestor must be Active in the registry. This is enforced at the HTTP boundary by the instance's `validate_namespace_for_ingest` check.
+Syncropel checks that a record's namespace and every ancestor exist and are Active. This stops anyone from writing records into namespaces that don't exist.
 
-Two pieces of the namespace model are not yet implemented and are tracked as follow-up tasks:
-
-- **Policy composition**: the YAML policy language (autonomy level, allowed primitives, effect limits, and so on) and the intersect-on-allow / union-on-deny composition rules. Today, the `policy` field on a namespace entry is opaque text. The narrowing check only validates existence + status, not capability subsets.
-- **Store-level isolation**: the spec mandates that backends partition records by namespace at the storage layer for hard isolation. Today, records are tagged but not indexed by namespace, and read queries return records from all namespaces a caller has access to.
-
-Both are bounded follow-ups, not show-stoppers. The HTTP-boundary enforcement is what most operators actually need: an attacker on the network cannot inject records into namespaces that don't exist.
+- **Policy is not composed.** The `policy` field on a namespace is stored as plain text. The check covers existence and status, not whether a child's permissions fit within its parent's.
+- **Reads are not partitioned by namespace.** Records are tagged with a namespace, but a read returns records from all the namespaces the caller has access to.
 
 ## Next steps
 
-- **Use it now**: see [`spl namespace`](/docs/reference/cli#namespaces) in the CLI reference for the create/list/show/archive/delete commands.
-- **Author CEL rules scoped to namespaces**: the `current_namespace()` function and `record.body.namespace` field are both available in every CEL context. See [CEL Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now).
-- **Walk through the worked example**: see the [Namespaces guide](/docs/guides/namespaces) for a full setup from `spl namespace create` to a working multi-environment deployment.
+- **Commands**: see [`spl namespace`](/docs/reference/cli#namespaces) in the CLI reference for the create/list/show/archive/delete commands.
+- **Rules scoped to namespaces**: the `current_namespace()` function and `record.body.namespace` field are available in every expression. See [Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now).
+- **Worked example**: see the [Namespaces guide](/docs/guides/namespaces) for a full setup from `spl namespace create` to a working multi-environment workspace.

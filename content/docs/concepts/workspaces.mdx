@@ -5,19 +5,15 @@ description: A workspace is a record that carries a complete interactive surface
 
 A **workspace** is a record that carries a complete interactive surface. It
 describes what a screen looks like, how its regions are laid out, which
-records feed it, and what the surface is allowed to do on your behalf. Your
-instance interprets that description at render time and shows you a working
-page.
+records feed it, and what it is allowed to do on your behalf. Your
+workspace turns that description into a working page.
 
-Because a workspace *is* a record, you do not install software to get one.
-You emit the record, or someone shares it with you, and the surface is
-live. There is no build step, no plugin to compile, no runtime to restart.
-A new workspace is one `core.workspace.v1` record away.
+Because a workspace *is* a record, you don't install software. You write the record, or
+someone shares it with you, and the screen is live. There is no build step
+and no restart. A new workspace is one `core.workspace.v1` record away.
 
-Every fresh instance boots with a **Tasks** workspace already installed, so
-your instance is never a blank screen. Everything below, the shape, the
-catalog, the lifecycle, is the same whether you are looking at that starter
-workspace or one you wrote yourself.
+Every new instance starts with a **Tasks** workspace already installed, so it is never a blank screen. Everything below is the same whether you are looking at that
+starter or one you wrote yourself.
 
 ## The shape
 
@@ -53,34 +49,32 @@ parts: `meta` (what the workspace is), `regions` (what it shows), and
 
 | Field | What it does |
 |---|---|
-| `slug` | The workspace's route and its key in the catalog. Unique per instance. |
+| `slug` | The workspace's route and its key in the catalog. Unique within your instance. |
 | `title` | The human-readable name shown in the UI. |
 | `icon` | An icon name used wherever the workspace is listed. |
 | `rail` | When `true`, the workspace is pinned to the navigation rail. |
-| `shell` | The layout archetype the regions are arranged into. |
-| `defaults` | Optional starting state, initial filter, selected tab, and so on. |
+| `shell` | The page layout the regions are arranged into. |
+| `defaults` | Optional starting state, such as an initial filter or selected tab. |
 | `capabilities` | What the workspace is allowed to do. See [Capabilities](#capabilities). |
 
 ### `regions`, what it shows
 
-`regions` is a map. Each key is a slot in the layout, `header`, `body`,
-`rail`, `browse`, `status`, `aside`, and each value is a **projection
-document**: a declarative description of UI built from a small set of
-nodes (tables, forms, text, charts, and so on). See
+`regions` is a map. Each key is a slot in the layout (`header`, `body`,
+`rail`, `browse`, `status`, `aside`), and each value is a **projection
+document**: a description of the screen built from a small set of
+parts (tables, forms, text, charts and so on). See
 [Projections](/docs/guides/projections) for the document format and
-[React components](/docs/guides/react-components) for the nodes a host
-renders.
+[React components](/docs/guides/react-components) for the parts an app
+can show.
 
-A projection document carries **query bindings, not baked-in data**. The
-workspace record stays static and verifiable; the live records it
-displays are resolved when the surface renders. The same workspace, opened
-by two different people, shows each of them their own records, presented
-the same way.
+A projection document holds **queries, not data**. The
+workspace record stays fixed; the records it
+shows are looked up when the screen loads. The same workspace, opened
+by two different people, shows each their own records, laid out the same way.
 
 ### `lifecycle`, where it is in its life
 
-One of `draft`, `published`, or `archived`. Lifecycle is declared by
-whoever emits the record. Changing it means emitting a new record, see
+One of `draft`, `published`, or `archived`. Whoever writes the record sets the lifecycle. Changing it means writing a new record; see
 [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle).
 
 ## Viewing in Studio
@@ -94,8 +88,8 @@ thread three ways without changing anything:
 - **Outline**: just the heading hierarchy, for jumping around a long
   document.
 - **Records**: the underlying records the document is built from, shown
-  unreduced. The document is a view *of* these records; this lens shows
-  the ground truth behind it.
+  as they are. The document is a view *of* these records; this shows
+  what is behind it.
 
 Switching views never edits the thread, each is a different reading of
 the same records. A thread someone else has [made
@@ -104,14 +98,13 @@ the same way for you, read-only.
 
 ## Capabilities
 
-`meta.capabilities` is the ceiling on what a workspace may do. It is part
-of the record body, so it is fixed the moment the workspace record is
-written: a workspace cannot quietly grant itself new powers.
+`meta.capabilities` is the limit on what a workspace may do. It is part
+of the record, so it is fixed when the workspace is written: a workspace cannot quietly grant itself new powers.
 
 | Field | What it controls |
 |---|---|
 | `emit` | The record kinds the surface may write, as `{ act, kind }` pairs. A surface with no `emit` entry is read-only. |
-| `navigate` | Where the surface may send you: `same-origin` (within your instance), `external-confirmed` (elsewhere, with a confirmation), or `none`. |
+| `navigate` | Where the surface may send you: `same-origin` (within your workspace), `external-confirmed` (elsewhere, with a confirmation), or `none`. |
 
 Anything a workspace tries that is not declared here is refused by the
 host. This is what makes it safe to install a workspace someone else
@@ -120,39 +113,32 @@ know exactly what it can touch.
 
 ## How workspaces relate to records
 
-Records are the foundation. Threads are coordination contexts. **Workspaces
-sit on top**, a workspace says "gather records like this, lay them out
-like that, and let me do these things."
+Records are the foundation and threads group them. **Workspaces sit on top**: a workspace says "gather records like this, lay them out like that, and let me do these things."
 
-A workspace does not store data. It describes how to view and act on data.
-This is why a workspace's identity is its description and nothing else.
-Two people running the "same" workspace are running literally the same
-description, byte-for-byte verified.
+A workspace does not store data. It only describes how to view and act on data. Two people running the "same" workspace are running the same description.
 
-What is deliberately **not** in a workspace body:
+A workspace does **not** contain:
 
-- **A process model**: a workspace does not run; your instance interprets it.
-- **Storage configuration**: your records live wherever you keep them.
-- **Authentication wiring**: handled by the instance's identity layer.
-- **Secrets**: a workspace never carries keys.
+- **Programs.** A workspace does not run code; your workspace displays it.
+- **Storage settings.** Your records live wherever you keep them.
+- **Sign-in settings.** These are handled separately.
+- **Secrets.** A workspace never carries keys.
 
 ## The catalog
 
-Every instance keeps its workspaces on a single well-known thread, the
-**workspace catalog**. Installing a workspace emits its record there;
+Your workspaces are kept on a single well-known thread, the
+**workspace catalog**. Installing a workspace adds its record there;
 listing your workspaces reads that thread.
 
-Discovery is an ordinary query: ask your instance for records of kind
-`core.workspace.v1`. The catalog is not a separate service or a gatekept
-app store, it is records, queried like any other records.
+To find workspaces, ask for records of kind
+`core.workspace.v1`. The catalog is not a separate service or an app store. It is records, queried like any others.
 
 ```bash
 spl workspace list
 ```
 
 A workspace published on *another* instance reaches yours over
-[the Graph](/docs/concepts/graph), Syncropel's cross-instance discovery
-pattern. The Graph carries a workspace between instances; your catalog is
+[the Graph](/docs/concepts/graph), Syncropel's way of finding workspaces on other instances. The Graph carries a workspace to you, and your catalog is
 where it lands once you install it.
 
 See [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle)

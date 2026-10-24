@@ -1,42 +1,41 @@
 ---
 title: Cookbook
-description: Short, tested recipes for common operational shapes. Copy, adapt, ship. Each recipe names a real problem, shows the commands, and explains the trade-off.
+description: Short recipes for common jobs. Copy, adapt and use. Each recipe names a problem, shows the commands, and explains the trade-off.
 ---
 
 ## What this section is
 
-A cookbook is not a tutorial and not a guide. A tutorial teaches a concept; a guide explains a subsystem. A recipe solves one specific problem in one specific way. You arrive, you copy commands, you leave.
+A recipe is not a tutorial or a guide. A tutorial teaches an idea; a guide explains one part of the product. A recipe solves one problem in one way. You arrive, copy the commands, and leave.
 
-Every recipe on the next pages:
+Every recipe:
 
 1. **Names a problem** in one sentence at the top.
-2. **Gives the commands** in runnable form — you can paste them at a terminal with only the names swapped out.
-3. **Explains the one trade-off** you should know before you ship the result.
-4. **Points to the underlying concept** if you want to know why the recipe works.
+2. **Gives the commands** you can paste at a terminal after changing the names.
+3. **Explains the one trade-off** to know before you rely on it.
+4. **Links to the background** if you want to know why it works.
 
-If a recipe gets long, it probably belongs in a guide. Recipes stay short on purpose.
+Recipes stay short on purpose. A longer topic belongs in a guide.
 
 ## Recipes
 
 | Recipe | Problem it solves |
 |---|---|
-| [Route by domain](/docs/cookbook/route-by-domain) | Dispatch code work to one agent and ops work to another without a rule explosion. |
-| [Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) | Let high-trust actors ship without blocking on human review; require review for low-trust ones. |
-| [Federate one thread](/docs/cookbook/federate-one-thread) | Share a single task thread with a collaborator on a different `spl` instance, nothing more. |
-| [Scheduled daily digest](/docs/cookbook/scheduled-daily-digest) | Emit a daily summary record at 09:00 containing what closed in the last 24 hours. |
-| [Audit export to Elastic](/docs/cookbook/audit-export-to-elastic) | Pipe the security-relevant record stream into Elasticsearch or another SIEM. |
-| [Summarize a research paper — 3-LLM consensus](/docs/cookbook/summarize-research-paper-consensus) | Fan out to three LLMs, consensus-fold their summaries, take the most-agreed answer. |
-| [Translate with human verification](/docs/cookbook/translate-with-human-verification) | Claude translates, GPT-4 verifies, Alice is the tiebreaker — human only when LLMs disagree. |
-| [Cost-bounded query waterfall](/docs/cookbook/cost-bounded-query-waterfall) | Try cheap LLM first, escalate stage-by-stage, hard-stop at a 5-cent ceiling. |
-| [Audit-critical with ensemble + audit](/docs/cookbook/audit-critical-with-ensemble-audit) | Ensemble-fold three LLMs, then require a trusted compliance officer to audit. |
-| [Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence) | LLM handles the common case; human pulled in only when the LLM isn't sure. |
+| [Route by domain](/docs/cookbook/route-by-domain) | Send code work to one agent and operations work to another with one rule each. |
+| [Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) | Let highly trusted actors go ahead without waiting for review; require review for the rest. |
+| [Federate one thread](/docs/cookbook/federate-one-thread) | Share one task thread with a colleague on their own workspace, and nothing else. |
+| [Scheduled daily digest](/docs/cookbook/scheduled-daily-digest) | Save a daily summary at 09:00 of what closed in the last 24 hours. |
+| [Audit export to Elastic](/docs/cookbook/audit-export-to-elastic) | Send security-related records to Elasticsearch or another security monitoring tool. |
+| [Summarize a research paper with 3 AI models](/docs/cookbook/summarize-research-paper-consensus) | Ask three AI models and take the answer most of them agree on. |
+| [Translate with human verification](/docs/cookbook/translate-with-human-verification) | One AI model translates, another checks it, and a person steps in only when they disagree. |
+| [Cost-bounded query waterfall](/docs/cookbook/cost-bounded-query-waterfall) | Try a cheap AI model first, move to stronger ones only if needed, and stop at a 5-cent limit. |
+| [Audit-critical with ensemble + audit](/docs/cookbook/audit-critical-with-ensemble-audit) | Ask three AI models, then require a trusted compliance officer to check the result. |
+| [Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence) | The AI model handles the common case; a person steps in only when it isn't sure. |
 
 ## How these relate to guides
 
-Guides explain a subsystem end-to-end ([CEL](/docs/guides/cel-expressions), [Federation pair](/docs/guides/federation-pair), [Task management](/docs/guides/task-management)). Recipes are cross-cutting — they pick pieces from multiple subsystems to solve one operational problem.
+Guides explain one part of the product from start to finish ([CEL](/docs/guides/cel-expressions), [Federation pair](/docs/guides/federation-pair), [Task management](/docs/guides/task-management)). Recipes combine pieces from several parts to solve one practical problem.
 
-When a recipe starts to grow into a full subsystem explanation, it graduates into a guide. When a guide accumulates too many "how do I X?" questions in comments, the Xs become recipes. Both directions happen.
 
-## Contributing
+## If a recipe doesn't work
 
-Every recipe should be verified by running the commands in a clean shell. Copy-paste quality is the acceptance criterion. If a recipe's commands don't work when you follow them, open an issue — a broken recipe is worse than a missing one.
+If a recipe's commands don't work when you follow them, tell us: a broken recipe is worse than none.

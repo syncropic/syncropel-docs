@@ -1,12 +1,12 @@
 ---
 title: Find
-description: Search everything on your workspace — file names, file contents, and conversations — from one query. No setup, no AI provider required, works the same on hosted and self-hosted workspaces.
+description: Search file names, file contents, and conversations in your workspace with one query. It needs no setup or AI provider and works the same on hosted and self-hosted workspaces.
 ---
 
 ## Overview
 
 Find answers the question _"where is that thing?"_ across everything your
-instance holds:
+workspace holds:
 
 - **Names** — files matched by name or path
 - **Content** — the full text inside your files
@@ -14,19 +14,15 @@ instance holds:
   discussed the launch budget" is one query away even if nothing was ever
   saved as a file
 
-Results are blended and ranked together: an exact filename match ranks
-first, then the strongest content and conversation matches. Each hit
-carries a **snippet** with the matched ranges, so you can see *why*
-something matched before opening it.
+Results are ranked together: an exact filename match comes first, then the best content and conversation matches. Each result has a **snippet** with the matched words, so you can see why it matched before opening it.
 
-Find needs **no configuration** — it works out of the box on every
-instance, including hosted ones. It complements two other tools:
+Find needs **no setup** and works on every workspace, including hosted ones. It complements two other tools:
 
 | Tool | When to use it |
 |---|---|
 | **Find** | You know words that appear in the thing — a name, a phrase, an identifier |
 | [Query](./query) | You know the *shape* of what you want — a kind, a field value, a thread |
-| [Semantic Search](./search) | You know the *idea* but not the words — requires an embedding provider |
+| [Semantic Search](./search) | You know the *idea* but not the words (needs an embedding provider) |
 
 ## Searching
 
@@ -73,16 +69,10 @@ curl "$BASE/v1/find?q=quarterly+budget" -H "Authorization: Bearer $TOKEN"
 
 Two hit types come back:
 
-- **`material`** — a file. `node` is the same shape the library returns,
-  so anything that renders a file can render a hit. `why` tells you
-  whether the name, the content, or both matched.
-- **`thread`** — a conversation, identified once per thread no matter how
-  many messages matched, with the snippet drawn from the best-matching
-  message.
+- **`material`** — a file. `node` has the same shape as a file in the library. `why` says whether the name, the content, or both matched.
+- **`thread`** — a conversation. Each thread appears once however many messages matched, with the snippet taken from the best-matching message.
 
-Snippets are plain text plus `offsets` — byte ranges of the matched words
-inside `text`. Render highlights from the offsets; the text never contains
-markup.
+A snippet is plain text plus `offsets`, the byte ranges of the matched words inside `text`. Use the offsets to highlight matches. The text never contains markup.
 
 ### Parameters
 
@@ -92,32 +82,28 @@ markup.
 | `limit` | 20 | Max hits (up to 100) |
 | `types` | both | `material` or `thread` to filter hit types |
 | `prefix` | false | Type-ahead mode: the last word matches as a prefix, so `quart` finds "quarterly" as you type |
-| `explain` | false | Adds a per-hit breakdown of which planes matched and how the rank was computed |
+| `explain` | false | Adds, for each result, which kinds of content matched and how it was ranked |
 
 ### What gets searched
 
 File content is indexed for **text-like files**: plain text, Markdown,
-code, CSV, JSON, YAML, and similar. **PDFs and images are not searched
-yet** — they still match by file name. Conversations are indexed from the
+code, CSV, JSON, YAML, and similar. **PDFs and images are not searched by content.** They still match by file name. Conversations are indexed from the
 messages you and your assistant exchange.
 
-The index follows your content live:
+The search stays up to date as you work:
 
 - A saved file is findable within seconds.
 - A **deleted or renamed** file disappears from results immediately.
-- An **edited** file is findable by its new content only — the old
-  version's text is never returned as a hit.
+- An **edited** file is found by its new content only. Text from the old version never matches.
 
-### Honest results, always
+### Partial results are reported
 
-Find never silently fails. The response lists which planes were searched
-(`planes_served`) and which, if any, had a problem (`planes_degraded`) —
-one plane having an issue never breaks the rest of your results.
+The response lists which kinds of content were searched (`planes_served`: names, content, threads) and which, if any, had a problem (`planes_degraded`). A problem with one never hides results from the others.
 
 ## For agents
 
 AI clients connected over [MCP](/docs/integrate/ai-clients) get the same
-capability as a `find` tool, so an assistant can locate a file or a past
+search as a `find` tool, so an assistant can locate a file or a past
 conversation before acting on it:
 
 ```json
@@ -128,13 +114,11 @@ This is the owner's tool. For a guest or a member, `find` (over MCP and `GET /v1
 
 ## Index health and rebuild
 
-The index maintains itself — content is indexed as you save, and a
-background sweep heals any gaps. Two operator surfaces exist for the rare
-cases where you want to look under the hood:
+The index keeps itself up to date: content is indexed as you save, and a background check fills any gaps. In the rare case you want to look closer, use:
 
 ```bash
 spl find --stats        # coverage, pending items, last indexing failure
-spl find --rebuild      # drop and rebuild the indexes (incremental, safe to run live)
+spl find --rebuild      # rebuild the index (safe to run while the workspace is in use)
 ```
 
 ```bash
@@ -143,15 +127,12 @@ curl -X POST "$BASE/v1/search/rebuild" -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -d '{"scope": "all"}'
 ```
 
-A rebuild re-indexes in small batches in the background — it never blocks
-the workspace, and `--stats` shows it converging.
+A rebuild runs in small batches in the background and never blocks the workspace. `--stats` shows its progress.
 
 ## Limits
 
-- Searches are rate-limited per actor (a small burst, then steady state)
-  with at most two concurrent searches each — type-ahead UIs should
-  debounce.
-- Results are top-k (≤100). For exhaustive listings, use
+- Searches are rate-limited for each actor, with at most two at the same time. Type-ahead search boxes should wait for a pause in typing before searching.
+- You get at most 100 results. For exhaustive listings, use
   [Query](./query) or the library's browse surfaces.
 - Word-based matching works best for languages with space-separated
-  words; CJK text currently matches on whole phrases.
+  words; Chinese, Japanese and Korean text matches on whole phrases.

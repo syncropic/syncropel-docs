@@ -1,15 +1,15 @@
 ---
 title: Helpers
-description: A helper is an automated participant that does one kind of work well — a solver, a classifier, a checker. It is not necessarily a language model, but it is still an actor with a DID, a trust profile, and an audit trail, and Syncropel learns which helper to trust for which work.
+description: A helper is an automated participant that does one kind of work well — a solver, a classifier, a checker. It need not be a language model, but it is still an actor with an identity, a trust record and an audit trail.
 ---
 
 ## Overview
 
 Syncropel coordinates more than chat assistants. A **helper** is an automated participant that does one kind of work well and returns its result as a record. A scheduling solver that optimises a route, a classifier that tags incoming records, a checker that validates data against a set of rules — each is a helper.
 
-What makes a helper a *helper* rather than an [agent](/docs/concepts/agents) is its mechanism. An agent drives a [work loop](/docs/concepts/work-loop) with a language model, taking many turns and calling tools along the way. A helper is usually a single, focused computation: it takes a request, produces an answer, and is done. The answer might come from a mathematical solver, a trained classifier, a rules engine, or several of these combined — Syncropel does not care *how* a helper computes.
+A helper differs from an [agent](/docs/concepts/agents) in how it works. An agent uses a language model in a [work loop](/docs/concepts/work-loop), taking many turns and calling tools. A helper is usually one focused computation: it takes a request, produces an answer, and is done. The answer might come from a solver, a classifier, a rules checker, or a mix. Syncropel does not care how a helper computes.
 
-What it cares about is the same thing it cares about for a person or an agent: a helper is an [actor](/docs/concepts/actors). It has a DID, a [trust](/docs/concepts/trust) profile, a tier, and an audit trail of records on the threads it works on. Nothing about a helper gets a second identity model just because it is not a language model.
+A helper is an [actor](/docs/concepts/actors), like a person or an agent. It has an identity, a [trust](/docs/concepts/trust) record, a tier, and an audit trail of records on the threads it works on.
 
 ```
 chat assistant ─── language model, many turns ─┐
@@ -19,23 +19,23 @@ classifier     ─── one computation, one answer ─┘
 
 ## How work reaches a helper
 
-A request for work lands on a [thread](/docs/concepts/threads) the way any coordination event does — as a record. Syncropel routes that request to the helper best suited to it, the helper returns its result as a record on the same thread, and a reviewer's verdict on that result feeds the helper's trust. The request, the result, and the verdict are all plain records, so anyone with thread access sees exactly what was asked, what came back, and whether it was accepted.
+A request for work lands on a [thread](/docs/concepts/threads) as a record. Syncropel sends it to the best-suited helper, the helper returns its result as a record on the same thread, and a reviewer's verdict on that result feeds the helper's trust. Anyone with access to the thread sees what was asked, what came back, and whether it was accepted.
 
-Over time this is how Syncropel **learns which helper to trust for which work**. When more than one helper can do a kind of work, Syncropel prefers the one with the stronger track record in that domain. Trust is earned from outcomes that get reviewed, not declared up front — a helper that consistently produces accepted results becomes the one work routes to, and one whose results are routinely overridden does not. Because trust is domain-scoped, a helper that is reliable at one kind of work and unreliable at another is reflected correctly.
+Over time, Syncropel **learns which helper to trust for which work**. When more than one helper can do a kind of work, it prefers the one with the stronger track record. Trust is earned from reviewed outcomes. A helper whose results are consistently accepted gets the work, and one whose results are often overridden does not. Trust is kept per area of work, so a helper that is reliable at one thing and not at another is shown as such.
 
 ## Why this matters
 
-Most coordination tools assume the only automated participant is a chat assistant. Syncropel does not. By treating every automated participant as an actor that produces auditable records and earns trust from reviewed outcomes, it can route a scheduling problem to a solver, a tagging problem to a classifier, and an open-ended research problem to a language-model agent — and weigh each one by how well it has actually done that kind of work, not by what it claims it can do.
+Most tools assume the only automated participant is a chat assistant. In Syncropel, every automated participant is an actor that produces auditable records and earns trust from reviewed outcomes. A scheduling problem can go to a solver, a tagging problem to a classifier, and an open-ended research problem to an agent, each weighed by how well it has actually done that kind of work.
 
-The result is a single, honest picture: whatever did the work, the record shows what was asked, what came back, who reviewed it, and how that outcome moved the participant's trust.
+Whatever did the work, the record shows what was asked, what came back, who reviewed it, and how that moved the participant's trust.
 
-## Deploying a helper today
+## Adding a helper
 
-Wiring a custom helper into an instance is an **advanced, owner-driven step** today: the instance owner configures the helper, points it at the work it should handle, and the helper begins participating as an actor. It is not a self-service flow. The built-in [chief of staff](/docs/get-started/the-assistant) assistant and the language-model [agents](/docs/concepts/agents) it escalates to are available on every instance out of the box; additional helpers are something an owner adds deliberately.
+Adding a custom helper is an **advanced step for the workspace owner**. The owner configures the helper and points it at the work it should handle, and it then takes part as an actor. Members cannot add one themselves. The built-in [chief of staff](/docs/get-started/the-assistant) and the [agents](/docs/concepts/agents) it hands work to are available in every workspace.
 
 ## Where it fits
 
-- **[Actors](/docs/concepts/actors)** — the identity primitive every helper inherits.
-- **[Agents](/docs/concepts/agents)** — the language-model member of the helper family, driving a work loop.
+- **[Actors](/docs/concepts/actors)** — the identity every helper has.
+- **[Agents](/docs/concepts/agents)** — the language-model kind of helper, running a work loop.
 - **[Trust](/docs/concepts/trust)** — how reviewed outcomes decide which helper work routes to.
 - **[Threads](/docs/concepts/threads)** — where a request reaches a helper and its result comes back.

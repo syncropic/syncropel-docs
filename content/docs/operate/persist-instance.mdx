@@ -19,7 +19,7 @@ Each section below sets up both.
 
 ## Linux — systemd user unit
 
-Modern Linux distros (Ubuntu 22+, Fedora 38+, Arch, Debian 12+) ship
+Most Linux distros (Ubuntu 22+, Fedora 38+, Arch, Debian 12+) ship
 systemd in user mode. A user unit lives in `~/.config/systemd/user/`
 and supervises processes scoped to your user — no root, no `sudo`.
 
@@ -46,8 +46,8 @@ EOF
 `%h` expands to your home directory at runtime — works for any user
 without hard-coding `/home/maya`.
 
-`--foreground` (instead of `--daemon`) is intentional: systemd is the
-supervisor now, so the binary should NOT detach. Letting systemd
+Run plain `spl serve` here, never `spl serve --daemon`: systemd is the
+supervisor, so the process must stay in the foreground. Letting systemd
 manage the lifecycle gives you `journalctl` integration, restart
 policy, and clean shutdown.
 
@@ -104,7 +104,7 @@ rm ~/.config/systemd/user/spl-serve.service
 ## macOS — launchd LaunchAgent
 
 macOS uses `launchd` instead of systemd. A LaunchAgent runs in your
-user session; a LaunchInstance runs system-wide. For a personal
+user session; a LaunchDaemon runs system-wide. For a personal
 instance, LaunchAgent is the right choice.
 
 ### 1. Write the plist file
@@ -124,7 +124,6 @@ cat > ~/Library/LaunchAgents/com.syncropic.spl-serve.plist <<EOF
     <array>
         <string>$SPL_BIN</string>
         <string>serve</string>
-        <string>--foreground</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -150,8 +149,8 @@ Verify the final paths look right:
 cat ~/Library/LaunchAgents/com.syncropic.spl-serve.plist
 ```
 
-Same as Linux: pass `--foreground` so launchd is the supervisor and
-the binary does NOT detach. `KeepAlive { SuccessfulExit = false }`
+Same as Linux: run plain `spl serve` (no `--daemon`) so launchd is the
+supervisor and the process stays in the foreground. `KeepAlive { SuccessfulExit = false }`
 restarts on crash but not on a clean exit (e.g. `spl stop`),
 so manual stops stay manual.
 
@@ -204,11 +203,11 @@ sc.exe start SyncropelInstance
 ## Common pitfalls
 
 **"My instance keeps stopping after exactly N seconds."**
-This usually means the supervisor is running `spl serve`
-(double-detach) instead of `spl serve --foreground`. The wrapper
+This usually means the supervisor is running `spl serve --daemon`
+(which detaches itself) instead of plain `spl serve`. The wrapper
 process exits cleanly after the detach, the supervisor sees a
 "successful exit", and depending on your `KeepAlive` / `Restart`
-policy may or may not restart. Use `--foreground` and let the
+policy may or may not restart. Run plain `spl serve` and let the
 supervisor own the lifecycle.
 
 **"Auth required" errors after enabling persistence.**
@@ -226,7 +225,7 @@ the action lives in `~/.syncro/logs/spl.log` — that's the canonical
 log regardless of which supervisor wraps the binary.
 
 **"Operation not permitted" on macOS load.**
-Recent macOS versions (Sonoma+) require Full Disk Access for
+Some macOS versions (Sonoma and later) require Full Disk Access for
 launchctl operations on some plists. System Settings →
 Privacy & Security → Full Disk Access → add Terminal (or your
 preferred shell host).

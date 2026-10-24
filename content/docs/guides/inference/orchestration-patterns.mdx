@@ -1,38 +1,38 @@
 ---
 title: Orchestration Patterns
-description: The six canonical multi-step patterns — single_shot, verify, waterfall, retry_on_low_confidence, escalate, ensemble_with_audit — and how to compose them via nested queries when nothing fits.
+description: The six ways to run a query in steps (single_shot, verify, waterfall, retry_on_low_confidence, escalate, ensemble_with_audit), and how to chain queries when none fits.
 ---
 
 ## Overview
 
-Orchestration is the **policy layer** around fold. It decides how many CALLs to dispatch, in what order, and what to do with responses before fold runs.
+Orchestration decides how many requests to send, in what order, and what to do with the responses before they are combined.
 
-The library ships six canonical patterns. They're deliberately named, deliberately limited, and deliberately inexpressive — if you find yourself wanting a seventh, the answer is almost always to **compose existing patterns via nested queries**, not to write a new CEL expression at the orchestration layer.
+There are six patterns. If none fits, the answer is almost always to **chain queries**, not to write custom logic.
 
-This guide covers each pattern, when to use it, how state persists across steps, and the three places CEL escape hatches are allowed.
+This guide covers each pattern, when to use it, how progress is saved between steps, and where you can use CEL expressions.
 
 ## The six patterns
 
 | Pattern | One-liner | Typical use |
 |---|---|---|
-| `single_shot` | Dispatch to top-k once, fold, commit. | Most queries. Default. |
+| `single_shot` | Ask the top-ranked responders once, combine, save. | Most queries. Default. |
 | `verify` | Primary answers, verifier checks, tiebreaker resolves disagreement. | Code review, legal opinion, any "get a second opinion" flow. |
 | `waterfall` | Stages tried in order, stop at first acceptable. | Cost cascade (pattern → cheap LLM → expensive LLM). |
-| `retry_on_low_confidence` | If the fold's confidence is too low, retry with adjusted params. | High-stakes extraction where underconfidence is recoverable. |
+| `retry_on_low_confidence` | If confidence in the result is too low, retry with different settings. | High-stakes extraction where underconfidence is recoverable. |
 | `escalate` | Tiers of increasing authority. LLM → better LLM → human. | Support triage, medical advice, any flow where "ask a human" is the backstop. |
-| `ensemble_with_audit` | Parallel fan-out + folded result audited by a trusted responder. | Compliance decisions, financial advice, anything audit-critical. |
+| `ensemble_with_audit` | Ask several in parallel, then have a trusted responder audit the combined result. | Compliance decisions, financial advice, anything audit-critical. |
 
 ## Pattern: single_shot
 
-Default. The executor:
+The default. Syncropel:
 
-1. Runs the responder predicate + relevance filter.
-2. Dispatches one CALL to each top-k candidate in parallel.
-3. Awaits all responses (or timeout / min_quorum).
-4. Folds.
-5. Commits the KNOW.
+1. Finds the eligible responders and ranks them.
+2. Sends a request to each top-ranked responder at the same time.
+3. Waits for the responses (until the timeout or `min_quorum`).
+4. Combines them.
+5. Saves the answer.
 
-No multi-step state. No escalation. If you don't specify an orchestration, this is what runs.
+There are no extra steps and no escalation. If you don't choose a pattern, this runs.
 
 ```json
 { "orchestration": { "pattern": "single_shot" } }
@@ -40,7 +40,7 @@ No multi-step state. No escalation. If you don't specify an orchestration, this 
 
 ## Pattern: verify
 
-Primary responder answers. Verifier responder independently answers. If their answers agree within `agreement_threshold`, commit. If they disagree, dispatch to tiebreaker and commit whatever the tiebreaker said.
+The primary responder answers. The verifier answers independently. If their answers agree within `agreement_threshold`, that answer is saved. If not, the tiebreaker is asked and its answer is saved.
 
 ```json
 {
@@ -54,15 +54,15 @@ Primary responder answers. Verifier responder independently answers. If their an
 }
 ```
 
-Agreement is measured as an answer similarity on the fold key (canonical-JSON for structured, semantic-similarity for text — configurable, default structural).
+Agreement is measured by how similar the answers are. By default, structured answers must match exactly. Text can be compared by meaning instead.
 
-**State persistence:** after the primary + verifier responses land, the executor writes a LEARN on the query thread with `body.kind: "infer.orchestration.verify.state.v1"` carrying the agreement score. If the process crashes mid-flow, a restart reads the state and resumes from the right branch.
+**Saved progress:** after the primary and verifier respond, a record with `body.kind: "infer.orchestration.verify.state.v1"` and the agreement score is saved on the query thread. If the server stops partway, it resumes from there.
 
 **Cost:** usually 2 CALLs (primary + verifier). Only 3 when they disagree. Predictable.
 
 ## Pattern: waterfall
 
-Stages tried in order. Each stage is a responder predicate. The executor dispatches stage 1's top-k, folds their responses, and checks `accept_expression` against the fold output. If acceptance fires, commit. Otherwise move to stage 2.
+Stages are tried in order. Each stage is a group of responders. Syncropel asks stage 1's top responders, combines their answers, and checks `accept_expression` against the result. If it passes, the answer is saved. Otherwise it moves to stage 2.
 
 ```json
 {
@@ -78,13 +78,13 @@ Stages tried in order. Each stage is a responder predicate. The executor dispatc
 }
 ```
 
-**State persistence:** one LEARN per failed stage with `body.kind: "infer.orchestration.waterfall.state.v1"` carrying the stage index, fold output, and the expression evaluation. On restart, resumes at the next unattempted stage.
+**Saved progress:** each failed stage saves a record with `body.kind: "infer.orchestration.waterfall.state.v1"`, holding the stage number, the result, and the check. After a restart, it resumes at the next stage.
 
 **Cost:** minimum = stage 1 cost. Maximum = sum of all stages. You're betting most queries land at stage 1 or 2; the expensive fallback stages pay off rarely.
 
 ## Pattern: retry_on_low_confidence
 
-Run `single_shot`. If the fold's confidence (from the chosen response's `body.confidence`) is below a threshold, retry with adjusted dial / budget / responders. Max attempts configurable.
+Runs `single_shot`. If the confidence of the result (from the chosen response's `body.confidence`) is below a threshold, it retries with a different dial, budget, or responders. You set the maximum number of attempts.
 
 ```json
 {
@@ -97,13 +97,13 @@ Run `single_shot`. If the fold's confidence (from the chosen response's `body.co
 }
 ```
 
-**State persistence:** one LEARN per attempt with `body.kind: "infer.orchestration.retry.state.v1"` carrying the attempt index, fold output, and the retry trigger. Retry dial adjustments are stored in the state too.
+**Saved progress:** each attempt saves a record with `body.kind: "infer.orchestration.retry.state.v1"`, holding the attempt number, the result, and why it retried, including any dial change.
 
 **Cost:** variable. If the first attempt is confident, you paid for one round. If all retries fire, you paid for `max_attempts`.
 
 ## Pattern: escalate
 
-Tiers of increasing authority. The executor runs tier 1, checks an expression, and escalates to tier 2 if the expression fires. Same for tier 2 → tier 3. A typical 3-tier escalation is LLM → better LLM → human.
+Tiers of increasing authority. Syncropel runs tier 1, checks an expression, and moves to tier 2 if the expression is true. Tier 2 moves to tier 3 the same way. A typical 3-tier escalation is a model, then a stronger model, then a person.
 
 ```json
 {
@@ -119,21 +119,21 @@ Tiers of increasing authority. The executor runs tier 1, checks an expression, a
 }
 ```
 
-**When the final tier is human:** the human responder gets a notification via their chosen channel (SSE if their PWA is open, webhook / Pushbullet / Slack / SMS if not, digest email if `max_latency_secs > 3600`, polling fallback otherwise). See the humans-in-fold UX section below.
+**When the final tier is a person:** they are notified through their chosen channel: a live notification if the app is open, otherwise a webhook, Pushbullet, Slack or SMS, a digest email if `max_latency_secs > 3600`, or polling as a fallback. See the section below.
 
-**State persistence:** one LEARN per tier with `body.kind: "infer.orchestration.escalate.state.v1"`.
+**Saved progress:** each tier saves a record with `body.kind: "infer.orchestration.escalate.state.v1"`.
 
 **Cost:** bounded by tier count. Worst case you pay every tier.
 
-### Human-in-the-loop specifics
+### When a person answers
 
-A human responder can return three kinds of DO records, all sharing the correlation id:
+A person can reply in three ways:
 
-- **`infer.accept.v1`** — intermediate. Carries `eta_seconds`. The executor extends its await by `eta_seconds`. Does NOT count toward `min_quorum`.
-- **`infer.decline.v1`** — terminal. `reason: "out_of_domain" | "overbooked" | "conflict_of_interest" | "other"`. The slot is closed; doesn't count toward quorum. Orchestration proceeds with whoever else responded.
-- **Submit** — terminal DO with body matching `answer_shape.kind`. Contributes to fold. Encouraged to include `body._confidence` + `body._rationale`.
+- **`infer.accept.v1`** — "I'll take it." It carries `eta_seconds`, and Syncropel waits that much longer. It does NOT count toward `min_quorum`.
+- **`infer.decline.v1`** — "I can't." It carries `reason: "out_of_domain" | "overbooked" | "conflict_of_interest" | "other"`. It does not count toward quorum, and the query continues with whoever else responded.
+- **Submit** — the answer itself, with a body matching `answer_shape.kind`. It is included when answers are combined. Include `body._confidence` and `body._rationale` when you can.
 
-Availability predicates (per [responder metadata](/docs/guides/body-kind-manifest)) include `availability.status`, `availability.hours`, `availability.typical_response_delay_s`, `availability.last_seen_at`. The relevance filter uses these to avoid dispatching to a sleeping responder. If `typical_response_delay_s > max_latency_secs × 0.5`, the candidate is dropped at the hard-filter stage.
+A person's availability (`availability.status`, `availability.hours`, `availability.typical_response_delay_s`, `availability.last_seen_at`) is used when ranking, so a query doesn't go to someone who is away. If `typical_response_delay_s > max_latency_secs × 0.5`, that person is skipped.
 
 **SLA defaults by responder kind:**
 
@@ -146,7 +146,7 @@ Availability predicates (per [responder metadata](/docs/guides/body-kind-manifes
 
 ## Pattern: ensemble_with_audit
 
-Parallel fan-out to N primary responders, fold their results, then dispatch the folded result to a trusted auditor for review. The KNOW carries both the fold and the audit verdict.
+Asks several primary responders at the same time, combines their answers, then sends the combined result to a trusted auditor to review. The saved answer includes both the result and the audit verdict.
 
 ```json
 {
@@ -163,25 +163,25 @@ Parallel fan-out to N primary responders, fold their results, then dispatch the 
 }
 ```
 
-If the auditor approves, commit the ensemble's fold as the KNOW. If they reject, commit a KNOW with `body.audit.rejected: true` + the auditor's rationale. `obligation_resolution: "validation_error"` is common here — any ambiguity should halt, not silently last-writer-win.
+If the auditor approves, the combined result is saved. If they reject, a record with `body.audit.rejected: true` and the auditor's reasoning is saved instead. `obligation_resolution: "validation_error"` is common here, so any ambiguity stops the query instead of silently letting the last writer win.
 
-**State persistence:** `body.kind: "infer.orchestration.audit.state.v1"`.
+**Saved progress:** `body.kind: "infer.orchestration.audit.state.v1"`.
 
 **Cost:** N primary CALLs + 1 audit CALL. The audit CALL is typically the expensive one (if the auditor is human).
 
-## CEL escape hatches — three places only
+## Where you can use CEL
 
-Orchestration itself is **not CEL-programmable**. The patterns above are the vocabulary. But three scalar fields inside each pattern accept a CEL expression for per-query customisation:
+You can't script the patterns themselves. But you can use a CEL expression in three places:
 
-1. **Responder predicates** — each `responders[].expression` can be arbitrary CEL over the candidate metadata. (This one is shared with `single_shot`.)
-2. **Fold weight / expression fields** — `ensemble_weighted.weight_expression`, `expression` fold's `fold.expression`.
-3. **Orchestration scalar thresholds** — `verify.agreement_threshold` can be a CEL expression (defaulting to numeric), same for `retry_on_low_confidence.threshold_expression`, `escalate.escalation_expression`, `ensemble_with_audit.audit_expression`, `waterfall.accept_expression`.
+1. **Responder conditions** — each `responders[].expression` can be any CEL condition about the responder. (This works with every pattern, including `single_shot`.)
+2. **Combining** — `ensemble_weighted.weight_expression`, and `fold.expression` for the `expression` function.
+3. **Thresholds** — `verify.agreement_threshold` (a number by default), `retry_on_low_confidence.threshold_expression`, `escalate.escalation_expression`, `ensemble_with_audit.audit_expression`, and `waterfall.accept_expression`.
 
-That's it. No `if`-blocks, no loops, no new patterns via config. If you need a seventh pattern, it's a nested query.
+There are no `if` blocks or loops. If you need something else, chain queries.
 
-## Multi-step state — persistence and crash-safety
+## Saved progress
 
-All multi-step patterns persist their state as LEARN records on the query's thread. Body kinds:
+Every multi-step pattern saves its progress as records on the query's thread. The body kinds are:
 
 | Pattern | Body kind |
 |---|---|
@@ -191,13 +191,13 @@ All multi-step patterns persist their state as LEARN records on the query's thre
 | `escalate` | `infer.orchestration.escalate.state.v1` |
 | `ensemble_with_audit` | `infer.orchestration.audit.state.v1` |
 
-The state records carry enough information to resume the orchestration after a crash. This is why keeping state in records is load-bearing — if orchestration state lived in instance memory, a restart would lose it, and a 7-day human escalation would be un-recoverable.
+These records hold enough to resume after a restart. Because progress is saved, even a human escalation that takes 7 days survives a restart.
 
-Replay semantics: re-ingesting the query thread on a fresh instance re-drives the orchestration to exactly where it stopped. If all responses are in-record, the fold is deterministic. If a human responder hadn't answered yet, the executor waits for their DO exactly as it would have on the original run.
+If you restore the query thread on another instance, the query carries on from where it stopped. A person who hasn't answered yet is still waited for.
 
 ## Nested queries — the composition escape hatch
 
-A query's KNOW can be an `input.record_id` for another query. This is how you compose beyond the 6 patterns.
+A query's KNOW can be an `input.record_id` for another query. This is how you go beyond the 6 patterns.
 
 **Example** — "classify this document, then summarise only if the classification is 'research'":
 
@@ -212,7 +212,7 @@ Query A (classification):
 }
 ```
 
-When A's KNOW lands, an event trigger fires on `body.kind == "core.classification.v1"` and `body.category == "research"`. The trigger emits a new INTEND:
+When A's answer is saved, an event trigger fires on `body.kind == "core.classification.v1"` and `body.category == "research"`. The trigger writes a new INTEND:
 
 Query B (summarisation):
 ```json
@@ -228,9 +228,7 @@ Query B (summarisation):
 }
 ```
 
-The chain A → B is just two records citing each other as parents. Replay works because replay is just record ingest.
-
-You can nest arbitrarily — A → B → C with conditional paths each time. The engine doesn't care; it's all just records.
+The chain A → B is two records, each citing the one before it. You can chain as many queries as you like (A → B → C), with conditions at each step.
 
 ## Choosing a pattern
 
@@ -247,7 +245,7 @@ You can nest arbitrarily — A → B → C with conditional paths each time. The
 ## See also
 
 - **[Query Anatomy — Orchestration](/docs/guides/inference/query-anatomy#orchestration)** — field reference.
-- **[Fold Functions](/docs/guides/inference/fold-functions)** — the pure aggregators orchestration calls.
+- **[Fold Functions](/docs/guides/inference/fold-functions)** — the ways answers are combined.
 - **[Event triggers](/docs/guides/scheduled-triggers)** — how to wire nested-query chains.
 - **[CEL Expressions](/docs/guides/cel-expressions)** — syntax for threshold / acceptance expressions.
 - **[Actors and adapters](/docs/guides/actors-and-adapters)** — how human and system responders are registered.

@@ -51,64 +51,45 @@ See [Plans and billing](/docs/get-started/pricing).
 
 ## For developers
 
-The chief is an ordinary assistant, defined by a [blueprint](/docs/concepts/blueprints) like any other, so you can read it, change it or replace it. A turn that needs tools runs as a governed [work loop](/docs/concepts/work-loop); to start one yourself and sit with it, use [`spl run`](/docs/guides/running-a-goal). Turn-by-turn escalation is on by default, and you can turn it off for a given assistant (see Under the hood below).
+The chief is defined by a [blueprint](/docs/concepts/blueprints), like any other assistant, so you can read it, change it or replace it. When a message needs real work, the chief does it as a [work loop](/docs/concepts/work-loop). To start one yourself and watch it, use [`spl run`](/docs/guides/running-a-goal). 
 
 
 ### Turning the assistant on when you self-host
 
-A self-hosted workspace starts deliberately blank: it reacts to nothing until you
-choose what runs on it. Two ways to give it a voice.
+A workspace you run yourself starts blank until you choose what runs on it. There are two ways to give it an assistant.
 
 ```bash
 # At init: seed a ready-to-use setup that installs the chief.
 spl init --preset recommended    # presets: recommended | blank
 
-# Any time later, on an already-initialized instance:
+# Or at any time later:
 spl blueprint install <path-to-blueprint> --accept-plan <hash>
 ```
 
 Every preset except `blank` installs the chief. If you initialized bare and the
 assistant seems silent, this is why, and nothing is broken: install the chief
-through the blueprint door with the command above.
+with the `spl blueprint install` command above.
 
-A workspace on your own machine has no model until you give it a key (`spl config set-key anthropic <your key>`, then restart the daemon); until then the chief is installed but silent, and `spl run` says so rather than failing quietly.
+A workspace on your own computer has no AI model until you give it a key (`spl config set-key anthropic <your key>`, then restart); until then the chief is installed but silent, and `spl run` says so.
 
-### The assistant is silent on a workspace you run yourself
+### If the assistant is silent on a workspace you run yourself
 
 If you send a message and nothing comes back, work through this in order:
 
 1. **You initialized bare and never installed the chief.** The most common
    cause on a self-host. Run `spl blueprint install <path-to-blueprint> --accept-plan <hash>`, or
    re-init with `--preset recommended`.
-2. **No inference backend, or the backend is rejecting calls.** An expired key
-   or an exhausted quota means the reply call fails. Run `spl doctor`: it
-   surfaces inference-configuration problems.
-3. **The message landed on a non-conversational thread.** The chief answers on
-   conversational threads. A record emitted onto a task thread is expected to
-   stay quiet.
+2. **No AI model is set up, or it is rejecting requests.** An expired key
+   or a used-up quota means no reply. Run `spl doctor`: it reports
+   problems with this.
+3. **The message went to a task thread.** The chief answers in conversations. A note added to a task thread gets no reply.
 4. **Still stuck?** See [Troubleshooting](/docs/get-started/troubleshooting), or
-   inspect the thread directly with `spl thread records <thread-id>` to confirm
-   your message record was written.
-
-### Under the hood
-
-For readers working with the records directly:
-
-- The chief is an actor registered on the workspace. Your message is a
-  `core.user.message.v1` record, and the chief builds its context by reading
-  the thread's records.
-- Records an escalated turn writes are signed by your actor DID, not the
-  chief's.
-- An escalated turn's progress is written as `core.work.turn.v1`,
-  `core.work.tool_call.v1` and `core.work.loop_outcome.v1` records.
-- To turn escalation off for one actor, set `conversation_escalation: false` on
-  its `core.engine.actor_adapter.v1` record.
+   run `spl thread records <thread-id>` to check your message was saved.
 
 ## Where to go next
 
-- [Work loops](/docs/concepts/work-loop): the primitive a turn escalates into.
-- [Running a goal](/docs/guides/running-a-goal): `spl run`, the developer's seat.
-- [Tiers](/docs/guides/tiers): what a loop is allowed to spend, by tier.
-- [Blueprints](/docs/concepts/blueprints): how the chief is defined, and how you
-  would define your own conversational assistant.
-- [Create your workspace](/docs/get-started/hosted): sign up and start a minute or two later.
+- [Work loops](/docs/concepts/work-loop): how the chief does a job.
+- [Running a goal](/docs/guides/running-a-goal): `spl run`, working with the chief from a terminal.
+- [Tiers](/docs/guides/tiers): how much a job is allowed to spend, by tier.
+- [Blueprints](/docs/concepts/blueprints): how the chief is defined, and how to define your own assistant.
+- [Create your workspace](/docs/get-started/hosted): sign up and start working.

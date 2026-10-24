@@ -1,10 +1,10 @@
 ---
 title: Running a goal
-description: Start a run from the command line with spl run, sit with it while it streams, answer the question it parks on, and read the outcome. This page points at the full guide.
+description: Start a run from the command line with `spl run`, watch it work, answer any question it asks, and read the outcome. This page points to the full guide.
 ---
 
 `spl run` starts a run as you and stays with it: every turn prints as it
-happens, a question the run needs answered is put to you in place, and the
+happens, a question the run needs answered is put to you right there, and the
 outcome prints when the run ends, with the diff if it changed a repository.
 
 ```bash
@@ -14,21 +14,20 @@ spl run "Record one note saying the walkthrough works, then stop."
 The full guide is [Running work with spl run](/docs/guides/spl-run). It covers:
 
 - what a run is and which member carries it out,
-- what each streamed line means,
-- what happens when a run parks on a decision, and how you answer it,
+- what each line of output means,
+- what happens when a run pauses for a decision, and how you answer it,
 - the outcome and its exit codes,
-- how a run is bounded (turns, budget, time, the declared tools),
-- giving a run a declared repository, and the green check it then owes,
+- how a run is limited (turns, budget, time, the tools it may use),
+- giving a run a repository, and the passing check it then owes,
 - what does and does not stop a run.
 
 ## The old goal path
 
-`--legacy` runs the older path: the goal is filed as an intent, routed to
-a member, and polled until something closes it. It exists only for callers
-that depend on that shape. Prefer the seat.
+`--legacy` runs the older way: the goal is filed as an intent, routed to
+a member, and checked until something closes it. Use it only if you depend on that behavior. Otherwise use plain `spl run`.
 
 ## Related
 
 - [Running work with spl run](/docs/guides/spl-run): the full guide.
-- [Your call](/docs/guides/your-call): everything waiting on you, including parked runs.
+- [Your call](/docs/guides/your-call): everything waiting on you, including paused runs.
 - [Evaluating members](/docs/guides/evaluating-actors): judging the runs a member did.

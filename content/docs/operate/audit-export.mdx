@@ -5,18 +5,17 @@ description: The `spl audit export` CLI emits security-relevant records as JSON 
 
 ## What it does
 
-`spl audit export` writes security-relevant records from the engine's
-record log to stdout as JSON Lines (one record per line). It's the
-shipped bridge between Syncropel's content-addressed record log
-and your existing SIEM / compliance archive / log-aggregation pipeline.
+`spl audit export` writes security-relevant records to stdout as JSON Lines
+(one record per line). Use it to feed your existing SIEM, compliance archive
+or log-aggregation pipeline.
 
 Four categories are emitted; filter any subset with `--categories`:
 
 | Category | What it captures |
 |---|---|
-| `system` | Records authored by `did:sync:system:*` actors — engine bootstrap, intelligence proposals, trust feedback, recovery events |
-| `decision` | Decision-gate records — request + answer (`body.verdict` accept/reject) — reviewer approvals, dispatch verdicts |
-| `dispatch` | KNOW records with `body.topic == "dispatch_complete"` — every adapter invocation outcome + metrics |
+| `system` | Records authored by `did:sync:system:*` actors — startup, AI proposals, trust feedback, recovery events |
+| `decision` | Decision records: request and answer (`body.verdict` accept/reject) — reviewer approvals, dispatch verdicts |
+| `dispatch` | KNOW records with `body.topic == "dispatch_complete"` — the outcome and metrics of every adapter run |
 | `governance` | Records authored by `did:sync:system:governance` — policy decisions when permissions are enabled |
 
 ## Quickstart
@@ -25,7 +24,7 @@ Four categories are emitted; filter any subset with `--categories`:
 # Last hour, all categories
 spl audit export --since 1h
 
-# Last 24 hours, decision-gate + dispatch only, piped to jq
+# Last 24 hours, decisions and dispatch only, piped to jq
 spl audit export --since 24h --categories decision,dispatch | jq '.'
 
 # Single actor, single thread — useful for incident scoping
@@ -61,7 +60,7 @@ Each line is a self-contained JSON object:
 
 Top-level `category` makes filtering trivial. The complete record is
 nested under `record`, so you have every field required to reconstruct
-the event downstream (content-addressed `id`, all 8 fields, etc.).
+the event downstream (the record `id`, all 8 fields, and so on).
 
 ## Time filters
 
@@ -75,8 +74,7 @@ instances — the output can be large.
 
 ## Retention patterns
 
-Syncropel's record log is the source of truth; `spl audit export` is a
-projection over it. Three common operator patterns:
+`spl audit export` reads your records and never changes them. Three common patterns:
 
 ### Daily rotation to object storage
 
@@ -108,7 +106,7 @@ missed events.
 ### Category-specific pipelines
 
 ```bash
-# decision-gate only → review dashboard
+# decision records only → review dashboard
 spl audit export --since 24h --categories decision \
   | jq -c 'select(.record.body.verdict == "reject")' \
   | /usr/local/bin/review-alerts-webhook
@@ -128,10 +126,9 @@ spl audit export --since 24h --categories decision \
   `SPL_SERVE_URL` (dev). No SQL-level access required.
 - JSON Lines are newline-delimited; if your SIEM expects JSON arrays,
   wrap with `jq -s`.
-- Record IDs are content-addressed SHA-256 — stable across federation,
-  so the same audit event lands with the same id on every peer that
-  replicated the record.
+- Record IDs are stable across federation, so the same audit event has the
+  same ID on every peer that received the record.
 - Retention is a function of the underlying store backend (SQLite by
-  default). `spl audit export` does not deletion — it's a projection.
+  default). `spl audit export` never deletes anything.
   For deletion / GDPR, use `spl debug replay` to verify nothing depends
   on the target record, then issue a dedicated `core.erasure` record.

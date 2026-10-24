@@ -1,17 +1,17 @@
 ---
 title: Escalate to a human on low confidence
-description: An LLM handles the normal case; when it returns low confidence, the query escalates to a human. No routing rules, no hard-coded fallback — just one orchestration spec.
+description: An AI model handles the normal case, and a person gets the question when the model is not confident. One setup, no routing rules.
 ---
 
 ## Problem
 
-Your support triage system classifies incoming tickets. An LLM handles the common patterns (shipping question, refund request, account lock). Occasionally the LLM isn't sure, and you'd rather hand the unclear cases to a human than let a low-confidence guess hit production.
+Your support triage system classifies incoming tickets. An AI model handles the common cases (shipping question, refund request, account lock). Sometimes it isn't sure, and you'd rather hand those cases to a person than act on a shaky guess.
 
-You want: dispatch to the LLM first; if its confidence is below 0.7, escalate to a named human support lead. End-to-end in one query.
+You want: ask the AI model first; if its confidence is below 0.7, pass the ticket to a named support lead. All in one query.
 
 ## Recipe
 
-`escalate` orchestration with two tiers. Tier 1 is Claude Sonnet. Tier 2 is Priya (the support lead). Escalation fires when confidence is below threshold.
+The `escalate` pattern with two tiers. Tier 1 is Claude Sonnet. Tier 2 is Priya (the support lead). It moves to tier 2 when confidence is below the threshold.
 
 ```json
 {
@@ -56,7 +56,7 @@ spl infer --query-file triage-query.json --wait --poll-timeout-secs 14400
 
 ## The high-confidence path
 
-The LLM returns:
+The AI model returns:
 
 ```json
 {
@@ -67,9 +67,9 @@ The LLM returns:
 }
 ```
 
-`fold.answer.confidence` is 0.91, which is not less than 0.7, so no escalation fires. KNOW commits. Total latency ~5s, cost ~$0.003.
+`fold.answer.confidence` is 0.91, which is not below 0.7, so nothing is escalated and the answer is saved as the result (a `KNOW`). It takes about 5 seconds and costs about $0.003.
 
-End-to-end trace (records on the query's thread, via `spl thread records <id>`):
+The records on the query's thread (see them with `spl thread records <id>`):
 
 ```text
 clock  actor                    act     body.kind
@@ -81,7 +81,7 @@ clock  actor                    act     body.kind
 
 ## The escalation path
 
-The LLM returns:
+The AI model returns:
 
 ```json
 {
@@ -92,9 +92,9 @@ The LLM returns:
 }
 ```
 
-`fold.answer.confidence < 0.7` is true. Escalation fires.
+`fold.answer.confidence < 0.7` is true, so the ticket goes to Priya.
 
-End-to-end trace:
+The records:
 
 ```text
 clock  actor                    act     body.kind                              notes
@@ -108,21 +108,21 @@ clock  actor                    act     body.kind                              n
   8    did:sync:system:engine   KNOW    core.triage_decision.v1                ← final, priya's answer
 ```
 
-Priya gets her notification (SSE if her PWA is open, webhook / Slack / SMS otherwise). She first sends `infer.accept.v1` with `eta_seconds: 7200` — this extends the executor's await window by 2 hours without counting toward fold quorum. She then submits her verdict, which is terminal and does count. `best_of` with two contributors (Priya at trust 0.95 vs Sonnet at 0.62) picks Priya. Her full body commits.
+Priya is notified (live in her browser if it's open, otherwise by webhook, Slack or SMS). She first sends `infer.accept.v1` with `eta_seconds: 7200`, which tells the query to wait 2 more hours without counting as her answer. She then submits her verdict, which does count. With two answers, `best_of` picks the one from the more trusted contributor (Priya at trust 0.95 vs Sonnet at 0.62), so Priya's answer is saved in full.
 
-## Why escalate, not verify?
+## Why escalate instead of verify?
 
-`verify` requires **both** primary and verifier to run every time. `escalate` only pulls in tier 2 when tier 1 fails the expression. If 90% of your tickets are handled at tier 1 with high confidence, escalate costs ~1 LLM call most of the time and only reaches out to Priya on the hard 10%. Verify would always call both.
+`verify` runs **both** the translator and the checker every time. `escalate` only goes to tier 2 when tier 1 isn't confident enough. If 90% of your tickets are handled confidently at tier 1, `escalate` costs about one AI call most of the time and only reaches Priya for the hard 10%. `verify` would always use both.
 
 ## The trade-off
 
-`escalate` serialises tiers. Tier 2 doesn't start until tier 1 returns. That's its whole value but it also means your worst-case latency is sum-of-tiers — if Priya takes 2 hours, the query takes ~2 hours + 5 seconds.
+`escalate` runs tiers one after another. Tier 2 doesn't start until tier 1 answers. That is its benefit, but the worst case takes as long as all tiers together: if Priya takes 2 hours, the query takes about 2 hours and 5 seconds.
 
-Human tier latency can blow your `max_latency_secs`. Budget liberally — 14400s (4 hours) or 86400s (24 hours) are reasonable for non-urgent human escalation. If the query times out before Priya responds, the executor emits `latency_timeout` and the LLM's tier-1 answer never commits (you get an error KNOW, not the low-confidence answer).
+A person's reply time can go past your `max_latency_secs`. Allow plenty: 14400 seconds (4 hours) or 86400 (24 hours) are reasonable when it isn't urgent. If the query times out before Priya replies, it ends with `latency_timeout` and the AI model's low-confidence answer is never saved (you get an error record instead).
 
-If you want the LLM's best-effort answer preserved even on human timeout, use `retry_on_low_confidence` with `max_attempts: 2` and retry LLMs of increasing capability instead. That keeps the whole loop machine-paced.
+If you want the AI model's best answer kept even when the person times out, use `retry_on_low_confidence` with `max_attempts: 2` and retry with stronger models instead. That keeps everything automatic.
 
-## Run this against a dev instance
+## Try it on a test workspace
 
 Register Priya:
 
@@ -130,7 +130,7 @@ Register Priya:
 spl actor register did:example:priya --category agent --display-name "Priya (support triage)"
 ```
 
-Trust is earned from verdicts, not set at registration: Priya accrues trust in the `support` domain as her judgments are approved, which is what a fold like `best_of` reads. Emit the query as above. Watch the thread. If Priya doesn't respond and you want to simulate her DO, you can `spl do` directly:
+Trust is earned from verdicts, not set at registration: Priya builds trust in the `support` domain as her judgments are approved, and `best_of` uses that trust. Run the query as above and watch the thread. To simulate Priya's reply, add her `DO` yourself with `spl do`:
 
 ```bash
 spl do "triage response" \
@@ -139,10 +139,10 @@ spl do "triage response" \
   --body '{"kind":"core.triage_decision.v1","category":"damage_claim","priority":"p1","confidence":0.95}'
 ```
 
-The KNOW will commit once the DO lands.
+The result is saved once her `DO` is added.
 
 ## See also
 
-- **[Orchestration Patterns — escalate](/docs/guides/inference/orchestration-patterns#pattern-escalate)** — full description and human-in-the-loop specifics.
-- **[Translate with human verification](/docs/cookbook/translate-with-human-verification)** — the verify variant where a human resolves disagreement rather than fills in for low confidence.
-- **[Dispatch observability](/docs/guides/dispatch-observability)** — how to trace queries through CALL + DO + LEARN records.
+- **[Orchestration Patterns — escalate](/docs/guides/inference/orchestration-patterns#pattern-escalate)** — full description, including how a person is brought in.
+- **[Translate with human verification](/docs/cookbook/translate-with-human-verification)** — the `verify` version, where a person settles a disagreement instead of covering for low confidence.
+- **[Dispatch observability](/docs/guides/dispatch-observability)** — how to follow a query through its `CALL`, `DO` and `LEARN` records.

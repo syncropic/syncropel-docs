@@ -14,10 +14,10 @@ If you're reading this because something just broke, jump to [Recovery](#recover
 ### Starting the instance
 
 ```bash
-spl serve
+spl serve --daemon
 ```
 
-This forks a background process, writes a PID file to `~/.syncro/run/spl.pid`, opens the SQLite store at `~/.syncro/hub.db`, takes a startup backup (see [Backup discipline](#backup-discipline)), binds `127.0.0.1:9100`, and binds a Unix socket at `~/.syncro/run/spl.sock`.
+This starts the instance in the background, writes a PID file to `~/.syncro/run/spl.pid`, opens the SQLite store at `~/.syncro/hub.db`, takes a startup backup (see [Backup discipline](#backup-discipline)), binds `127.0.0.1:9100`, and binds a Unix socket at `~/.syncro/run/spl.sock`.
 
 Verify it came up:
 
@@ -53,7 +53,7 @@ kill <pid>
 ss -tlnp 2>/dev/null | grep 9100
 ```
 
-Then restart cleanly.,
+Then start it again.
 
 ### Reading instance logs
 
@@ -68,10 +68,10 @@ The structured fields you'll care about most:
 | Field | Meaning |
 |---|---|
 | `level` | `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE` |
-| `target` | The Rust module emitting the log (filter on `syncropel_engine::reconciler` to see routing decisions) |
+| `target` | The part of the system that wrote the line |
 | `actor` | The DID involved in the operation |
 | `thread` | The thread ID being touched |
-| `record` | Record ID for ingest events |
+| `record` | The record ID, when a record was received |
 
 To filter for permission denials specifically:
 
@@ -81,7 +81,7 @@ grep "PERMISSION DENIED" ~/.syncro/logs/spl.log
 
 ## Backup discipline
 
-> **CRITICAL — read this section twice.** Syncropel's backup mechanism is a safety net, not a backup system. It will fail to save you if you don't supplement it with off-host copies. The recovery drill at `tests/drills/recovery.sh` exposed exactly this failure mode.
+> **CRITICAL — read this section twice.** Syncropel's backup mechanism is a safety net, not a backup system. It will fail to save you if you don't supplement it with off-host copies. Copy your backups to another machine or disk.
 
 ### What the instance does for you
 
@@ -89,7 +89,7 @@ On every startup, `spl serve` checks if `~/.syncro/hub.db` exists. If it does, t
 
 The instance key is one of:
 
-1. `instance-<did-tail>` if a content-addressed instance DID is bootstrapped — the normal case. `<did-tail>` is the 24-hex tail of the instance DID.
+1. `instance-<did-tail>` once your instance has an identity (the normal case). `<did-tail>` is the last 24 hex characters of the instance DID.
 2. `home-<short-hash>` if `SYNCROPEL_HOME` is set but no DID exists yet.
 3. The legacy flat path `~/.local/share/syncropel/backups/hub.db.bak` — only for a default home with no instance DID at all, which is rare.
 
@@ -108,7 +108,7 @@ The daily backup job writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into t
 
 Concretely: if you delete `hub.db` and restart the instance, the instance comes up with an empty database, then on the next restart writes that empty database OVER your good backup. By the time you realize what happened, the backup is gone.
 
-The recovery drill (`bash tests/drills/recovery.sh`) demonstrates this: it captures the backup file off-host immediately after creation, then deliberately wipes the volume and restores from the off-host copy. **You should do the same in production.**
+Copy the backup file off the machine as soon as it is created, so a wiped disk does not take the backup with it.
 
 ### What you should do instead
 
@@ -144,7 +144,7 @@ docker run -d \
 
 For added safety, a daily `cron` or `systemd timer` snapshotting that host directory to remote storage (S3, B2, SFTP, etc.) is appropriate for any instance carrying real data.
 
-### Portable backup — publish the instance 
+### Portable backup: publish the instance
 
 The sqlite `.bak` protects against local file loss. For a backup that travels — one you can rebuild a working instance from on any machine — publish the whole instance as a repository snapshot:
 
@@ -156,11 +156,11 @@ spl repo publish <namespace>/<repo> --relocation
 
 ### What does NOT need to be backed up separately
 
-- **Trust scores**: derived from KNOW/DO records on startup. Will rebuild from the record log.
-- **Engine config**: derived from LEARN records on `th_engine_config`. Will rebuild from the record log.
-- **Routing rules, fold rules, health checks, decision policies, permission rules**: all stored as LEARN records. Will rebuild.
+- **Trust scores**: rebuilt from your records when the instance starts.
+- **Configuration**: stored as records, so it comes back with them.
+- **Routing rules, health checks, decision policies, permission rules**: also stored as records, so they come back too.
 
-The record log IS the truth. Everything else is a fold over it. As long as `hub.db` is intact, all derived state recovers automatically.
+Your records are the source of truth. As long as `hub.db` is intact, everything else recovers automatically.
 
 ### What needs separate attention
 
@@ -209,11 +209,11 @@ Same procedure as above, minus step 2. Restore from off-host backup, restart.
 
 ### Symptom: trust scores wrong, routing rules missing
 
-These are derived state. They were correct the last time the instance ran cleanly. To force a rebuild:
+These are rebuilt from your records. To force a rebuild, restart the instance:
 
 ```bash
 spl stop
-spl serve  # rebuild_from_store() runs on startup
+spl serve  # rebuilds trust and rules on startup
 spl trust           # verify rebuild
 spl config list-rules
 ```
@@ -227,10 +227,10 @@ spl thread records <thread-id-of-concern>       # specific thread
 
 ### Symptom: permission enforcement locked you out
 
-You enabled `spl config permissions-enable` without an admin allow rule, and now `spl config permissions-disable` returns 403. This is prevented by a pre-flight check, but if you're on an older version or you disabled an admin rule by mistake:
+You enabled `spl config permissions-enable` without an admin allow rule, and now `spl config permissions-disable` returns 403. The command normally checks for this first, but if you disabled an admin rule by mistake it can still happen:
 
 ```bash
-spl stop                  # cached config in memory will shadow our write
+spl stop                  # the running instance would override this change
 spl config permissions-unlock     # writes permissions_enabled=false direct to store
 spl serve                # restart — enforcement is off
 ```
@@ -263,19 +263,17 @@ spl status
 
 If the instance runs under systemd, the same sequence is `systemctl --user stop spl-serve`, install, `systemctl --user start spl-serve`. Stop first in every case: a live copy over the running binary is refused (`Text file busy`), and a work loop's worker is started from the daemon's own binary, so an already-running worker keeps the version it started with until the daemon restarts.
 
-The daemon's process is protected, so a same-user shell cannot read its process entries; to confirm which binary a running daemon is, use `sudo -n readlink /proc/<pid>/exe`. The daemon also produces no core dump. Both are the hardening working, not a fault.
+The workspace process is hardened: a same-user shell cannot inspect it, and it writes no core dump. This is intended, not a fault. To confirm which binary a running workspace is using, run `sudo -n readlink /proc/<pid>/exe`.
 
-Work loops for every non-operator principal run through the sandboxed transport. To stop one at its next step boundary, `POST /v1/runs/{thread}/events` with `{"type":"stop"}`; the run's next tool call is answered with a stop verdict, the run ends `cancelled`, and its worker is reaped. The rollback for the transport itself is one config record per tier (`work_loop_transport` for the operator, `work_loop_transport_members` for everyone else); see [The sandboxed transport](./sandboxed-transport).
+Runs started by anyone other than the operator go through the sandboxed transport. To stop a run at its next step, `POST /v1/runs/{thread}/events` with `{"type":"stop"}`; the run ends as `cancelled`. To turn the sandboxed transport off, write one config record per tier (`work_loop_transport` for the operator, `work_loop_transport_members` for everyone else); see [The sandboxed transport](./sandboxed-transport).
 
-The Syncropel engine's SQLite schema has been backward-compatible across 0.8.x → 0.9.x. The startup path runs `CREATE TABLE IF NOT EXISTS` for any new tables; existing data is untouched. If a future release requires a non-backward-compatible migration, the release notes will say so explicitly and the instance will refuse to start until you run the migration.
-
-The upgrade drill (`bash tests/drills/upgrade.sh`) verifies the data-preservation property end-to-end on every release: 5 user records + 1 routing rule + 1 permission rule are all confirmed intact across instance stop → container swap → instance start on the same volume. If you're maintaining a fork or shipping a custom build, run this drill before you cut a release.
+Upgrades keep your existing data. If a release needs a data migration that you must run yourself, the release notes say so and the instance refuses to start until you run it.
 
 ### What can go wrong, and how to recognize it
 
 - **Binary download fails partway**: the install script downloads to a temp file and atomically `mv`s into place. A failed download leaves the old binary intact. You'll see the old version on `spl version`.
 - **Instance won't start on the new binary**: a panic or graceful refusal. Read the log. Roll back by reinstalling the previous version (`curl -sSf https://get.syncropic.com/spl?v=<previous-version> | sh`) and restarting.
-- **Records present but trust scores empty**: the new instance rebuilt trust from records on startup. Wait a moment for the rebuild to finish; check `spl trust` again.
+- **Records present but trust scores empty**: trust is rebuilt from your records when the instance starts. Wait a moment, then run `spl trust` again.
 
 ## Common issues and fixes
 
@@ -285,7 +283,7 @@ Another instance is already bound to port 9100. Either you have a stale `spl ser
 
 ### `~/.syncro/run/spl.pid` exists but no process
 
-Stale PID file. Delete it and start clean:
+The PID file is left over from a process that no longer runs. Delete it and start again:
 
 ```bash
 rm -f ~/.syncro/run/spl.pid
@@ -302,11 +300,11 @@ The HEALTHCHECK in the docker image hits `/health`. If you're behind a reverse p
 
 ### High memory growth over multi-day uptime
 
-The 4-loop engine holds working state in memory for active threads. If you're seeing unbounded growth, capture a snapshot via `spl status -o json` and file it. This hasn't been observed in practice, but it's a class of bug to watch for.
+The instance keeps active threads in memory. If memory keeps growing without limit, run `spl status -o json` and include the output in your report.
 
-## Dispatch under memory pressure: read the warn log
+## Running work under memory pressure
 
-When you dispatch a worker — `spl task dispatch <task>`, `spl run <goal>`, or any other path that spawns a subprocess — the instance emits one of three log lines at spawn:
+When you start a worker (`spl task dispatch <task>`, `spl run <goal>`, or anything else that launches a separate process), the instance writes one of three log lines:
 
 ```
 DEBUG dispatch pre-flight: host memory healthy avail_gb=8.1
@@ -314,110 +312,102 @@ INFO  dispatch pre-flight: host approaching memory pressure avail_gb=3.2
 WARN  dispatch pre-flight: host under memory pressure — OOM-kill risk; consider sequential dispatch avail_gb=1.4
 ```
 
-The lines are visible in `~/.syncro/logs/spl.log` (filter for `dispatch pre-flight`) and in `journalctl` if you're running under systemd. Watch host memory: when the instance reports memory pressure, do not start more parallel workers, free memory (idle browser tabs, idle agent sessions, anything not load-bearing), and drop to sequential dispatch (`max_concurrent = 1` on the adapter) before you spawn more. If a worker was killed during the pressure window, follow the salvage procedure below.
+Find them in `~/.syncro/logs/spl.log` (search for `dispatch pre-flight`), or in `journalctl` under systemd. On Linux the check runs automatically. On macOS and Windows, watch the system's process monitor instead.
 
-The pre-flight check runs on Linux; on macOS and Windows, watch the OS process monitor instead.
+When you see a memory-pressure line:
 
-## Dispatched worker died unexpectedly: salvage procedure
+1. Do not start more parallel workers.
+2. Free memory: close idle browser tabs and idle agent sessions.
+3. Run one worker at a time by setting `max_concurrent = 1` on the adapter.
 
-If `spl task show <task-id>` reports `Status: failed` with `Prior attempts: 1 failed ($0.00 total)` shortly after a parallel dispatch, the worker subprocess almost certainly hit a SIGKILL — most often from the kernel OOM-killer under host memory pressure. The good news: any work the worker had finished writing to disk before the kill is **still in the worktree**, even though `commits ahead: 0`. You can usually salvage it without re-dispatching.
+If a worker was already killed, follow the next section.
 
-### Step 1 — Diagnose the failure mode
+## A worker was killed: recover its work
 
-```bash
-spl task diagnose <task-id> | tail -30
-```
+If `spl task show <task-id>` reports `Status: failed` with `Prior attempts: 1 failed ($0.00 total)` shortly after you started several workers at once, the system most likely ran out of memory and stopped the worker (signal 9). Whatever the worker had already saved to disk is still in its working folder, even though the task shows `commits ahead: 0`. You can usually keep that work instead of starting over.
 
-Look for the `Subprocess` and `Completion` blocks. The OOM-kill signature is:
+1. **Confirm the cause.**
 
-```text
-Subprocess
-  pid:        <pid>
-  runtime:    <ms>            ← typically <10min
-  exit_code:  None
-  signal:     Some(9)         ← SIGKILL
+   ```bash
+   spl task diagnose <task-id> | tail -30
+   ```
 
-Completion
-  codepath:        stream_eof_fallback   # see body-kind reference
-  failure_reason:  result_missing
-  success:         false
-```
+   Look at the `Subprocess` and `Completion` blocks. An out-of-memory kill looks like this:
 
-If the signal is 15 (SIGTERM) instead of 9, you're in a different failure class — process-level shutdown rather than kernel OOM. The salvage steps below still apply, but the prevention guidance at the bottom of this section won't help; investigate budget exhaustion, agent-CLI signal handling, or container/cgroup limits instead.
+   ```text
+   Subprocess
+     pid:        <pid>
+     runtime:    <ms>            ← typically under 10 minutes
+     exit_code:  None
+     signal:     Some(9)         ← the process was killed
 
-### Step 2 — Inspect the worktree
+   Completion
+     codepath:        stream_eof_fallback
+     failure_reason:  result_missing
+     success:         false
+   ```
 
-The diagnose output reports `worktree:` and `latest commit:`. Switch in and check status:
+   If the signal is 15 instead of 9, the worker was asked to shut down rather than killed for memory. The steps below still work, but the advice on avoiding memory kills at the end of this section will not help. Check for a spent budget, the agent tool's own signal handling, or container memory limits.
 
-```bash
-cd /path/to/<your-project>-<task-id>
-git status -s
-```
+2. **Look in the working folder.** The diagnose output gives `worktree:` and `latest commit:`. Go to that folder:
 
-Modified or untracked files = real work the worker produced before SIGKILL. **Do not delete the worktree.**
+   ```bash
+   cd /path/to/<your-project>-<task-id>
+   git status -s
+   ```
 
-### Step 3 — Read the diff + decide salvage path
+   Changed or new files are work the worker finished before it was stopped. Do not delete the folder.
 
-```bash
-git diff
-ls -la <new-directories-the-worker-created>
-```
+3. **Decide whether the work is complete.**
 
-Does the work look substantively complete (worker had finished, just hadn't committed)? Or partial (mid-flight)?
+   ```bash
+   git diff
+   ```
 
-- **Substantively complete** — proceed to Step 4.
-- **Partial** — read the task brief (`spl task show <task-id>`), identify the missing acceptance-criteria items, complete them in the worktree, then proceed.
+   If it looks finished, go to step 4. If it is partial, read the task brief (`spl task show <task-id>`), finish the missing items in the folder, then go to step 4.
 
-### Step 4 — Commit on the task branch
+4. **Commit the work.** The folder is already on the task's branch:
 
-The worktree is already on a task branch. Commit there:
+   ```bash
+   git add <specific-files>
+   git commit -m "feat(scope): <change> (<task-id>)
 
-```bash
-git add <specific-files>
-git commit -m "feat(scope): <change> (<task-id>)
+   Recovered by hand after the worker was killed for memory."
+   ```
 
-<commit body>
+5. **Merge it into your main branch.**
 
-Salvaged in-session after parallel-dispatch SIGKILL on the original
-worker (host OOM, signal=9 at ~Xmin). Worker had completed <work
-inventory>; only <missing-item> needed adding."
-```
+   ```bash
+   cd /path/to/<your-project>   # your main folder
+   git merge task/<task-id> --ff-only       # or `git cherry-pick <hash>` if main has moved
+   # Run your project's tests here
+   git push origin main
+   ```
 
-### Step 5 — Merge to main
+6. **Reopen the task and finish it.** The task is still marked failed:
 
-```bash
-cd /path/to/<your-project>   # main worktree
-git merge task/<task-id> --ff-only       # or `git cherry-pick <hash>` if main moved
-# Run your project's own test suite here
-git push origin main
-```
+   ```bash
+   spl task reopen <task-id> --reason "recovered by hand after the worker was killed"
+   SPL_ACTOR=did:sync:agent:dev      spl task done    <task-id> --summary "..." --domain code
+   SPL_ACTOR=did:sync:agent:reviewer spl task approve <task-id> --domain code --notes "..."
+   ```
 
-### Step 6 — Reopen + done + approve
+   Put the commit hash and test result in the reviewer's `--notes` so the record of who did what stays accurate.
 
-The original worker's `dispatch_complete` left the task in `failed` status. Reopen and walk it through the lifecycle:
+7. **Remove the working folder.**
 
-```bash
-spl task reopen <task-id> --reason "salvaged in-session after worker SIGKILL"
-SPL_ACTOR=did:sync:agent:dev      spl task done    <task-id> --summary "..." --domain code
-SPL_ACTOR=did:sync:agent:reviewer spl task approve <task-id> --domain code --notes "..."
-```
+   ```bash
+   cd /path/to/<your-project>
+   git worktree remove <your-project>-<task-id> --force
+   ```
 
-Reference the salvage commit hash and test result in the reviewer's `--notes` so trust evidence accumulates correctly.
+   The branch stays after the merge. That is fine.
 
-### Step 7 — Clean up the worktree
+### Avoiding memory kills
 
-```bash
-cd /path/to/<your-project>
-git worktree remove <your-project>-<task-id> --force
-```
-
-The task branch persists post-merge; that's fine, it's part of the git history.
-
-### Avoiding the OOM kill in the first place
-
-- **Cap parallel dispatch by available memory.** On a host already running a few agent sessions and `spl serve`, even `max_concurrent = 2` may be too many. If host memory is tight, drop to `max_concurrent = 1`.
-- **Close idle agent sessions before dispatching parallel.** Each background agent-CLI session commonly consumes 200-500MB resident.
-- **Set generous timeouts.** OOM doesn't care about timeout, but a longer timeout gives the worker more chance to commit before any other failure mode fires.
+- **Limit parallel workers to what your memory allows.** On a machine already running a few agent sessions and `spl serve`, even `max_concurrent = 2` may be too many. If memory is tight, use `max_concurrent = 1`.
+- **Close idle agent sessions first.** Each background agent session often uses 200-500 MB.
+- **Set generous timeouts.** A timeout does not prevent a memory kill, but a longer one gives the worker more time to save its work before anything else goes wrong.
 
 ## Multi-instance fleet operations
 
@@ -425,7 +415,7 @@ The task branch persists post-merge; that's fine, it's part of the git history.
 This section covers multi-instance deployments. If you're running a single instance, skip it.
 </Callout>
 
-A "fleet" is two or more `spl` instances that coordinate via the instance registry. One instance is the **coordinator** (holds the registry thread, receives heartbeats, processes fan-out barriers). The others are **workers** (execute dispatched work, report heartbeats, POST completion records back to the coordinator). Any instance can play either role; the distinction is config, not code.
+A "fleet" is two or more `spl` instances that coordinate via the instance registry. One instance is the **coordinator** (keeps the list of instances, receives their heartbeats, and collects fan-out results). The others are **workers** (execute dispatched work, report heartbeats, POST completion records back to the coordinator). Any instance can play either role; the distinction is config, not code.
 
 This section covers the operations you run day-2 on a fleet. For a first walkthrough, see [Your first fan-out](/docs/tutorials/first-fanout).
 
@@ -514,7 +504,7 @@ For deep inspection of a specific instance, SSH into its host and run `spl docto
 
 ### Coordinator replacement (manual failover)
 
-The coordinator is a single writer for the registry thread. If it dies, workers continue operating locally but cannot register or coordinate fan-out until a new coordinator is nominated. Automatic failover is not yet supported.
+Only the coordinator keeps the list of instances. If it dies, workers keep working locally but cannot register or coordinate fan-out until you choose a new coordinator. Failover is manual.
 
 To replace a dead coordinator:
 

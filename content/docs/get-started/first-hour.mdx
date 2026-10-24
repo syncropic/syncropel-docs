@@ -1,72 +1,40 @@
 ---
 title: Your first hour
-description: What a fresh workspace does the moment it exists, hosted or local. One question is waiting on you, answering it opens your first thread, the assistant answers there, and there are four useful things to do next.
+description: What a new workspace does, hosted or on your own computer. One question is waiting for you, answering it opens your first thread, the assistant replies there, and there are five useful things to do next.
 ---
 
 You have a workspace. Maybe you signed up for a hosted one, maybe you ran
-`spl init --preset recommended` and `spl serve` on your own machine. Either
-way, this page is what happens next, described exactly as the software does
-it.
+`spl init --preset recommended` and `spl serve` on your own computer. Either
+way, this page is what happens next.
 
 ## One question is waiting on you
 
-A fresh workspace set up with any preset except `blank` puts exactly one item
-in **your call**, the lane of things waiting on a person:
+A new workspace (unless you chose the `blank` preset) puts one item in **your call**, the list of things waiting on a person:
 
 > What are you working on?
 
-It is a **decision**: an item that needs an answer, in your own words. It is
-not a welcome card and it is not styled apart from anything else. It is an
-ordinary item in the lane, on purpose: the first thing you do in the product
-is the thing you will keep doing, reading what is waiting on you and answering
-it.
+This is a **decision**: an item that needs your answer, in your own words. It looks like any other item in your call, because reading what is waiting on you and answering it is what you will keep doing.
 
-In the Studio it appears in your call. On the command line,
-`spl register` lists it, and `spl decisions list` lists it with the verb that
-answers it.
+In the Studio it appears in your call. On the command line, `spl register` lists it, and `spl decisions list` lists it with the command that answers it.
 
-- It has no expiry. Leave without answering and it is still there when you
-  come back; it never nags.
-- It appears once. A workspace that existed before this behaviour shipped
-  gains no question on upgrade, and a `blank` workspace never gets one.
-- When you self-host, the wording is yours: set the `SPL_FIRST_RUN_ASK`
-  environment variable for the command that first configures the workspace
-  (`spl init --preset ...` on your machine, or the serving process when a
-  preset is applied to a running workspace). It is read once, at that moment.
+- It never expires. If you leave without answering, it is still there when you come back.
+- It appears once. A `blank` workspace never gets one.
+- If you run your own workspace, you can change the wording. Set the `SPL_FIRST_RUN_ASK` environment variable before the command that first sets up the workspace (`spl init --preset ...`). It is read once, at that moment.
 
 ## Answering it opens your first thread
 
-Type what you are working on. Say you type "the Meridian rebrand". Then:
+Type what you are working on, for example "the Meridian rebrand". Then:
 
-1. **A thread opens, titled exactly what you typed.** Not a summary, not a
-   cleaned-up version. Leading and trailing spaces are trimmed; otherwise the
-   title is your words.
-2. **You are put inside it.** The Studio navigates into the new thread. On the
-   command line, `spl decisions provide <id> --value "the Meridian rebrand"`
-   answers it, and `spl decisions provide <id> --value "..." -o json` names
-   the thread it opened so a script can follow. `spl thread list` shows it
-   either way.
-3. **The question leaves your call.** The lane is empty again, which means
-   what it says: nothing needs you.
+1. **A thread opens, titled with exactly what you typed.** Only leading and trailing spaces are trimmed.
+2. **You are taken into it.** In the Studio you move into the new thread. On the command line, `spl decisions provide <id> --value "the Meridian rebrand"` answers it, and adding `-o json` also prints the thread it opened. `spl thread list` shows it either way.
+3. **The question leaves your call.** Your call is empty again, which means nothing needs you.
 
-Two more guarantees, because a first step should not be able to go wrong in a
-confusing way:
-
-- **Answering twice lands you in the same thread.** If your connection drops
-  and you answer again, you get the thread that already exists, never a second
-  empty one with the same name.
-- **A failure part way through leaves you with a thread and the question still
-  open.** The thread is opened first, the answer recorded second, so the worst
-  case is that you are inside your thread and the question is still in your
-  call. You can never end up with an answer pointing at a thread that was
-  never made.
-
-An empty answer opens nothing.
+If your connection drops and you answer again, you get the thread that already exists, not a second empty one. An empty answer opens nothing.
 
 ## The assistant answers in that thread
 
 Type a message in your new thread and **the chief** answers. The chief is the
-assistant every non-blank workspace comes with, an ordinary member you can
+assistant every workspace except a `blank` one comes with, a member you can
 read, change or replace (see [The assistant](/docs/get-started/the-assistant)).
 Its reply lands on the same thread, and so does every message after it: the
 thread is the conversation, and it is still there tomorrow.
@@ -76,40 +44,23 @@ reply; `spl say "..." --thread <id>` continues an existing one, including the
 one you just opened.
 
 <Callout type="warn" title="A local workspace needs a model before the chief can answer">
-A hosted workspace arrives with managed model access, so the chief answers
-from your first message (free plans include a one-time inference allowance). A workspace on your own machine has no model until
+A hosted workspace comes with AI model access, so the chief answers
+from your first message (free plans include a one-time allowance). A workspace on your own computer has no model until
 you give it a key: run `spl config set-key anthropic <your key>`, then
 `spl stop` and `spl serve --daemon`. Until then the chief is installed but
-silent, and `spl run` tells you the same thing rather than failing quietly.
+silent, and `spl run` tells you so.
 </Callout>
 
-## Reading your call honestly
+## Reading your call
 
-Your call's numbers mean something.
+- **Decisions and heads-ups are counted separately.** A decision needs an answer from you (choose an option, or type a value). A heads-up only needs a nod: you acknowledge it and it goes away. A badge that says "2 decisions" counts only what needs you.
+- **A count is exact, or it says it is a minimum.** If your call has more open items than it can count, the count is marked as a minimum (`spl register` prints `(capped)`).
+- **An empty call means one of two things.** On a workspace set up with a preset, empty means nothing needs you. On a workspace that was never set up (no preset), empty means it has not been configured yet, and your call says which.
+- **Repeated proposals show as one row.** If an automated member proposes the same thing two hundred times, you see it once with the count, and deciding it once settles them all.
 
-- **Decisions and heads-ups are counted apart.** A decision needs an answer
-  from you (choose an option, or provide a value). A heads-up needs only a
-  nod: you acknowledge it and it goes away. A badge that says "2 decisions"
-  counts only what actually needs you, never the notices.
-- **A count is exact or it says it is a floor.** Your call scans up to a fixed
-  number of open items; past that, the count is marked as a floor rather than
-  presented as the whole number (`spl register` prints `(capped)`).
-- **Empty means one of two things, and you can tell which.** An empty lane on
-  a workspace that was set up with a preset means nothing needs you. An empty
-  lane on a workspace that was never set up (a bare workspace with no preset)
-  means it has not been configured yet, and the workspace reports which of
-  the two it is rather than leaving a surface to guess.
-- **Repeated proposals collapse into one row.** If an automated member proposes the
-  same thing two hundred times, you see it once with the count, and deciding
-  it once settles the whole group.
+If you are calling the API directly, answering the question returns the thread it opened, and counts come back already split. See the [API reference](/docs/reference/api) and [Your call](/docs/guides/your-call).
 
-If you are calling the API directly, the same distinctions are on the wire:
-the answer to the question comes back naming the thread it opened, and the
-counts come back already split. See the [API reference](/docs/reference/api)
-and [Your call](/docs/guides/your-call) for the rest, including decisions
-whose run already ended.
-
-## Five useful things to do now
+## Five useful things to do next
 
 **1. Write your first record.** In the Studio, type in your thread. On the
 command line, a note on the thread you just opened:
@@ -123,39 +74,36 @@ The second command reads it back, and still does after `spl stop` and
 `spl serve --daemon`.
 
 **2. Ask the chief something about your workspace.** It answers from what is
-actually in the workspace, and raises a real question when it needs one
-instead of guessing:
+in the workspace, and asks you a question when it needs to instead of guessing:
 
 ```bash
 spl say "What is on my register right now?"
 ```
 
-**3. Look at your call.** `spl register` prints the open items, blocking ones
-first, then the oldest. Empty on a configured workspace means nothing needs
+**3. Look at your call.** `spl register` prints the open items, the ones holding up work first, then the oldest. Empty on a configured workspace means nothing needs
 you.
 
 **4. Ask it to do a piece of work.** In a hosted workspace, open **sessions**
 and fill in the goal, with an optional ceiling on turns and on spend. On your
 own machine, `spl run` does the same thing in the terminal: it starts the work
-as you, streams it as it happens, pauses to ask if whoever is doing the work
-needs a decision, and prints the outcome:
+as you, shows it as it happens, pauses to ask you if a decision is needed,
+and prints the outcome:
 
 ```bash
 spl run "List the threads on this workspace and write a one-line summary of each as a note."
 ```
 
-By default the run uses the chief. It exits `0` when the run finished; if it
-asked a question nobody could answer (no terminal, no `--answer`), it exits
-`3` and names the ask so you can answer it with `spl decisions choose` or
+By default the run uses the chief. It exits with `0` when the run finishes. If it asked a question nobody could answer (no terminal, no `--answer`), it exits with
+`3` and names the question so you can answer it with `spl decisions choose` or
 `spl decisions provide`. See
-[Running a goal](/docs/guides/running-a-goal) for budgets, turn ceilings, and
+[Running a goal](/docs/guides/running-a-goal) for spending limits, turn limits, and
 giving a run a repository to work in.
 
 **5. Put it on a schedule, so it happens without you.** This is the part that
 makes a workspace different from a chat window: the work keeps happening while
 you are away, and you read what it did when you come back.
 
-Today this is a command line step. One command creates the automation and
+This is done on the command line. One command creates the automation and
 turns it on:
 
 ```bash
@@ -171,10 +119,10 @@ spl config add-trigger \
 
 `--target` names who does the work. `did:sync:agent:harness` is the assistant
 your workspace already has, so you can paste this as it is; `spl actor list`
-shows the others once you define some. `--schedule` takes the ordinary
+shows the others once you define some. `--schedule` takes the usual
 five-field cron form, and `--timezone` takes a zone name so nine in the morning
 stays nine in the morning when the clocks change. `--budget` is the most it may spend on one run. Leave `--enable` off
-and it is created but stays asleep until you turn it on.
+and the automation is created but stays off until you turn it on.
 
 Then leave. When you come back, `spl trigger history morning-review` lists
 every time it ran, and each run is an ordinary thread you can open and read.
@@ -184,10 +132,9 @@ time of day rather than a short interval.
 
 ## If nothing is waiting
 
-- **Your workspace existed before the question shipped.** It is already
-  configured, so it gets no question. Start a thread with `spl say` or in the
+- **Your workspace was set up a while ago.** It was configured before the question existed, so it gets no question. Start a thread with `spl say` or in the
   Studio.
-- **You ran `spl init` with no `--preset`.** The workspace is unconfigured:
+- **You ran `spl init` with no `--preset`.** The workspace is not set up:
   no assistant, no question, and your call says it was never set up. Re-run
   `spl init --force --preset recommended` on a workspace you have not used for
   real work yet (`--force` also regenerates your identity, which is why it is
@@ -198,8 +145,8 @@ time of day rather than a short interval.
   (`spl blueprint install <file> --accept-plan <hash>`, see
   [Blueprints](/docs/concepts/blueprints)), or, on a workspace with nothing
   on it yet, re-running `spl init --force --preset recommended`. The question
-  only ever seeds at first configuration, so open your first thread by hand.
-- **Your call is empty and the workspace is configured.** Nothing needs you.
+  only appears when you first choose a preset, so open your first thread by hand.
+- **Your call is empty and the workspace is set up.** Nothing needs you.
 
 ## Where to go next
 

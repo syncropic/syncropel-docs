@@ -1,9 +1,9 @@
 ---
 title: What spl doctor tells you
-description: Every row spl doctor prints today, quoted as it prints, with what a warning on it means and what to do. Run it first when something feels wrong, after an upgrade, and before filing a report.
+description: Every row spl doctor prints, quoted as it prints, with what a warning on it means and what to do. Run it first when something feels wrong, after an upgrade, and before filing a report.
 ---
 
-`spl doctor` reads your workspace from the outside and prints one row per
+`spl doctor` checks your workspace from the outside and prints one row per
 check: a green tick, a yellow `!` for a warning, or a red cross for a failure,
 each with a sentence saying what it found. It never changes anything, and it
 never starts a workspace that is not running.
@@ -17,9 +17,8 @@ The exit code is the worst row: `0` when every row passes, `1` when at least
 one warns, `2` when at least one fails. To point it at a workspace on another
 port, set `SPL_SERVE_URL=http://127.0.0.1:9200`.
 
-The rows below are in the order they print. Rows that can only run against a
-reachable workspace are skipped when it is down, so a down workspace prints a
-short report. Where a row prints a dash between two clauses, this page shows a
+The rows below are in the order they print. Rows that need a running workspace
+are skipped when it is down, so a down workspace prints a short report. Where a row prints a dash between two clauses, this page shows a
 colon; every other word is quoted as the binary prints it.
 
 ## instance reachable
@@ -34,8 +33,8 @@ rows that need one will be thin until you pair.
 
 Passes with `<path> → live spl serve (pid N)`. Fails with `pid N does not exist
 (orphaned PID file)` or warns with `pid N exists but cmdline is not 'spl serve'
-(stale PID file?)`: a previous workspace process left its marker behind, or the
-number was recycled. Warns with `missing: spl serve --stop will not be able to
+(stale PID file?)`: a previous workspace process left its marker file behind, or the
+number now belongs to another program. Warns with `missing: spl serve --stop will not be able to
 find the running instance` when the workspace is up but nothing recorded which
 process it is. The recovery in each case is in the
 [runbook](/docs/operate/runbook): find the real process, stop it cleanly,
@@ -52,8 +51,8 @@ the running workspace may be looking at different data. Decide which is real
 before writing anything.
 
 `intelligence` always passes; it reports `enabled, model=...` or `disabled (no
-API key or explicitly off)` so you know whether the workspace's own routing
-intelligence is on.
+API key or explicitly off)` so you know whether the workspace's built-in AI
+features are on.
 
 ## engine config thread, migrations, expression cache
 
@@ -62,15 +61,15 @@ nothing to load)` on a workspace that has never been configured, or with
 `could not fetch ...` when your credential cannot read configuration.
 
 `DDL schema` warns with `store at version N, binary expects M: restart spl
-serve to run migrations` after an upgrade whose migration has not run: restart
-the workspace. `body-kind indexes` warns only on a small, drift-shaped gap
-(queries on those kinds are slower, never wrong). `config records` warns with
+serve to run migrations` after an upgrade whose data update has not run: restart
+the workspace. `body-kind indexes` warns only when a few lookup shortcuts are
+missing (those queries are slower, never wrong). `config records` warns with
 `N orphan LEARN(s) on th_engine_config: silently skipped by config-loader`
 when a configuration record was written without the field that says what it
 configures: re-emit it with the topic the row names.
 
 `expression cache` warns with `hit rate suspiciously low` when rules are being
-recompiled constantly; on a workspace that has evaluated nothing yet it passes
+re-read constantly; on a workspace that has not run any rules yet it passes
 with `cache cold`.
 
 ## federation bind host
@@ -99,7 +98,7 @@ workspace is restarted and the log read.
 ## run_code switch
 
 Whether any run is offered the [run_code](/docs/guides/run-code) tool at all.
-It is a switch, default off. Three shapes:
+It is a switch, off by default. Three shapes:
 
 - `offered: yes (config topic run_code enabled); runs may call run_code`.
 - `offered: no (default off; a run that got it would use the embedded
@@ -118,57 +117,55 @@ Whether a subscription status has ever reached this workspace. Warns with
 nothing here.` On a self-hosted workspace this is the normal state: your
 [tiers](/docs/guides/tiers) are assigned by hand and no billing status will
 ever arrive. On a hosted workspace it means billing changes are not reaching
-the machine, and a lapsed subscription would not narrow anything until it
-does. Passes with `N status(es) received; last 5h ago: 'active' for <member>
+the machine, so a lapsed subscription would not reduce access. Passes with `N status(es) received; last 5h ago: 'active' for <member>
 via subscriptions`.
 
 ## act vocabulary
 
-What verbs a person has when they open the app. The row always starts by
-naming the eight acts every open thread carries, `8 frame acts on any open
+Which actions the app offers in its search box. The row always starts by
+naming the eight actions every open thread offers, `8 frame acts on any open
 thread (invite, attach, replace, remove, declare, let, nudge, judge)`, so a
-warning here never means "no verbs". It warns with `no venture vocabulary
+warning here never means "no actions". It warns with `no venture vocabulary
 declared: no *.registry.v1 record on this instance, so the locator at rest
 offers nothing until a thread is open`. That is the state of every fresh
-workspace: before a thread is open, the search box has nothing to offer. A
-blueprint that carries a vocabulary, or a registry record for your own domain,
-adds one, and the row then passes naming each vocabulary it found.
+workspace: before a thread is open, the search box has nothing to offer. Installing a
+blueprint that carries a vocabulary, or adding a registry record for your own
+domain, supplies one, and the row then passes naming each vocabulary it found.
 
 ## content addresses
 
-Whether every record is served under the name it was stored with. Passes with
+Whether every record is served under the ID it was stored with. Passes with
 `N records, every one served under the id it was stored with (0.4s)`. Warns
 with `N of M records re-hash to a different id than they were stored under
 (historical canonicalizer drift, an earlier release's canonicalizer). The doors serve the STORED id, so
 reads are correct; a count that GROWS across releases would mean the
 canonicalizer moved again.`
 
-A nonzero count is history, not corruption. Older releases named some records
-slightly differently from how the current release would name them; nothing was
-lost, every record is still served under its original name, and every read is
-correct. What would matter is the number growing because the canonicalizer
-moved again, and a count alone cannot say that: a store that imported older
-records also grows. So the row names the DATE of the newest drifted record
-(`The newest drifted record was written 2026-08-02 ... before the write
-fix, so this is history`) and reads it against the release that fixed the
-write path; a date after it says `the canonicalizer moved again, or a pre-fix
-binary wrote to this store; report it`. The sweep stops at 250,000 records in
-table order and says so.
+A nonzero count is history, not damage. Older releases computed the ID of some
+records slightly differently from how the current release does. Nothing was
+lost, every record is still served under its original ID, and every read is
+correct. What would matter is the number growing. A count alone cannot show
+that, because a workspace that imported older records also grows. So the row
+names the date of the newest affected record (`The newest drifted record was
+written 2026-08-02 ... before the write fix, so this is history`). A date
+after the fix says `the canonicalizer moved again, or a pre-fix binary wrote to
+this store; report it`: if you see that, report it. The check stops at 250,000
+records and says so.
 
 ## boot peak
 
-What the last successful boot cost, against what bounds this body. The daemon
-writes `boot-peak.json` beside the store after its boot folds complete, and
-this row reads that file with no daemon, so the body at its memory ceiling can
-still be diagnosed. Passes with `this boot peaked at 412 MB of a 1,024 MB cgroup
-limit (40%) (boot 2026-09-12 09:14 UTC, 31 s, 175,122 records)`.
-Warns from 85% and fails from 95%, because a boot that just fit is the boot
-before the one that does not, and the remedy names what to do from where you
-stand: give the body more memory, or get the records out while it still starts
-(`spl export --offline`, which needs no daemon and free space for one copy of
-the store). Off a cgroup the row reads `nothing bounds this body here` and
-never warns. The figure re-measures every boot, so it tracks growth; on a
-hosted body the fleet alert keys on it.
+How much memory the last successful start used, against the limit your
+workspace runs under. The workspace writes `boot-peak.json` beside the store
+after it starts, and this row reads that file, so a workspace at its memory
+limit can still be diagnosed while it is stopped. Passes with `this boot peaked
+at 412 MB of a 1,024 MB cgroup limit (40%) (boot 2026-09-12 09:14 UTC, 31 s,
+175,122 records)`. Warns from 85% and fails from 95%, because a start that just
+fit is the start before the one that does not. When it warns, do one of two
+things: give the workspace more memory, or get your records out while it still
+starts (`spl export --offline`, which needs no running workspace and free disk
+space for one copy of the store). Where nothing limits memory the row reads
+`nothing bounds this body here` and never warns. The figure is measured again
+at every start, so it tracks growth.
 
 ## javascript runtime
 
@@ -180,11 +177,11 @@ moves them to the compute substrate (...)`. Installed and matching passes with
 
 It warns in three cases. `... holds <hash>, and this kernel pins <hash>. It
 will be REFUSED and programs fall back to the embedded interpreter. Re-install
-with spl runtime install --force`: the file on disk is not the one this release
-vouches for. `<version> installed and pinned, but <reason>`: the machine cannot
+with spl runtime install --force`: the installed file is not the one this
+version of spl accepts, so re-install it. `<version> installed and pinned, but <reason>`: the machine cannot
 compile it (usually memory), so programs fall back to the embedded interpreter
 with the artifact sitting there. And a warning naming an environment variable
-that points at an `UNPINNED runtime this kernel cannot vouch for`.
+that points at an `UNPINNED runtime this kernel cannot vouch for`: unset the variable or install the supported runtime.
 
 ## token file mode, config file mode, secrets dir mode
 
@@ -216,58 +213,74 @@ NOT covered (no passphrase configured); never covered on this body, so a
 restore of its records boots as a different workspace`, which WARNS even when
 the backup is fresh, because a backup of records without the identity is a
 backup of records and not of the workspace; the remedy is
-`SPL_BACKUP_PASSPHRASE` in the daemon's environment. A daemon older than the
-field says nothing about it, never `covered`. See [Backup and
+`SPL_BACKUP_PASSPHRASE` in the daemon's environment. See [Backup and
 recovery](/docs/guides/backup-restore).
 
 ## replication
 
-Whether records are leaving this machine, and how far behind the copy is. This
-row is the difference between having an off-machine copy and not, and it fails
-loudly when there is none:
+Whether your records are being copied off this machine, and how far behind the
+copy is. This row tells you whether you have an off-machine copy, and it fails
+loudly when you do not:
 
 - `this instance is bound to no repository: nothing replicates anywhere, and a
   total loss of this machine loses everything since the last local backup.
   Bind with spl repo mount <locator> on a stopped home.` A failure, on
-  purpose. See [Publishing a repository](/docs/operate/publish-repository).
+  purpose. Stop the workspace, bind it to a repository with the command the row
+  names, and start it again. See
+  [Publishing a repository](/docs/operate/publish-repository).
 - `bound to <locator> but read-only: the write-back loop did not start, so no
   record written since boot has left this machine.` Also a failure. The row
-  lists the causes in the order they are checked; the workspace log carries the
-  one that applied, prefixed `write-back:`.
+  lists the possible causes in the order they are checked; the workspace log
+  shows the one that applied, on a line starting `write-back:`. Fix that cause
+  and restart.
 - `bound to <locator>; another body holds the write lease, so this one
-  defers.` A pass: correct when several machines share one repository and
-  another is the writer, wrong if this one was meant to be the only writer.
+  defers.` A pass. It is correct when several machines share one repository
+  and another is the writer. It is wrong if this machine was meant to be the
+  only writer.
 - `writing to <locator>; last flush 7s ago, 3 records pending, 12 in the open
-  tail. A crash now loses at most the pending set.` A pass, and the sentence
-  states your durability window exactly. With nothing pending it reads
+  tail. A crash now loses at most the pending set.` A pass. The sentence tells
+  you exactly what a crash right now would cost. With nothing pending it reads
   `nothing pending, last flush Ns ago`.
 - A warning, `holding the write lease but the last flush was 61s ago against a
   10s cadence, with 4 records pending: the durability window is wider than
-  configured.` Records are waiting and not leaving. Read the log.
+  configured.` Records are waiting and not leaving. Read the workspace log for
+  the reason, and check that the repository location is reachable.
 
-The sentence also carries the one number that answers "how far
-behind is the copy": the age of the OLDEST record not yet in the tree, in
-parentheses. `oldest unflushed record waited 4s` is that many seconds of work
-at risk right now; `oldest unflushed: none` is a measured nothing pending;
-`lag not measured` means no flush tick has run yet, or the store keeps no
-ingest clock (an in-memory store), and it is never a zero. The row warns when
-that record has waited six cadences even if the last flush was a second ago,
-because a fresh flush that left old records behind is the case the old rule
-missed. The same age is in the workspace read and on `/v1/health` as
-`writeback.oldest_unflushed_age_secs` (null, 0, or N), never computed as now
-minus the last flush, which is largest exactly when nothing is wrong. `/v1/health` serves the writeback detail (the epoch, the backlog, this
-age and the watermarks) to the owner, an admin, a member with coarse access,
-the provision key and the local socket. An anonymous `/health` carries only
-`writeback.attach` and `writeback.attach_fact`, the attach state and its code,
-so read the detail with the owner's credential or through the socket. The row
-also names how many records the last derived-plane refresh folded against the
-ceiling it refuses at, so a body approaching that ceiling is warned before the
-refresh refuses rather than after (the ceiling is a stopgap that buys weeks
-on a fast-growing body, and the row is what says when).
+The sentence also gives the number that answers "how far behind is the copy":
+the age of the oldest record not yet copied, in parentheses. `oldest unflushed
+record waited 4s` means that many seconds of work are at risk right now.
+`oldest unflushed: none` means nothing is waiting. `lag not measured` means no
+copy has run yet, or the store is in memory only; it never means zero. The row
+also warns when the oldest waiting record has waited six times the copy
+interval, even if the last copy was a second ago.
+
+The same age is in `/v1/health` as `writeback.oldest_unflushed_age_secs` (null,
+0, or a number of seconds). `/v1/health` shows the full detail (the backlog,
+this age and the progress markers) to the owner, an admin, a member with coarse
+access, the provision key and the local socket. An anonymous `/health` carries
+only `writeback.attach` and `writeback.attach_fact`, the attach state and its
+code, so read the detail with the owner's credential or through the local
+socket.
+
+The row also reports how many records the last refresh of the workspace's
+search and summary data covered, against the size at which that refresh stops.
+It warns before that size is reached, because past it those views stop
+updating.
 
 ## tree drift
 
-A boot census compares the off-machine tree with the store by name. `tree_drift` fails while the tree lacks records the store holds at or below the flush cursor. `tree_drift_unchecked` warns, with its reason, when the census can't run: a hosted workspace holds no storage credential of its own, and a namespace-scoped tree or an unreachable tree reads the same. `tree_drift_pending` shows in the notes while the census runs. An unbound workspace has no row. `spl repo drift <locator>` checks any of them by hand.
+At start, the workspace compares the off-machine copy with its own records by
+name. `tree_drift` fails when the copy is missing records that should already
+have been copied. Run `spl repo drift <locator>` to see which, and leave the
+workspace running so it can catch up. Do not restore from the copy while this
+row is red.
+
+`tree_drift_unchecked` warns, with its reason, when the comparison cannot run.
+A hosted workspace holds no storage credential of its own, and a copy limited
+to one namespace or an unreachable copy reads the same. This warning alone
+does not mean anything is wrong; run `spl repo drift <locator>` by hand if you
+want the check. `tree_drift_pending` shows in the notes while the comparison is
+still running. A workspace not bound to a repository has no row.
 
 ## triggers
 
@@ -292,18 +305,17 @@ search covers 2026-03-01 to 2026-09-05`
 Read it in three parts.
 
 **The size and the ceiling.** `no ceiling declared` is the default: nothing
-stops the file growing. A ceiling is declared with a configuration record
+stops the file growing. You set a ceiling with a configuration record
 whose `topic` is `store_bounds`, carrying `max_total_bytes` for the whole
-store and `max_embedding_bytes` for the search cache; absent or null means
-unbounded, and the newest record replaces the whole policy, so a ceiling can
-always be lifted. With a ceiling the row reads `N MB of a M MB ceiling`.
+store and `max_embedding_bytes` for the search cache. Absent or null means
+unbounded, and the newest record replaces the whole policy, so you can
+always lift a ceiling. With a ceiling the row reads `N MB of a M MB ceiling`.
 
-**The share that is records against derived data.** `records` is the part
+**Records against rebuildable data.** `records` is the part
 that is your actual history. `embeddings` is the cache behind semantic
 search, and the date range says how far back a search can see; `telemetry` is
-the workspace's own measurements. Both are derived: they can be regenerated or
-let go, and on a measured reference workspace they were three quarters of the
-file. If the disk is filling, that split tells you whether the answer is
+the workspace's own measurements. Both can be rebuilt or let go, and they can
+make up most of the file. If the disk is filling, that split tells you whether the answer is
 "delete things" (rarely) or "bound the caches" (usually).
 
 **The warning, and why deleting does not shrink the file.** Above 90% of a

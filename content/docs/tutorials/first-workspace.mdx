@@ -1,14 +1,14 @@
 ---
 title: Build your first workspace
-description: Inspect the workspace your instance ships with, then write, install, update, and archive one of your own. A workspace is a JSON file — this is the whole round trip.
+description: Look at the workspace that comes with your instance, then write, install, update and archive one of your own. A workspace is a JSON file.
 ---
 
-By the end of this tutorial you will have inspected the workspace your
-instance ships with, written your own `core.workspace.v1` document,
+By the end of this tutorial you will have inspected the workspace that
+came with your instance, written your own `core.workspace.v1` document,
 installed it, updated it, and archived it. A workspace is a single JSON
 file and installing one is a single command — there is no build step.
 
-Allow ~10 minutes.
+Allow about 10 minutes.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ Allow ~10 minutes.
 
 ## 1. Look at the workspace you already have
 
-Every instance boots with a **Tasks** workspace installed. List what
+Every instance comes with a **Tasks** workspace installed. List what
 yours serves:
 
 ```bash
@@ -79,8 +79,7 @@ tutorial we are walking the workspace envelope itself.
 
 Note `capabilities`: an empty `emit` and `navigate: "none"` make this a
 read-only surface. A workspace can only do what its `capabilities` block
-declares — and that block is part of the hashed record, so it cannot
-change without changing the workspace's identity.
+declares, and that block cannot change without writing a new version of the workspace.
 
 ## 3. Install it
 
@@ -93,10 +92,10 @@ spl workspace install ./my-workspace.json
   record: 8c2d4e…
 ```
 
-`install` checked the document shape, then emitted it as a record onto
-your instance's workspace catalog. If the file were malformed — a
-missing `meta.slug`, a region that is not a `{ srp, root }` pair — the
-install would be refused and nothing would be emitted.
+`install` checked the document, then saved it as a record in
+your workspace catalog. If the file were malformed (a
+missing `meta.slug`, or a region that is not a `{ srp, root }` pair), the
+install would be refused and nothing would be saved.
 
 Confirm it landed:
 
@@ -105,21 +104,19 @@ spl workspace list
 ```
 
 Your workspace does **not** show up. It is a `draft`, and `list` shows
-only `published` workspaces. Drafts are installed but not advertised —
-the right state while you iterate.
+only `published` workspaces. Drafts are installed but not listed, which is what you want while you work on it.
 
 ## 4. Publish it
 
 Edit `my-workspace.json` and change `lifecycle` to `"published"`, then
-re-emit it under the same slug:
+save it again under the same slug:
 
 ```bash
 spl workspace update my-workspace ./my-workspace.json
 ```
 
-Now `spl workspace list` shows it. `update` appended a new record —
-records are immutable, so the draft version is still addressable; the
-catalog simply resolves the latest record per slug.
+Now `spl workspace list` shows it. `update` added a new record. Records never change, so the draft version still exists; the
+catalog just shows the latest record for each slug.
 
 ## 5. Archive it
 
@@ -129,17 +126,16 @@ When a workspace has served its purpose:
 spl workspace archive my-workspace
 ```
 
-This re-emits the workspace with `lifecycle: "archived"`. It drops out
-of `spl workspace list`, but every version remains addressable forever —
-archive is a soft delete, not an erase. To bring it back, `update` it
+This saves the workspace again with `lifecycle: "archived"`. It drops out
+of `spl workspace list`, but every version is kept.
+Archiving hides a workspace and does not erase it. To bring it back, `update` it
 with `lifecycle` set to `published` again.
 
 ## What you did
 
 You inspected the starter workspace, wrote a `core.workspace.v1`
 document, and moved it through its whole lifecycle — draft, published,
-archived — entirely with records and entirely at runtime. No rebuild, no
-plugin, no restart.
+archived — using only records. No rebuild, plugin or restart.
 
 ## Next steps
 

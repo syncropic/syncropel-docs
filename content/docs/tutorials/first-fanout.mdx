@@ -1,17 +1,13 @@
 ---
 title: Your First Fan-Out
-description: The 5-minute version. Boot a 3-instance fleet, fan out a trivial task to two workers, watch the join, inspect the speedup ratio, tear down. No real work, no LLM spend — just the shape of the thing.
+description: A five-minute walkthrough. Start three local workspaces, split a trivial task between two workers, watch it finish, check the speedup and shut down. No real work and no model costs.
 ---
-
-<Callout type="info">
-Requires **a version of `spl` with fleet support**. This page shows what a fan-out *looks like* end to end.
-</Callout>
 
 ## What you'll see
 
-A 3-instance local fleet (1 coordinator + 2 workers), a parent task fanned out into 2 subtasks, each worker producing a completion record, the barrier join firing, and `spl task speedup` reporting a parallel-wall-clock / serial-estimate ratio.
+A local fleet of three workspaces (one coordinator and two workers), a parent task split into two subtasks, each worker finishing its part, the parent completing, and `spl task speedup` comparing parallel time with the serial estimate.
 
-Total time: **under 5 minutes**. No API keys required (we use echo mode).
+Total time: **under 5 minutes**. No API keys are needed (we use echo mode, which gives canned replies).
 
 ## Step 1 — Start the fleet
 
@@ -66,14 +62,14 @@ spl task fan-out FIRST-001 \
 Output:
 
 ```text
-◇ Fan-out parent INTEND created
+◇ Fan-out parent created
   thread:   th_abc123...
   record:   <id>
   subtasks: 2
   join:     all
 ```
 
-The engine spawns child INTENDs on each worker. Since the workers are in echo mode (the default for local dev fleets), they produce synthetic completion records almost immediately.
+Each worker gets its own subtask. Because the workers are in echo mode (the default for local fleets), they finish almost immediately with canned results.
 
 ## Step 4 — Watch the join
 
@@ -96,7 +92,7 @@ Fan-out join status: th_abc123...
         accept ($0.00, 1s)
 ```
 
-The barrier fired; the parent is done.
+All subtasks are done, so the parent is done.
 
 ## Step 5 — Inspect the speedup
 
@@ -130,17 +126,17 @@ In echo mode every subtask takes ~1 second, so the ratio is trivial. In a real f
 spl fleet stop --all
 ```
 
-You're back to a single-instance setup.
+You're back to a single workspace.
 
 ## What just happened
 
-You exercised the four building blocks of fleets:
+You used the four building blocks of fleets:
 
-1. **Instance registry** — `spl fleet list` shows you the registered instances.
-2. **Fan-out** — `spl task fan-out` writes one parent INTEND with a subtask descriptor list, and the engine's fan-out handler spawns child INTENDs on the targeted workers.
-3. **Barrier join** — the parent's completion waits until the join predicate (`all`, `any`, `k_of_n`, or any CEL expression) is satisfied by the child completions.
-4. **Speedup measurement** — the `spl task speedup` tool reads `fanout_child_done` records and reports the ratio you care about.
+1. **Fleet list.** `spl fleet list` shows the registered workspaces.
+2. **Fan-out.** `spl task fan-out` writes one parent task with a list of subtasks and sends each to its target worker.
+3. **Join.** The parent completes when its join rule (`all`, `any`, `k_of_n`, or a custom expression) is met by the subtasks.
+4. **Speedup.** `spl task speedup` reads the completion records and reports the ratio.
 
 ## Next steps
 
-- **[Runbook — fleet section](/docs/operate/runbook)** — the grim operational procedures for a live fleet.
+- **[Runbook — fleet section](/docs/operate/runbook)** — operating a live fleet.

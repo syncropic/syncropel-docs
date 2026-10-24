@@ -1,109 +1,98 @@
 ---
 title: Blueprints
-description: A reusable recipe that seeds an instance or workspace with a starting set of records — so a fresh instance boots with real content instead of an empty log.
+description: A reusable recipe that gives a new workspace a starting set of content, so it opens with something real instead of empty.
 ---
 
 ## Overview
 
-A **blueprint** is a packaged recipe for a starting point. Apply it to a fresh instance and you don't get a blank page — you get a populated one: a starter workspace, a set of threads, some seed configuration, ready to use on first boot.
+A **blueprint** is a packaged recipe for a starting point. Apply it to a new workspace and you get a populated one instead of a blank page: a starter workspace, some threads and some settings, ready to use.
 
-The need is simple. Everything in Syncropel is a [record](/docs/concepts/records), and an instance with no records is an empty log — technically correct and completely unhelpful to someone who just signed up. A blueprint closes that gap. It carries a bundle of seed records and lays them down when applied, so the very first thing a new user sees is a working example rather than a void to fill themselves.
+Everything in Syncropel is a [record](/docs/concepts/records), so a new workspace with no records is empty. A blueprint carries a set of starting records and adds them when applied, so the first thing you see is a working example.
 
 ```
-blueprint  ─── applied to a fresh instance ──▶  seed records land in the log
-(a recipe)                                       ──▶ instance boots non-empty
+blueprint  ─── applied to a new workspace ──▶  starting records are added
+(a recipe)                                     ──▶ the workspace opens with content
 ```
 
 ## Why blueprints exist
 
-Two pressures motivate the primitive:
+- **Quick to start.** A new workspace shows what Syncropel does within seconds, not after an hour of setup.
+- **Shareable setups.** A good arrangement of threads, a useful layout or sensible default settings can be captured once and reused. You can hand a blueprint to someone else and they apply it in one step. The same blueprint gives the same starting point every time.
 
-- **Quick to value.** A new instance should demonstrate what the system does within seconds, not after an hour of manual setup. A starter-workspace blueprint means a fresh instance arrives with a real workspace already laid out — something to click into, edit, and learn from.
-- **Shareable setups.** A good arrangement of threads, a useful workspace layout, a sensible default configuration — these are worth capturing once and reusing. A blueprint turns "here's how I set mine up" into something you can hand to someone else and have them apply in one step. The same recipe produces the same starting point every time.
+## What applying a blueprint does
 
-## How a blueprint materializes
+Applying a blueprint adds its starting records to your workspace. They are ordinary records, the same as ones you wrote by hand. The workspace, threads and settings they describe appear just as if you had created them yourself (see [how state is derived](/docs/concepts/records#state-is-a-fold)).
 
-A blueprint doesn't do anything magical at the storage layer — it works *with* the record model, not around it.
+This means:
 
-When a blueprint is applied, it **lays down its seed records** into the instance's log. Each seed becomes an ordinary record, indistinguishable afterward from one a user wrote by hand: the same 8 fields, the same content addressing, the same audit trail. Once those seeds land, the usual machinery takes over — the system that works out live state from records ([how state is derived](/docs/concepts/records#state-is-a-fold)) treats the seed records like any others, so the seeded workspace, threads, and configuration appear in exactly the surfaces they would if you'd created them yourself.
-
-A few consequences follow from materializing as plain records:
-
-- **Idempotent application.** Because records are content-addressed, applying the same blueprint twice doesn't duplicate anything — seeds that already exist are no-ops. A blueprint is safe to re-apply.
-- **Nothing special to undo.** Seeded records behave like any other record afterward. You edit, supersede, or archive them through the normal flows; the blueprint isn't a live link you have to detach from.
-- **Auditable origin.** The seed records are in the log like everything else, so you can always see what the blueprint put there and when.
+- **Re-applying is safe.** Applying the same blueprint twice doesn't duplicate anything.
+- **Nothing special to undo.** You edit, replace or archive the records the normal way. The blueprint isn't a live link.
+- **You can see where it came from.** The records are in the log, so you can see what the blueprint added and when.
 
 ## Blueprints that deploy an actor
 
 A blueprint can carry more than content. It can declare an **actor**: a
 definition that names the model the actor runs on, the tools it may call,
-the words it runs under and the kinds of record it may write, together with
+the instructions it runs under and the kinds of record it may write, together with
 the tools it needs, the permission rules it should run behind, and any
-scheduled triggers (which always arrive disarmed). Installing such a
-blueprint is how an actor is deployed on an instance.
+scheduled triggers (which always arrive switched off). Installing such a
+blueprint is how an actor is deployed on a workspace.
 
-Because an actor definition is control-plane configuration, deploying one is
-gated in three ways:
+Because an actor definition changes what your workspace can do, deploying one has three safeguards:
 
-- **The author signs, the operator trusts.** A blueprint that declares an
+- **The author signs, the owner trusts.** A blueprint that declares an
   actor must carry its author's signature, and the author must be on the
-  instance's trusted-author list. `spl blueprint sign <file>` signs it in
+  workspace's trusted-author list. `spl blueprint sign <file>` signs it in
   place; `spl blueprint trust-author` adds an author to the list. An unsigned
-  blueprint, or one from an author the instance has not trusted, installs
-  only its content-level seeds.
-- **The operator consents to the reviewed plan.** `spl blueprint plan` prints
-  every actor, tool and rule the blueprint would land, and a plan hash. The
+  blueprint, or one from an author the workspace has not trusted, installs
+  only its starting content.
+- **The owner approves the reviewed plan.** `spl blueprint plan` prints
+  every actor, tool and rule the blueprint would add, and a plan hash. The
   install must quote that hash. If the file changes between the review and
   the install, the hash no longer matches and the install is refused.
-- **The installer's own authority bounds the actor.** An actor can reach no
+- **The installer's own permissions limit the actor.** An actor can use no
   tool its installer could not grant, write no kind of record its installer
-  may not write, and a seeded tool can claim no more privilege than the
-  installer holds. These bounds are checked when the blueprint is installed,
-  not the first time the actor runs, and the check happens in the instance,
-  never in the client. A member whose access is bounded gets a refusal that
-  names the tool or kind; the operator is unbounded.
+  may not write, and a tool it brings can claim no more privilege than the
+  installer holds. These limits are checked when the blueprint is installed,
+  not the first time the actor runs. A member with limited access gets a refusal that
+  names the tool or kind; the owner has no such limit.
 
-The records themselves are written by the instance, in order, with the actor
-definition last. If anything is refused partway, no runnable actor is left
+If anything is refused partway, no runnable actor is left
 behind without the tools and rules it was declared with.
 
 ```bash
 spl blueprint plan census.json --extends tools.json          # review: actors, tools, rules, plan hash
 spl blueprint sign census.json --extends tools.json          # sign in place with your signing key
-spl blueprint trust-author                                   # trust that key on this instance (once)
+spl blueprint trust-author                                   # trust that key on this workspace (once)
 spl blueprint install census.json --extends tools.json --accept-plan <hash>
 ```
 
-A blueprint may `extends` another by content hash, so a shared "tools"
-blueprint can be installed under many actor blueprints; pass each parent
-file with `--extends` and the signature covers the whole set.
+A blueprint may extend another, so a shared "tools" blueprint can be
+used by many actor blueprints. Pass each parent file with `--extends`;
+the signature covers the whole set.
 
 There is a second way in. An actor may propose a blueprint with the
 `propose_definition` tool; the proposal is a decision request to the
-operator carrying the blueprint and its plan hash. Approving it installs
-the blueprint as the approver, bounded by the approver's grant, with no
-signature needed: a signature stands in for an operator who is not present,
-and here the operator read the exact blueprint and said yes. The instance
-re-derives the plan hash from the blueprint in the request and refuses on a
-mismatch, so what was approved is what lands. The installed definition
+owner carrying the blueprint and its plan hash. Approving it installs
+the blueprint as the approver, limited by the approver's permissions, with no
+signature needed, because the owner has read the exact blueprint and said yes.
+The plan hash is checked again at install and a mismatch is refused, so what
+was approved is what lands. The installed definition
 records who proposed it and which request approved it.
 
-Once installed, the actor runs like any other: start a run for it, and the
-run's record names both the exact definition it ran under and the exact
-prompt it read. See [Actors](/docs/concepts/actors#the-words-an-actor-runs-under).
+Once installed, the actor runs like any other. The run's record names the exact definition and the exact
+prompt it used. See [Actors](/docs/concepts/actors#the-instructions-an-actor-runs-under).
 
 ## Blueprints vs. workspaces
 
 A blueprint and a workspace are easy to confuse, but they sit at different moments:
 
 - A [workspace](/docs/concepts/workspaces) is the *thing you work in* — a live, rendered surface backed by records that change as you use it.
-- A blueprint is the *recipe that seeds one* — applied once at the start to put the initial records in place. After application, you interact with the workspace, not the blueprint.
-
-In short: the blueprint is the cookie cutter; the workspace is the cookie. The blueprint's job is finished the moment its seeds land.
+- A blueprint is the *recipe that sets one up*, applied once at the start. After that, you work in the workspace, not the blueprint.
 
 ## What's next
 
-- **[Records](/docs/concepts/records)** — the unit a blueprint's seeds become, and how they turn into live state.
+- **[Records](/docs/concepts/records)** — what a blueprint adds, and how it turns into what you see.
 - **[Workspaces](/docs/concepts/workspaces)** — the surface a starter blueprint commonly seeds.
-- **[Threads](/docs/concepts/threads)** — the coordination context seed records are organized into.
-- **[The engine](/docs/concepts/engine)** — how seeded records flow through the same loops as any other record.
+- **[Threads](/docs/concepts/threads)** — where a blueprint's content is organized.
+- **[The engine](/docs/concepts/engine)** — what keeps your workspace running.

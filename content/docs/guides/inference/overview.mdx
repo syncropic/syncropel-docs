@@ -1,31 +1,29 @@
 ---
 title: Inference Overview
-description: The mental model behind infer.query.v1 — query Syncropel like you would a model, but over a heterogeneous pool of LLMs, patterns, systems, and humans with pluggable fold and soft-ranking relevance.
+description: How inference queries work. You ask one question and Syncropel sends it to a mix of AI models, saved patterns, systems, and people, then combines their answers into one.
 ---
 
 ## Overview
 
-Syncropel introduces **inference as a first-class record**. Any record with `body.kind: "infer.query.v1"` becomes a query — the engine routes it to a pool of responders, collects their answers, folds them into a single result, and commits the result as a KNOW record on the query's thread.
+A query is a record with `body.kind: "infer.query.v1"`. Syncropel sends it to a set of responders, collects their answers, combines them into one result, and saves that result as a KNOW record on the query's thread.
 
-You already know Syncropel as a coordination medium. Records flow in, the engine combines threads, trust accumulates, tasks resolve. Inference re-uses that same machinery. Nothing new gets added — queries are just INTEND records with a specific shape, responders are actors or system adapters you already register, fold is declarative, and the answer is just another KNOW record that other records can cite as a parent.
+Queries use the same things you already use: queries are INTEND records, responders are actors or system adapters you have registered, and the answer is a KNOW record that other records can cite.
 
-If you've used a chat model, you have a mental model for querying one model at a time. Inference generalises that to **many responders of different kinds** — LLMs, patterns, system adapters, and human actors — in a single query, with a declarative rule for how their answers combine.
+With a chat model, you ask one model at a time. Inference lets you ask **many responders of different kinds** (AI models, patterns, system adapters, and people) in one query, with a rule for how their answers combine.
 
 ## Why queries are records
 
-The 8-field record shape (`parents`, `thread`, `actor`, `act`, `body`, `clock`, `data_type`, `judged_by`) is the only thing Syncropel ingests. That applies to inference too.
+A query is an INTEND record whose `body` follows the `infer.query.v1` format. When one is saved, Syncropel picks the responders, ranks them, sends them the question, waits for their answers, combines and checks the result, and saves it as a new KNOW record on the same thread. There is no separate service to set up.
 
-A query is an INTEND record whose `body` follows the `infer.query.v1` schema. The executor listens for that body kind via an INGEST-time event trigger, runs the pipeline (responder filter → relevance-score → dispatch CALLs → await DOs → fold → validate → commit KNOW), and the answer lands as a new KNOW record on the same thread. No new HTTP endpoint. No orchestration instance. Syncropel does the work because it already knows how to do this work.
+This means:
 
-This has practical consequences:
-
-- **Everything is auditable** — every CALL dispatched, every DO returned, every fold contributor is a record you can `spl thread records` and inspect.
-- **Everything is replayable** — re-ingest the query's thread and you re-derive the same answer, because fold is deterministic over a canonical ordering.
-- **Everything composes** — a query's KNOW can be an `input.record_id` for another query. Inference chains are just record chains.
+- **Everything is auditable.** Every request sent, every answer returned, and every contributor to the result is a record you can inspect with `spl thread records`.
+- **Everything can be replayed.** The same answers always combine into the same result.
+- **Everything chains.** A query's answer can be the input of another query.
 
 ## Query anatomy
 
-An `infer.query.v1` body has eight optional shape components on top of two required ones.
+An `infer.query.v1` body has four required parts and several optional ones.
 
 ```text
 infer.query.v1
@@ -36,7 +34,7 @@ infer.query.v1
 ├── dial               (optional) — how much novelty is acceptable
 ├── orchestration      (optional) — multi-step pattern: verify, waterfall, escalate…
 ├── side_effects       (optional) — reversibility, cost ceiling, timeout
-├── relevance          (optional) — top-k filter over the responder pool
+├── relevance          (optional) — keeps only the best-ranked responders
 └── metadata           (optional) — trace/correlation string bag
 ```
 
@@ -44,43 +42,43 @@ See [Query Anatomy](/docs/guides/inference/query-anatomy) for the full schema wi
 
 ## Heterogeneous responders
 
-A responder is anything that can emit a DO record in response to a CALL. The engine doesn't care whether an answer comes from an LLM subprocess, a compiled pattern library, a system adapter, or a human typing in a form. The four responder kinds:
+A responder is anything that can answer a request with a DO record. It doesn't matter whether the answer comes from an AI model, a saved pattern, a system adapter, or a person typing into a form. The four responder kinds:
 
 | Kind | What it is | Typical latency |
 |---|---|---|
-| `pattern` | Compiled pattern match (L1/L2/L3 hash lookup) | ~100ms |
-| `system` | System adapter — a registered binary or HTTP adapter | seconds |
-| `llm` | An LLM provider (Anthropic, OpenAI, etc.) via the proxy | seconds to minutes |
-| `actor` | A human actor reached via SSE, webhook, digest email, or polling | hours to days |
+| `pattern` | A match against saved patterns | ~100ms |
+| `system` | A system adapter: a registered program or HTTP service | seconds |
+| `llm` | An AI model provider (Anthropic, OpenAI, etc.) | seconds to minutes |
+| `actor` | A person, reached by live notification, webhook, digest email, or polling | hours to days |
 
-You select responders with **predicates** — each entry in the `responders` array is an OR-of-classes predicate. `kind: "llm", model: "~sonnet", budget_usd: 0.05` selects any Claude Sonnet variant with budget under 5 cents. Predicates can carry a CEL `expression` for complex cases; see the [Responder Predicates](/docs/guides/inference/query-anatomy#responder-predicates) section.
+You choose responders with **conditions**. Each entry in the `responders` array describes a group of responders, and a responder that matches any entry is eligible. For example, `kind: "llm", model: "~sonnet", budget_usd: 0.05` selects any Claude Sonnet variant that costs under 5 cents. For complex cases, add a CEL `expression`. See the [Responder Predicates](/docs/guides/inference/query-anatomy#responder-predicates) section.
 
-## Relevance — the softmax analogue
+## Relevance
 
-A query can target many responders, but you usually don't want to actually dispatch to every one. The **relevance scorer** ranks candidates after the hard filter has run, picks the top-k by score, and discards the rest.
+A query can match many responders, but you usually don't want to ask all of them. Syncropel **ranks** the eligible responders and asks only the top few (`top_k`).
 
-The default is a heuristic with an additive-with-floor formula:
+The ranking is a score between 0 and 1 built from four things:
 
 ```text
-score = 0.35·max(trust, 0.05)
+score = 0.35·trust
       + 0.25·pattern_match
       + 0.15·recency
       + 0.25·semantic_sim
 ```
 
-The scores are on [0, 1], the weights sum to 1.0, and all four signals are always-on. The `0.05` floor is deliberate: it keeps a brand-new responder with no history visible instead of scoring it zero forever.
+Trust never counts for less than 0.05, so a brand-new responder with no history can still be chosen.
 
-You configure weights and threshold via a `syncropel.config.relevance_scorer.v1` config record; see the [relevance section](/docs/guides/inference/query-anatomy#relevance) for details.
+You can change the weights and the cutoff with a `syncropel.config.relevance_scorer.v1` setting. See the [relevance section](/docs/guides/inference/query-anatomy#relevance) for details.
 
-## Fold vs orchestration — pure vs policy
+## Fold and orchestration
 
-Two concepts people conflate. Keeping them separate is the whole reason this design works.
+Two settings control how a query runs. They are separate.
 
-**Fold is a pure function.** Given a list of responses and a canonical order, it returns a single answer. Fold has no I/O, no side effects, no retries, no state. The 5 fold functions — `consensus`, `best_of`, `waterfall_first`, `ensemble_weighted`, `expression` — each have a one-line contract and a deterministic output. See [Fold Functions](/docs/guides/inference/fold-functions).
+**Fold decides how answers combine.** Given the answers, it produces one result. There are five fold functions: `consensus`, `best_of`, `waterfall_first`, `ensemble_weighted`, and `expression`. The same answers always give the same result. See [Fold Functions](/docs/guides/inference/fold-functions).
 
-**Orchestration is a policy.** It decides *when to dispatch, to whom, how many times, under what escalation rules*. Patterns like `verify` (primary + verifier + tiebreaker), `waterfall` (stages tried in cost order), `escalate` (tiers of increasing authority with human fallback), or `ensemble_with_audit` (parallel fan-out with a trusted auditor) all orchestrate dispatch. They then call fold to combine the answers they collected. See [Orchestration Patterns](/docs/guides/inference/orchestration-patterns).
+**Orchestration decides who is asked, when, and how many times.** Patterns such as `verify` (a primary, a verifier, and a tiebreaker), `waterfall` (try cheaper responders first), `escalate` (move up to more authoritative responders, ending with a person), and `ensemble_with_audit` (ask several in parallel, then have a trusted auditor check the result) all use fold to combine the answers they collect. See [Orchestration Patterns](/docs/guides/inference/orchestration-patterns).
 
-You can use fold without orchestration — the default `single_shot` orchestration is just "dispatch to top-k and fold once". You cannot use orchestration without fold — every pattern resolves to a fold call somewhere, even if it's `best_of` with n=1.
+The default pattern, `single_shot`, asks the top-ranked responders once and combines their answers. Every pattern ends with a fold, even if it is `best_of` over a single answer.
 
 ## When to reach for inference
 
@@ -89,19 +87,19 @@ If you're deciding whether a request should be an `infer.query.v1` or a plain di
 - **Use a query** when you care about *which answer is best across multiple responders*. Consensus of 3 LLMs, verify with a human tiebreaker, cost waterfall from cheap to expensive — all queries.
 - **Use plain dispatch** when you know exactly who answers and you just want their output. A task routed to a specific dev agent via a routing rule is plain dispatch.
 
-Inference is declarative: you write what you want, the engine picks the participants and aggregates. Dispatch is imperative: you pick the participant and get back what they say.
+With a query, you describe what you want and Syncropel picks the participants and combines their answers. With dispatch, you pick the participant and get back what they say.
 
 ## What inference doesn't do
 
-- **It doesn't make the responders faster.** If you pool 3 LLMs at 5s each, you pay at least 5s (plus engine overhead). Fold is cheap; the bottleneck is the slowest responder that counts toward your `min_quorum`.
-- **It doesn't magically aggregate open-ended text.** `consensus` keyed on canonical-JSON assumes bodies are structured. For long-form prose, use `best_of` with trust or `ensemble_weighted` with a custom weight expression.
-- **It doesn't replace your evaluation loop.** The fold is the aggregation; the trust model is what tells you which responders to weight. You still need KNOW records with verdicts to feed the trust model.
+- **It doesn't make the responders faster.** If you ask 3 AI models that each take 5 seconds, the query takes at least 5 seconds. Combining answers is quick. You wait for the slowest responder you need to reach `min_quorum`.
+- **It doesn't magically aggregate open-ended text.** `consensus` compares answers exactly, so it works best with structured answers. For long-form prose, use `best_of` or `ensemble_weighted` with a custom weight expression.
+- **It doesn't replace your evaluation loop.** Combining answers is one part. Trust tells you which responders to weight. You still need KNOW records with verdicts to build trust.
 
 ## See also
 
 - **[Query Anatomy](/docs/guides/inference/query-anatomy)** — every field of `infer.query.v1`.
-- **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 pure aggregators.
+- **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 ways to combine answers.
 - **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step flows.
 - **[`spl infer` CLI](/docs/reference/cli#inference--spl-infer)** — run queries from the shell.
-- **[Records](/docs/concepts/records)** — the 8-field envelope inference rides on.
-- **[Trust](/docs/concepts/trust)** — how trust feeds fold and relevance.
+- **[Records](/docs/concepts/records)** — the record format queries use.
+- **[Trust](/docs/concepts/trust)** — how trust feeds combining and ranking.

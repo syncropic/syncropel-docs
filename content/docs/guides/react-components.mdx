@@ -1,19 +1,19 @@
 ---
 title: React Components
-description: A constrained palette of 21 React atoms and molecules that render Syncropel projection documents natively, with CSS-variable theming and no provider required.
+description: A fixed set of 21 React components that render Syncropel projection documents, themed with CSS variables and needing no provider.
 ---
 
 ## What this is
 
-`@syncropel/react` ships 21 React components — 17 atoms + 4 molecules — designed to render [SRP projection documents](/docs/guides/projections) and to compose small, opinionated UIs for Syncropel workspaces. The component palette is intentionally fixed: same design tokens, same structural constraints, same visual vocabulary everywhere a Syncropel UI renders.
+`@syncropel/react` ships 21 React components — 17 basic components and 4 combined ones, designed to render [SRP projection documents](/docs/guides/projections) and to build small interfaces for Syncropel workspaces. The set is intentionally fixed, so a Syncropel interface looks the same everywhere.
 
 Key properties:
 
-- **No provider** — no `<ThemeProvider>` wrapper. Styles work via CSS variables at `:root`
-- **Constrained palette** — 4 layout atoms, 6 content atoms, 4 interactive atoms, 3 state atoms, plus 4 molecules
-- **Structure-frozen, tokens-customizable** — component shape doesn't change; colors, spacing, type scale do via CSS
-- **Works with projections** — prop types line up 1:1 with the SRP schema from [`@syncropel/projections`](/docs/guides/projections)
-- **Client components** — interactive atoms are `"use client"` internally; safe to use in React Server Components where appropriate
+- **No provider**: no `<ThemeProvider>` wrapper. Styles use CSS variables at `:root`
+- **Fixed set**: layout, content, interactive and state components, plus 4 combined ones
+- **Fixed shape, customizable look**: component shapes don't change; colors, spacing and type sizes do, through CSS
+- **Works with projections**: prop types match the SRP types from [`@syncropel/projections`](/docs/guides/projections)
+- **Client components**: interactive components are marked `"use client"`, so they are safe to use in React Server Components
 
 ## Install
 
@@ -21,7 +21,7 @@ Key properties:
 npm install @syncropel/react @syncropel/projections
 ```
 
-Requires React 18+ and React DOM 18+ (peer deps).
+Requires React 18+ and React DOM 18+ (peer dependencies).
 
 ## Wire up the styles
 
@@ -61,7 +61,7 @@ export function Dashboard() {
 
 ## The component catalog
 
-### Layout atoms
+### Layout
 
 | Component | Use for |
 |---|---|
@@ -71,7 +71,7 @@ export function Dashboard() {
 | `Card` | Container with padding and optional interactive/selected state |
 | `Divider` | Horizontal or vertical separator with `spacing` |
 
-### Content atoms
+### Content
 
 | Component | Use for |
 |---|---|
@@ -82,7 +82,7 @@ export function Dashboard() {
 | `Chip` | Inline label with optional `glyph` and `tone` |
 | `Code` | Inline monospace text |
 
-### Interactive atoms
+### Interactive
 
 | Component | Use for |
 |---|---|
@@ -91,20 +91,20 @@ export function Dashboard() {
 | `CopyButton` | Copy-to-clipboard button with transient confirmation |
 | `Link` | Anchor with `href`, styled consistently with Text |
 
-### State atoms
+### State
 
 | Component | Use for |
 |---|---|
-| `EmptyState` | Zero-state UI with message + optional action (molecule) |
-| `ErrorState` | Error display with message + retry action (molecule) |
+| `EmptyState` | Zero-state UI with message + optional action (combined) |
+| `ErrorState` | Error display with message + retry action (combined) |
 | `Skeleton` | Placeholder (`rect` / `circle` / `text` shapes) |
 | `Pulse` | Pulsing animation wrapper for loading indicators |
 
-### Semantic atoms
+### Semantic
 
 | Component | Use for |
 |---|---|
-| `Glyph` | Semantic icon, 21 fixed kinds (INTEND, DO, KNOW, LEARN, GET, PUT, CALL, MAP, AITL, thread, fork, record-parent, namespace, actor, file, pattern, page, view, state-open, state-active, state-converged, state-closed, state-abandoned) |
+| `Glyph` | Semantic icon, 21 fixed icons (INTEND, DO, KNOW, LEARN, GET, PUT, CALL, MAP, AITL, thread, fork, record-parent, namespace, actor, file, pattern, page, view, state-open, state-active, state-converged, state-closed, state-abandoned) |
 | `StatusDot` | Status indicator with `state` prop |
 
 ## Theming via CSS variables
@@ -129,11 +129,11 @@ Token scales exposed:
 - **Typography**: `--sp-font-sans`, `--sp-font-mono`, scale `--sp-text-xs` through `--sp-text-lg`
 - **Radius**: `--sp-radius-sm` through `--sp-radius-lg`
 
-Because there's no provider, tokens cascade naturally and scope via any CSS selector — light/dark themes, per-component overrides, even per-namespace accent colors are a media query or class away.
+Because there's no provider, tokens follow normal CSS rules. Light and dark themes, per-component overrides and per-namespace accent colors are each a media query or class away.
 
 ## Rendering a projection document
 
-When you receive an SRP document from an instance, walk the tree and map node types to components. A minimal renderer:
+When you receive an SRP document from a workspace, walk the tree and map node types to components. A minimal renderer:
 
 ```tsx
 import { Card, Column, Row, Grid, Heading, Text, Stat, Chip } from "@syncropel/react";
@@ -174,7 +174,7 @@ function Render({ node }: { node: SRPNode }) {
 }
 ```
 
-A full projection renderer is a small exercise because props types match the schema 1:1.
+A full renderer is short because the prop types match the SRP types.
 
 ## What's next
 

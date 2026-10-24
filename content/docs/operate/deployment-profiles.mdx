@@ -1,12 +1,12 @@
 ---
 title: "Deployment Profiles"
-description: "A fresh self-hosted instance starts blank: it stores and folds records but reacts to nothing until you deliberately deploy something. Choose between the blank and assistant profiles with SPL_PROFILE, understand what each seeds, and why existing and hosted instances are unaffected."
+description: "A fresh self-hosted instance starts blank: it stores records but reacts to nothing until you set something up. Choose between the blank and assistant profiles with SPL_PROFILE, and see what each starts with."
 ---
 
 ## Audience
 
 This page is for the operator deciding what a fresh `spl serve` instance
-should do on its very first boot. It explains the two **deployment
+should do the first time it starts. It explains the two **deployment
 profiles**, how to choose between them, and why upgrading an existing
 instance changes nothing.
 
@@ -17,31 +17,22 @@ control what your instance reacts to.
 
 ## What a profile is
 
-A Syncropel instance, at its core, accepts records,
-stores them immutably, and computes state by folding them. That much is
-always true and never optional.
+Every instance stores your records. What varies is whether it also **reacts** to them: whether it has a conversational agent that answers your messages, an AI agent that proposes routing when nothing matches, and a default rule that turns intents into work.
 
-What *varies* is whether the instance also **reacts** to records — whether
-it has a conversational agent that answers your messages, an intelligence
-agent that proposes routing when nothing matches, and a default rule that
-turns intents into work. Reactivity is a property of what you have
-**deployed** onto your instance, not a fixed opinion baked in.
+A **deployment profile** is the choice of what the instance starts with the first time it runs. There are two:
 
-A **deployment profile** is the choice of what gets seeded the first time
-an instance boots. There are two:
-
-| Profile | What it seeds on first boot |
+| Profile | What it starts with |
 |---|---|
-| `blank` | **Nothing reactive.** The instance stores and folds records. It does not answer messages, propose routing, or auto-route intents. It reacts to nothing until you deliberately deploy a capability onto it. |
+| `blank` | **Nothing reactive.** The instance stores records. It does not answer messages, propose routing, or auto-route intents. It reacts to nothing until you deliberately deploy a capability onto it. |
 | `assistant` | **The conversational defaults.** The chief of staff (a conversational actor) that replies on a thread, an intelligence agent that proposes routing when no rule matches, and a default rule that routes intents to work. |
 
-A blank instance is a true blank slate. You can pair it, query it, fold
-it, federate it, and store work on it — but it will sit quietly and
+A blank instance is a true blank slate. You can pair it, query it,
+federate it, and store work on it — but it will sit quietly and
 answer nothing until you give it something to do.
 
 ## How the profile is chosen
 
-The profile is resolved at boot from one input, with a sensible default:
+The profile is chosen when the instance starts:
 
 1. **The `SPL_PROFILE` environment variable**, if set, wins. Valid values
    are `blank` and `assistant`.
@@ -70,8 +61,8 @@ With no variable set, `spl serve` on your own machine starts **blank**.
 Choose **`assistant`** when you want the out-of-the-box conversational
 experience: open a thread, type, and get a reply. This is the right
 choice for most people who self-host to get the same thing the hosted
-product gives them. Note that the assistant profile only *seeds* the
-agent — it still needs a language model configured before it can actually
+product gives them. Note that the assistant profile only *sets up* the
+agent. It still needs a language model configured before it can actually
 respond. See [The assistant](/docs/get-started/the-assistant) for what the
 chief of staff is and how to give it a model on a self-hosted instance.
 
@@ -88,29 +79,28 @@ Choose **`blank`** when you want the bare instance and nothing else:
 
 ## Existing instances are unaffected
 
-Seeding is idempotent. The profile only governs what gets seeded the
-**first** time an instance boots onto a fresh database. An instance that
+The profile only decides what a new instance starts with, the
+**first** time it runs on an empty database. An instance that
 already deployed the assistant defaults keeps them when you upgrade —
 the profile does not remove anything, and there is no migration to run.
 
 In practice:
 
 - **Upgrading a self-hosted instance** that already runs the
-  conversational agent: it keeps running it. The new `blank` default
-  applies to *new, empty* instances only, not to yours.
+  conversational agent: it keeps running it. `blank` is the default
+  for *new, empty* instances only, not yours.
 - **Hosted instances**: unchanged. They run the assistant profile and
   always have.
 - **A brand-new self-hosted instance**: starts blank unless you set
   `SPL_PROFILE=assistant`.
 
 If you want to add the assistant capabilities to an instance that started
-blank, set `SPL_PROFILE=assistant` and restart — idempotent seeding will
-deploy the missing defaults without disturbing the records already there.
+blank, set `SPL_PROFILE=assistant` and restart. The missing defaults are added without disturbing the records already there.
 
 ## See also
 
 - [The assistant](/docs/get-started/the-assistant) is the conversational
-  actor (the chief of staff) the assistant profile seeds, and how to give it
+  actor (the chief of staff) the assistant profile starts with, and how to give it
   a model on a self-hosted instance.
 - [Starting Your Instance](/docs/get-started/instance) — the run modes
   `spl serve` supports.

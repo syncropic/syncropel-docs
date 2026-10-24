@@ -5,7 +5,7 @@ description: Install, configure, monitor, and troubleshoot a Syncropel async-fed
 
 ## Audience
 
-This guide is for operators running a relay for their own organization, a small community, or an infrastructure provider serving multiple tenants. It assumes you've read the [async federation guide](/docs/guides/async-federation) and understand what the relay is (a dumb store-and-forward mailbox) and what it isn't (an identity provider, a consensus layer, a trust authority).
+This guide is for operators running a relay for their own organization, a small community, or an infrastructure provider serving multiple tenants. It assumes you've read the [async federation guide](/docs/guides/async-federation) and understand what the relay is (a simple store-and-forward mailbox) and what it isn't (an identity provider or a trust authority).
 
 If you're a user configuring a client to use a relay that already exists, you don't need this page — use `spl config relay set <url>`.
 
@@ -22,7 +22,7 @@ Plus:
 
 - `GET /metrics` — Prometheus text format
 
-The relay does **not** verify envelope signatures. Verification is end-to-end, performed by receivers after dequeue. The relay sees sender/receiver DIDs, envelope sizes, and timing; it does not see the records inside MLS-encrypted envelopes.
+The relay does **not** verify envelope signatures. Verification is end-to-end, performed by receivers after dequeue. The relay sees sender/receiver DIDs, envelope sizes, and timing; it does not see the records inside encrypted (MLS) envelopes.
 
 ## When to run your own
 
@@ -98,7 +98,7 @@ sudo systemctl status syncropel-relay
 
 ## Configuration
 
-The current release ships an in-memory queue and a single CLI flag. Durable SQLite-backed storage and runtime config reload land in a continuation task.
+The relay keeps its queue in memory and has a single command-line flag. It has no durable storage and no runtime config reload.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -113,7 +113,7 @@ RUST_LOG=syncropel_relay=debug syncropel-relay ...           # verbose
 
 ### Queue backend
 
-The relay uses an in-memory queue (`MemoryQueue`). Process restart clears queued envelopes — this is acceptable because senders retain an outbound queue locally and will redeliver. Deployment implications:
+The relay keeps its queue in memory. A restart clears queued envelopes. Senders keep their own outbound queue and will send again. What this means for you:
 
 - **Do not run two relay instances behind a load balancer.** Each has its own queue; envelopes deposited at one won't be visible at the other.
 - **Rolling restarts lose in-flight envelopes.** Senders recover, but receivers see a gap until redelivery completes.
@@ -127,10 +127,9 @@ Envelopes default to 30 days. Senders can override per-envelope via the `ttl_sec
 
 The relay runs unauthenticated on the deposit side (envelopes are signed end-to-end, so deposit authority is not load-bearing for correctness — only for abuse control). For receive and ack:
 
-- Path-parameter DID is the receiver identity; there's no server-side challenge.
-- The full challenge/response flow lands in a continuation task.
+- The DID in the URL path is the receiver identity. The relay does not challenge the caller to prove it.
 
-**For production use before the challenge/response flow ships**, front the relay with a reverse proxy that enforces bearer-token auth per receiver DID. Minimal nginx example:
+**For production use**, front the relay with a reverse proxy that enforces bearer-token auth per receiver DID. Minimal nginx example:
 
 ```text
 location ~ ^/v1/mailbox/(did:sync:[^/]+) {
@@ -145,7 +144,7 @@ This is intentionally coarse — production operators should run the relay insid
 
 ### Rate limits
 
-The relay does not enforce per-sender or per-receiver rate limits at the application layer. Use a reverse proxy (nginx `limit_req_zone`, a CDN, or an API gateway) until native limits land.
+The relay does not enforce per-sender or per-receiver rate limits. Use a reverse proxy (nginx `limit_req_zone`, a CDN, or an API gateway) to add them.
 
 ## Monitoring
 
@@ -165,7 +164,7 @@ Metrics exposed:
 | `relay_receives_total` | counter | `did` | Receive calls served per receiver |
 | `relay_acks_total` | counter | `did` | Envelopes acknowledged per receiver |
 | `relay_rate_limit_hits_total` | counter | `kind` | Abuse-control rejections by kind (`queue_full`, `payload_too_large`) |
-| `relay_envelopes_expired_total` | counter | — | Envelopes dropped by TTL sweep |
+| `relay_envelopes_expired_total` | counter | — | Envelopes dropped because they expired |
 | `relay_queue_size` | gauge | `did` | Current queue length per receiver |
 | `relay_oldest_envelope_seconds` | gauge | `did` | Age in seconds of the oldest queued envelope per receiver |
 | `relay_unique_senders` | gauge | — | Distinct senders represented in the current queue state |
@@ -239,9 +238,7 @@ Root-cause action: if 507s are chronic for a particular receiver, that receiver 
 
 ### Relay restarts lose in-flight envelopes
 
-**Expected behavior with the in-memory queue.** The in-memory queue doesn't persist across restarts. Senders retain outbound envelopes locally (default 7 days) and redeliver on their next federation sweep. No data is lost at the system level — only the in-flight window between deposit and receive is reset.
-
-A SQLite-backed durable queue that eliminates this is planned for a future release. For now, rely on sender-side retention and redelivery (described above) to cover the in-flight window.
+**This is expected.** The queue is not saved across restarts. Senders keep outbound envelopes locally (default 7 days) and send them again on their next federation sweep. Nothing is lost overall; only envelopes that were deposited but not yet received are reset. Rely on that sender-side retention and redelivery.
 
 ### High cardinality on `relay_deposits_total`
 
@@ -249,11 +246,11 @@ If you have many distinct sender DIDs, the `{from_did, to_did}` label pair can p
 
 - Use Prometheus `metric_relabel_configs` to drop the `from_did` label and keep only `to_did`.
 - Run the relay inside a trust boundary (single-tenant deployments have a bounded set of sender DIDs).
-- For multi-tenant public-relay deployments, consider switching to a histogram-based approach — a continuation task will add this.
+
 
 ## Backup and restore
 
-The in-memory queue has no durable state to back up. Back up the relay's configuration and unit files as you would any service.
+The queue is in memory, so there is nothing to back up. Back up the relay's configuration and unit files as you would any service.
 
 Senders retain outbound envelopes independently of the relay, so even total queue loss at the relay is recoverable from the sender side (within each sender's retention window).
 
@@ -273,7 +270,7 @@ sudo install -m 0755 /tmp/syncropel-relay /usr/local/bin/syncropel-relay
 sudo systemctl restart syncropel-relay
 ```
 
-In-flight envelopes are lost during restart (in-memory queue). For zero-downtime upgrades, wait for the SQLite backend and run two instances behind a load balancer with sticky-per-DID routing.
+Envelopes waiting in the queue are lost during a restart. Plan upgrades for a quiet time; senders redeliver afterwards.
 
 ## Privacy posture — what you can and can't see as operator
 
@@ -285,7 +282,7 @@ You can see (by virtue of serving traffic):
 You cannot see (by protocol design):
 - Envelope body contents when `encoding: mls`
 - Record-level semantics (what threads, what actors, what acts)
-- Correlation between envelopes and higher-level coordination — the relay is a dumb forwarder
+- Correlation between envelopes and higher-level coordination — the relay only forwards
 
 Operators running public relays are expected to publish a transparency statement describing what metadata is retained and for how long. No default policy — this is your call.
 

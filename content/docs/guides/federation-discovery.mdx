@@ -1,26 +1,26 @@
 ---
 title: Federation Discovery
-description: Find instances two ways — fetch and verify a peer directly by URL with `spl discover`, or search the opt-in public directory by handle and topic. Plus how to make your own work public and read what others share.
+description: Find other instances by URL with `spl discover`, or search the opt-in public directory by handle and topic. Also covers making your own work public and reading what others share.
 ---
 
 ## Overview
 
-Discovery answers a simple question: how do you find an instance worth connecting to? Syncropel gives you two paths, and they compose:
+Discovery answers a simple question: how do you find an instance worth connecting to? Syncropel gives you two ways, and you can use both:
 
-- **Direct, by URL** — if you already know (or can guess) a peer's address, fetch its signed manifest and verify exactly what it advertises before you connect. This is the sovereign, no-middleman path. Covered first, below.
-- **The public directory** — if you *don't* know who's out there, search an opt-in index by handle and topic. Instances choose to list themselves; the directory only ever holds a handle and a few topics, never your content.
+- **Direct, by URL** — if you already know (or can guess) a peer's address, fetch its signed description and check exactly what it advertises before you connect. No middleman is involved. Covered first, below.
+- **The public directory** — if you *don't* know who's out there, search an opt-in index by handle and topic. Instances choose to list themselves. The directory only holds a handle and a few topics, never your content.
 
-Both end the same way: you reach a real instance at a real URL, and everything it shows you is cryptographically attributable to it. No central authority gates who you can find or reach.
+Both end the same way: you reach a real instance at a real URL, and everything it shows you is signed by that instance. No central authority decides who you can find or reach.
 
 If you already have a peer's URL and want to sync records with them, see the [federation pairing guide](./federation). This guide is for *finding* instances and for sharing or reading public work.
 
 ## Direct discovery — `spl discover`
 
-Every instance serves a manifest at `/.well-known/syncropel`. `spl discover` fetches it, verifies the signature, and shows you what the peer advertises — without you having to trust anything you can't check.
+Every instance publishes a description of itself (a "manifest") at `/.well-known/syncropel`. `spl discover` fetches it, checks the signature, and shows you what the peer advertises. You don't have to trust anything you can't check.
 
 ### Prerequisites
 
-An instance only publishes a federation manifest if it has a cryptographic identity configured:
+An instance only publishes its federation details if it has an identity (a signing key):
 
 ```bash
 # On the publishing instance (first time only).
@@ -29,7 +29,7 @@ spl init
 spl identity generate
 ```
 
-This writes a keypair the instance uses to sign its manifest. Without it, `/.well-known/syncropel` still serves the capability manifest — but the federation block is omitted, and any caller will see `federation.enabled = false`.
+This creates the key the instance uses to sign its manifest. Without it, `/.well-known/syncropel` still lists what the instance can do, but the federation section is left out and callers see `federation.enabled = false`.
 
 ### Fetch and verify a peer
 
@@ -47,9 +47,9 @@ Advertises kinds: music.catalog.track, music.catalog.album
 Pair endpoint:    https://alice.example.com/v1/sync
 ```
 
-Under the hood the command fetches the manifest, resolves the peer's identity to its public key, and verifies the signature over the manifest body. A tampered manifest or a signature mismatch exits non-zero with a clear error — the command never reports a claim it could not verify.
+The command checks the manifest's signature against the peer's public key. If the manifest was altered or the signature doesn't match, the command exits with an error and reports nothing it could not verify.
 
-From a script, take structured output:
+For scripts, get JSON output:
 
 ```bash
 spl discover --peer-url https://alice.example.com --json \
@@ -64,7 +64,7 @@ spl discover --peer-url https://alice.example.com --json \
 spl discover --peer-url https://alice.example.com --kind music.catalog.track
 ```
 
-If the peer doesn't advertise a match, the command exits non-zero — a quick scripted "is this peer willing to accept this kind?" check before you initiate a pair.
+If the peer doesn't advertise a match, the command exits with an error code. Use this in a script to check whether a peer accepts a kind before you pair.
 
 ### What's in the manifest
 
@@ -82,9 +82,9 @@ If the peer doesn't advertise a match, the command exits non-zero — a quick sc
 }
 ```
 
-- **`daemon.did`** is the peer's identity. The signature is verified against the public key this DID resolves to; a manifest signed by a different key is rejected.
-- **`advertises.kinds`** is the opt-in list of record kinds the peer is willing to receive. An empty list is legitimate — open to pairing, but advertising no menu.
-- **`signature.expires_at`** is a freshness window, not a revocation list. Instances re-sign on each start; a manifest past its expiry is rejected.
+- **`daemon.did`** is the peer's identity. The signature is checked against that identity's public key. A manifest signed by a different key is rejected.
+- **`advertises.kinds`** is the opt-in list of record kinds the peer is willing to receive. An empty list is fine; it means the peer is open to pairing but advertises no kinds.
+- **`signature.expires_at`** is how long the manifest stays valid. Instances sign a new one each time they start, and an expired manifest is rejected.
 
 ## The public directory
 
@@ -94,12 +94,12 @@ It is a phone book, not a gatekeeper:
 
 - **Opt-in.** An instance is invisible until its operator turns discovery on. Off by default.
 - **Minimal.** A listing carries a **handle** and a few **topics** — never your records, threads, or content.
-- **Self-attested.** Each listing is signed by the instance that owns it and verified before it's indexed. The directory cannot forge or alter a listing.
-- **Not authoritative.** The directory is a convenience. Any instance can still be reached and verified directly by URL, regardless of whether it's listed.
+- **Self-attested.** Each listing is signed by its instance and checked before it is indexed. The directory cannot forge or change a listing.
+- **Not authoritative.** The directory is a convenience. You can still reach and verify any instance directly by URL, whether or not it is listed.
 
 ### Make your instance discoverable
 
-On a Syncropic-hosted instance, discovery is a choice you make at signup — a single "list me in the directory" opt-in. Turn it on and your instance publishes its listing automatically; turn it off and the listing is withdrawn. The listing advertises only your handle and the topics you choose.
+On a hosted instance, you choose at signup whether to be listed. Turn it on and your listing is published automatically. Turn it off and it is withdrawn. The listing advertises only your handle and the topics you choose.
 
 You can change this at any time from your instance settings. Nothing about your records or threads is shared by being listed — discoverability and *making a thread public* (below) are separate, independent choices.
 
@@ -130,7 +130,7 @@ curl "https://graph.syncropel.com/v1/directory/search?q=research"
 A result with a `peer_url` is reachable; `public_threads` lists the threads that instance has chosen to make readable (next section).
 
 <Callout type="info">
-There is no `spl directory` command yet — the directory is reachable from Studio and over HTTP. Direct-by-URL discovery remains `spl discover --peer-url`.
+There is no `spl directory` command. Use Studio or HTTP for the directory, and `spl discover --peer-url` for discovery by URL.
 </Callout>
 
 ## Make your work public
@@ -142,7 +142,7 @@ From **Studio**, open a note or workspace thread you own and use its visibility 
 - **Full content** — readers see the whole thread. This is the default for a document you mean to share.
 - **Structure only** — readers see that the thread exists and its shape, but not its contents.
 
-A thread stays public for about a week, then the grant expires on its own; you can make it private again at any time. The visibility you see in Studio is read from the live grant, so it always reflects reality.
+A thread stays public for about a week, then the grant expires on its own; you can make it private again at any time. The visibility Studio shows is always current.
 
 To do the same over HTTP:
 
@@ -162,37 +162,37 @@ Making a thread public is done in Studio or over the API. The `spl consent grant
 
 From **Studio**, a directory result with public threads offers **View public work** — it reads the peer's public threads and renders them read-only, the same way your own threads render.
 
-Over HTTP, a peer's public thread is an auth-exempt, record-gated read against the peer's own instance:
+Over HTTP, a peer's public thread can be read from the peer's own instance without signing in:
 
 ```bash
 # Returns the thread's records only if an active public grant covers it.
 curl "https://rae.syncropel.app/v1/public/thread/th_..."
 ```
 
-A thread that isn't public returns `404` — the read never reveals whether a private thread exists. Content comes back projected to the level the owner granted: a `Full content` grant returns the readable body; a `Structure only` grant returns shape without contents.
+A thread that isn't public returns `404` — the response never reveals whether a private thread exists. You get only the level the owner granted: a `Full content` grant returns the readable body; a `Structure only` grant returns shape without contents.
 
 ## Connections
 
-Discovering and reading a peer is read-only. To record an ongoing relationship — **view**, **follow**, or **pair** — you create a connection. Studio offers one-click connect from a directory result; the underlying connections are managed with `spl connection` (add, list, archive, revoke). Pairing, which enables two-way record sync, is covered in the [federation pairing guide](./federation).
+Discovering and reading a peer is read-only. To record an ongoing relationship — **view**, **follow**, or **pair** — you create a connection. Studio offers one-click connect from a directory result; you can also manage connections with `spl connection` (add, list, archive, revoke). Pairing, which enables two-way record sync, is covered in the [federation pairing guide](./federation).
 
 ## Security properties
 
-1. **Attributable.** Both a peer's manifest and a directory listing are signed by the instance that owns them and verified before they're trusted. A proxy or the directory itself cannot alter what an instance advertises without detection.
-2. **Freshness-bounded.** Manifests carry an expiry and are re-signed on each start; expired manifests are rejected.
-3. **Opt-in, twice over.** Being *listed* and making a *thread public* are separate, deliberate choices. The default is private and unlisted.
-4. **Projected reads.** A public read returns only what the owner's grant exposes — full content, or structure only — never more.
-5. **No central authority.** The directory is a convenience, not a gate. Any instance is reachable and verifiable directly by URL.
+1. **Signed.** A peer's manifest and a directory listing are signed by the instance that owns them and checked before you trust them. A proxy or the directory cannot change what an instance advertises without being detected.
+2. **Expiring.** Manifests expire and are re-signed on each start. Expired manifests are rejected.
+3. **Opt-in twice.** Being *listed* and making a *thread public* are separate choices. The default is private and unlisted.
+4. **Limited reads.** A public read returns only what the owner's grant allows, either full content or structure only.
+5. **No central authority.** The directory is a convenience, not a gate. You can reach and verify any instance directly by URL.
 
 ## Common troubleshooting
 
 - **`peer served /.well-known/syncropel but no federation_manifest key`** — the peer has no identity configured. Run `spl init` or `spl identity generate` on it.
-- **`signature verification failed`** — the manifest was altered in transit, or the peer's DID resolves to a different key than the one that signed. Re-fetch; if it persists, the peer's identity is misconfigured.
-- **`manifest expired`** — the peer hasn't re-signed within its freshness window. Ask the operator to restart it.
-- **A directory result won't load its public work** — the owner may have made the thread private again, or set it to *structure only*. A `404` on a public read is indistinguishable from "no such thread" by design.
+- **`signature verification failed`** — the manifest was altered in transit, or the peer's identity belongs to a different key than the one that signed. Fetch again. If it keeps failing, the peer's identity is set up wrongly.
+- **`manifest expired`** — the peer's manifest has expired. Ask its operator to restart it.
+- **A directory result won't load its public work** — the owner may have made the thread private again, or set it to *structure only*. A `404` on a public read looks the same as "no such thread".
 
 ## Next steps
 
 - [**Federation pairing**](./federation) — once you've found a peer, pair to sync records two-way.
 - [**Consent**](./consent) — the grant model behind public threads and cross-namespace sharing.
-- [**Async federation**](./async-federation) — deliver records to peers that are offline via a store-and-forward relay.
+- [**Async federation**](./async-federation) — deliver records to peers that are offline through a relay.
 - [**Capability manifest**](../reference/api) — the sibling manifest at `/.well-known/syncropel`, covering non-federation API surfaces.

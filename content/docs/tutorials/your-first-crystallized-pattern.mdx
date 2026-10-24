@@ -1,26 +1,26 @@
 ---
 title: Your first crystallized pattern
-description: Do the same thing three times, watch the pattern detector form a hash chain, see the trust score evolve, and observe automatic routing kick in. Syncropel's cost curve bends here.
+description: Do the same kind of work three times, see Syncropel recognize the pattern, watch your trust score grow, and see how the next similar piece of work is handled.
 ---
 
 ## What you'll see
 
-In about 30 minutes, you'll create three structurally similar threads, observe the pattern detector record their hash signatures at four levels, and verify that the next similar work matches the pattern and replays its outcome instead of triggering a fresh LLM call.
+In about 30 minutes, you'll create three similar threads, see Syncropel record their pattern signatures, and see how the next similar piece of work is matched to the pattern so its outcome can be reused instead of triggering a fresh model call.
 
-After this, you'll understand the **economic claim** behind Syncropel: the marginal cost of a coordination event approaches zero because most events are replays of crystallized patterns, not fresh reasoning.
+After this, you'll understand how repeated work gets cheaper: work that matches a proven pattern is reused, not reasoned out again.
 
 ## Before you start
 
 - `spl` installed (`spl --version`)
-- An instance running with `spl status` healthy.
-- Completed [Your first decision gate](./your-first-decision) — patterns build on top of approved rules.
-- Patience for ~3 emissions and the engine's tick interval. The pattern detector is part of the TICK loop; defaults run every 60 seconds.
+- Your workspace running, with `spl status` healthy.
+- Completed [Your first decision gate](./your-first-decision), because patterns build on approved rules.
+- A little patience: patterns are picked up on a timer that runs about every 60 seconds.
 
-This tutorial uses observability via `spl thread records`, `spl trust`, and `curl http://localhost:9100/v1/patterns` (the HTTP surface — `spl pattern` CLI is on the polish backlog per the [patterns concept doc](/docs/concepts/patterns)).
+This tutorial uses `spl thread records`, `spl trust` and the HTTP API. There is no `spl pattern` command (see [Patterns](/docs/concepts/patterns)).
 
-## 1. Pick a thread shape and emit three of them
+## 1. Create three similar threads
 
-Three structurally similar threads — same INTEND shape, same DO shape, same closing KNOW. A small, deterministic example: counting lines in three files.
+Three similar threads, each with the same kind of INTEND, DO and closing KNOW. A small example: counting lines in three files.
 
 ```bash
 # Thread 1
@@ -42,17 +42,17 @@ spl do "Read file and count newlines" --thread $THREAD3
 spl know "src/main.rs has 142 lines" --thread $THREAD3 --fulfills
 ```
 
-Each `--fulfills` on the closing KNOW marks the thread as successfully closed — that's the trigger for pattern indexing.
+Each `--fulfills` on the closing KNOW marks the thread as successfully closed. That is what makes Syncropel record the pattern.
 
-## 2. Inspect the hash signatures
+## 2. Look at the pattern signatures
 
-Each closed thread is now in the pattern index at four levels:
+Each closed thread now has a pattern signature at four levels of detail, L0 to L3. L0 is the most exact and L3 the most general:
 
 ```bash
 spl thread show $THREAD1
 ```
 
-You'll see the usual output plus a `pattern_hashes` block:
+You'll see the usual output plus a `pattern_hashes` block (the values are long fingerprints):
 
 ```
 Thread:  th_count_lines_a  (closed, fulfilled)
@@ -70,13 +70,13 @@ Now compare to thread 2:
 spl thread show $THREAD2
 ```
 
-Threads 1 and 2 should match at **L1, L2, and L3** — same shape, same operation, same flow boundary. They differ at **L0** (the file paths and line counts are different). This is the structural-vs-content split (the [namespace-isolation rule](/docs/reference/glossary) — exact-match hashes never cross a namespace without consent) that makes pattern sharing possible without leaking content.
+Threads 1 and 2 should match at **L1, L2 and L3**: same shape and same flow. They differ at **L0** because the file names and line counts differ. The more general levels describe the shape of the work without its content, which is what lets patterns be shared without sharing what the work was about. The exact L0 level never leaves a namespace without consent.
 
-Thread 1 and thread 3 should match at **L0** — same exact INTEND body, same DO, same KNOW result. That's the strict-cache case.
+Threads 1 and 3 should match at **L0**: the same exact INTEND, DO and KNOW result.
 
-## 3. Read the pattern index directly
+## 3. Read the pattern records
 
-Until `spl pattern list` ships, the pattern index is a plain record query. Threads 1+3 are L0-identical; threads 1+2+3 are L1-equivalent. Inspect via the records HTTP API:
+Patterns are ordinary records, so you can query them through the HTTP API. Threads 1 and 3 are identical at L0, and all three threads match at L1:
 
 ```bash
 curl -s -H "Authorization: Bearer $(cat ~/.syncro/token)" \
@@ -88,7 +88,7 @@ You should see one entry whose `hash_l1` matches all three threads, with `observ
 
 ## 4. Watch the trust score evolve
 
-Each closed thread is also a trust observation in the actor's domain (defaults to `general` if you didn't pass `--domain`). Look at your trust:
+Each closed thread is also evidence about your trust in an area of work (`general` if you didn't pass `--domain`). Look at your trust:
 
 ```bash
 spl trust
@@ -99,20 +99,13 @@ ACTOR                   DOMAIN     SUCCESS   TOTAL    TRUST
 did:sync:user:you       general          3       3    0.439
 ```
 
-Three out of three successes. Trust uses Wilson lower-bound — a small sample size always has high uncertainty, so 3/3 ≠ 1.0; it ≈ 0.44. With more observations the score will climb.
+Three out of three successes. A small number of results is never fully trusted, so 3 out of 3 scores about 0.44, not 1.0. The score climbs as more work is reviewed.
 
-Trust is one of the four [crystallization criteria](/docs/concepts/patterns#when-a-pattern-becomes-permanent):
+Trust is one of the conditions for a pattern to become [permanent](/docs/concepts/patterns#when-a-pattern-becomes-permanent). The others are many more observations, a genuine regularity, and more than one source.
 
-| Criterion | What it measures | Threshold |
-|---|---|---|
-| **C1 Trust** | Producing actor's trust in the domain | ≥ 0.90 |
-| **C2 Observations** | Times this pattern has been seen | ≥ 100 |
-| **C3 Compression** | MDL compression vs. listing observations | meaningful |
-| **C4 Multi-source** | Distinct (actor, evaluator) pairs | ≥ 2 |
+This tutorial covers the early stage only. Three observations from one member don't make a pattern permanent. But the pattern is already on record, and the next similar piece of work can match it. See [Patterns](/docs/concepts/patterns) for when a pattern is reused.
 
-This tutorial demonstrates the **observation phase**, not full crystallization. Three observations from one actor doesn't crystallize. But — and this is the point — the pattern is *queryable* and the *next similar record will match* even before crystallization. Replay short-circuits at L1 today (see the [patterns concept — what's enforced today](/docs/concepts/patterns)).
-
-## 5. Trigger a fourth record and watch automatic match
+## 5. Add a fourth thread and watch for a match
 
 Emit one more line-count thread:
 
@@ -121,15 +114,15 @@ THREAD4=th_count_lines_d
 spl intend "Count the lines in src/test.rs" --thread $THREAD4
 ```
 
-Inspect what the engine did with the bare INTEND:
+See what Syncropel did with the new INTEND:
 
 ```bash
 spl thread records $THREAD4
 ```
 
-If routing has any rules that match the L1 signature of the closed pattern, you should see follow-on engine-emitted records — e.g., a DO with `body.dispatch_handled: true` and `body.replay_source: <pattern_id>`. Those engine-emitted records carry the pattern as evidence: state didn't come from new reasoning, it came from a structural-hash hit.
+If a routing rule covers this shape of work, you should see follow-on records from Syncropel, for example a DO with `body.dispatch_handled: true` and `body.replay_source: <pattern_id>`. These show the outcome was reused from the pattern, not reasoned out again.
 
-If no rules exist yet for this shape, Syncropel will treat the new INTEND like the unrouted record from [the decision-gate tutorial](./your-first-decision) — proposing a routing rule as a decision request for you to approve. The pattern is observable but no auto-routing happens until a rule covers the shape.
+If no rule covers this shape yet, Syncropel treats the new INTEND like the unrouted record in [the decision-gate tutorial](./your-first-decision) and proposes a routing rule for you to approve. The pattern is on record, but nothing is routed automatically until a rule covers the shape.
 
 ## 6. Inspect the routing rules
 
@@ -139,34 +132,30 @@ The rules that will fire next are the records on the `th_engine_config` thread:
 spl thread records th_engine_config | jq '.[] | select(.body.kind == "core.routing_rule.v1") | {name: .body.name, match: .body.match}'
 ```
 
-Each entry is a LEARN record describing one rule. The records are the routing table. There is no separate routing config file.
+Each entry is a LEARN record describing one rule. The records are the routing table; there is no separate config file.
 
 ## What just happened
 
-You exercised Syncropel's **pattern recognition primitive**:
-
-1. **Closed threads are pattern observations.** Every `--fulfills` KNOW closes a thread and emits hash signatures at L0, L1, L2, L3 into the pattern index. This is automatic and free; the index is just records.
-2. **Hash levels separate structure from content.** L0 hashes leak content (so they stay namespace-local per the [namespace-isolation rule](/docs/reference/glossary)). L1-L3 are structural and safe to federate. This is what enables cross-team pattern sharing without leaking sensitive bodies.
-3. **The cascade favors cheap replays.** When new work arrives, the engine matches L1 → L2 → L3 → semantic → CREATE. Each level is faster + cheaper than the next. Crystallized patterns short-circuit the whole cascade.
-4. **Trust gates promotion.** Three observations don't crystallize because C1 (trust ≥ 0.90) and C2 (observations ≥ 100) aren't met yet. Crystallization is what graduates a pattern from "observed" to "trusted enough to replay without re-checking."
-5. **De-crystallization is real.** If trust drops below 0.80 (see the [trust concept](/docs/concepts/trust)), the pattern un-crystallizes. The system self-corrects rather than replaying into a wall.
-
-The economic claim: at steady state, ~85% of incoming work matches a crystallized pattern and replays at near-zero marginal cost. The remaining 15% (the EXPLORE/CREATE tail) is where operational LLM spend lives. As more patterns crystallize, that fraction shrinks. This is what makes Syncropel viable at scale.
+1. **Closed threads become pattern observations.** Every `--fulfills` KNOW closes a thread and records its signatures at four levels of detail. This happens automatically.
+2. **Levels separate shape from content.** L0 includes the content, so it stays inside its namespace. L1 to L3 describe only the shape and are safe to share with paired workspaces with consent.
+3. **Cheaper matches come first.** New work is matched from the most exact level to the most general, and then reasoned out fresh only if nothing matches.
+4. **Trust and repetition gate permanence.** Three observations don't make a pattern permanent. That needs a trusted producer, many observations and more than one source.
+5. **Patterns can lapse.** If trust in the producer falls (see [Trust](/docs/concepts/trust)), the pattern is no longer reused, so the workspace doesn't keep reusing something that stopped working.
 
 ## Where to next
 
-- [Patterns concept](/docs/concepts/patterns) — the full model: hash levels, the cascade, crystallization criteria C1-C4, de-crystallization, federation.
-- [Trust concept](/docs/concepts/trust) — Wilson lower-bound math, 90-day decay, CUSUM drift detection, why trust gates pattern promotion.
-- [Engine concept](/docs/concepts/engine) — where pattern matching slots into the four loops (RECONCILE checks the cascade on every routing decision).
-- [Your first federation pair](./your-first-federation-pair) — once patterns crystallize on one steward, they can federate to paired peers (subject to consent + hash-level filter).
-- [Cookbook: Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) — composing trust + the decision gate into automatic decisions for high-trust actors.
+- [Patterns concept](/docs/concepts/patterns) — how patterns are matched, reused, made permanent and shared.
+- [Trust concept](/docs/concepts/trust) — how trust is earned, how it fades, and why it decides which patterns become permanent.
+- [Engine concept](/docs/concepts/engine) — what keeps your workspace running, including routing and scheduled work.
+- [Your first federation pair](./your-first-federation-pair) — permanent patterns can be shared with paired workspaces, with consent.
+- [Cookbook: Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) — combining trust and the decision gate so high-trust members' work is approved automatically.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Hash signatures don't appear in `spl thread show` | The thread isn't closed. Pattern indexing fires only when a closing KNOW carries `--fulfills` against a prior INTEND. | Re-emit the closing KNOW with `--fulfills` (or `--fulfills <intend_record_id>` if you want to be explicit). Without it, the thread is "open" and the pattern index doesn't pick it up. |
-| Threads 1 and 2 match at L0 but not L1 | Mis-emitted bodies — likely identical body strings. L0 hashes the bytes; identical bytes → L0 match. | This is fine, just less interesting. Vary the INTEND text between threads (different filename, different parameter) to demonstrate the L0 vs L1 split. |
-| Pattern observation count stuck at 1 | Each thread closed but they hash differently at every level (different body kinds, different actor, different acts). | Verify all three threads use the same act sequence (INTEND → DO → KNOW), the same actor, and structurally similar body shapes. Use `spl thread show <id>` to compare hash blocks side by side. |
+| Hash signatures don't appear in `spl thread show` | The thread isn't closed. A pattern is recorded only when a closing KNOW carries `--fulfills` against a prior INTEND. | Re-emit the closing KNOW with `--fulfills` (or `--fulfills <intend_record_id>` if you want to be explicit). Without it, the thread stays open and no pattern is recorded. |
+| Threads 1 and 2 match at L0 but not L1 | The bodies are probably identical. L0 matches only on identical content. | This is fine, just less interesting. Vary the INTEND text between threads (different filename, different parameter) to demonstrate the L0 vs L1 split. |
+| Pattern observation count stuck at 1 | Each thread closed but they differ at every level (different body kinds, actors or acts). | Verify all three threads use the same act sequence (INTEND → DO → KNOW), the same actor, and structurally similar body shapes. Use `spl thread show <id>` to compare the signatures side by side. |
 | Trust score flat at 0.0 after `--fulfills` | The closing KNOW didn't include a `--domain` — observations land in `general` and your `spl trust` view may be filtered. | Run `spl trust` with no flags to see all domains. Or pass `--domain code` (or whatever fits) to `spl know` to attribute observations to a specific domain. |
-| Fourth record didn't auto-route | No routing rule covers the pattern's L1 signature yet. Patterns make routing *possible*; rules make it *fire*. | Either approve a routing proposal (per [the decision-gate tutorial](./your-first-decision)) or hand-author a rule with `spl config add-rule`. Patterns and rules are orthogonal — the cascade matches patterns; rules dispatch. |
+| Fourth record didn't auto-route | No routing rule covers the pattern's L1 signature yet. Patterns make routing possible; rules make it happen. | Either approve a routing proposal (per [the decision-gate tutorial](./your-first-decision)) or hand-author a rule with `spl config add-rule`. Patterns and rules are separate: patterns are matched, rules route. |

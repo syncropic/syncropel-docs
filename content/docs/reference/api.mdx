@@ -5,14 +5,12 @@ description: HTTP endpoints for the Syncropel server.
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-<Callout type="info" title="Work-loop paths + error codes renamed">
+<Callout type="info" title="Work-loop paths and error codes">
 
-The work-loop HTTP routes moved from `/v1/agent/*` to `/v1/work/*`,
-and the corresponding error codes changed from `AGENT_LOOP_*` to
-`WORK_*` (for example, `AGENT_LOOP_NO_PROVIDER` → `WORK_NO_PROVIDER`).
+The work-loop routes are under `/v1/work/*`, and their error codes start with
+`WORK_` (for example, `WORK_NO_PROVIDER`).
 
-The old paths return `404` — clients hitting `/v1/agent/loop` or related
-URLs should switch to the new ones below.
+The older `/v1/agent/*` paths and `AGENT_LOOP_*` codes are not used. The old paths return `404`.
 
 </Callout>
 
@@ -55,7 +53,7 @@ For the full model — scopes, token format, rotation, federation composition �
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/v1/records` | Ingest a new record |
+| POST | `/v1/records` | Write a new record |
 | GET | `/v1/records/:id` | Get a record by ID |
 | GET | `/v1/records?thread=X` | List records filtered by thread |
 | GET | `/v1/records?actor=X` | List records filtered by actor |
@@ -73,7 +71,7 @@ Blended text search — file names, file contents, and conversations in one rank
 | GET | `/v1/search/stats` | Index health: coverage, pending items, last indexing failure |
 | POST | `/v1/search/rebuild` | Drop + incrementally re-index. Body: `{"scope": "materials" \| "threads" \| "all"}` |
 
-### Ingest a Record
+### Write a Record
 
 ```bash
 curl -X POST http://localhost:9100/v1/records \
@@ -88,7 +86,7 @@ curl -X POST http://localhost:9100/v1/records \
   }'
 ```
 
-#### Namespace-scoped ingest
+#### Namespace-scoped writes
 
 Records can target a specific [namespace](/docs/concepts/namespaces) by setting `body.namespace`. The instance walks the namespace's ancestor chain and rejects the record with `403 NAMESPACE_REJECTED` if any ancestor is missing or not Active. Records that omit `body.namespace` fall through to the implicit `default` namespace and are always accepted.
 
@@ -257,7 +255,7 @@ Error codes:
 
 ### Backfill embeddings
 
-`POST /v1/records/embed` walks records that don't yet have an embedding for the active provider and embeds them synchronously within the request. Use this once after enabling a provider to backfill existing archives; new records are embedded inline by the INGEST loop.
+`POST /v1/records/embed` walks records that don't yet have an embedding for the active provider and embeds them before the request returns. Use this once after enabling a provider to index existing records. New records are indexed automatically as they arrive.
 
 ```bash
 curl -s -X POST http://localhost:9100/v1/records/embed \
@@ -274,17 +272,17 @@ curl -s -X POST http://localhost:9100/v1/records/embed \
 |---|---|---|
 | GET | `/v1/threads` | List all threads |
 | GET | `/v1/threads/:id/records` | Get all records on a thread |
-| GET | `/v1/threads/:id/state` | Get folded thread state |
+| GET | `/v1/threads/:id/state` | Get the current state of a thread |
 | GET | `/v1/threads/:id/project` | Get a formatted view of the thread |
 | GET | `/v1/threads/:id/participants` | Get thread participants |
 
-### Thread Projections
+### Thread views
 
 ```bash
 curl "http://localhost:9100/v1/threads/th_abc123.../project?format=tui"
 ```
 
-Projection formats:
+View formats:
 
 | Format | Description |
 |---|---|
@@ -293,7 +291,7 @@ Projection formats:
 
 ## Data plane (files & blobs)
 
-The data plane is a per-namespace virtual filesystem. The control surface (`/v1/data/*`) manages paths and metadata; the byte surface (`/v1/blobs/*`) moves content. The TypeScript SDK wraps all of this as [`client.data.*`](/docs/guides/sdk-data-plane).
+Files live in a per-namespace virtual filesystem. The `/v1/data/*` endpoints manage paths and details; the `/v1/blobs/*` endpoints move file contents. The TypeScript SDK wraps all of this as [`client.data.*`](/docs/guides/sdk-data-plane).
 
 | Method | Path | Description |
 |---|---|---|
@@ -311,7 +309,7 @@ The data plane is a per-namespace virtual filesystem. The control surface (`/v1/
 | GET | `/v1/blobs/:hash` | Fetch content bytes by hash |
 | POST | `/v1/data/publish` | Promote a file to a durable artifact (`{ path, storage_class? }`) |
 | GET | `/v1/data/usage` | Namespace storage usage + quota |
-| GET | `/v1/data/capabilities` | Data-plane limits (chunk size, version) |
+| GET | `/v1/data/capabilities` | File limits (chunk size, version) |
 | GET | `/v1/data/provenance` | Clock-ordered "made by" feed |
 
 ### Writing a file
@@ -337,12 +335,12 @@ curl -X POST http://localhost:9100/v1/data/write/complete \
 
 ## Folds
 
-A fold is a derived view computed from records — the turn timeline, thread state, trust, and more. One endpoint resolves any fold; Syncropel dispatches by name.
+A fold is a view calculated from records, such as the turn timeline, thread state, or trust. One endpoint returns any fold; you pick it by name.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/v1/folds/:name` | Resolve a global fold (e.g. `trust`, `task_list`) |
-| GET | `/v1/folds/:name/:key` | Resolve a per-thread fold (key = thread id; e.g. `turn`, `thread_state`) |
+| GET | `/v1/folds/:name` | Get a workspace-wide fold (e.g. `trust`, `task_list`) |
+| GET | `/v1/folds/:name/:key` | Get a per-thread fold (key = thread id; e.g. `turn`, `thread_state`) |
 | GET | `/v1/folds/frame/:thread` | The renderable frame for a thread |
 | GET | `/v1/folds/rollup` | A digest across everything you reach (pass `?root=⊤` for your whole reach) |
 | GET | `/v1/folds/principal_trust` | Trust per person, unified across their instances (`?root=⊤`) |
@@ -352,7 +350,7 @@ curl "http://localhost:9100/v1/folds/turn/th_abc123..."
 # → { "fold_name": "turn", "cache_key": "th_abc123...", "watermark": 42, "value": [ ... ] }
 ```
 
-Each response carries a `watermark` (`max(records.sequence)` the value covers) so a client can cache and refetch only when it moves.
+Each response carries a `watermark`, the highest record sequence number the value covers, so a client can cache the value and refetch only when the watermark changes.
 
 ## Graph
 
@@ -384,15 +382,15 @@ curl "http://localhost:9100/v1/graph/query?op=shared_context&a=did:sync:user:ali
 | GET | `/v1/actors/lookup?did=X` | Get actor detail by DID |
 | GET | `/v1/actors/roster` | Every defined actor with its definition record id, adapter kind, enabled state, model, tools, prompt reference, who proposed it, and trust standing per domain (`{object: actor_roster, count, data: [...]}`). |
 | GET | `/v1/runs?state=&actor=&since=&limit=` | Every run across actors, newest first, filtered by state, principal or executor, and start time; a bounded scan with `capped` on the wire. |
-| GET | `/v1/actors/{did}/usage` | The actor's whole daily usage fold: loop count, input and output tokens, cost in USD for today's window (`{object: actor_usage, ...}`). Zeros when the actor has not run today. |
-| GET | `/v1/runs/{thread}/provenance` | The definition, prompt and frame records a run row names, served under the run row's own read posture, so a run's participant can read the exact words their run ran under. |
-| POST | `/v1/blueprints/materialize` | Install a blueprint. Body: `{blueprint, extends?[], regime?, accept_plan?}`. The instance authors the records; the caller's own grant bounds any actor the blueprint declares (`403 TOOL_NOT_IN_REACH` / `WRITE_KIND_NOT_ADMITTED`); a signed blueprint needs the reviewed plan hash (`428 PLAN_CONSENT_REQUIRED`); an unsigned or untrusted one is `403 BLUEPRINT_UNSIGNED`. |
+| GET | `/v1/actors/{did}/usage` | The actor's usage for today: loop count, input and output tokens, cost in USD for today's window (`{object: actor_usage, ...}`). Zeros when the actor has not run today. |
+| GET | `/v1/runs/{thread}/provenance` | The definition, prompt and frame records a run row names, returned with the same read rules as the run row, so a participant in a run can read the exact words it ran under. |
+| POST | `/v1/blueprints/materialize` | Install a blueprint. Body: `{blueprint, extends?[], regime?, accept_plan?}`. The instance writes the records; any actor the blueprint declares is limited to the caller's own permissions (`403 TOOL_NOT_IN_REACH` / `WRITE_KIND_NOT_ADMITTED`); a signed blueprint needs the reviewed plan hash (`428 PLAN_CONSENT_REQUIRED`); an unsigned or untrusted one is `403 BLUEPRINT_UNSIGNED`. |
 
 A run row (`GET /v1/runs/{thread}`) carries `definition` (the actor
 definition record the run executed under), `prompt` (the prompt record it
-resolved at start), `frame` (the record of the words the kernel itself told
-the run before its charter), `narrowed` (granted tools the transport
-withheld), `transport`, and the tool-call tally
+resolved at start), `frame` (the record of the instructions the workspace gave
+the run before its charter), `narrowed` (tools that were granted but held back by the
+transport), `transport`, and the tool-call tally
 (`tool_calls_ok`, `tool_calls_failed`). On the run's thread every turn
 carries `resolution_path` and every tool result `duration_ms`; a provider
 failure inside the run is a record of its own (`core.work.provider_error.v1`,
@@ -400,9 +398,9 @@ typed `error` on the event stream), beside the typed `tool.verdict` and
 `guardrail` events. A definition whose prompt does not
 resolve refuses the start with `422 WORK_PROMPT_UNRESOLVED`, naming the
 record; a prompt reference that is not a record is refused at define with
-the same code. The define door refuses `work_loop.reach` and `admit` (`400
-DEFINE_FIELD_INERT`): a run's reach is its tier's, a read bound is a grant's.
-`brief` and `stands_on` land on the definition. An open ask on the row names its `proposal_kind` when it is a
+the same code. Defining a member refuses `work_loop.reach` and `admit` (`400
+DEFINE_FIELD_INERT`): a run's reach comes from your plan level, and a read limit belongs on a grant.
+`brief` and `stands_on` are saved with the definition. An open ask on the row names its `proposal_kind` when it is a
 proposal.
 
 Approving a decision whose context is a blueprint proposal
@@ -410,8 +408,7 @@ Approving a decision whose context is a blueprint proposal
 the blueprint as the approver and answers with `kind: blueprint_proposal`
 and `installed` (the actors, their derived grants, the records written). A
 plan-hash mismatch between the request and its blueprint is `409
-PLAN_HASH_MISMATCH`; the approver's grant bounds the actor exactly as the
-install door does. A verdict on a run under a proposed definition by the
+PLAN_HASH_MISMATCH`; the actor is limited to the approver's permissions, exactly as for a direct install. A verdict on a run under a proposed definition by the
 actor that proposed it is refused, `400 VERDICT_SELF_JUDGMENT`.
 
 ## Dispatch
@@ -440,7 +437,7 @@ curl -X POST http://localhost:9100/v1/dispatch \
 | POST | `/v1/work/loop` | Start a work loop. Body: `{goal, max_turns?, token_budget?, wall_clock_secs?, workspace?}`. Returns the loop's `thread` id. |
 | POST | `/v1/work/loop/preview` | Cost preview — returns effective tier caps, usage so far today, `would_be_denied`, and `denial_reason` without starting a loop. |
 | GET | `/v1/work/loop/{thread}` | Loop status for the given thread. |
-| POST | `/v1/work/loop/{thread}/cancel` | Cancel a running loop. Emits a `core.work.loop_cancel.v1` `DO` record; the reconciler propagates the cancel to the in-process loop. |
+| POST | `/v1/work/loop/{thread}/cancel` | Cancel a running loop. Emits a `core.work.loop_cancel.v1` `DO` record; the cancel reaches the running loop. |
 | GET | `/v1/work/loop/{thread}/stream` | SSE live progress for the given loop thread. Alias for the thread-watch handler — the loop thread itself is the filter. |
 | GET | `/v1/work/compensation/review` | Per-actor compensation review (operator tier only). Returns total compensations + breakdown by seam + breakdown by violated assumption + anomaly score vs. fleet median. |
 | GET | `/v1/work/compensation/review/top` | Top anomalous actors by compensation rate (operator tier only). |
@@ -504,7 +501,7 @@ curl -X POST http://localhost:9100/v1/work/loop/th_abc123.../cancel \
   -H "Authorization: Bearer $SPL_TOKEN"
 ```
 
-This emits a `core.work.loop_cancel.v1` `DO` record on the loop's thread; the reconciler propagates the cancel to the in-process loop, which exits with a `cancelled` outcome.
+This emits a `core.work.loop_cancel.v1` `DO` record on the loop's thread; the cancel reaches the running loop, which exits with a `cancelled` outcome.
 
 ## Decisions
 
@@ -534,8 +531,8 @@ curl -X POST http://localhost:9100/v1/decisions/abc123.../decide \
 
 When the ask says `multi: true`, pick several with `"decisions": ["newest", "played"]`.
 A choice the ask does not allow is refused by name: `BAD_OPTION`,
-`OTHER_NOT_ALLOWED`, `MULTI_NOT_ALLOWED`, or `PROVIDED_VALUE_REQUIRED`. An older
-ask with only approve and reject answers exactly as before. The waiting run
+`OTHER_NOT_ALLOWED`, `MULTI_NOT_ALLOWED`, or `PROVIDED_VALUE_REQUIRED`. An
+ask with only approve and reject works as it always has. The waiting run
 resumes on your answer as words, the chosen reading's label and description or
 your own sentence, never on an id.
 
@@ -567,13 +564,13 @@ There is no dedicated `/v1/audit/*` endpoint family. The [`spl audit export`](/d
 
 This means `spl audit export` works against any Syncropel instance without server-side changes. The trade-off is that it's O(n) over thread count — for very large stores you should pass `--thread <id>` to scope the query.
 
-A server-side `/v1/audit/export?since=...&categories=...` endpoint is planned for a future release. It would push the filtering into SQL and return a single JSONL stream, removing the per-thread round trips. For now, use `spl audit export` (scoped with `--thread <id>` for large stores).
+There is no server-side `/v1/audit/export` endpoint. Use `spl audit export` (scoped with `--thread <id>` for large stores).
 
 For SIEM integration recipes (cron rotation, Splunk/Elastic/Loki pipelines, etc.) see the [SIEM Integration guide](/docs/guides/siem-integration).
 
 ### Permission denials are NOT in audit export today
 
-HTTP middleware permission denials are emitted as `tracing::warn!` events to the instance log (`~/.syncro/logs/spl.log`), not as records. They appear in the log filtered by `grep "PERMISSION DENIED"` but do NOT appear in `spl audit export` output. Promoting denials to first-class audit records is tracked as a follow-up — for now treat the instance log and the audit export as complementary security-event streams.
+Permission denials at the HTTP layer are written as warnings to the instance log (`~/.syncro/logs/spl.log`), not as records. Find them with `grep "PERMISSION DENIED"`. They do NOT appear in `spl audit export` output, so check both the instance log and the audit export for security events.
 
 ## Proxy
 
@@ -718,7 +715,7 @@ Key fields:
 | `instance.did` | The DID this manifest is authoritative for. Must match the DID served at the domain's DID document |
 | `federation.pair_endpoint` | Entry point for the pair handshake |
 | `advertises.kinds` | `body.kind` values the instance answers federation queries about. A peer advertising `music.catalog.track` commits to serving sync requests for that kind per its consent policy |
-| `advertises.refs` | Content-addressed REFERENCE identifiers this instance holds — used by future DHT discovery as the primary announce key |
+| `advertises.refs` | IDs of the REFERENCE content this instance holds |
 | `advertises.namespaces` | Namespace handles whose records are federation-eligible (willingness, not grant) |
 | `consent_policy.default_posture` | `"open"`, `"pair-then-ask"`, `"invite-only"`, or `"closed"`. Informative hint for pre-handshake self-filtering |
 | `capabilities_ref` / `responders_ref` | Pointers back into the same envelope; clients follow them to fetch the sibling manifests |
@@ -732,7 +729,7 @@ For the discovery workflow and how this composes with `did:web`, `did:sync`, and
 |---|---|---|
 | GET | `/v1/identity` | The instance's identity, plus the calling token's authentication state |
 
-Returns the instance's own identity — `{actor, display_name, did, method, key_path, key_fingerprint}` — populated at instance startup. New installs generate a `did:key:...` on `spl init`; upgraded installs without a DID need `spl init --force` once.
+Returns the instance's own identity — `{actor, display_name, did, method, key_path, key_fingerprint}` — populated at instance startup. `spl init` creates a `did:key:...` identity. An install that has no DID needs `spl init --force` once.
 
 This endpoint requires a valid bearer token. The response also reports the calling token's own authentication state, so a renderer can decide what to show the viewer:
 
@@ -747,7 +744,7 @@ The anonymous form of this block — `is_authenticated: false`, `scopes: []` —
 
 ## Self
 
-The doors behind [Keeping your access](/docs/guides/keeping-your-access). All `/v1/self*` routes are **scope-exempt and credential-required**: any live bearer reaches them, including a guest bearer with an empty scope set, because they answer about the credential's own principal and nothing else.
+The endpoints behind [Keeping your access](/docs/guides/keeping-your-access). All `/v1/self*` routes are **scope-exempt and credential-required**: any live bearer reaches them, including a guest bearer with an empty scope set, because they answer about the credential's own principal and nothing else.
 
 | Method | Path | Description |
 |---|---|---|
@@ -771,7 +768,7 @@ curl -X POST https://alice.syncropel.app/v1/recredential \
 
 No bearer: the proof is the credential. On success: `{token, principal, expires_at, label, sa_id, scopes, rebind_required}`. The new bearer is parented to the principal's **existing** live grant; nothing is renewed, revoked, or cascaded, so the person's other devices keep working. A recovery code is single-use: `rebind_required: true` tells the client to bind a fresh one at `POST /v1/self/bindings` with the new bearer. `account` and `passkey` proofs are reusable and answer `rebind_required: false`. A passkey whose sign count goes backwards is refused constant-shape.
 
-Refusals are constant-shape by contract. `401 RECREDENTIAL_REFUSED` is the one answer for a principal that does not exist, has no binding, or presented a wrong proof; only after a proof verifies can `409 NO_LIVE_GRANT` say that nothing here is granted to that principal any more. `429 RATE_LIMITED` (the door is rate-limited per supplied principal string and per address) is answered before any hashing work. Clients render the message verbatim and add no diagnosis, or they become the oracle the door refuses to be.
+Refusals always look the same. `401 RECREDENTIAL_REFUSED` is the one answer for a principal that does not exist, has no binding, or presented a wrong proof; only after a proof verifies can `409 NO_LIVE_GRANT` say that nothing here is granted to that principal any more. `429 RATE_LIMITED` (requests are rate limited per supplied principal string and per address) is returned before the proof is checked. Show the message as is and add no explanation of your own.
 
 ## Instance
 
@@ -1045,8 +1042,8 @@ The surface for adding either a new device of yours (guest holder) or a federate
 |---|---|---|---|
 | GET | `/v1/scope_presets` | — (public) | Discover preset scope shapes (reader / contributor / admin) |
 | POST | `/v1/invites` | `admin` (always — even on `auth.required=false`) | Issue a new pair invite |
-| GET | `/v1/invites` | `admin` | List every invite this instance has issued + per-row folded state |
-| GET | `/v1/invites/{id}` | — (public) | Public fold-state preview consumed by the QR landing page |
+| GET | `/v1/invites` | `admin` | List every invite this instance has issued + per-row current state |
+| GET | `/v1/invites/{id}` | — (public) | Public preview of the current state consumed by the QR landing page |
 | POST | `/v1/invites/{id}/redeem` | — (public; holder credential in body) | Guest or federated holder mints SA + bearer |
 | POST | `/v1/invites/{id}/revoke` | `admin` | Idempotent revoke |
 | GET | `/v1/invites/audit` | `admin` (always) | Feed of `core.invite.event.v1` records from `th_audit_invites` |
@@ -1056,7 +1053,7 @@ The surface for adding either a new device of yours (guest holder) or a federate
 | POST | `/v1/invite-templates` | `admin` (always) | Save a template |
 | POST | `/v1/tokens/{token_id}/rotate` | bearer of the token being rotated (self-only) | Slide bearer expiry forward |
 
-The `(always)` annotation on admin routes is load-bearing: even with the instance's `auth.required = false` master switch enabled (auth-off mode for local dev), the operator routes refuse anonymous callers via a separate `always_admin_auth_route` gate. The auth-off switch covers data-plane endpoints; the admin gate is independent.
+The `(always)` mark on admin routes matters: even with `auth.required = false` (sign-in off, for local development), these routes still refuse anonymous callers. Turning sign-in off covers the data endpoints only.
 
 ### Issue a pair invite
 
@@ -1115,7 +1112,7 @@ The optional `scope_target` body field narrows the invite — `{"kind": "thread"
 curl https://alice.syncropel.app/v1/invites/inv_a3f9...
 ```
 
-Returns folded state: `revoked`, `expired`, `uses_remaining`, `accept_holder_types`, `scopes`, and the issuer's signature for verification. No bearer required — this is what the QR landing page reads.
+Returns the current state: `revoked`, `expired`, `uses_remaining`, `accept_holder_types`, `scopes`, and the issuer's signature for verification. No bearer required — this is what the QR landing page reads.
 
 ### Redeem — guest holder
 
@@ -1191,7 +1188,7 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 | `401` | `AUTH_REQUIRED` | Admin route called without a bearer (master `auth.required` switch is bypassed for admin routes) |
 | `403` | `SCOPE_FORBIDDEN` | Bearer present but lacks `admin` scope |
 | `403` | `CONSENT_DENIED` | Bearer scope OK but the consent grant for this thread/namespace is absent (defense-in-depth) |
-| `404` | `INVITE_NOT_FOUND` | Invite id doesn't exist or was never folded |
+| `404` | `INVITE_NOT_FOUND` | Invite id doesn't exist or was never created |
 | `410` | `INVITE_EXPIRED` | `expires_at` passed |
 | `410` | `INVITE_REVOKED` | Invite was revoked |
 | `410` | `INVITE_EXHAUSTED` | `uses_remaining` reached 0 |
@@ -1232,7 +1229,7 @@ Each person row also carries the fields below, and `GET /v1/principals` serves t
 
 | Field | Meaning |
 |---|---|
-| `display_name` | The person's name, or `null` when nothing names them. Type it as nullable. No door serves an id, a DID's tail or a handle as a name. |
+| `display_name` | The person's name, or `null` when nothing names them. Type it as nullable. No endpoint returns an id, the end of a DID, or a handle as a name. |
 | `name_source` | Where the name came from. `"none"` when `display_name` is null. Never null. |
 | `standing` | `member`, `guest` or `other_workspace`, decided from the owner set, grants and seats, never from the shape of a DID. Absent for a principal never seen, an erased one, and anything that isn't a person. `other_workspace` names no workspace. |
 | `is_owner` | `true` only for the workspace's owner. Present on every seen person's row. A never-seen or erased row carries none. |
@@ -1255,7 +1252,7 @@ curl -X POST http://localhost:9100/v1/members/adopt \
   -d '{"label": "mora", "sa_id": "sa_1f8e2c9a"}'
 ```
 
-Without `sa_id`: binds an existing local actor (whose signing seed this instance already holds) as a principal — after which that actor's signed task verdicts verify at ingest. With `sa_id`: mints a custodial principal for the service account's holder and re-parents the credential without breaking the bearer. Optional `ttl_seconds` sets the grant lifetime (default 180 days). Idempotent on an existing principal (`already_principal: true`).
+Without `sa_id`: binds an existing local actor (whose signing seed this instance already holds) as a principal — after which that actor's signed task verdicts verify when they are written. With `sa_id`: mints a custodial principal for the service account's holder and re-parents the credential without breaking the bearer. Optional `ttl_seconds` sets the grant lifetime (default 180 days). Idempotent on an existing principal (`already_principal: true`).
 
 ### Revoke a membership
 
@@ -1270,7 +1267,7 @@ The JSON body is optional; `note` is signed into the revocation record. The resp
 
 ## Ledgers
 
-A ledger is a read face you declare beside your data: rows are acts of the kinds you name on a thread, joined to their responses through record parentage; columns are expressions over each row; verbs are the acts a viewer may take on a row. The declaration is a configuration record; the rows are always folded live from the thread.
+A ledger is a read face you declare beside your data: rows are acts of the kinds you name on a thread, joined to their responses through record parentage; columns are expressions over each row; verbs are the acts a viewer may take on a row. The declaration is a configuration record; the rows are always read live from the thread.
 
 - `GET /v1/threads/{thread}/ledgers` lists the ledgers declared on this instance with the row count this viewer is admitted to see, and says `capped` when a ceiling bit.
 - `GET /v1/threads/{thread}/ledgers/{id}` serves a page of evaluated rows (cells, groups, and the `may:` list of verbs this caller's write authority admits), the declared stats computed only over what this viewer was served, and a `next_before` cursor; `?before=<clock>` continues older, `?limit=` bounds the page.

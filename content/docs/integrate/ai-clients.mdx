@@ -1,31 +1,27 @@
 ---
 title: AI Clients — three integration patterns
-description: Connect Syncropel to MCP-compatible AI clients including Claude Desktop, Claude Code, Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI, and Codex CLI. Three patterns — traditional MCP, shell-integrated, and programmatic — cover the major shapes of AI client integration.
+description: Connect Syncropel to MCP-compatible AI clients including Claude Desktop, Claude Code, Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI, and Codex CLI. Three patterns (MCP, shell, and programmatic) cover the main ways to connect an AI client.
 ---
-
-<Callout type="info">
-Every setup command on this page works against a current `spl` binary.
-</Callout>
 
 ## The three patterns
 
-Different AI clients take different approaches to tool use. Syncropel ships a matching access pattern for each — pick the one that fits the client you already use.
+Different AI clients take different approaches to tool use. Syncropel has a matching way to connect for each. Pick the one that fits the client you already use.
 
 | Pattern | For | What you install | What you configure |
 |---|---|---|---|
 | **MCP server** | Claude Desktop, Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI | `spl mcp serve` (ships with spl) | One JSON entry in the client's config file |
-| **Shell-integrated** | Claude Code, Codex CLI, any bash-capable agent | Nothing extra — `spl` is on your PATH | A copy-paste system-prompt recipe |
+| **Shell-integrated** | Claude Code, Codex CLI, any bash-capable agent | Nothing extra, since `spl` is on your PATH | A copy-paste system-prompt recipe |
 | **Programmatic** | Any agent that writes code (code-execution-capable LLMs, edge-runtime agents, custom harnesses) | `@syncropel/sdk` (npm) or `syncropel` (PyPI) | A bearer token at `Client` construction |
 
-None of these require the agent to "know what Syncropel is." They plug in, emit records as the agent works, and every action becomes part of the causal trail.
+None of these require the agent to know what Syncropel is. They connect, and records are written as the agent works.
 
 ## Pattern 1 — Traditional MCP (stdio)
 
-For AI clients that natively speak the [Model Context Protocol](https://modelcontextprotocol.io/). The agent calls Syncropel tools directly; results flow back through the model's context. Simple, fast, works today.
+For AI clients that natively speak the [Model Context Protocol](https://modelcontextprotocol.io/). The agent calls Syncropel tools directly, and results flow back through the model's context. This is the simplest option.
 
 ### Quickstart — `spl mcp setup-<client>`
 
-Syncropel ships nine setup commands. Each resolves the client's config path for your OS, reads the existing file (merging preserves any other entries), adds a `syncropel` entry, and writes back atomically.
+There are nine setup commands. Each resolves the client's config path for your OS, reads the existing file (merging preserves any other entries), adds a `syncropel` entry, and writes back atomically.
 
 ```bash
 # File-based clients — one-shot JSON patch
@@ -61,7 +57,7 @@ Once the command returns `✓`, restart the client and the `syncropel` tools app
 
 ### Manual configuration
 
-If you'd rather edit the config by hand (scripted provisioning, operator audit, or `spl` isn't on the client's host):
+If you'd rather edit the config by hand (scripted setup, or `spl` isn't on the client's machine):
 
 #### Claude Desktop
 
@@ -91,7 +87,7 @@ No file edit needed. Claude Code owns its own MCP registry via its `mcp` subcomm
 claude mcp add syncropel -- spl mcp serve
 ```
 
-`spl mcp setup-claude-code` shells out to exactly that command.
+`spl mcp setup-claude-code` runs exactly that command.
 
 #### Cursor
 
@@ -209,7 +205,7 @@ Codex stores MCP config in TOML at `~/.codex/config.toml`. Don't hand-edit it �
 codex mcp add syncropel -- spl mcp serve
 ```
 
-`spl mcp setup-codex` shells out to exactly that command.
+`spl mcp setup-codex` runs exactly that command.
 
 ### The 8 tools
 
@@ -219,16 +215,16 @@ Every MCP client sees the same tool surface:
 - `create_thread` — create a new thread with an INTEND record
 - `emit_record` — emit a record (INTEND, DO, KNOW, or LEARN act)
 - `read_thread` — read records from a thread (most recent first)
-- `fold_thread` — derive the current state of a thread (status, participants, head records)
+- `fold_thread` — get the current state of a thread (status, participants, latest records)
 - `trust_query` — query trust scores by actor / domain
-- `dispatch` — dispatch work to an actor via adapter routing
-- `fan_out` — fan-out work to multiple actors with a join predicate
+- `dispatch` — send work to an actor
+- `fan_out` — split work across several actors with a join rule
 
-All 8 tools are available on both stdio and HTTP transports today. The HTTP dispatch path stays leaner than `POST /v1/dispatch` directly (no budget admission layer, no lifecycle-event emission); clients that need the full production dispatch semantics should hit `POST /v1/dispatch` directly, not via MCP.
+All 8 tools are available over both stdio and HTTP. Dispatch through MCP over HTTP is simpler than `POST /v1/dispatch` (no budget check and no lifecycle events), so clients that need those should call `POST /v1/dispatch` directly.
 
 ### Remote MCP over HTTP
 
-For hosted setups, sandboxed agents, or when you want MCP tools reachable over the network, `spl serve` exposes MCP over HTTP at `/v1/mcp`. Speaks the same JSON-RPC 2.0 envelope as stdio.
+For hosted setups, sandboxed agents, or when you want MCP tools reachable over the network, `spl serve` exposes MCP over HTTP at `/v1/mcp`, with the same message format as stdio.
 
 ```bash
 curl -X POST https://your-host.example.com/v1/mcp \
@@ -237,12 +233,12 @@ curl -X POST https://your-host.example.com/v1/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-#### Response transport negotiation
+#### Response format
 
-Two response shapes, selected by the `Accept` header per MCP 2025-03-26's Streamable-HTTP spec:
+There are two response formats, chosen by the `Accept` header:
 
-- **`Accept: application/json`** (or no Accept header) — a single JSON body. Default, matches the default behaviour.
-- **`Accept: text/event-stream`** — an SSE-framed response. The JSON-RPC body is wrapped in a single `data:` event, then the connection closes. Useful for clients that want to opt into streaming today so their code is forward-compatible when multi-event streams (keepalives, progress updates) ship in a future release.
+- **`Accept: application/json`** (or no Accept header) — a single JSON body. This is the default.
+- **`Accept: text/event-stream`** — a streamed response. The reply arrives in a single `data:` event, then the connection closes.
 
 ```bash
 # Opt into SSE framing — same JSON-RPC body inside
@@ -260,11 +256,11 @@ See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint `
 
 - You use an AI client with native MCP support (any of the nine above)
 - You want zero-setup integration — one command and it works
-- Your workflow has fewer than ~10 tool calls per session (MCP's tool-definition loading scales fine up to ~50 tools; our 7 is well within)
+- Your workflow has fewer than about 10 tool calls per session (MCP handles many tools well, and Syncropel has 8)
 
-## Pattern 2 — Shell-integrated (zero MCP required)
+## Pattern 2 — Shell-integrated (no MCP needed)
 
-For AI clients that can run bash commands but don't speak MCP natively — notably Claude Code and Cursor's agent mode. The agent calls `spl` as a shell command; output is plain text (or `-o json`) the agent reads. Zero configuration beyond an optional system-prompt recipe.
+For AI clients that can run bash commands but don't speak MCP natively — notably Claude Code and Cursor's agent mode. The agent calls `spl` as a shell command; output is plain text (or `-o json`) the agent reads. No configuration beyond an optional system-prompt recipe.
 
 ### Quickstart
 
@@ -289,12 +285,12 @@ See `spl mcp recipe generic` for the full default recipe.
 
 ### Why this works
 
-Recent analysis of coding agents (Claude Code, Cursor agent mode) shows they use CLI tools more efficiently than MCP for simple operations — fewer tokens in context, no tool-definition loading overhead. `spl` ships `-o json` and `-o stream-json` output modes on every command, so the agent can parse results without screen-scraping.
+Coding agents (Claude Code, Cursor agent mode) tend to use command-line tools more efficiently than MCP for simple operations, with fewer tokens in context and no tool definitions to load. `spl` ships `-o json` and `-o stream-json` output modes on every command, so the agent can parse results without screen-scraping.
 
 ### When to choose this pattern
 
 - Your AI client doesn't have native MCP support but can run bash (Claude Code, Cursor agent mode)
-- You want the agent's actions visible in BOTH your terminal history AND Syncropel records (one shell line, one immutable record)
+- You want the agent's actions visible in BOTH your terminal history AND Syncropel records (one shell line, one record)
 - You're writing custom agents driven by shell harnesses
 
 ## Pattern 3 — Programmatic Agents (for agents that write code)
@@ -330,7 +326,7 @@ Many teams use all three — MCP for interactive sessions, shell-integrated for 
 
 ## Authentication across all three patterns
 
-All three patterns authenticate against the Syncropel instance the same way: a bearer token. See the [security model](/docs/operate/security-model) for the full setup. Quick path:
+All three patterns sign in to your workspace the same way: with a bearer token. See the [security model](/docs/operate/security-model) for the full setup. Quick path:
 
 ```bash
 # One-time per install
@@ -340,11 +336,11 @@ spl service-account create --bootstrap --name local --with-token
 spl token save <token>
 ```
 
-Local-only loopback deployments can skip auth with `--insecure-localhost`, but production deployments and any remote MCP usage should always require a bearer token.
+A workspace that only listens on your own machine can skip sign-in with `--insecure-localhost`, but real workspaces and any remote MCP use should always require a bearer token.
 
 ## What's next
 
 - [Programmatic Agents guide](/docs/integrate/programmatic-agents) — deeper walk through Pattern 3 with full examples
 - [TypeScript SDK reference](/docs/guides/typescript-sdk) — the Pattern 3 surface
 - [Python SDK reference](/docs/guides/python-sdk) — the Python equivalent
-- [Authentication & Service Accounts](/docs/operate/keyring) — how to mint + rotate tokens
+- [Authentication & Service Accounts](/docs/operate/keyring) — how to create and rotate tokens

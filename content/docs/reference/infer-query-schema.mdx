@@ -1,11 +1,11 @@
 ---
 title: infer.query.v1 Schema
-description: Canonical field reference for the infer.query.v1 body shape — mirrors the JSON Schema shipped in @syncropel/config@0.3.x.
+description: Field reference for the infer.query.v1 body, matching the JSON Schema in the @syncropel/config package.
 ---
 
 ## Overview
 
-This page is the canonical field-level reference for the `infer.query.v1` body shape. It mirrors the JSON Schema published in `@syncropel/config@0.3.0` at `src/schemas/infer-query.schema.json`.
+This page lists every field of the `infer.query.v1` body. It matches the JSON Schema published in the `@syncropel/config` package at `src/schemas/infer-query.schema.json`.
 
 - **Schema id:** `https://syncropel.com/schemas/config/infer-query.v1.schema.json`
 - **JSON Schema draft:** 2020-12
@@ -62,14 +62,14 @@ Exactly one of:
 
 | Field | Type | Notes |
 |---|---|---|
-| `inline` | any | Payload hashed into the query record id |
+| `inline` | any | Payload used to compute the query record's id |
 | `inline_kind` | string | Optional body.kind |
 | `record_id` | string | 64-char hex SHA-256 record id |
-| `ref` | object | Canonical ref per the 11 Ref.* constructors |
+| `ref` | object | A reference to an outside item, built with one of the 11 `Ref.*` constructors |
 
 ## AnswerShape
 
-Validates the folded output (not per-response bodies).
+Checks the final combined answer (not each response).
 
 ```json
 {
@@ -116,8 +116,8 @@ An OR-of-classes predicate. Each entry adds AND constraints within its class.
 | `capability` | string | Capability tag |
 | `trust_gte` | number | Minimum trust score |
 | `trust_lt` | number | Maximum trust score |
-| `budget_usd` | number | Per-call cost ceiling |
-| `latency_secs` | integer | Per-call latency ceiling |
+| `budget_usd` | number | Maximum cost per call |
+| `latency_secs` | integer | Maximum time per call |
 | `match_level_gte` | enum | `L0` \| `L1` \| `L2` \| `L3` |
 | `age_days_lt` | integer | Record age bound |
 | `available` | boolean | Availability requirement |
@@ -140,7 +140,7 @@ An OR-of-classes predicate. Each entry adds AND constraints within its class.
 | `function` | enum | — (required) | `consensus` \| `best_of` \| `waterfall_first` \| `ensemble_weighted` \| `expression` |
 | `weight_expression` | CEL string | `"trust * recency * pattern_confidence"` | Applies to `consensus` and `ensemble_weighted` |
 | `tie_break` | enum | `"highest_trust"` | `highest_trust` \| `highest_confidence` \| `most_recent` \| `lexicographic` |
-| `min_quorum` | integer ≥ 1 | `1` | Minimum non-error responses before fold runs |
+| `min_quorum` | integer ≥ 1 | `1` | Minimum number of non-error responses before the answers are combined |
 | `expression` | CEL string | — | Required when `function == "expression"` |
 
 ## Orchestration
@@ -232,7 +232,7 @@ Per-pattern fields:
 
 | Field | Type | Default |
 |---|---|---|
-| `model` | string | `"current"` — also `"heuristic"` to force the additive-with-floor scorer |
+| `model` | string | `"current"` — also `"heuristic"` to use the simple scorer |
 | `threshold` | number 0..1 | `0.5` |
 | `top_k` | integer | `3` |
 
@@ -268,19 +268,19 @@ AdaptiveDial form:
 { "metadata": { "trace_id": "trace_abc123", "customer_id": "cust_42" } }
 ```
 
-Opaque string-to-string map. Carried through into the KNOW record unchanged.
+A free-form map of text to text. It is copied unchanged into the KNOW record.
 
 ## Related body kinds
 
-Shipped in `@syncropel/config@0.3.0` alongside `infer-query.schema.json`:
+Provided in the `@syncropel/config` package alongside `infer-query.schema.json`:
 
-- `infer.call.v1` — CALL record emitted per dispatched responder (executor step 4).
-- `infer.error.v1` — KNOW with an error code instead of an answer. 10 canonical codes: `invalid_query`, `no_candidates`, `no_relevant_candidates`, `cost_budget_exceeded`, `latency_timeout`, `responder_unavailable`, `quorum_not_met`, `fold_failed`, `answer_shape_mismatch`, `obligation_conflict`.
+- `infer.call.v1` — a CALL record written for each responder the query is sent to.
+- `infer.error.v1` — KNOW with an error code instead of an answer. 10 codes: `invalid_query`, `no_candidates`, `no_relevant_candidates`, `cost_budget_exceeded`, `latency_timeout`, `responder_unavailable`, `quorum_not_met`, `fold_failed`, `answer_shape_mismatch`, `obligation_conflict`.
 
 ## See also
 
 - **[Query Anatomy guide](/docs/guides/inference/query-anatomy)** — conceptual walkthrough.
-- **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 aggregators in detail.
-- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step flows.
+- **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 ways to combine answers.
+- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step patterns.
 - **[body.kind manifest](/docs/guides/body-kind-manifest)** — grammar and reserved scopes.
 - **[`spl infer` CLI](/docs/reference/cli#inference--spl-infer)** — shell invocation reference.

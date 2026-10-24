@@ -1,23 +1,23 @@
 ---
 title: Namespaces
-description: Set up a multi-tenant Syncropel deployment using the 5-level namespace hierarchy — designing your layout, creating the registry, scoping CEL rules, lifecycle management, and recovery from a botched setup.
+description: "Set up namespaces for several customers, projects or environments: design your layout, create the namespaces, scope rules to them, archive or delete them, and recover from a bad setup."
 ---
 
 ## Who this is for
 
-You've decided you need more than the implicit `default` namespace. Maybe you're onboarding a second customer, separating staging from production, or your team has split into independent units that shouldn't see each other's records. This guide walks you through the full setup, from designing the hierarchy to writing CEL rules that scope to a subtree.
+You've decided you need more than the implicit `default` namespace. Maybe you're onboarding a second customer, separating staging from production, or your team has split into independent units that shouldn't see each other's records. This guide walks you through the full setup, from designing the hierarchy to writing CEL rules that apply to one part of it.
 
-If you're not sure whether you need namespaces yet, read the [Namespaces concept](/docs/concepts/namespaces) first. The TL;DR: skip namespaces until you have a real isolation requirement.
+If you're not sure whether you need namespaces yet, read the [Namespaces concept](/docs/concepts/namespaces) first. In short: skip namespaces until you need real separation.
 
 ## Designing your hierarchy
 
-Before typing any commands, decide what your hierarchy actually looks like. The 5 levels are:
+Before typing any commands, decide what your hierarchy looks like. There are 5 levels:
 
 ```
 DEFAULT → ORG → PROJECT → ENV → JOB
 ```
 
-Most setups stop at PROJECT or ENV. Going to JOB is for ephemeral per-execution scopes that get cleaned up after each run.
+Most setups stop at PROJECT or ENV. JOB is for short-lived scopes that are cleaned up after each run.
 
 ### Common shapes
 
@@ -60,7 +60,7 @@ default
     └── bigcorp/shipping
 ```
 
-Each customer is an ORG. Customers' records cannot reach each other's namespaces — the narrowing rule prevents `bigcorp` records from claiming `acme-corp` as their namespace. Per-customer policies (policy YAML is not available yet) will compose with each tenant's own ORG-level policy.
+Each customer is an ORG. Records from one customer cannot claim another customer's namespace: `bigcorp` records cannot use `acme-corp` as their namespace.
 
 ### Naming rules to know
 
@@ -69,7 +69,7 @@ Each customer is an ORG. Customers' records cannot reach each other's namespaces
 - **Max 4 segments**: `acme/payments/staging/job-42` is the deepest legal namespace. Five segments is rejected at parse time.
 - **Length**: each segment ≤ 64 chars, total ID ≤ 256 chars.
 
-The CLI enforces these rules at create time and the instance re-validates at ingest. You'll get a clear error message either way.
+The CLI checks these rules when you create a namespace, and the workspace checks them again when a record is added. Either way you get a clear error message.
 
 ## Setting up your hierarchy
 
@@ -142,7 +142,7 @@ Namespace: acme-corp/payments/staging
     ✓ default
 ```
 
-The `✓` marker on each line confirms every ancestor is Active. If any ancestor were Archived or Deleted, you'd see a `✗` and the descendant would not accept new records.
+The `✓` marker on each line confirms every ancestor is active. If any ancestor were archived or deleted, you'd see a `✗` and the namespace would not accept new records.
 
 ## Writing records into a namespace
 
@@ -164,7 +164,7 @@ curl -X POST http://localhost:9100/v1/records \
   }'
 ```
 
-Records that omit `body.namespace` continue working — they fall through to the implicit `default` and are always accepted. **No existing client breaks** when you turn on namespace enforcement.
+Records that omit `body.namespace` still work: they go to the implicit `default` and are always accepted. **Existing clients keep working** when you turn on namespace enforcement.
 
 If the namespace is unknown, you get a clear rejection:
 
@@ -193,11 +193,11 @@ curl -X POST http://localhost:9100/v1/records \
 }
 ```
 
-The error includes the exact recovery command. This is the same shape `permissions-unlock` uses — every rejection tells you how to fix it.
+The error includes the exact command to fix it.
 
 ## CEL rules scoped to a namespace
 
-You can write CEL rules that match records based on their namespace. The current namespace is exposed as a function:
+You can write CEL rules that match records based on their namespace. The current namespace is available as a function:
 
 ```text
 current_namespace() == "acme-corp/payments/prod"
@@ -241,7 +241,7 @@ spl config add-permission-rule \
 
 Higher priority means it's evaluated first. The `prod-requires-high-trust` rule wins for prod records; the staging rule catches everything for staging.
 
-Now enable enforcement (with the pre-flight check that prevents the lockout trap):
+Now enable enforcement (with a check that stops you locking yourself out):
 
 ```bash
 # First, an admin escape rule so YOU don't get locked out
@@ -254,15 +254,15 @@ spl config add-permission-rule \
 spl config permissions-enable
 ```
 
-The pre-flight check verifies that `permissions-disable` will still work after enforcement is on. If it doesn't, you get a clear refusal with the exact `add-permission-rule` command needed.
+The check confirms that `permissions-disable` will still work after enforcement is on. If it wouldn't, you get a refusal with the exact `add-permission-rule` command you need.
 
 ## Who can read a namespace
 
 Each namespace has a read-visibility setting that controls who can see its records. There are three levels:
 
-- **Signed-in readers** (the default): anyone holding a valid credential for the instance can read the namespace. If you never touch the setting, this is what you have — closed to the open internet, open within the instance.
-- **Private**: only callers explicitly granted access to that namespace can read it. Use this for a namespace that even other authorized users of the same instance shouldn't see.
-- **Public**: anyone on the internet can read the namespace's records, no sign-in required. This is for deliberate showcases — a public dashboard, a published dataset.
+- **Signed-in readers** (the default): anyone holding a valid credential for the workspace can read the namespace. If you never touch the setting, this is what you have: closed to the open internet, open within the workspace.
+- **Private**: only callers explicitly granted access to that namespace can read it. Use this for a namespace that even other authorized users of the same workspace shouldn't see.
+- **Public**: anyone on the internet can read the namespace's records, no sign-in required. This is for deliberate showcases, such as a public dashboard or a published dataset.
 
 Making a namespace public is a deliberate act, so it requires an explicit acknowledgment in the same policy record:
 
@@ -279,7 +279,7 @@ Without `acknowledge_public: true`, the write is rejected with `NAMESPACE_PUBLIC
 
 Two habits keep this honest:
 
-- **`spl doctor` lists every public namespace** on the instance, so an accidental (or forgotten) showcase is visible at a glance.
+- **`spl doctor` lists every public namespace** in the workspace, so an accidental or forgotten showcase is visible at a glance.
 - When a public showcase has served its purpose, re-emit the policy with `read_visibility: "authenticated"` to close it again.
 
 ## Lifecycle: archive, delete, undo
@@ -294,7 +294,7 @@ spl namespace archive acme-corp/payments/staging
 ✓ namespace 'acme-corp/payments/staging' → archived
 ```
 
-After this, any new record claiming `acme-corp/payments/staging` (or any descendant) is rejected. Existing records remain readable — archive is read-only, not delete.
+After this, any new record claiming `acme-corp/payments/staging` (or any descendant) is rejected. Existing records remain readable: archiving is read-only, not deleting.
 
 ```bash
 curl -X POST http://localhost:9100/v1/records \
@@ -317,11 +317,11 @@ curl -X POST http://localhost:9100/v1/records \
 spl namespace delete acme-corp/payments/staging
 ```
 
-This is a **soft delete**. The entry stays in the registry (so audit history is preserved) but is treated as nonexistent for new ingest. You can still see it in `spl namespace list` — it'll show as `deleted`.
+This is a **soft delete**. The namespace stays in the list (so history is preserved) but no new records are accepted. You can still see it in `spl namespace list` — it'll show as `deleted`.
 
 ### Re-activate by re-creating
 
-The latest record per namespace ID wins. To bring an archived or deleted namespace back, just `spl namespace create` it again:
+To bring an archived or deleted namespace back, just `spl namespace create` it again:
 
 ```bash
 spl namespace create acme-corp/payments/staging --description "Revived after deploy freeze"
@@ -332,7 +332,7 @@ namespace 'acme-corp/payments/staging' already exists and is Active — overridi
 ✓ namespace 'acme-corp/payments/staging' → active
 ```
 
-The CLI prints the override notice so you know you've replaced (not duplicated) the entry.
+The CLI prints a notice so you know you've replaced (not duplicated) the namespace.
 
 ### What about DEFAULT?
 
@@ -342,13 +342,13 @@ The DEFAULT namespace is implicit and **cannot be modified or deleted**. `spl na
 error: cannot modify the DEFAULT namespace
 ```
 
-This is by design. DEFAULT is the root of the hierarchy and the fallback for every record without an explicit namespace. Deleting it would break every existing client.
+DEFAULT is the root of the hierarchy and the fallback for every record without a namespace. Deleting it would break every existing client.
 
 ## Recovering from a botched setup
 
 ### Symptom: I created a deep namespace and want to start over
 
-Archive the ORG-level parent. Every descendant becomes inactive immediately via the cascade. The audit history stays in the registry.
+Archive the ORG-level parent. Every namespace under it becomes inactive immediately. The history stays.
 
 ```bash
 spl namespace archive acme-corp
@@ -364,9 +364,9 @@ spl namespace delete acme-corp/payments
 spl namespace delete acme-corp
 ```
 
-You'll still see them in `spl namespace list` (with status `deleted`) for audit purposes. The records themselves remain.
+You'll still see them in `spl namespace list` (with status `deleted`) as a history. The records themselves remain.
 
-### Symptom: I locked myself out of the registry by enabling permissions without an admin allow rule
+### Symptom: I locked myself out by enabling permissions without an admin allow rule
 
 Use the emergency unlock command — see [Emergency Recovery](/docs/reference/cli#emergency-recovery):
 
@@ -376,16 +376,16 @@ spl config permissions-unlock
 spl serve
 ```
 
-This writes a `permissions_enabled=false` LEARN record directly to the workspace, bypassing the HTTP middleware that would otherwise deny it.
+This turns permissions off directly in the workspace, bypassing the checks that would otherwise refuse it.
 
-### Symptom: I want to verify what the registry actually has after a restart
+### Symptom: I want to verify which namespaces exist after a restart
 
 ```bash
 spl namespace list
 spl doctor
 ```
 
-`spl doctor` confirms the instance is up, the engine config thread has records, and the expression cache is healthy. If `spl namespace list` shows nothing but DEFAULT after a restart where you'd previously created namespaces, the registry replay didn't pick them up — check the instance log at `~/.syncro/logs/spl.log` for `namespace_registry: skipping invalid entry` warnings.
+`spl doctor` confirms the workspace is up and healthy. If `spl namespace list` shows nothing but DEFAULT after a restart where you'd previously created namespaces, they weren't loaded. Check the workspace log at `~/.syncro/logs/spl.log` for `namespace_registry: skipping invalid entry` warnings.
 
 ## Operational checklist before turning on namespace enforcement
 
@@ -403,14 +403,14 @@ Run through this before you start gating real records on namespace existence:
 - [ ] You've tested writing a record claiming a non-existent namespace (should return 403 NAMESPACE_REJECTED)
 - [ ] Operator runbook is bookmarked: see [`docs/operate/runbook`](/docs/operate/runbook) for recovery procedures
 
-## What's NOT yet enforced
+## Limits
 
-The narrowing guarantee enforces **existence** — every ancestor in the chain must be in the registry and Active. It does NOT yet enforce:
+Namespace enforcement checks **existence**: every namespace in the chain must exist and be active. It does not enforce:
 
-- **Capability subsets**: a record can claim any `body.dial`, `body.primitives`, etc. The instance does not yet check that those capabilities are a subset of what the parent namespace's policy allows.
-- **Store-level partitioning**: records are tagged with `body.namespace` but records are not yet indexed by namespace, and read queries return records across all namespaces a caller can reach.
+- **Capability subsets**: a record can claim any `body.dial`, `body.primitives`, etc. Syncropel does not check that these fit within what the parent namespace allows.
+- **Separate storage**: records are tagged with `body.namespace`, but they are not stored separately by namespace, and read queries return records across all namespaces a caller can reach.
 
-For a single-tenant deployment or trusted-actor multi-tenant setup, the HTTP-boundary enforcement is sufficient. For untrusted multi-tenant where a customer might try to inject records claiming another customer's namespace, you also want the policy YAML + store-level isolation gaps closed before going live.
+For a single-customer workspace, or one where every actor is trusted, this is enough. If you host customers who don't trust each other, do not rely on namespaces alone to keep their data apart.
 
 ## Reference
 

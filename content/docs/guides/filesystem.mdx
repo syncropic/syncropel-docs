@@ -53,7 +53,7 @@ interrupted — re-run the same command and it picks up where it left off.
 
 ## Inspect a file
 
-`spl fs stat` shows a file's metadata — its kind, size, and content hash:
+`spl fs stat` shows a file's kind, size, and content hash (a fingerprint of its exact contents):
 
 ```bash
 spl fs stat /files/quarterly-report.md
@@ -77,7 +77,7 @@ spl fs rm /files/reports --recursive   # remove a directory and its contents
 ```
 
 These work in `/files` and in any writable connected drive. `/artifacts` and
-`/threads` are read-only — they reject changes by design.
+`/threads` are read-only.
 
 ## Publish a file
 
@@ -93,9 +93,7 @@ spl fs publish /files/reports/q1.md
   manifest:      35b25801ff8d7079d7f0d72eaab43fc5b4083d4136c8ad78e6193c7e0e7ff8d0
 ```
 
-The content hash is the artifact's permanent address — it's derived from the
-file's exact bytes, so it never changes and always points at precisely that
-version. The working copy stays in `/files`; you can keep editing it and
+The content hash is the artifact's permanent address. It comes from the file's exact contents, so it never changes and always points to that version. The working copy stays in `/files`; you can keep editing it and
 publish again later, and each publish produces its own fixed artifact. See
 [Files](/docs/concepts/files#working-files-and-artifacts) for the model.
 
@@ -124,16 +122,15 @@ spl fs stat /files/data.csv --json | jq '.size_bytes'
 Everything here is also available visually. Open your workspace on the web
 and use the **Files** tab — it's a browser AND editor for the same
 filesystem, so a file you upload from the terminal shows up there
-immediately, and vice versa. See [Files in your
-instance](/docs/guides/files-in-studio) for the full walkthrough — drag-
-upload, the in-Studio editor with autosave, right-click context actions,
+immediately, and vice versa. See [Working with files in your workspace](/docs/guides/files-in-studio) for the full walkthrough: drag-and-drop
+upload, the in-browser editor with autosave, right-click context actions,
 quick find with `⌘K`, attaching files to chat with `@files`, and the
 mobile experience.
 
 ## What's next
 
 - [Files](/docs/concepts/files) — the filesystem model: the four areas, and
-  the working-file → artifact lifecycle.
+  from working file to artifact.
 - [Working with files in your workspace](/docs/guides/files-in-studio) — the
   same filesystem, visually.
 - [CLI reference: Files](/docs/reference/cli#files) — the complete `spl fs`

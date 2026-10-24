@@ -1,43 +1,43 @@
 ---
-title: Exposing the Instance Securely
-description: Make `spl serve` reachable from other machines without putting an unauthenticated server on the public internet. Tailscale, reverse proxy with TLS, CORS, and what never to do.
+title: Exposing your workspace securely
+description: Make `spl serve` reachable from other machines without leaving an open server on the public internet. Covers Tailscale, a reverse proxy with TLS, browser access (CORS), and what never to do.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
-By default `spl serve` binds `127.0.0.1` and is unreachable from anywhere else on your network. You'll want to change that when:
+By default `spl serve` listens on `127.0.0.1`, so nothing else on your network can reach it. You'll want to change that when:
 
-- You're pairing a phone that lives on the same home network.
-- You're running a peer workspace that needs to sync with another host.
-- You want to use the CLI from a second machine.
-- You're hosting a shared team instance.
+- You're connecting a phone on the same home network.
+- You're running another workspace that needs to sync with this one.
+- You want to use the command line from a second computer.
+- You're hosting a workspace for your team.
 
-Three safe paths, and one you should never take.
+There are three safe ways, and one you should never use.
 
 ## Preferred: Tailscale (or any WireGuard-based private network)
 
-Tailscale gives each machine an address in the `100.x.y.z` space. The addresses are only routable between machines you've explicitly joined to your tailnet. No public IP is exposed. Access control is built in.
+Tailscale gives each machine an address that starts with `100.`. Those addresses only work between machines you've added to your Tailscale network. Nothing is open to the public internet.
 
-Install Tailscale on the instance host and any device that needs to reach it. Then:
+Install Tailscale on the computer running the workspace and on every device that needs to reach it. Then:
 
 ```bash
 # Find the host's tailnet address
 tailscale ip -4
 
-# Bind the instance to that address
+# Make the workspace listen on that address
 spl stop
 spl serve --host 100.x.y.z
 ```
 
-Devices on the same tailnet reach the instance at `http://100.x.y.z:9100`. That becomes the `--url` you pass to `spl pair`.
+Devices on your Tailscale network reach the workspace at `http://100.x.y.z:9100`. Use that as the `--url` for `spl pair`.
 
-Tailscale's ACLs further narrow which devices can reach the instance. Default-allow across your own tailnet is fine for personal use; tighten for shared machines.
+Tailscale's access rules let you limit which devices can connect. Allowing all your own devices is fine for personal use; tighten it for shared machines.
 
 ## Alternative: reverse proxy with TLS
 
-A reverse proxy (Caddy, nginx, or Traefik) terminates TLS on a public hostname and forwards to the instance on loopback. This is the right answer when you need a public URL (say, `https://syncropel.your-domain.com`) for a peer workspace or a web dashboard hosted elsewhere.
+A reverse proxy (Caddy, nginx, or Traefik) handles the secure (TLS) connection on a public hostname and passes requests on to your workspace. Use this when you need a public URL (say, `https://syncropel.your-domain.com`) for another workspace or a web page hosted elsewhere.
 
-Keep the instance bound to loopback:
+Keep the workspace listening on your own computer only:
 
 ```bash
 spl serve                                 # stays on 127.0.0.1:9100
@@ -75,43 +75,42 @@ server {
 }
 ```
 
-### Instance-side hardening when behind a proxy
+### Extra protection behind a proxy
 
-When a proxy terminates connections, the instance sees `127.0.0.1` as the client IP for everything. Two config flags harden against header spoofing in this mode:
+Behind a proxy, every request appears to come from `127.0.0.1`. Two settings protect against forged identity headers:
 
 ```bash
-# strict impersonation enforcement has a dedicated verb:
+# strict impersonation checks have their own command:
 spl config impersonation-strict-enable
 ```
 
-`strict_actor_header` has no dedicated verb yet; enable it by writing a
+`strict_actor_header` has no command of its own. Turn it on by writing a
 `strict_actor_header` config record (a `LEARN` on `th_engine_config` with
-`enabled: true`, the standard config-record convention). Both take effect on the
-next request: no restart needed.
+`enabled: true`). Both take effect on the next request, with no restart.
 
-- **`strict_actor_header`** rejects requests that claim a DID via header without a matching token.
-- **`strict_impersonation_enforcement`** blocks admin tokens from acting as arbitrary actors unless an explicit allowlist is set.
+- **`strict_actor_header`** rejects requests that claim an identity in a header without a matching token.
+- **`strict_impersonation_enforcement`** stops admin tokens from acting as any actor, unless you list the allowed actors.
 
 ## Alternative: an outbound tunnel
 
-A variant of the reverse-proxy pattern that doesn't require opening a port on your firewall. The instance stays on loopback; a tunnel agent establishes an *outbound* connection to a tunnel service, which terminates TLS on a public hostname and forwards traffic back down the tunnel to `http://127.0.0.1:9100`.
+Like a reverse proxy, but without opening a port on your firewall. The workspace stays on your computer; a tunnel program makes an *outgoing* connection to a tunnel service, which serves a public hostname over TLS and sends traffic back to `http://127.0.0.1:9100`.
 
-Several tunnel services offer this. Follow your provider's setup, point the tunnel's ingress at `http://127.0.0.1:9100`, and the same hardening flags apply (`strict_actor_header`, `strict_impersonation_enforcement`).
+Several tunnel services offer this. Follow your provider's setup, point the tunnel's ingress at `http://127.0.0.1:9100`, and the same protection settings apply (`strict_actor_header`, `strict_impersonation_enforcement`).
 
-## Do not: public internet without TLS
+## Never: the public internet without TLS
 
 ```bash
 # NEVER
 spl serve --host 0.0.0.0
 ```
 
-On a cloud VM, `--host 0.0.0.0` exposes the instance on port 9100 to the entire internet. Even with auth on, you are one config mistake away from a token leak that compromises the whole record store. Even with perfect auth hygiene, you're paying every bot on the internet to probe your instance's surface.
+On a cloud server, `--host 0.0.0.0` opens port 9100 to the whole internet. Even with sign-in on, one mistake could leak a token and expose all your records, and every bot on the internet will probe it.
 
-If you find yourself wanting `--host 0.0.0.0`, pick one of the three safer alternatives above. The only legitimate use of `0.0.0.0` is on a host that is itself behind a firewall, reverse proxy, or tunnel, and in that case, `--host 127.0.0.1` would also work and is simpler.
+If you find yourself wanting `--host 0.0.0.0`, use one of the three safer ways above. `0.0.0.0` is only reasonable on a computer that is itself behind a firewall, reverse proxy or tunnel, and then `--host 127.0.0.1` would also work and is simpler.
 
-## CORS: when a browser calls your instance
+## CORS: letting a web page call your workspace
 
-The instance's HTTP API rejects cross-origin requests by default. To let a browser at `https://syncropel.com` (or any other origin) call your locally-running instance, add the origin to the allowlist:
+Your workspace's HTTP API refuses requests from web pages on other sites by default (CORS). To let a page at `https://syncropel.com` (or any other site) call your workspace, add that site to the allowed list:
 
 ```bash
 spl config auth-set-cors-origins https://syncropel.com
@@ -123,36 +122,36 @@ Multiple origins:
 spl config auth-set-cors-origins https://syncropel.com,https://app.example.com
 ```
 
-The setting is a runtime record: it takes effect immediately and survives instance restarts.
+The setting takes effect immediately and is kept when you restart.
 
 Typical setups:
 
-- **`syncropel.com` calling your instance.** Add `https://syncropel.com`.
-- **A private web app calling a shared team instance.** Add the app's origin.
-- **Developer localhost (rare).** Add `http://localhost:<port>`.
+- **`syncropel.com` calling your workspace.** Add `https://syncropel.com`.
+- **A private web app calling a shared team workspace.** Add the app's origin.
+- **A page on your own computer (rare).** Add `http://localhost:<port>`.
 
 ### Verifying CORS
 
-From the browser's devtools network tab, the instance's responses should include `Access-Control-Allow-Origin` matching the request's `Origin`. If they don't, the request is either coming from an origin not on the allowlist, or you haven't set the allowlist at all. `spl config show` lists current settings.
+From the browser's devtools network tab, the workspace's responses should include `Access-Control-Allow-Origin` matching the request's `Origin`. If they don't, the request is from a site that is not on the allowed list, or you haven't set the list. `spl config show` lists current settings.
 
 ## Pairing with another workspace
 
-Once the instance is reachable on a stable URL, another workspace can pair with it. The pairing flow creates reciprocal `federation:manage`-scoped service accounts, exchanges public keys, and persists a pair record on both sides. See the [workspace pairing guide](/docs/guides/federation-pair) for the canonical `spl federation pair <peer-url>` walkthrough and the [Discovery guide](/docs/guides/federation-discovery) for auto-discovery via DNS or mDNS.
+Once your workspace has a stable URL, another workspace can pair with it. Pairing sets up matching accounts on both sides and swaps keys. See the [workspace pairing guide](/docs/guides/federation-pair) for the `spl federation pair add <peer-url>` steps and the [Discovery guide](/docs/guides/federation-discovery) for finding workspaces automatically.
 
 ## Decision matrix
 
 | Use case | Recommended path |
 |---|---|
-| Phone on same home Wi-Fi | Bind to LAN IP, or use Tailscale |
+| Phone on same home Wi-Fi | Use your computer's network address, or Tailscale |
 | CLI from a second personal machine | Tailscale |
-| Browser on `syncropel.com` | Loopback instance + CORS allowlist |
-| Peer workspace on a cloud host | Reverse proxy with TLS or an outbound tunnel |
-| Team-shared instance | Reverse proxy with TLS on a private network |
-| Single developer laptop | Loopback only: don't expose at all |
+| Browser on `syncropel.com` | Keep it on your computer and add the site to the CORS list |
+| Another workspace on a cloud server | Reverse proxy with TLS or an outbound tunnel |
+| Workspace shared by a team | Reverse proxy with TLS on a private network |
+| Single developer laptop | Keep it on your computer only |
 
 ## See also
 
-- [Authentication and service accounts](/docs/operate/keyring): scopes, token lifecycle, emergency recovery
-- [Workspace pairing guide](/docs/guides/federation-pair): pair two instances for bi-directional sync via `spl federation pair`
-- [Operator runbook](/docs/operate/runbook): backup discipline, recovery, upgrades
-- [Troubleshooting](/docs/get-started/troubleshooting): when an exposed instance isn't reachable or CORS is blocking
+- [Authentication and service accounts](/docs/operate/keyring): scopes, token lifetimes, emergency recovery
+- [Workspace pairing guide](/docs/guides/federation-pair): connect two workspaces so they sync both ways with `spl federation pair`
+- [Operator runbook](/docs/operate/runbook): backups, recovery, upgrades
+- [Troubleshooting](/docs/get-started/troubleshooting): when a reachable workspace can't be reached or CORS is blocking

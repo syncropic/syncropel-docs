@@ -1,46 +1,44 @@
 ---
 title: Threads
-description: A thread is a coordination context, the shared scope inside which records are ordered, and closed. Every task, dispatch, federation pair, and config domain is a thread.
+description: A thread is a shared context that records belong to. Every task, run, pairing and settings area is a thread.
 ---
 
 ## Overview
 
-A thread is a named context that records attach to. Its ID is stable and derived from what it is, its contents are immutable, and its meaning comes from how it is used. A task is a thread. A dispatch is a thread. The engine config is a thread. A federation sync subscription targets a thread.
+A thread is a named context that records belong to. Its ID is stable, its records never change, and its meaning comes from how it is used. A task is a thread. A run is a thread. Your workspace settings are a thread. Syncing with a paired workspace targets a thread.
 
-Threads give Syncropel its coordination semantics: *records written to the same thread participate in the same story*. Two records on different threads are independent by construction, nothing mixes them unless you explicitly ask.
+*Records on the same thread belong to the same story.* Records on different threads are independent unless you explicitly link them.
 
-If you're mentally importing from elsewhere: a thread is closer to a Git branch than to a Slack channel. It's the unit of history, not the unit of conversation. A single agent dispatch is a thread. A conversation with a user may span dozens.
+A thread is closer to a Git branch than to a Slack channel. It is a unit of history, not of conversation. A single agent run is a thread, and a conversation with a user may span dozens.
 
 ## Thread identity
 
-Thread IDs are deterministic, derived from their seed inputs, and carry a `th_` prefix. The prefix makes thread IDs visually distinct from record IDs and from actor DIDs (`did:sync:*`). This distinction matters, the same function can take all three as arguments, and misreading one for another is a class of bug.
+Thread IDs start with `th_`, which makes them easy to tell apart from record IDs and actor DIDs (`did:sync:*`). An ID comes from what the thread is for:
+- **Task threads** have a stable ID, so `TASK-0001` always maps to the same thread.
+- **Run threads** get a fresh ID for each run.
+- **Reserved threads** (`th_engine_config`, `th_instance_registry`, `th_fleet_control`, `th_consent`, `th_namespace_registry`, `th_actor_registry`) have fixed, well-known IDs.
 
-The seed inputs vary by creator:
-- **Task threads** are seeded from the alias and a nonce, so `TASK-0001` maps to one stable thread ID.
-- **Dispatch threads** are seeded from the parent thread, target actor, and dispatch timestamp, so each run gets a fresh ID.
-- **Reserved threads** (`th_engine_config`, `th_instance_registry`, `th_fleet_control`, `th_consent`, `th_namespace_registry`, `th_actor_registry`) have hand-assigned, well-known IDs baked into Syncropel and documented in the spec.
-
-Client code never invents a thread ID freely. It either uses a well-known constant, derives from a seed, or asks the server to mint one. This is what lets a federation pair target a thread by ID alone, the ID is portable across instances.
+Because an ID is the same everywhere, a paired workspace can refer to a thread by ID alone.
 
 ## Lifecycle
 
-Every thread follows a natural arc, though the shape is flexible:
+Most threads follow this arc, though the shape is flexible:
 
 ```
 INTEND  →  DO/CALL  →  KNOW  →  KNOW(fulfills)
 (open)      (active)    (observed)     (closed)
 ```
 
-- **Opened** by an `INTEND` stating the goal or purpose. Every thread starts with an INTEND; if you see a thread whose first clock is `DO` or `KNOW`, that's a bug or a partially-migrated import.
-- **Active** while `DO` and `CALL` records land. An adapter executing work emits these as it goes.
+- **Opened** by an `INTEND` stating the goal or purpose. Every thread starts with an INTEND.
+- **Active** while `DO` and `CALL` records land. Tools doing the work write these as they go.
 - **Observed** when `KNOW` records capture intermediate facts, verdicts, or summaries.
 - **Closed** by a `KNOW` carrying `body.fulfills: "<intend_id>"` referencing the opening INTEND. The thread then shows as "done". A thread can also close via cancellation, a `DO` with `body.cancels` or a `KNOW` with `body.verdict: "reject"`.
 
-Lifecycle state is *derived* from records, not stored as a column. Two threads with different visible "statuses" have different record sets. There is no `UPDATE threads SET status = ...` anywhere in the system.
+A thread's status comes from its records and is not stored separately. Two threads with different statuses have different records.
 
 ## Fork and merge
 
-Threads can fork into sub-threads and merge results back. This is how fan-out works, how task sub-tasks nest, and how federation subscribes per-thread without having to own the parent:
+Threads can fork into sub-threads and merge results back. This is how fan-out works and how sub-tasks nest:
 
 ```
 Parent: th_deploy_v2
@@ -52,59 +50,57 @@ Parent: th_deploy_v2
   └─ KNOW fulfills "deployed"
 ```
 
-A child thread has its own ID. The parent records an INTEND that references the child (`body.sub_thread`), and the reconciler dispatches the work on the child thread. When the child closes, a synthesising record on the parent thread says "child X completed with result Y". The join predicate in the parent INTEND decides when the parent itself should close, `all` (every child), `any` (first accept), `k_of_n`, or an arbitrary CEL expression.
+A child thread has its own ID. The parent has an INTEND that refers to the child (`body.sub_thread`), and the work runs on the child thread. When the child closes, a record on the parent says "child X completed with result Y". A join rule in the parent INTEND decides when the parent closes: `all` (every child), `any` (first accept), `k_of_n`, or a custom expression.
 
-This gives clean audit: the child thread has the full execution trace; the parent thread carries a summary and the result. You can drill in or stay at the summary level depending on what question you're answering.
+The child thread has the full trace and the parent carries a summary and the result, so you can drill in or stay at the summary.
 
 ## Tasks are threads (with conventions)
 
-A task in Syncropel is a thread whose opening INTEND has `body.task = true` and whose body carries alias, assignee, domain, priority, labels, and success criteria. Nothing in the runtime enforces this, `spl task show` recognizes the pattern and presents it as a task.
+A task in Syncropel is a thread whose opening INTEND has `body.task = true` and whose body carries alias, assignee, domain, priority, labels, and success criteria. This is a convention: `spl task show` recognizes the pattern and shows it as a task.
 
 This has three practical consequences:
 
-1. **Every task has a thread with real records.** If you want the ground truth on what a task did and when, read its thread. `spl debug replay TASK-XXXX` walks the records with the status changes annotated.
-2. **Task state can never drift from record state.** There's no status column to get stuck; the status is a pure function of the records on the thread.
-3. **Two sibling threads are two independent tasks.** Forking a thread creates a child task; the parent task status depends on the child's close signals per the join predicate.
+1. **Every task has a thread with real records.** If you want the ground truth on what a task did and when, read its thread. `spl debug replay TASK-XXXX` walks the records with the status changes marked.
+2. **Task state can never drift from record state.** The status always comes from the records on the thread.
+3. **Two sibling threads are two independent tasks.** Forking a thread creates a child task; the parent task's status depends on when the children close, per its join rule.
 
 ## Reserved threads
 
-A handful of thread IDs are reserved because Syncropel uses them to bootstrap itself:
+A few thread IDs are reserved because Syncropel uses them itself:
 
 | Thread | Purpose | Read by |
 |---|---|---|
-| `th_engine_config` | Engine config: routing rules, triggers, CEL policies, auth config. | The engine on every broadcast. |
-| `th_actor_registry` | Registered actors: DID, display name, category, status. | Actor resolution in the router, CEL `record.actor` binding. |
-| `th_namespace_registry` | Namespace hierarchy: ORG / PROJECT / ENV / JOB entries. | The namespace narrowing check at ingest. |
-| `th_instance_registry` | Live fleet: heartbeats, endpoint URLs, capabilities per instance. | Fan-out dispatch target selection. |
-| `th_fleet_control` | Kill switch state: soft / hard / emergency freeze records. | CEL permission rules on every write. |
-| `th_consent` | Cross-namespace consent grants. | The federation consent filter on every sync pull. |
+| `th_engine_config` | Settings: routing rules, triggers, permission rules, auth config. | Your workspace, whenever it changes. |
+| `th_actor_registry` | Registered actors: DID, display name, category, status. | Routing and permission rules. |
+| `th_namespace_registry` | Namespace hierarchy: ORG / PROJECT / ENV / JOB entries. | The namespace check when records are written. |
+| `th_instance_registry` | Your workspaces: heartbeats, addresses and capabilities. | Choosing where fan-out work runs. |
+| `th_fleet_control` | Kill switch state: soft / hard / emergency freeze records. | Permission rules on every write. |
+| `th_consent` | Cross-namespace consent grants. | The consent check on every sync. |
 
-Every one of these is just a thread. Records on them follow the same rules. The runtime treats them specially only in the sense that derived state is eagerly rebuilt when new records land, same reload pattern for all.
+Each of these is an ordinary thread, and its records follow the same rules. Syncropel just reloads them as soon as new records land.
 
 ## Participants and roles
 
-Every actor who writes a record on a thread is a participant. Participation is derived automatically from the record log, no separate participant table. `spl thread show <id>` lists participants with record counts and inferred roles (opener, reviewer, adapter, observer).
+Every actor who writes a record on a thread is a participant. Participation comes automatically from the records. `spl thread show <id>` lists participants with record counts and inferred roles (opener, reviewer, adapter, observer).
 
-Role inference is convention-based, not enforced. The opener is whoever emitted the first INTEND. A reviewer is an actor emitting KNOW with a verdict. An adapter is an actor whose records are paired INTEND/DO/CALL/KNOW with `dispatch_handled = true`. These are worked out on demand; you don't have to maintain a participants list by hand.
+Roles are inferred, not enforced. The opener is whoever wrote the first INTEND. A reviewer is an actor writing a KNOW with a verdict. An adapter is an actor whose records are paired INTEND/DO/CALL/KNOW with `dispatch_handled = true`. You never maintain a participant list by hand.
 
-## Why threads instead of labels or rooms
+## Threads, labels and rooms
 
-The thread is deliberately a single-dimensional construct: a record belongs to *exactly one* thread. No multi-tag, no multi-room. This isn't an oversight, it keeps every thread's state simple and predictable.
+A record belongs to *exactly one* thread. There are no multiple tags or rooms, which keeps each thread simple and predictable.
 
-Categorisation across threads happens through labels (in `body.labels`), through `body.topic`, through namespace (`body.namespace`), and through DID filters (actor). These are query-time dimensions; the thread is the coordination-time dimension.
+To group across threads, use labels (`body.labels`), `body.topic`, namespace (`body.namespace`) or actor filters.
 
 ## When a new thread vs a continuation
 
 Two rules of thumb:
 
-- **New thread when the goal is new.** A new task, a new dispatch, a new deployment, a new federation subscription, each gets its own thread. Thread IDs are cheap; there is no penalty to having many.
-- **Continuation on the same thread when the goal is the same.** Follow-up observations, correction records, the final verdict on a long-running task, these all land on the original thread. Forking into a sub-thread is appropriate when a branch of work is independent enough to need its own close signal.
-
-A typical engineer's weekly footprint is dozens of task threads, a handful of dispatch threads per active task, plus participation in the six reserved threads. All immutable, all auditable, all available to replay on demand.
+- **New thread when the goal is new.** A new task, run, deployment or sync each gets its own thread. There is no penalty to having many.
+- **Continuation on the same thread when the goal is the same.** Follow-up observations, corrections and the final verdict on a long-running task all go on the original thread. Forking into a sub-thread is appropriate when a branch of work is independent enough to need its own close signal.
 
 ## What's next
 
-- **[Records](/docs/concepts/records)**: the unit records attach to.
+- **[Records](/docs/concepts/records)**: what threads are made of.
 - **[Actors](/docs/concepts/actors)**: who writes to threads.
 - **[Trust](/docs/concepts/trust)**: how thread verdicts produce reputation.
 - **[Task management guide](/docs/guides/task-management)**: threads with task conventions, end to end.

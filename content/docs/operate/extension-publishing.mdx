@@ -1,10 +1,10 @@
 ---
 title: Publishing an Extension
-description: How to ship a Syncropel iframe extension today — naming, hosting, capability declarations, security expectations, versioning. What is available now.
+description: "How to ship a Syncropel iframe extension: naming, hosting, capability declarations, security expectations and versioning."
 ---
 
 <Callout type="info">
-Today, Syncropel extensions are **published as static URLs** that hosts opt into. There is no central registry. This page documents the discipline you should follow so your extension behaves predictably across hosts, and the migration path when a registry ships.
+Syncropel extensions are **published as static URLs** that hosts opt into. There is no central registry. This page describes what to follow so your extension behaves predictably across hosts.
 </Callout>
 
 ## What's covered
@@ -16,7 +16,7 @@ Today, Syncropel extensions are **published as static URLs** that hosts opt into
 | [Capability manifest](#capability-manifest) | What your extension declares it needs and why |
 | [Security expectations](#security-expectations) | The contract you keep with hosts that embed you |
 | [Versioning](#versioning) | Semver, record-shape compatibility, and how aliases handle breaking renames |
-| [Discovery](#discovery-today-and-tomorrow) | Opt-in URLs. |
+| [Discovery](#discovery) | Opt-in URLs. |
 
 ## Naming conventions
 
@@ -25,7 +25,7 @@ Your extension's identity has two parts:
 1. A **publisher domain** that you control (e.g., `acme.com`, `tools.example.org`)
 2. An **extension name** scoped underneath it (e.g., `inbox`, `dj-deck`, `inspector`)
 
-Combined as `domain.tld.extension-name` (reverse DNS), this gives you a globally unique extension identifier and a natural pre-claim on the matching `body.kind` scope. So:
+Combined as `domain.tld.extension-name` (reverse DNS), this gives you a globally unique extension identifier and a natural claim on the matching `body.kind` scope. So:
 
 - Publisher: `acme.com`
 - Extension: `inbox`
@@ -95,7 +95,7 @@ Field meanings:
 
 | Field | Required | Notes |
 |---|---|---|
-| `syncropel_extension` | yes | Manifest schema version. Today: `"0.1"`. |
+| `syncropel_extension` | yes | Manifest schema version. Use `"0.1"`. |
 | `id` | yes | Reverse-DNS identifier. Must match your publisher domain. |
 | `name` | yes | Human-readable name shown in host chrome. |
 | `version` | yes | Semver. Bump per the rules in [Versioning](#versioning). |
@@ -164,7 +164,7 @@ Use **semver** (`MAJOR.MINOR.PATCH`) and treat the **record shapes you emit** as
 
 ### Renames are coherence events
 
-If you rename a `body.kind`, ship a `core.alias` record alongside the bump. That tells the protocol layer that the old kind and the new kind refer to the same logical entity, so historical records stay queryable. The SDK helper:
+If you rename a `body.kind`, ship a `core.alias` record alongside the bump. That tells Syncropel that the old kind and the new kind refer to the same logical entity, so historical records stay queryable. The SDK helper:
 
 ```typescript
 await client.emitAlias({
@@ -177,9 +177,7 @@ await client.emitAlias({
 
 Hosts and downstream consumers can look up aliases when joining records. See the [TypeScript SDK guide](/docs/guides/typescript-sdk#reserved-kind-helpers) for the full reserved-kind set.
 
-## Discovery: today and tomorrow
-
-### Today — opt-in URLs
+## Discovery
 
 There is no central registry. Hosts add your extension by URL:
 
@@ -209,4 +207,4 @@ Before announcing your extension to anyone:
 - **Build the extension** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) walks the build + deploy flow.
 - **Embed it in your own product** — [Iframe host snippet](/docs/reference/iframe-host-snippet) is a vanilla-JS reference host you can adapt.
 - **Deeper SDK reference** — [Extensions SDK guide](/docs/guides/extensions) covers every message kind, validator rule, and capability.
-- **Permission policy** — [CEL expressions guide](/docs/guides/cel-expressions) covers what record writes the engine will accept regardless of what an extension asks for.
+- **Permission policy** — [CEL expressions guide](/docs/guides/cel-expressions) covers what record writes will be accepted regardless of what an extension asks for.

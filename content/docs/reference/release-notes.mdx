@@ -1,11 +1,11 @@
 ---
 title: "Release Notes"
-description: "A plain-language summary of recent Syncropel releases: intelligent task tooling, mechanism-independent intelligence, and a friction-free local start. Newest first."
+description: "A plain-language summary of Syncropel releases, newest first."
 ---
 
 ## Overview
 
-This page summarizes recent releases in plain language: what changed and why it matters for using Syncropel day to day.
+This page summarizes releases in plain language: what changed and why it matters for using Syncropel day to day.
 
 ---
 
@@ -29,7 +29,7 @@ This page summarizes recent releases in plain language: what changed and why it 
   - A record count that takes too long is `read.total: null` with `read.total_at_least`. Send `"total": "skip"` to skip counting.
   - Refusals: `503 READ_BUDGET_EXCEEDED`, `429 READ_IN_FLIGHT`, `409 READ_STOPPED_BY_ERASE`, `400 QUERY_FIELD_NOT_READABLE`, `403 SITE_THREAD_KERNEL_ONLY`.
   - An anonymous `/health` shows only the write-back state. Send the owner's bearer, or read through the socket, for the detail.
-  - Threads whose names start with `th_site_` are managed by Syncropel. A client write there is refused.
+  - Threads whose names start with `th_site_` are managed by Syncropel. Writing to one is refused.
 - **Known limits.**
   - Files uploaded long ago have no recorded writer. Save one again to publish it.
   - Restore a saved copy with the same or a newer version than the one that made it. An older version brings other people's sealed items back as gaps, and restoring again with a newer version fills them.
@@ -55,7 +55,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **A guest can ask to be erased.** A guest can ask, from the link they hold, to have what they wrote erased. The owner answers with Erase or Don't erase, and the guest can see what happened. It's off unless it's turned on. On your own machine, the owner turns it on. On a hosted workspace it stays off, because the Privacy section that describes it isn't published.
 - **Guardians are checked before they're added.** Your guardian reads you a short check from their own screen, and you type it in. They're added only if it matches, so a stranger who got hold of the invite can't take their place. It's on the command line. The browser doesn't offer guardians.
 - **For the command line and the API.**
-  - A request with a field a door doesn't take is refused, naming the field, instead of being quietly ignored.
+  - A request with a field the endpoint doesn't accept is refused, naming the field, instead of being quietly ignored.
 
 ---
 
@@ -134,7 +134,7 @@ This page summarizes recent releases in plain language: what changed and why it 
   - A request option a page doesn't use is now refused by name instead of being quietly ignored.
   - With `--json`, a command that fails always prints one JSON result describing the failure.
 - **Known.**
-  - A field marked for a group, for example `board` or `staff`, isn't yet hidden from other readers on its own. Who can read a record is still decided by the conversation or list it's in, so keep sensitive records where only that group can see them.
+  - A field marked for a group, for example `board` or `staff`, isn't hidden from other readers on its own. Who can read a record is still decided by the conversation or list it's in, so keep sensitive records where only that group can see them.
 
 ## From Your Browser
 
@@ -228,13 +228,13 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Invites say where they lead.** An invite now names the conversation it opens instead of showing a code.
 - **A copy of what you wrote.** Members and guests can take a copy of everything they wrote in a workspace, including what's sealed to them, and see what the organization keeps about them.
 - **Keeping only what the law requires.** When someone asks to be erased, a company can keep the records a law requires it to keep, and only those. The person is told what was kept, why, and until when. Everything else is hidden at once, from the owner too, and erased when the last kept record's period ends.
-- **Older key copies stop holding erased words.** After an erasure, older backups of your keys are re-sealed so they can't unlock what was erased. If some can't be re-sealed yet, your workspace says which ones and what to do.
+- **Older key copies stop holding erased words.** After an erasure, older backups of your keys are re-sealed so they can't unlock what was erased. If some can't be re-sealed, your workspace says which ones and what to do.
 - **A workspace has a lasting ID.** Every workspace now has an ID that stays the same through restarts and moves. A copy gets its own.
 - **Faster upgrades.** A workspace answers requests before its startup backup finishes, so a large workspace is back in seconds instead of minutes.
 - **Known.**
   - The first time a row's details are opened, they can take up to about a second.
   - A retraction hides an item from view. It does not erase it.
-  - Records kept for legal reasons can be read by named people, but not yet by a role such as "the treasurer".
+  - Records kept for legal reasons can be read by named people, but not by a role such as "the treasurer".
 
 ## Who Can See What
 
@@ -250,7 +250,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Erased stays erased.** Restoring from your backups no longer brings an erased person back: a backup that doesn't carry the list of erased people is refused. You can also preview what an erasure would remove before doing it.
 - **Only what a guest may see.** A guest can no longer read summaries built from the whole workspace, and a coded identifier that could link one person across workspaces is no longer shown to anyone but the owner.
 - **Known.**
-  - Erasing someone removes what was sealed to them and every copy made from it. It does not yet remove plain items they wrote before sealing existed.
+  - Erasing someone removes what was sealed to them and every copy made from it. It does not remove plain items they wrote before sealing existed.
   - A guest's messages are not searchable, because they are sealed.
 
 ## What A Guest Can Reach
@@ -297,7 +297,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Nothing is dropped under load.** If your workspace is busy, it asks the sender to wait and try again, and keeps every item. A workspace that had fallen behind catches up on its own; older items are brought up to date without re-running anything they already did.
 - **Stopping and revoking take effect at once.** Stopping an assistant, taking someone's access away, or erasing someone takes effect before you're told it's done, however busy the workspace is.
 - **Sending the same file twice adds nothing**, including names with accented letters, which could previously be added a second time.
-- **Tables show only what is current.** A table no longer counts items that were closed or replaced, so some counts may be lower than before. A table that asks for a setting the workspace does not support yet, such as sorting, is told so by name instead of the setting being quietly ignored.
+- **Tables show only what is current.** A table no longer counts items that were closed or replaced, so some counts may be lower than before. A table that asks for a setting the workspace does not support, such as sorting, is told so by name instead of the setting being quietly ignored.
 - **Tables open faster**, especially when you look at the same one again.
 - **Only you can change what your forms offer.** The forms a venture shows can now be set up only by the workspace's owner.
 - **The "files not saved" warning tells the truth.** It appears only when a file really is missing, and dismissing it sticks.
@@ -325,7 +325,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Large tables count everything.** A table built from a conversation with more than a thousand items used to read only the first thousand, so its totals could come out as zero. It now reads the whole conversation.
 - **A new assistant works from its first message.** For a moment after you added or changed an assistant, a message could reach a generic stand-in instead. The change now takes effect before the workspace says it is done.
 - **Renewing a device key keeps its end date.** Renewing a device's key used to reset how long it lasted. It now keeps the original end date, so a key cannot be renewed forever. An owner's device can renew its key and keep the owner's rights, with a one-minute overlap so nothing is cut off mid-task.
-- **Groundwork for email you can control.** The workspace can now prepare a short notice when a decision is waiting for you, and you can mute a conversation you do not want to hear about. Nothing is emailed yet: sending starts only once it is switched on for your workspace, and each notice contains no content from your workspace, only a link back to it.
+- **Notices you can control.** The workspace can prepare a short notice when a decision is waiting for you, and you can mute a conversation you do not want to hear about. Nothing is emailed unless it is switched on for your workspace, and each notice contains no content from your workspace, only a link back to it.
 - **Small improvements.** `spl --version` now shows exactly which build you are running. A scheduled task that runs on nobody's behalf is flagged by `spl doctor`, and the workspace shows when your saved secrets were last backed up.
 
 ## What Stays Yours
@@ -369,7 +369,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Shared rooms agree about who is in them.** You can now remove someone you invited to a room by link or by address. The members list shows when someone has left or been removed, and the assistant no longer talks about people who have gone. Each person has one name everywhere, and a name someone chose for themselves is kept.
 - **Copies say what they hold.** `spl export` and `spl import` now say whether a copy contains your workspace's private key or saved credentials, and warn you when it does. An import tells you which identity your workspace uses afterwards, and names every record it skipped and why.
 - **Recovery advice is safe.** When the workspace cannot start, it no longer suggests deleting files that can hold your recent work. A damaged store is named as damaged and points you to the restore guide. `spl reset` works for workspaces on any port.
-- **Tighter checks at the door.** Open live connections end as soon as the key they use is revoked. A signature on a record must be genuine to be accepted. The workspace's public startup information no longer shows the owner's identity to people who are not signed in as the owner. Invitations refuse settings they do not understand instead of quietly ignoring them.
+- **Tighter sign-in checks.** Open live connections end as soon as the key they use is revoked. A signature on a record must be genuine to be accepted. The workspace's public startup information no longer shows the owner's identity to people who are not signed in as the owner. Invitations refuse settings they do not understand instead of quietly ignoring them.
 - **Hosted workspaces cost less per conversation.** Hosted workspaces now reuse the parts of a conversation that repeat between steps, so each later step costs a fraction of the first.
 - **"Got it" only appears when you can use it.** A notice now offers "Got it" only on a device that is allowed to dismiss it. A device paired a long time ago is asked to pair again instead.
 
@@ -431,7 +431,7 @@ This page summarizes recent releases in plain language: what changed and why it 
   a name.
 - **Leaving a workspace.** You could already remove your own membership, and nothing told you so.
   Your workspace now tells a device who it is signed in as, which is what a screen needs before it
-  can offer you the door.
+  can offer you the option.
 - **A workspace can no longer be pointed at the wrong storage by accident.** If a workspace was
   never told where to keep its saved copy, it used to guess, and the guess named real shared
   storage. It now says it has not been told, and a workspace with no storage configured starts
@@ -568,8 +568,8 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 - **It keeps saving through every sleep and restart.** If a hosted workspace cannot save when it
   wakes, it tries again on its own within a minute instead of waiting for a restart, and its first
-  request after waking no longer fails. Files stored in a workspace are not part of its saved copy
-  yet, and the workspace now says so.
+  request after waking no longer fails. Files stored in a workspace are not part of its saved copy,
+  and the workspace says so.
 - **Scheduled work and sleep.** Schedules run while a hosted workspace is awake.
 - **Your plan's limits hold everywhere.** Every run on a hosted workspace with a plan, scheduled
   ones included, follows that plan's limits, and those limits cannot be raised by writing
@@ -798,7 +798,7 @@ records that one thing was preferred over another and what differed, the
 smallest signal there is about what you value.
 
 See [Blueprints](/docs/concepts/blueprints#blueprints-that-deploy-an-actor)
-and [Actors](/docs/concepts/actors#the-words-an-actor-runs-under).
+and [Actors](/docs/concepts/actors#the-instructions-an-actor-runs-under).
 
 ---
 

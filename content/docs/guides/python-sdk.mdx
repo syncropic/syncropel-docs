@@ -1,6 +1,6 @@
 ---
 title: Python SDK
-description: Integrate with Syncropel from Python — emit records, query threads, enforce grammar, fail open on transport errors.
+description: "Use Syncropel from Python: add records, query threads, and keep your app running through network errors."
 ---
 
 ## Install
@@ -13,7 +13,7 @@ Python 3.10+. Single runtime dependency (`httpx`).
 
 ## Hello, Syncropel
 
-Start a Syncropel instance locally (`spl serve`), then:
+Start a workspace locally (`spl serve`), then:
 
 ```python
 import asyncio
@@ -36,17 +36,17 @@ async def main():
 asyncio.run(main())
 ```
 
-One call validates the `body.kind` grammar, builds the 8-field record envelope, retries on transient 5xx and network errors, and resolves cleanly on transport failures — so a flaky network never crashes your handler.
+One call validates the `body.kind` grammar, builds the record, retries on temporary server and network errors, and returns a result instead of raising on network failures, so a flaky network never crashes your handler.
 
 ## What you get
 
 - **Async client** — `emit`, `query`, `query_thread`, `intend`, `fulfill`, plus reserved-kind helpers
 - **Sync helper** — `emit_sync()` for scripts and CLIs without an event loop
-- **Grammar enforcement** — `body.kind` validated client-side before any network call
-- **Canonical references** — built-in constructors for cross-publisher correlation (music tracks, code files, incidents, calendar events, and more)
-- **Fail-open transport** — every emit returns a result; transport errors never raise
+- **Kind checking**: `body.kind` is validated before any network call
+- **Shared references**: built-in constructors that let records from different apps point at the same thing (music tracks, code files, incidents, calendar events, and more)
+- **No crashes on network errors**: every emit returns a result; network errors never raise
 - **Identity-aware** — records are signed with the configured DID
-- **In-memory `MockKernel`** at `syncropel.testing` — write adapter tests without running an instance
+- **Test helper**: `MockKernel` in `syncropel.testing` lets you write tests without running a workspace
 
 ## Core API
 
@@ -55,12 +55,12 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 | Method | Purpose |
 |---|---|
 | `emit(act, kind, body, thread, refs=, parents=, data_type=, clock=)` | Primary emit. Validates, envelopes, retries. Returns `EmitResult`. Never raises on transport failures. |
-| `emit_sync(...)` | Synchronous variant. Persistent `httpx.Client` across calls amortises TCP keep-alive for bulk emits. |
+| `emit_sync(...)` | Synchronous variant. Persistent `httpx.Client` across calls reuses one connection for bulk emits. |
 | `intend(goal, thread=, ...)` | Open a thread with an `INTEND` record. Generates a random thread ID if none supplied. |
 | `fulfill(thread, summary, fulfills=, ...)` | Close a thread with a `KNOW` record. `fulfills` accepts one record ID or a list. |
-| `query_thread(thread, limit=100, since=None)` | All records in a thread. Fail-open (returns `[]` on transport error). |
+| `query_thread(thread, limit=100, since=None)` | All records in a thread. Returns `[]` on a network error. |
 | `query(kind=, actor=, thread=, since=, limit=100, where=None)` | Filtered records. At least one of `kind`/`actor`/`thread` is required. |
-| `health()` | Server health probe. Fail-open (returns `{}` on failure). |
+| `health()` | Checks the server's health. Returns `{}` on failure. |
 | `close()` | Release the underlying HTTP client. |
 
 **Constructor kwargs:** `endpoint` (required), `identity` (required), `timeout=30.0`, `max_retries=2`, `backoff_ms=250.0`, `on_emit=None`, `api_key=None` (bearer token for authenticated instances), `transport=None` (custom `httpx` transport for tests).
@@ -69,13 +69,13 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 
 ```python
 Identity.static("did:example:my-app")     # Supported
-Identity.key(path_or_bytes)                # Not available yet
-Identity.federated(...)                    # Not available yet
+Identity.key(path_or_bytes)                # Not supported
+Identity.federated(...)                    # Not supported
 ```
 
 ### Reserved-kind helpers
 
-For records that participate in the protocol's coherence story:
+For records that correct, erase or rename earlier ones:
 
 ```python
 await client.emit_correction(
@@ -99,11 +99,11 @@ await client.emit_alias(
 )
 ```
 
-Each helper maps to a reserved `core.*` kind and enforces the appropriate body shape.
+Each helper uses a reserved `core.*` kind and checks that the body has the right shape.
 
 ### Canonical references (`Ref`)
 
-Canonical refs let records about the same real-world entity correlate across apps and publishers:
+References let records about the same real-world thing match up across apps:
 
 ```python
 Ref.music_track(isrc="USJI19810404")            # → @music.track
@@ -114,11 +114,11 @@ Ref.cal_event(uid="abc@google.com")             # → @cal.event
 Ref.social_person(email="alice@example.com")   # → @social.person
 ```
 
-Eleven categories total — full list in the inline help: `help(Ref)`.
+There are eleven categories. See the full list with `help(Ref)`.
 
 ## Authenticating to a remote instance
 
-When the Syncropel instance has bearer-token auth enabled, pass the token via `api_key`:
+When the workspace requires sign-in, pass the token via `api_key`:
 
 ```python
 import os
@@ -156,11 +156,11 @@ print(result.success, result.record_id)
 client.close()
 ```
 
-`emit_sync()` uses a persistent `httpx.Client` across calls, so bulk emits share a TCP connection.
+`emit_sync()` reuses one connection across calls, so bulk emits are faster.
 
 ## Inference — `client.infer()`
 
-`client.infer()` emits an `infer.query.v1` INTEND and (by default) polls until the KNOW lands. The full query anatomy lives in the [Inference guide](/docs/guides/inference/query-anatomy); this section is the SDK surface.
+`client.infer()` sends an inference request and, by default, waits for the answer. The full query anatomy lives in the [Inference guide](/docs/guides/inference/query-anatomy); this section covers the SDK.
 
 ```python
 from syncropel import Client
@@ -183,11 +183,11 @@ print(f"Trust: {result.trust_summary['mean']:.2f}")
 print(f"Cost: ${result.cost_actual_usd:.4f}")
 ```
 
-The request dict mirrors the schema field-for-field. See [Query Anatomy](/docs/guides/inference/query-anatomy) for every field.
+The request dict has the same fields as the query. See [Query Anatomy](/docs/guides/inference/query-anatomy) for every field.
 
 ### Fire-and-forget
 
-Pass `InferOptions(wait=False)` to emit the INTEND and return immediately:
+Pass `InferOptions(wait=False)` to send the request and return immediately:
 
 ```python
 from syncropel import InferOptions
@@ -196,7 +196,7 @@ pending = await client.infer(request, InferOptions(wait=False))
 print(pending.correlation_id, pending.thread_id)
 ```
 
-You get back `InferPending` with `pending=True`, `correlation_id`, and `thread_id`. Poll the thread yourself or subscribe for the KNOW.
+You get back `InferPending` with `pending=True`, `correlation_id`, and `thread_id`. Check the thread yourself, or subscribe, to get the answer.
 
 ### Options
 
@@ -224,19 +224,19 @@ class InferResult:
     thread_id: str
 ```
 
-### Error handling — fail-hard (not fail-open)
+### Error handling
 
-Unlike `client.emit()`, `client.infer()` **fails hard**:
+Unlike `client.emit()`, which never raises on network errors, `client.infer()` **raises on failure**:
 
 - Invalid request shape raises `ValueError` / `TypeError` before any HTTP call.
-- Network or instance error on INTEND emission raises `RuntimeError`.
+- A network or workspace error when sending the request raises `RuntimeError`.
 - Poll timeout raises `TimeoutError`.
 
-Catch timeouts explicitly if you want the thread id preserved for manual polling.
+Catch timeouts explicitly if you want to keep the thread ID and check it yourself.
 
-## Testing without an instance
+## Testing without a workspace
 
-Use `MockKernel` to write unit tests against the SDK's interface without running `spl serve`:
+Use `MockKernel` to write unit tests without running `spl serve`:
 
 ```python
 from syncropel import Client, Identity
@@ -262,7 +262,7 @@ def test_my_adapter():
 
 ## What's next
 
-- [Records concept](/docs/concepts/records) — the 8-field envelope and why it's content-addressed
+- [Records concept](/docs/concepts/records) — what a record contains
 - [Threads concept](/docs/concepts/threads) — how records group into workflows
-- [Authentication & Service Accounts](/docs/operate/keyring) — securing the instance your Python code talks to
+- [Authentication & Service Accounts](/docs/operate/keyring) — securing the workspace your Python code talks to
 - [Agent integration guide](/docs/guides/agent-integration) — use the SDK inside an AI agent

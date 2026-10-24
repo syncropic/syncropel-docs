@@ -1,6 +1,6 @@
 ---
 title: Your First Multi-Namespace Setup
-description: Walk through setting up two isolated environments under one ORG, writing records into each, and verifying the narrowing rule in action — about 15 minutes.
+description: Walk through setting up two isolated environments under one ORG, writing records into each, and checking that a child namespace can only narrow its parent. About 15 minutes.
 ---
 
 ## What you'll learn
@@ -16,9 +16,9 @@ By the end of this tutorial you'll have:
 
 You'll need: a running `spl serve` (the [Quickstart](/docs/start) covers this), and `curl`. About 15 minutes.
 
-If you skipped the [Namespaces concept](/docs/concepts/namespaces) page, read the first three sections first — they explain the WHY this tutorial demonstrates.
+If you skipped the [Namespaces concept](/docs/concepts/namespaces) page, read the first three sections first — they explain the reasoning this tutorial demonstrates.
 
-## Step 1: confirm the instance is healthy
+## Step 1: confirm your workspace is healthy
 
 ```bash
 spl doctor
@@ -56,7 +56,7 @@ error: parent namespace 'tutorial/web' does not exist or is not Active.
     spl namespace create tutorial/web
 ```
 
-This is the parent-validation pre-flight. The CLI catches the orphan attempt before any record is written.
+The CLI checks the parent first, so it catches this before anything is saved.
 
 ## Step 3: walk down the tree
 
@@ -186,7 +186,7 @@ You should get a 403 with a helpful error message:
 }
 ```
 
-The error tells you exactly what's wrong AND how to fix it. This is the [monotonic narrowing rule](/docs/concepts/namespaces#the-narrowing-rule) in action — the instance walked the ancestor chain, hit `fake-corp`, found it missing from the registry, and refused the write.
+The error tells you exactly what's wrong AND how to fix it. This is the [narrowing rule](/docs/concepts/namespaces#the-narrowing-rule) in action: Syncropel checked each ancestor, found `fake-corp` missing, and refused the write.
 
 ## Step 6: try cross-environment escalation
 
@@ -216,7 +216,7 @@ curl -X POST http://localhost:9100/v1/records \
 }
 ```
 
-This is important: **a parent namespace doesn't auto-grant access to its descendants**. Just because `tutorial/web/staging` is Active doesn't mean any child namespace under it is automatically allowed. Each namespace must be explicitly created. This is what makes the registry a real isolation boundary instead of a glob pattern.
+This is important: **a parent namespace doesn't auto-grant access to its descendants**. Just because `tutorial/web/staging` is Active doesn't mean any child namespace under it is automatically allowed. Each namespace must be explicitly created. This makes namespaces a real boundary instead of a wildcard.
 
 To allow `job-99`, create it:
 
@@ -311,7 +311,7 @@ namespace 'tutorial/web/staging' already exists and is Active — overriding
 ✓ namespace 'tutorial/web/staging' → active
 ```
 
-The CLI tells you it's overriding the prior state (which was Archived). The latest record per namespace ID wins, so the new Active LEARN supersedes the Archived one.
+The CLI tells you it's overriding the prior state (which was Archived). The latest record for each namespace wins, so the new Active one replaces the Archived one.
 
 Note: re-activating the parent does NOT re-activate descendants. If you also archive `tutorial/web/staging/job-99` and want it back, you have to re-create it separately:
 
@@ -340,7 +340,7 @@ spl debug replay th_tutorial_staging
   Final status: active (2 records)
 ```
 
-The replay walks the records in clock order and shows the derived status after each one. The `→` arrow marks status transitions.
+The replay walks the records in order and shows the status after each one. The `→` arrow marks status changes.
 
 ## Step 10: clean up
 
@@ -364,25 +364,25 @@ spl namespace delete tutorial/web
 spl namespace delete tutorial
 ```
 
-The records you wrote during the tutorial (in `th_tutorial_staging`, `th_tutorial_prod`, etc.) remain in the store as part of the immutable record log. Threads aren't deleted by archiving namespaces — namespaces gate write access, not data retention.
+The records you wrote during the tutorial (in `th_tutorial_staging`, `th_tutorial_prod`, etc.) remain in your workspace. Archiving a namespace stops new writes but does not delete anything.
 
 ## What you learned
 
 Going through this tutorial you've exercised:
 
-1. **Parent validation** — children require an Active parent (catches typos, prevents typing-mistake escalation)
-2. **Explicit namespace registration** — descendants don't inherit access automatically (real isolation, not glob patterns)
-3. **Clear error messages** — every rejection names the failing ancestor and includes the recovery command
-4. **Lifecycle cascade** — archiving a parent stops writes to every descendant immediately
-5. **Sibling isolation** — archiving one ENV doesn't touch siblings
-6. **Re-activation by re-create** — last-write-wins semantics, with the CLI flagging overrides
-7. **Read-only inspection** — `spl namespace show` walks ancestor chains, `spl debug replay` walks records
+1. **Parent check.** A child needs an Active parent, which catches typos.
+2. **Explicit creation.** Descendants don't get access automatically.
+3. **Clear errors.** Every rejection names the failing ancestor and the command to fix it.
+4. **Cascade.** Archiving a parent stops writes to everything under it immediately.
+5. **Isolation between siblings.** Archiving one environment doesn't touch the others.
+6. **Re-activation.** Re-creating a namespace brings it back, and the CLI tells you it is overriding.
+7. **Inspection.** `spl namespace show` shows the ancestors and `spl debug replay` shows the records.
 
-These are the building blocks of a production multi-tenant deployment. For real setups, see the [Namespaces guide](/docs/guides/namespaces) which covers CEL rules scoped to namespaces, the operational checklist before turning on enforcement, and recovery procedures.
+For real setups, see the [Namespaces guide](/docs/guides/namespaces), which covers rules scoped to namespaces, a checklist before turning on enforcement, and recovery.
 
 ## Next steps
 
-- **[Namespaces guide](/docs/guides/namespaces)** — production-grade setup, CEL rules, recovery procedures
-- **[Namespaces concept](/docs/concepts/namespaces)** — the WHY behind the design
-- **[CEL Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now)** — `current_namespace()` for scoped permission rules
-- **[Debugging guide](/docs/guides/debugging)** — when something doesn't work, this is the order to reach for tools
+- **[Namespaces guide](/docs/guides/namespaces)** — a full setup, rules and recovery
+- **[Namespaces concept](/docs/concepts/namespaces)** — why namespaces work this way
+- **[Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now)** — `current_namespace()` for scoped permission rules
+- **[Debugging guide](/docs/guides/debugging)** — which tools to try first when something doesn't work

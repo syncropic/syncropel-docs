@@ -1,19 +1,19 @@
 ---
 title: The three shapes
-description: The Studio is not a hundred screens with a hundred layouts. It is built live from your records, and exactly three shapes cross between you and it. A sentence you complete, a ledger you read, and an address that says where you are.
+description: "The Studio is built from your records and has exactly three shapes: a sentence you complete, a ledger you read, and an address that says where you are."
 ---
 
 ## Overview
 
-Everything in Syncropel is a [record](/docs/concepts/records), and the state of anything is worked out from those records. The Studio, the web surface you open at your instance, is the same idea made visible. It does not store a separate copy of your screens. It builds what you see from your records, live, every time.
+Everything in Syncropel is a [record](/docs/concepts/records). The Studio, the web app you open for your workspace, builds what you see from your records every time. It does not keep a separate copy of your screens.
 
-Because of that, the whole surface is only **three shapes**. Learn these three and you have learned the Studio, because nothing else is on it:
+So the whole Studio is only **three shapes**. Learn these and you have learned the Studio:
 
 - A **sentence** is an act with holes. It is the only way anything is written.
 - A **ledger** is a list of rows with actions. It is how you read what is there.
 - An **address** is where you are, and you can type it. It is how you move, cite, and share.
 
-If you are importing from elsewhere: a sentence is a command line that shows you its blanks, a ledger is a spreadsheet that knows what its rows can do, and an address is a URL that means something. What is unusual is that these three are *all there is*. There is no fourth kind of screen to learn.
+A sentence is like a command line that shows you its blanks. A ledger is like a spreadsheet that knows what its rows can do. An address is like a URL that means something. There is no fourth kind of screen to learn.
 
 ## The sentence: how you write
 
@@ -25,7 +25,7 @@ invite  @who?  as  a guest  for  how long?  to  [[ the night ]]
 
 Each hole knows what can fill it. The `@who?` hole offers people, the `for` hole understands "a week" or "3 days", and the `[[ ]]` hole offers threads. You fill the holes, and the surface shows you, in plain words, exactly what the act will do before you commit it. Nothing is written until you send.
 
-This is the **one write path**. There is no other way to change anything: no hidden buttons that mutate state, no forms behind menus. If something can be done, it is a sentence, and you can reach it the same way every time.
+This is the **only way to write**. There are no hidden buttons or forms behind menus. If something can be done, it is a sentence.
 
 The lexicon is small. Five marks start a hole or an act:
 
@@ -39,14 +39,14 @@ The lexicon is small. Five marks start a hole or an act:
 
 ## The ledger: how you read
 
-A ledger is a table built from your records, not stored. It has columns, rows grouped into sections, a one-line summary, and, the part that makes it more than a table, **verbs on its rows**. A row in an invites ledger can be revoked. A row in a files ledger can be opened or replaced. The ledger does not just show you the data. It shows you what you can do to each row, and it offers a verb only when it can actually be satisfied.
+A ledger is a table built from your records. It has columns, rows grouped into sections, a one-line summary, and **actions on its rows**. A row in an invites ledger can be revoked. A row in a files ledger can be opened or replaced. It shows you what you can do to each row, and offers an action only when it can actually be done.
 
 Two rules make a ledger trustworthy:
 
-- **Every count is honest about whether it is whole.** A ledger built from the records loaded so far will say so. A count that might be short prints with a `+` (`5+ coming`) rather than pretending to be final. When a count comes from a door that knows the whole set, the `+` disappears.
-- **A proposal never renders as settled.** A value someone suggested but you have not agreed to is drawn as a proposal, visibly different from a fact. Reading never looks like deciding.
+- **Every count tells you whether it is complete.** A count that might be short shows a `+` (`5+ coming`) instead of pretending to be final. When the full set is known, the `+` disappears.
+- **A proposal never renders as settled.** A value someone suggested but you have not agreed to looks different from a fact.
 
-The places down the left of the Studio, your call, everything, files, the people, a venture's nights, are ledgers too, one level up: the same shape over what the whole instance holds, rather than over one thread.
+The places down the left of the Studio (your call, everything, files, the people) are ledgers too, covering the whole workspace instead of one thread.
 
 ## The address: where you are
 
@@ -62,7 +62,7 @@ place  ›  thread  ›  view   @moment   as guest
 - **`@moment`** appears only when you are looking at a past moment rather than now.
 - **`as guest`** appears when you are previewing the surface as someone else would see it. See [previewing as a guest](#previewing-as-a-guest).
 
-Because the address is a value, it is the unit of **citation** and of **sharing**. A saved view round-trips: copy the address, send it, and the person who opens it lands exactly where you were. A public link is a *different* address grammar on purpose. What you hand to a stranger is not the address of the room you stand in.
+Because the address is a real value, you can use it to **cite** and **share**. Copy the address, send it, and the person who opens it lands exactly where you were. A public link is a different kind of address on purpose, so what you hand to a stranger is not the address of the room you are in.
 
 ## The loop, and that it closes
 
@@ -73,17 +73,17 @@ The three shapes are not three separate features. They are one loop:
 3. You complete and send it, and a record is written.
 4. The ledger **updates** with the new record, and you are reading again.
 
-Every action in the Studio is a lap of that loop, and the address is the coordinate you are at while you run it. Nothing is ever said twice: the same fact does not appear in two places wearing two names, because everything you see is derived from one log.
+Every action in the Studio is one lap of that loop, and the address is where you are while you do it. The same fact never appears in two places under two names.
 
 ## Previewing as a guest
 
 Before you share a thread, you can look at it the way the person you share with will. Open a thread you can share and choose **see it as a guest**. The page narrows to exactly what a guest link discloses: only the records that link admits, rendered through the guest's own read-only view. A banner says you are looking, not editing. Nothing there is yours to change while you preview, and **stop** returns you to your own view.
 
-It is not a mock. The preview shows the guest's real view over a copy of your own records, limited to what a guest can see, so what you see is genuinely what they get, both the data and the frame around it. Look before you share, instead of guessing.
+It is not a mock-up. The preview shows what a guest will actually get, both the records and the screen around them. Look before you share.
 
 ## Where to go next
 
-- [Records](/docs/concepts/records): the eight-field primitive everything is built from.
+- [Records](/docs/concepts/records): what everything is built from.
 - [Threads](/docs/concepts/threads): the context a sentence writes to and a ledger reads.
 - [Principals and grants](/docs/concepts/principals-and-grants): who a guest link admits, and to what.
 - [The Studio in five minutes](/docs/tutorials/the-studio): the three shapes, in your hands.

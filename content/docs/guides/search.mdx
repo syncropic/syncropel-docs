@@ -1,13 +1,13 @@
 ---
 title: Semantic Search
-description: Free-text search over the record log. Embeds the query through a configured provider, ranks records by cosine similarity, and returns the top K. Envelope filters (thread, actor, kind) narrow the result after ranking so near-misses don't crowd out the best answer.
+description: Search records by meaning, not exact words. Describe what you are looking for and get the closest records, optionally narrowed by thread, actor or kind.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
 ## Overview
 
-Semantic search answers the question _"give me records that mean something like X"_, where X is free-text and "means like" is cosine similarity in an embedding space. It complements two siblings: [Find](./find) is the right tool when you know words that actually appear in the thing (names, phrases, identifiers, and it needs no setup); [Query](./query) is the right tool when you know the shape of what you want (`body.kind`, `body.priority`, exact thread). Semantic search is the right tool when you only know the _idea_ and want records nearby that idea regardless of surface form.
+Semantic search answers the question _"give me records that mean something like X"_, where X is free text. It sits alongside two other tools: use [Find](./find) when you know words that actually appear in the record (names, phrases, identifiers; it needs no setup), and [Query](./query) when you know the shape of what you want (`body.kind`, `body.priority`, an exact thread). Use semantic search when you only know the _idea_ and want records about it, however they are worded.
 
 Three entry points:
 
@@ -15,28 +15,28 @@ Three entry points:
 - **HTTP**: `POST /v1/records/search` with a JSON body
 - **SDK**: `client.search({ query })` (TypeScript) or `await client.search(query)` (Python)
 
-All three talk to the same embedding provider: configured once per workspace, used by every search. The **Ollama** provider (local, zero-cost) is the supported provider; hosted providers are not available yet. If you just need text search and don't want to configure a provider, use [Find](./find): it works everywhere with zero setup.
+All three use the same embedding provider, which you configure once per workspace. The supported provider is **Ollama**, which runs locally at no cost. If you just need text search and don't want to configure a provider, use [Find](./find): it works everywhere with zero setup.
 
 ## Prerequisites: configure an embedding provider
 
 Semantic search is off by default. Before any search works, configure a provider:
 
 ```bash
-# One-time setup: installs nothing; requires an Ollama instance already running.
+# One-time setup: installs nothing; requires Ollama to already be running.
 spl config embedding-provider set ollama \
   --endpoint http://localhost:11434 \
   --model nomic-embed-text
 ```
 
-This writes an `embedding_provider` LEARN record on `th_engine_config`. The workspace rebuilds its embedder on the next broadcast of that record: no restart. Verify:
+The workspace picks this up straight away; no restart is needed. To check:
 
 ```bash
 spl config embedding-provider show
 ```
 
-When no provider is configured the workspace returns HTTP 503 on search requests. Both SDKs surface this distinctly (`disabled: true` on the result) so a UI can render a "set up Ollama" hint instead of treating it as an error.
+When no provider is configured search requests return HTTP 503. Both SDKs report this separately (`disabled: true` on the result) so a UI can show a "set up Ollama" hint instead of an error.
 
-To disable search without clearing other config:
+To turn search off without changing other settings:
 
 ```bash
 spl config embedding-provider clear
@@ -112,20 +112,18 @@ else:
 }
 ```
 
-- **`query`** (required): the free-text string. Embedded verbatim through the configured provider.
+- **`query`** (required): the text to search for. Used exactly as written.
 - **`k`**: top-K to return. Clamped to `[1, 100]`. Default `10`.
-- **`thread`**: restrict to one thread id.
+- **`thread`**: restrict to one thread ID.
 - **`actor`**: restrict to records emitted by a specific actor DID.
 - **`kind`**: restrict to records whose `body.kind` matches.
 - **`after_clock`**: restrict to records with `clock >= after_clock`. Useful for time-windowed searches.
 
 ### Filters are _post_-ranking
 
-This is the important invariant: **envelope filters narrow the top-K _after_ cosine ranking**, not before. The engine embeds the query, scores every record that has an embedding, picks the top K globally, then applies your `thread` / `actor` / `kind` / `after_clock` predicates.
+**Filters narrow the best matches _after_ ranking**, not before. Syncropel finds the top K matches across all records, then applies your `thread`, `actor`, `kind` and `after_clock` filters to them.
 
-Why: pre-filter search on a narrow slice of records can produce fewer than K hits (or none) when the closest matches sit just outside the filter. Post-filter preserves rank quality: you get the best near-matches that _also_ satisfy your constraints.
-
-If you need strict pre-filtering (e.g. "only look inside this thread"), combine with [Query](./query) instead: search broadly, then query each hit's thread. In practice the post-filter behavior is what you want 95% of the time.
+This means a narrow filter can return fewer than K results, or none, when the closest matches sit just outside it. If you need strict filtering (for example, "only look inside this thread"), combine with [Query](./query): search broadly, then query each hit's thread. If you use filters, ask for a larger `k`.
 
 ## Response Shape
 
@@ -136,20 +134,20 @@ If you need strict pre-filtering (e.g. "only look inside this thread"), combine 
   "hits": [
     {
       "score":  0.847,
-      "record": { /* full Record envelope */ }
+      "record": { /* the full record */ }
     },
     ...
   ]
 }
 ```
 
-- **`embedder`**: provider identifier. `null` when search is disabled.
+- **`embedder`**: the provider and model used. `null` when search is disabled.
 - **`k`**: echoes the requested K (after clamp).
-- **`hits`**: ordered list, highest cosine similarity first.
-  - **`score`**: cosine similarity in `[-1, 1]`, though in practice `[0, 1]` for any healthy embedding model.
+- **`hits`**: ordered list, closest first.
+  - **`score`**: similarity from -1 to 1, though in practice 0 to 1. Higher is closer.
   - **`record`**: the full Record, with `id`, `thread`, `actor`, `act`, `body`, `clock`, and all the rest.
 
-When the provider is unreachable (instance returns 503), the SDK returns:
+When search is not available (the workspace returns 503), the SDK returns:
 
 ```json
 {
@@ -215,18 +213,11 @@ for thread in $HIT_THREADS; do
 done
 ```
 
-## How Embeddings Enter the Record
+## When records become searchable
 
-Records get embeddings at **ingest time**, before the response to `POST /v1/records` returns. The engine:
+When you add a record, Syncropel takes the text from the top-level text fields of its body, asks your provider to describe its meaning, and stores that with the record. This happens before the add returns, so **every new record is searchable immediately**.
 
-1. Extracts text from `body` (currently: top-level string fields, concatenated).
-2. POSTs to the configured provider's embedding endpoint.
-3. Stores the returned vector with the record.
-4. Returns the record (the embedding store is transparent to the caller).
-
-This means **every new record is searchable immediately**. There's no background indexer; there's no latency between ingest and searchability.
-
-Records that existed _before_ you configured a provider do **not** get back-filled automatically. To embed existing records, the easiest path is to re-ingest from a backup (see [Backup & recovery](/docs/guides/backup-restore)).
+Records that existed _before_ you set up a provider are **not** processed automatically. The easiest way to cover them is to re-load them from a backup (see [Backup & recovery](/docs/guides/backup-restore)).
 
 ## Providers
 
@@ -236,24 +227,24 @@ Supported provider:
 | -------- | -------------------- | ----------------- | ------ |
 | `ollama` | `nomic-embed-text`   | Local (your host) | $0     |
 
-`nomic-embed-text` is a 137M-param open-weights model producing 768-dim vectors. Pull it once:
+`nomic-embed-text` is a small open model. Download it once:
 
 ```bash
 ollama pull nomic-embed-text
 ```
 
-Hosted providers are not available yet.
+Hosted providers are not supported.
 
 ## Limits & Failure Modes
 
-- **Embedding provider reachability**: if Ollama isn't running, the workspace logs an embedder error at ingest time (the record ingests fine, the embedding is skipped) and returns 503 on search requests. Restart the provider and re-ingest if you care about the skipped records.
-- **`k` clamp**: `k > 100` is silently clamped to 100. For very large result sets, combine search (for relevance) with [Query](./query) (for structural pagination).
-- **Empty query**: both SDKs raise / throw on empty query: this is a programmer error, never fail-open.
-- **Filter + k interaction**: if `k=10` and your filters reject 9 of the top 10, you'll get a single hit, _not_ re-ranked. For dense filters where you need a guaranteed return size, request a larger `k` upfront.
-- **Fail-open SDK transport**: both SDKs return empty hits on network or 5xx failures. Check `result.hits.length`: zero with `disabled: false` is ambiguous between "nothing similar" and "transport failed." The CLI raises explicitly.
+- **Embedding provider reachability**: if Ollama isn't running, the workspace logs an error when records are added (the record is still saved, but not searchable) and search returns 503. Restart the provider, and re-load any records you want searchable.
+- **`k` clamp**: `k` above 100 is quietly reduced to 100. For very large result sets, combine search (for relevance) with [Query](./query) (for structural pagination).
+- **Empty query**: both SDKs raise an error on an empty query.
+- **Filter + k interaction**: if `k=10` and your filters reject 9 of the top 10, you'll get a single hit. For dense filters where you need a guaranteed return size, request a larger `k` upfront.
+- **SDKs on network errors**: both SDKs return empty hits on network or server errors. Zero hits with `disabled: false` can mean "nothing similar" or "the request failed." The CLI reports the error.
 
 ## Next Steps
 
 - [**Query**](./query): the structural complement. Use search to find candidates, query to drill into their structure.
-- [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk): full client reference including transport details and identity configuration.
+- [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk): full client reference.
 - [**Body-Kind Manifests**](./body-kind-manifest): for when you want rich-query filters on body fields to stay fast at scale.

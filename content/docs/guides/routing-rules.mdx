@@ -1,11 +1,11 @@
 ---
 title: Routing Rules
-description: Control how records are routed to actors — match patterns, set targets, and let the system learn.
+description: "Control which actor handles which records: match on domain and act, set targets, and let your approvals become rules."
 ---
 
 ## Overview
 
-Routing rules tell the engine how to handle incoming records. When a record arrives, the engine checks rules in order and dispatches to the first matching target. Rules are configuration — no code changes needed.
+Routing rules decide which actor handles an incoming record. When a record arrives, Syncropel checks the rules in order and sends it to the first matching target. Rules are settings, not code.
 
 ## Creating a Rule
 
@@ -38,24 +38,24 @@ All specified criteria must match (AND logic). Unspecified criteria are wildcard
 
 ## How Routing Works
 
-The engine checks rules in order, top to bottom:
+Syncropel checks in this order:
 
-1. **Explicit target**: If the record has a `body.to` field, route directly (no rules checked)
-2. **Pattern match**: Check if a proven pattern matches (cheapest)
-3. **Routing rules**: Check configured rules (first match wins)
-4. **Trust-based**: Route to the actor with the highest trust in the relevant domain
-5. **Default**: Propose a routing decision for human approval
+1. **Explicit target**: if the record has a `body.to` field, it goes there and no rules are checked.
+2. **Pattern match**: if a proven pattern matches, it is used (cheapest).
+3. **Routing rules**: your configured rules; the first match wins.
+4. **Trust**: the actor with the highest trust in the relevant domain.
+5. **Default**: a routing decision is proposed for you to approve.
 
-Most records are handled by patterns and rules. Only genuinely novel situations require manual decisions — and those decisions become new rules for the future.
+Most records are handled by patterns and rules. Only genuinely new situations need a manual decision, and those decisions become new rules.
 
 ## Rules Evolve
 
-When the engine proposes a routing decision and you approve it, a routing rule is automatically created. The next identical situation routes instantly without asking.
+When Syncropel proposes a routing decision and you approve it, a routing rule is created automatically. The next identical situation is routed without asking.
 
-Over time, the rule set grows from evidence. You don't need to configure rules upfront — the system learns them from your decisions.
+You don't need to set up rules in advance. They build up from your decisions.
 
 ## What's Next
 
 - [Actors and adapters](/docs/guides/actors-and-adapters) — configure the targets that rules route to
-- [The engine](/docs/concepts/engine) — the routing cascade in detail
+- [The engine](/docs/concepts/engine) — how routing works in more detail
 - [Configuration reference](/docs/reference/configuration) — full rule syntax

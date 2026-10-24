@@ -3,7 +3,7 @@ title: Reads, budgets and cursors
 description: What a read costs the server, the refusals it can answer, how counts and page cursors behave, and which callers can filter on which fields.
 ---
 
-Every read has a time budget, can be cancelled, and has a cost the server controls. This page describes what an integrator sees.
+Every read has a time limit and can be cancelled. This page describes what you see when you call the API.
 
 ## Read refusals
 
@@ -11,40 +11,40 @@ All three answer with a JSON body carrying `code`, and the `X-Syncropel-Refusal`
 
 | Status | Code | When | What to do |
 |---|---|---|---|
-| `503` | `READ_BUDGET_EXCEEDED` | A read ran past its door class's time budget (interactive reads: 3 s; exports and background work have their own budgets; every budget is doubled for 60 s after a cold start), or its client went away. The body is `{code, budget_ms, door, retry_after_secs}`. `/health` never answers it. | Wait `Retry-After` seconds and retry. Narrow the request (a `body.kind` filter, a thread scope, a smaller `limit`) if it keeps happening. |
-| `429` | `READ_IN_FLIGHT` | One scanning read per person runs at a time. A second one from the same person waits its turn (in arrival order, up to 3 s, counted against its own time limit) and then runs. It answers this only when the wait runs out or too many are already waiting (16 per person). The owner always has a read slot and is not refused. `Retry-After` is the first read's remaining budget. | Send one scanning read at a time per person, and retry after `Retry-After`. |
-| `409` | `READ_STOPPED_BY_ERASE` | An export began before an erase and the erase overtook it. None of its output is served. | Run the export again. |
+| `503` | `READ_BUDGET_EXCEEDED` | A read ran past its time limit (interactive reads: 3 s; exports and background work have their own limits; every limit is doubled for 60 s after the server starts), or the client went away. The body is `{code, budget_ms, door, retry_after_secs}`. `/health` never answers it. | Wait `Retry-After` seconds and retry. Narrow the request (a `body.kind` filter, a thread scope, a smaller `limit`) if it keeps happening. |
+| `429` | `READ_IN_FLIGHT` | One scanning read per person runs at a time. A second one from the same person waits its turn (up to 3 s, in arrival order) and then runs. You get this answer only when the wait runs out or 16 reads are already waiting. The owner is never refused. `Retry-After` is the time left for the first read. | Send one scanning read at a time per person, and retry after `Retry-After`. |
+| `409` | `READ_STOPPED_BY_ERASE` | An export began, then an erase happened before it finished. None of its output is served. | Run the export again. |
 
-Known limit: the first read after a cold start can take longer than 3 s, so a client that fires several reads at once can see its later ones refused on that first read only. Later reads answer normally.
+Known limit: the first read after the server starts can take longer than 3 s, so a client that sends several reads at once may see the later ones refused. Later reads answer normally.
 
-Suggested wording for people comes from the words manifest. Quote it, don't paraphrase:
+Suggested wording to show people:
 
 - `READ_BUDGET_EXCEEDED`: "This is taking longer than it should, so it stopped. Try again in a moment."
 - `READ_IN_FLIGHT`: "Something you asked for is still loading. Try again in a moment."
-- `READ_STOPPED_BY_ERASE`: "This export stopped partway because the workspace changed. Run it again." The screen never says an erase happened. This page can name the cause, but a message shown to a person must not.
+- `READ_STOPPED_BY_ERASE`: "This export stopped partway because the workspace changed. Run it again." A message shown to a person should not say that an erase happened.
 
 ## Counts
 
 On a record read (`POST /v1/records/query` and the thread read) the count is bounded:
 
-- A filter on a thread alone counts from the thread's own count.
+- A filter on a thread alone uses the thread's own count.
 - Any other count stops at 250 ms. When it stops, `read.total` is `null` and `read.total_at_least` carries the count reached. `total_at_least` is present only when the count was bounded.
 - Send `"total": "skip"` to count nothing. `capped` and `has_more` stay exact.
 
 Read `total_at_least` when `total` is null. Don't treat a null total as zero.
 
-A `created_at` sort is served in the order records were written.
+A `created_at` sort returns records in the order they were written.
 
-A ledger page's `limit` is clamped to the ledger's declared `row_ceiling`; follow `next_cursor` for the rest. A ledger that declares no ceiling keeps the default page.
+A ledger page's `limit` is capped at the ledger's `row_ceiling`; follow `next_cursor` for the rest. A ledger with no ceiling uses the default page size.
 
 ## Page cursors
 
-A page cursor (`next_cursor`, sent back as `cursor`) is opaque and sealed. Send it back unchanged.
+A page cursor (`next_cursor`, sent back as `cursor`) is opaque. Send it back unchanged.
 
-- Cursors are encrypted and tied to what you are allowed to read. Another person's activity doesn't change or end your walk. A change to your own access ends it.
-- An edited, hand-built or mismatched cursor answers `400 CURSOR_INVALID`. So does a cursor issued by an older version: start the walk again from the first page.
-- A cursor page carries the total, so later pages don't count again. After an erase the total is recounted.
-- Ledger row cursors (`before=<clock>`) are a different cursor and are unchanged.
+- A cursor is tied to what you are allowed to read. Other people's activity doesn't affect it. A change to your own access ends it.
+- An edited, hand-built or mismatched cursor answers `400 CURSOR_INVALID`. So does a cursor from before a server upgrade. Start again from the first page.
+- The cursor carries the total, so later pages don't count again. After an erase the total is recounted.
+- Ledger row cursors (`before=<clock>`) are a different kind of cursor and work as before.
 
 Person-facing words for `CURSOR_INVALID`: "This list changed since that page. Start again from the top."
 
@@ -56,36 +56,36 @@ A filter, sort, group, aggregate, distinct-values call or text search on a field
 { "code": "QUERY_FIELD_NOT_READABLE", "field": "body.title" }
 ```
 
-The status is `400`. The answer is decided from the schema and the caller's standing, never from the data, so it is the same whether or not matching records exist. It covers `POST /v1/records/query` (plain and aggregation, and the standing query), MCP `find`, reductions, ledger pages (`filter`, `sort`, `q`, a chosen view) and values, ledger stats, a run's `read_thread` filter and the app read door. It replaces `403 REDUCTION_FIELD_WITHHELD` on aggregates.
+The status is `400`. The answer depends on the field and who you are, never on the data, so it is the same whether or not matching records exist. It applies to `POST /v1/records/query` (plain, aggregation, and standing queries), MCP `find`, reductions, ledger pages (`filter`, `sort`, `q`, a chosen view) and values, ledger stats, a run's `read_thread` filter, and app reads. On aggregates it replaces `403 REDUCTION_FIELD_WITHHELD`.
 
 Who can filter on what:
 
-- **The owner** (the owner's session or key, local trust, or an unrestricted admin credential) reads everything. An admin credential carrying a grain, a read bound or a rooms marker is narrowed like anyone else.
+- **The owner** (the owner's session or key, a local connection, or an unrestricted admin credential) reads everything. An admin credential limited to a thread or namespace, or with a read limit, is restricted like anyone else.
 - **Everyone else** can filter on the routing fields only: `body.kind`, `schema_version`, `idem`, `classes_read`, `declassified`, and the record's own fields (`thread`, `actor`, `act`, `clock`, `id`). A member can't filter, sort or group on other body fields, even ones they can read.
-- **Declared surfaces** admit more: a held view on a conversation, and a ledger view or reduction whose `serves.class` names its audience (`views[].serves: {class, level?}`), admit filter, sort, group and values on the columns a plain read serves that class.
-- **Own writes.** `POST /v1/records/query` takes `"own_writes": true` and serves the records the caller's own credential wrote (the service account, session or grant). On that surface body filters and sort are admitted, except on a field withheld by class, seal or erase. An aggregate or `group_by` with `own_writes` is `400 INVALID_QUERY`. Own writes follow the service account, so rotating its token (`POST /v1/tokens/{id}/rotate`) keeps them. Minting a replacement account does not. A sparse lineage with no other filter scans to fill a page, so filter by `body.kind`.
-- **Find.** A guest's or member's `find` (MCP and `GET /v1/find`) is refused with the same code, because find matches body text. Read the records of the conversations you're in instead: `read_thread`, or `POST /v1/records/query` by kind.
+- **Declared views** allow more: a saved view on a conversation, and a ledger view or reduction whose `serves.class` names its audience (`views[].serves: {class, level?}`), allow filter, sort, group and values on the columns that audience can already read.
+- **Own writes.** `POST /v1/records/query` takes `"own_writes": true` and serves the records the caller's own credential wrote (the same service account, session or grant). On that surface body filters and sort are admitted, except on a field that is hidden by its class, sealed, or erased. An aggregate or `group_by` with `own_writes` is `400 INVALID_QUERY`. Own writes follow the service account, so rotating its token (`POST /v1/tokens/{id}/rotate`) keeps them. Creating a replacement account does not. If few of your records match and you add no other filter, the read scans to fill a page, so filter by `body.kind`.
+- **Find.** A guest's or member's `find` (MCP and `GET /v1/find`) is refused with the same code, because find searches record text. Read the records of the conversations you're in instead: `read_thread`, or `POST /v1/records/query` by kind.
 
 Suggested wording for people: "Only the workspace's owner can search or filter by this."
 
-## Sequences a narrowed reader sees are its own
+## Sequence numbers for restricted readers
 
-For a guest, a grained credential or a class-bounded run, `as_of_seq` (also `min_seq_met`, a subscription's `watermark_seq`, a watch stream's cursor, a batch's `committed_through`, `rights.as_of_seq`) is the highest sequence among the rows that reader may see (or the reader's own `min_seq`, or 0). It doesn't move for a write the reader can't see, and it can go down when the reader's access shrinks. Don't treat it as global or always increasing. Compare it only with sequences the same reader was served. The owner, an admin and a full member see the workspace-wide value.
+For a guest, a credential limited to certain threads, or a run limited to certain classes, `as_of_seq` is the highest sequence number among the rows that reader may see (or the reader's own `min_seq`, or 0). The same applies to `min_seq_met`, a subscription's `watermark_seq`, a watch stream's cursor, a batch's `committed_through` and `rights.as_of_seq`. It doesn't change for a write the reader can't see, and it can go down when the reader's access shrinks. Don't treat it as workspace-wide or always increasing, and compare it only with numbers served to the same reader. The owner, an admin and a full member see the workspace-wide value.
 
-Known limit: each row a restricted reader is served still carries its workspace `sequence`, so the gap between two rows it can see reflects the writes in between.
+Known limit: each row a restricted reader receives still carries its workspace `sequence`, so a gap between two rows reflects writes the reader can't see.
 
 ## Server-Timing
 
-`Server-Timing` is the owner's alone. The owner class (the owner, the owner's session, an unrestricted admin, the socket) reads it. Every other caller, and the public plane, gets no `Server-Timing` header. On an auth-exempt route (`/health`, `/health/ready`, `/`, `/v1/capabilities`, `/site/*`) it is served only on local trust (the socket, `--insecure-localhost`, or `auth.required=false`), never to a caller that merely sent no credential. To read timing, use the owner's credential on a `/v1` door, or the socket.
+Only the owner gets the `Server-Timing` header: the owner, the owner's session, an unrestricted admin, or a caller on the local socket. Everyone else, including public pages, gets none. On routes that need no sign-in (`/health`, `/health/ready`, `/`, `/v1/capabilities`, `/site/*`) it is sent only to local connections (the socket, `--insecure-localhost`, or `auth.required=false`), not to a caller that merely sent no credential. To read timing, use the owner's credential on a `/v1` endpoint, or the socket.
 
 ## Health
 
-- Anonymous `/health` carries `writeback` as `{attach, attach_fact}` only. A monitor that read `writeback.epoch`, `backlog_now`, `last_attach`, `lists` or `files_backfill` without a credential must send the owner's bearer, read `/v1/health`, or read through the Unix socket (`~/.syncro/run/spl.sock`).
+- Without a credential, `/health` returns `writeback` as `{attach, attach_fact}` only. To read `writeback.epoch`, `backlog_now`, `last_attach`, `lists` or `files_backfill`, send the owner's bearer, read `/v1/health`, or use the Unix socket (`~/.syncro/run/spl.sock`).
 - `/v1/health` serves `read_pool {in_flight_reads, in_flight_writes, pool_size}` to the owner only.
 
 ## See also
 
 - [Query guide](/docs/guides/query): the filter grammar these rules apply to.
 - [Find](/docs/guides/find): blended search, and who can use it.
-- [API reference](/docs/reference/api): the doors themselves.
+- [API reference](/docs/reference/api): every endpoint.
 - [Doctor](/docs/operate/doctor): the checks `spl doctor` runs.

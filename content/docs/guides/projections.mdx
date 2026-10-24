@@ -1,11 +1,11 @@
 ---
 title: Projections
-description: Schema, validators, and a markdown-subset parser for the Syncropel Rendering Protocol (SRP) — the declarative document format for query-driven and AI-generated UI.
+description: Types, validators and a small markdown parser for SRP, the document format for describing a user interface as data.
 ---
 
 ## What this is
 
-`@syncropel/projections` is a **types-only** TypeScript package that ships the canonical schema for SRP v0.1 — a constrained JSON document format for rendering user interfaces declaratively. Think of an SRP document as a portable, validated blueprint for a UI view: a query result, a dashboard, a form, a report.
+`@syncropel/projections` is a TypeScript package with the types, validators and a small markdown parser for SRP (Syncropel Rendering Protocol), a JSON format that describes a user interface. An SRP document is a portable, checkable blueprint for a view: a query result, a dashboard, a form, a report.
 
 It pairs with:
 
@@ -28,7 +28,7 @@ An SRP document has three top-level fields:
 
 ```typescript
 interface SRPDocument {
-  srp: "0.1";           // version tag
+  srp: "0.1";           // format version
   meta: {                // optional metadata
     name?: string;
     description?: string;
@@ -37,7 +37,7 @@ interface SRPDocument {
 }
 ```
 
-A `SRPNode` is a discriminated union of 19 node types:
+An `SRPNode` is one of 19 node types:
 
 ```text
 Layout:       column, row, grid, card, divider
@@ -47,7 +47,7 @@ Interactive:  button, iconButton, copyButton, select
 State:        emptyState, errorState, skeleton
 ```
 
-Each node has a `type` discriminator and a `props` object with type-checked fields. Example:
+Each node has a `type` and a `props` object with type-checked fields. Example:
 
 ```typescript
 const doc: SRPDocument = {
@@ -85,7 +85,7 @@ if (isSRPDocument(unknown)) {
 }
 ```
 
-`validateSRP` walks every node, checks required fields, and reports structured errors with `path`, `code`, and `message`. Use it on any input that claims to be SRP — records you received from an instance, documents an AI generated, user-submitted JSON.
+`validateSRP` checks every node and required field, and reports errors with `path`, `code` and `message`. Use it on any input that claims to be SRP: records from a workspace, documents an AI generated, user-submitted JSON.
 
 Per-node validation is also exposed:
 
@@ -97,7 +97,7 @@ validateNode(someNode, "root.children[0]");
 
 ## Markdown-subset parser
 
-Every `text` node and `recordLine` supports a constrained inline-markdown subset: bold, italic, code, links, strikethrough. The package ships a parser for this subset so renderers can turn strings into structured AST:
+Every `text` node and `recordLine` supports a constrained inline-markdown subset: bold, italic, code, links, strikethrough. The package ships a parser for this subset so renderers can turn strings into a structured tree:
 
 ```typescript
 import { parseInline, stripFormatting } from "@syncropel/projections";
@@ -158,7 +158,7 @@ These are the same tokens consumed by `@syncropel/react` — your type-checked `
 
 ## Using alongside the record SDK
 
-Projections are most useful when they travel as record bodies — e.g., an instance emits a KNOW record whose body *is* a projection document, and the UI queries that thread and renders the documents.
+Projections are most useful when they travel inside records. For example, a workspace emits a KNOW record whose body *is* a projection document, and the UI reads that thread and renders the documents.
 
 ```typescript
 import { Client, Identity } from "@syncropel/sdk";
@@ -185,10 +185,10 @@ if (validateSRP(doc).valid) {
 }
 ```
 
-Downstream readers do the symmetric query + validate + render.
+Readers do the reverse: query, validate and render.
 
 ## What's next
 
 - [TypeScript SDK](/docs/guides/typescript-sdk) — emit and query records containing projection documents
 - [React components](/docs/guides/react-components) — drop-in components that render SRP documents
-- [Extensions SDK](/docs/guides/extensions) — embed UIs that produce + consume projections inside a Syncropel host
+- [Extensions SDK](/docs/guides/extensions) — embed UIs that produce and consume projections inside a Syncropel host

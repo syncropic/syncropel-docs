@@ -9,45 +9,44 @@ This page is for people running their own workspace or using the API. If you use
 
 | Data | Location | Contains |
 |---|---|---|
-| Database | `~/.syncro/hub.db` | All records, trust scores, routing rules |
+| Database | `~/.syncro/hub.db` | All records, trust, routing rules |
 | Task content | `~/.syncro-data/tasks/` | Task descriptions and artifacts |
 | Aliases | `~/.syncro-data/aliases.toml` | Human-readable task alias mappings |
 | Config | `~/.syncro/config.toml` | Identity, store URL, server settings |
 
 ## Automatic Backup
 
-The `spl serve` instance backs up the database on every startup, into a per-instance directory keyed by the instance DID:
+`spl serve` backs up the database every time it starts, into a folder for your instance:
 
 ```
 ~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak
 ```
 
-`<did-tail>` is the 24-hex tail of your instance DID. To find your directory:
+`<did-tail>` is the last 24 characters of your instance DID. To find your folder:
 
 ```bash
 curl -s localhost:9100/health | jq -r .instance_did
 ls ~/.local/share/syncropel/backups/instance-<tail>/
 ```
 
-The daily backup job writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into the same directory. (An instance running on an isolated `SYNCROPEL_HOME` before its identity is bootstrapped keys the directory as `home-<hash>/` instead.)
+A daily backup also writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into the same folder. (An instance that has not set up its identity yet uses a folder named `home-<hash>/` instead.)
 
-The backup directory is OUTSIDE `~/.syncro/`: removing that directory does not affect the backups.
+The backup folder is outside `~/.syncro/`, so removing that folder does not remove your backups.
 
-### The identity is part of the workspace, and only a sealed backup carries it
+### Back up your identity too
 
-A backup of `hub.db` alone is a backup of records. The signing keys live
-beside the store, not in it, and a restore without them boots as a DIFFERENT
-workspace: a drill on 2026-07-20 restored 89,152 records into a body that
-answered every authenticated route with `BOOTSTRAP_REQUIRED`. With
-`SPL_BACKUP_PASSPHRASE` set in the daemon's environment the daily backup
-seals the keys into the same set (`spl backup --auto restore-keys` brings them
-back), and the doctor's `daily backup` row and the workspace read say so:
-`identity covered`, or `identity NOT covered` with the reason and the last
-time a backup did cover it. A body that has never covered its identity warns
-even when its backup is fresh, because the thing it would bring back is not
-the workspace. The keys recovery window is bounded by the last successful boot
-that ran a backup, which is an older watermark than the last record flush;
-read both.
+A backup of `hub.db` alone saves your records but not your signing keys. The
+keys are stored next to the database, not in it. If you restore without them,
+you get a different workspace, and every signed-in request fails with
+`BOOTSTRAP_REQUIRED`.
+
+To include the keys, set `SPL_BACKUP_PASSPHRASE` in the environment of the
+running server. The daily backup then seals the keys into the same backup set,
+and `spl backup --auto restore-keys` brings them back. `spl doctor` and the
+workspace status show `identity covered` or `identity NOT covered`, with the
+reason. A workspace whose identity has never been backed up shows a warning even
+when its backup is recent. The saved keys are only as recent as the last start
+that ran a backup, so they can be older than your latest records.
 
 ## Manual Backup
 
@@ -68,7 +67,7 @@ spl stop
 # Restore from backup
 cp ~/.local/share/syncropel/backups/instance-<tail>/hub.db.bak ~/.syncro/hub.db
 
-# Restart: trust and config rebuild automatically from records
+# Restart: trust and settings rebuild automatically from your records
 spl serve
 
 # Verify
@@ -100,15 +99,15 @@ that held an order log and boots without one refuses to start (`ORDER_LOG_MISSIN
 beginning a new history. If the set really has none, start with `SPL_ACCEPT_NO_ORDER_LOG=1`: the new log's
 first entry records the gap.
 
-## Portable Backup: Publish the Instance
+## Portable backup: publish the workspace
 
-The recommended portable backup is a published repository snapshot of the whole instance:
+The best portable backup is a published snapshot of the whole workspace:
 
 ```bash
 spl repo publish <namespace>/<repo> --relocation
 ```
 
-`--relocation` is shorthand for `--visibility L3 --scope instance --no-listing --carry-tokens`: it snapshots the instance as a verified, portable repository tree. To rebuild a working instance from it on any machine:
+`--relocation` is shorthand for `--visibility L3 --scope instance --no-listing --carry-tokens`. It saves the workspace as a portable copy that can be checked for integrity. To rebuild a working workspace from it on any machine:
 
 ```bash
 # Client-side restore (with the daemon stopped)
@@ -118,44 +117,39 @@ spl repo restore <dir-or-https-url>
 spl serve --repo <locator>
 ```
 
-The startup `.bak` file protects against local file loss; the published repository is the canonical portable recovery form: it travels between machines and verifies its own integrity on restore.
+The startup `.bak` file protects against losing local files. The published copy is the one that moves between machines, and it checks its own integrity when you restore.
 
-### The open tail is verified, or refused by name
+### The newest records are checked
 
-A restore checks every part of the copy, including the newest records that were saved after the last full seal (the open tail). `spl repo restore`, `spl repo mount` and `spl repo drift` report the result as `tail.status`:
+A restore checks every part of the copy, including the newest records saved after the last full snapshot (the "tail"). `spl repo restore`, `spl repo mount` and `spl repo drift` report the result as `tail.status`:
 
 | Status | Meaning |
 |---|---|
-| `verified` | The copy vouched for the tail and the bytes matched; its records were taken. |
-| `refused` | The fetch, the hash or the parse failed against what the copy claimed. Nothing from the tail was taken, the sealed set was restored alone, `tail.reason` names why and `tail.not_taken` says how many lines stood behind it. |
-| `unverified` | The copy was written by an older version and carries no tail check; the caller passed `--accept-unverified-tail` and the lines were taken with the verdict on the report. Without the flag such a tail is refused. |
+| `verified` | The tail matched its checks, and its records were restored. |
+| `refused` | The tail failed a check. Nothing from the tail was restored; only the snapshot was. `tail.reason` says why and `tail.not_taken` says how many lines were left out. |
+| `unverified` | The copy came from an older version and has no tail check. You passed `--accept-unverified-tail`, so the lines were restored and the report says so. Without the flag, such a tail is refused. |
 | `absent` | The copy has no open tail. |
 
-A tail that cannot be verified is never restored, so the most recent records may be missing from a restore in that case.
+A tail that can't be verified is never restored, so the most recent records may be missing.
 
-### A copy older than your live workspace is refused unless you say so
+### An older copy is refused unless you confirm
 
-`spl repo restore` checks the copy against the live workspace before anything lands. If the copy
-is older, the restore stops and names both points, so an old copy can't quietly undo newer changes, such as
-a key you removed:
+`spl repo restore` compares the copy with your live workspace before changing anything. If the copy is older, the restore stops and tells you both points in time, so an old copy can't quietly undo newer changes, such as a key you removed:
 
 ```bash
 spl repo restore <locator>                  # refused: the live workspace is newer
 spl repo restore <locator> --accept-older   # proceed; the restore records that you chose this
 ```
 
-The same check runs for `spl repo mount`, `spl move`, `spl backup restore-keys` and `spl import`. The one exception is
-restoring keys from a daily backup set: a key set is always older than the live workspace, and restoring it
-is the normal recovery, so it is noted rather than refused. Whatever you restore, anything you revoked or
-removed stays revoked or removed: the lists of revoked keys and erased people are joined, never replaced.
+The same check runs for `spl repo mount`, `spl move`, `spl backup restore-keys` and `spl import`. The one exception is restoring keys from a daily backup set. Those keys are always older than the live workspace, and restoring them is normal recovery, so it is noted rather than refused. Anything you revoked or removed stays that way after a restore.
 
 | Code | What it means |
 |---|---|
 | `LIVE_TREE_NEWER` | The live workspace is newer than the copy. Nothing was restored. |
 
-### Your task notes travel with the backup
+### Your task notes are backed up too
 
-Task notes (`~/.syncro-data/`) travel with the off-machine copy, and the startup backup writes
+Task notes (`~/.syncro-data/`) are part of the off-machine copy, and the startup backup writes
 `data.bak.tar.zst` beside `hub.db.bak`. Restore them on their own with:
 
 ```bash
@@ -171,13 +165,13 @@ the notes into an empty data folder; otherwise they tell you the command to run.
 |---|---|
 | `DATA_CONFLICT` | A note in the backup differs from yours. Every conflict is listed and nothing was written. |
 
-## What Rebuilds on Startup
+## What rebuilds on startup
 
-The engine reconstructs all derived state from the immutable record log:
+Everything else is rebuilt from your records when the server starts:
 
-- **Trust scores**: replayed from outcome records
-- **Engine config**: replayed from configuration records
-- **Thread state**: derived from records (`state = fold(records)`)
+- **Trust scores**
+- **Settings**
+- **Thread state**
 
 ## Prevention
 

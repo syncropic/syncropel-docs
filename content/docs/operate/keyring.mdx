@@ -15,11 +15,11 @@ description: Enable bearer-token authentication, create service accounts, pair d
 
 ## 1. What the authentication layer does
 
-Bearer-token authentication protects every HTTP request. Without it, `spl serve` would be catastrophic the moment the instance was reachable from any other machine — over LAN, a private network, a tunnel, a reverse proxy, or an accidentally-bound `0.0.0.0` interface. The authentication layer closes that hole:
+Bearer-token authentication protects every HTTP request, so your instance is safe even when other machines can reach it (over a LAN, private network, tunnel or reverse proxy):
 
 - **Service accounts** are first-class records with stable identifiers, DID-claim allowlists, and closed scope lists.
-- **Bearer tokens** authenticate HTTP callers. Format: `spl_<env>_<sa_id>_<secret>`. Hashed on the server; plaintext shown once on mint.
-- **A three-layer middleware pipeline** validates bearer tokens, verifies DID claims, and enforces CEL permission policies — in that order.
+- **Bearer tokens** authenticate HTTP callers. Format: `spl_<env>_<sa_id>_<secret>`. The server stores only a hash; the plaintext is shown once, when you create the token.
+- **Three checks, in order:** the bearer token is valid, the DID claims match, and the permission policies allow the request.
 - **Federation sync + discovery endpoints** require the `federation:manage` scope.
 - **A privileged bootstrap endpoint** lets operators create the first SA on a fresh install without needing an existing token.
 - **`spl pair` + QR rendering** makes phone pairing a one-command flow.
@@ -65,7 +65,7 @@ echo 'export SPL_TOKEN="spl_prod_sa_XXXXXXXXXXXXXXXX_YYYYYYYYYYYYYYYYYYYYYYYYYYY
 
 ### 3.2 Enable enforcement
 
-Emit a `core.engine_config` LEARN record that flips `auth.required` to true. It is a records-door write, as described in [Store bounds](/docs/operate/store-bounds): `actor` is your own member id and `clock` is one more than your highest clock on that thread.
+Add a `core.engine_config` LEARN record that sets `auth.required` to true. It is a records-door write, as described in [Store bounds](/docs/operate/store-bounds): `actor` is your own member id and `clock` is one more than your highest clock on that thread.
 
 ```bash
 curl -X POST http://127.0.0.1:9100/v1/records \
@@ -81,7 +81,7 @@ spl stop
 spl serve
 ```
 
-The instance reloads `th_engine_config`, picks up the new setting, and starts enforcing.
+The instance reads the new setting at startup and starts enforcing.
 
 ### 3.4 Verify auth is live
 
@@ -131,7 +131,7 @@ The command creates a dedicated service account, mints a token, and renders both
 
 - Private network / VPN: `https://your-host.example.com:9100` (works from anywhere the phone is on that network)
 - LAN: `http://192.168.1.50:9100` (works on home Wi-Fi; breaks when away)
-- Hosted: `https://syncropel.com/api/<your-did>` (future)
+
 
 One pairing per device. Revoke via `spl service-account revoke <sa_id>` if the phone is lost.
 
@@ -199,7 +199,7 @@ Token is missing or invalid. Verify:
 echo $SPL_TOKEN | spl token info /dev/stdin
 ```
 
-If that says "invalid format," re-export `SPL_TOKEN` from your shell config. If it says "token_id not found," the token has been revoked or the instance's index hasn't picked it up yet (rare; restart instance).
+If that says "invalid format," re-export `SPL_TOKEN` from your shell config. If it says "token_id not found," the token has been revoked, or the instance hasn't picked it up yet (rare; restart the instance).
 
 ### `403 SCOPE_FORBIDDEN`
 
@@ -232,7 +232,7 @@ Verify with `spl token show-source` — it should report `~/.syncro/token file` 
 
 ## 8. Federation + auth
 
-Federation between two `spl serve` instances uses bearer tokens at the HTTP boundary and Ed25519 signatures at the record boundary. Two defense layers compose: even a correctly-authenticated HTTP request is still bound to a cryptographically-verified DID author at the record level.
+Federation between two `spl serve` instances uses bearer tokens for requests and signatures on records, so a correctly authenticated request is still tied to a verified author.
 
 When establishing a federation pair, create a dedicated SA on each side:
 
@@ -250,7 +250,7 @@ spl service-account create \
   --actors did:sync:user:bob
 ```
 
-Exchange the tokens securely — these federate authority. Each side stores the other's token in its local federation pair ledger. When A pulls sync updates from B, it presents B's token; when B pulls from A, it presents A's. Record-level signatures ensure that even a correctly-authenticated HTTP request is still bound to a cryptographically-verified DID author.
+Exchange the tokens securely — these federate authority. Each side stores the other's token with its pair. When A pulls sync updates from B, it presents B's token; when B pulls from A, it presents A's. 
 
 ## 9. Further reading
 

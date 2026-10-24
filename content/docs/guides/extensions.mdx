@@ -1,19 +1,19 @@
 ---
 title: Extensions SDK
-description: Build iframe-embedded applications that run inside Syncropel workspaces — handles postMessage handshake, capability negotiation, and typed emit/query/subscribe operations.
+description: Build small apps that run inside a Syncropel workspace. The SDK handles the connection to the workspace, the permissions your app asks for, and writing, querying and subscribing to records.
 ---
 
 ## What this is
 
-`@syncropel/extensions` is the SDK for building **in-workspace applications** — iframe-embedded tools that run inside a Syncropel host (web workspace, desktop app, etc.) and participate in the user's live record stream. Think of it as the contract that lets a third-party panel, inspector, or mini-app talk to the host workspace without either side trusting the other.
+`@syncropel/extensions` is the SDK for building **in-workspace apps**: tools that run in an iframe inside a Syncropel workspace and work with the user's live records. It lets a third-party panel or mini-app talk to the workspace without either side having to trust the other.
 
 The SDK handles:
 
-- The postMessage handshake (`hello` → `ready` → granted capabilities)
-- Capability negotiation (your extension requests, the host's policy decides)
-- Typed emit / query / subscribe / navigate operations with request-response correlation
-- iframe lifecycle: height adjustments, status indicators, goodbye signals
-- Message validation (clock skew, envelope shape, version)
+- The connection handshake with the workspace
+- Permissions: your extension asks for what it needs, and the workspace decides what to grant
+- Typed emit, query, subscribe and navigate operations
+- iframe behaviour: height, status indicators, and shutdown
+- Checking that messages are well formed
 
 ## Install
 
@@ -21,7 +21,7 @@ The SDK handles:
 npm install @syncropel/extensions
 ```
 
-Zero runtime deps. Pure TypeScript, pure postMessage — works in any web extension context.
+It has no runtime dependencies and is written in TypeScript.
 
 ## Hello extension
 
@@ -54,11 +54,11 @@ const result = await adapter.emit({
 });
 ```
 
-The adapter handles the `hello` message from the host, sends `ready` with your capability list, and resolves `onInit` once the handshake completes with the intersection of what you asked for and what the host's policy grants.
+The adapter connects to the workspace, sends your list of capabilities, and calls `onInit` with the capabilities the workspace actually granted.
 
 ## Capabilities
 
-An extension requests a subset of 11 capabilities. The host's policy may grant all, some, or none — always check `capabilities_granted` before calling features that depend on them.
+An extension asks for some of 11 capabilities. The workspace may grant all, some, or none of them, so always check `capabilities_granted` before using a feature that depends on one.
 
 | Capability | What it grants |
 |---|---|
@@ -71,15 +71,15 @@ An extension requests a subset of 11 capabilities. The host's policy may grant a
 | `permissions.clipboard` | clipboard read/write in iframe |
 | `permissions.fullscreen` | fullscreen API |
 | `permissions.notifications` | notification API |
-| `sharedArrayBuffer` | cross-origin isolation for WASM threading |
-| `persistent-storage` | IndexedDB persistence guarantee |
+| `sharedArrayBuffer` | Shared memory for WebAssembly threads |
+| `persistent-storage` | Storage that the browser keeps |
 
 ## The adapter API
 
 ### Records
 
 ```typescript
-// Emit a record — resolves when the host confirms ingest
+// Emit a record. Resolves when the workspace confirms it was saved.
 const emit = await adapter.emit({
   act: "PUT",          // "GET" | "PUT" | "CALL" | "MAP" | "INTEND" | "DO" | "KNOW" | "LEARN"
   body: { /* your payload */ },
@@ -90,7 +90,7 @@ if (emit.status === "ok") {
   console.log("record id:", emit.result.id);
 }
 
-// One-shot query (VQL-shaped object; the host validates)
+// One-shot query (the workspace validates it)
 const q = await adapter.query({ kind: "app.note", limit: 20 });
 
 // Live subscription — records arrive via onRecords hook
@@ -107,7 +107,7 @@ await adapter.unsubscribe(subscriptionId);
 await adapter.navigate("/docs/operate/keyring");
 ```
 
-Takes the host to the given URL (host validates that it's an allowed route).
+Takes the workspace to the given URL (the workspace only allows valid routes).
 
 ### iframe chrome
 
@@ -131,9 +131,9 @@ adapter.setStatus({
 adapter.destroy();
 ```
 
-## Message protocol (reference)
+## Message format (reference)
 
-The adapter hides most of this — you only need it for debugging or building custom hosts. Messages flow bidirectionally over `window.postMessage`, validated on both sides.
+The adapter handles this for you. You only need it to debug or to build your own host. Messages travel both ways over `window.postMessage` and are checked on both sides.
 
 **Host → Extension:** `hello`, `context.update`, `records.update`, `action.result`, `goodbye`
 
@@ -143,15 +143,15 @@ Every envelope has:
 
 ```typescript
 {
-  sap: "0.1",                    // protocol version
+  sap: "0.1",                    // message format version
   kind: "<message-kind>",
   id: "<uuid>",                  // for request/response correlation
-  ts: "<ISO 8601>",              // clock skew ≤ 5 min enforced
+  ts: "<ISO 8601>",              // must be within 5 minutes of the receiver's clock
   payload: { /* per-kind */ }
 }
 ```
 
-If you need to build your own host or custom-validate messages, the package exports:
+To build your own host or validate messages yourself, the package exports:
 
 ```typescript
 import {

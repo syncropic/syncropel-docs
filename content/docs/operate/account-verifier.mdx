@@ -33,15 +33,13 @@ proof.
 ## Hosted instances
 
 Instances provisioned on `syncropel.app` declare the provisioning service's
-verifier automatically at boot (the value arrives with the machine's
-environment as `SPL_ACCOUNT_VERIFIER`). Instances provisioned before the
-verifier existed receive it when the operator adds that environment value; the
-next boot writes the declaration and `GET /health` lists `account`.
+verifier automatically when they start (the value is set for you as `SPL_ACCOUNT_VERIFIER`). If your instance was set up before account sign-in existed, add that
+environment value and restart. `GET /health` then lists `account`.
 
 ## Self-hosted instances
 
 You choose. To accept the hosted verifier, set the same environment value on
-your daemon before it starts:
+your workspace before it starts:
 
 ```bash
 export SPL_ACCOUNT_VERIFIER="<value published for the hosted verifier>"
@@ -53,7 +51,7 @@ service signing the same assertion shape), publish its Ed25519 public key the
 same way: the value is base64 of
 `{"subject_rule":"sha256(instance_did\naccount_subject)","verifier_id":"<your id>","verifier_pubkey":"ed25519:<64 hex>"}`
 with keys in alphabetical order and no whitespace. Your verifier must compute
-the subject with exactly that rule, or every proof fails, constant-shape.
+the subject with exactly that rule, or every proof fails.
 
 To stop accepting account proofs, remove the value and restart, or write a
 superseding declaration with `"revoked": true` for the same `verifier_id`.
@@ -64,9 +62,8 @@ A passkey is bound to a relying party (a domain) and the browser refuses to
 use it anywhere else. Your instance declares which one it accepts the same way
 it declares the verifier, with `SPL_PASSKEY_RP`: base64 of
 `{"origins":["https://studio.syncropel.com","https://syncropel.com"],"rp_id":"syncropel.com"}`
-(keys alphabetical, no whitespace). Hosted instances receive the hosted
-Studio's relying party from provisioning; the relying party is the apex
-domain so passkeys keep working if Studio's address changes. A self-hosted
+(keys alphabetical, no whitespace). Hosted instances are set up with the hosted
+Studio's relying party already; it is the main domain, so passkeys keep working if Studio's address changes. A self-hosted
 instance that serves Studio from its own host declares its own host and
 origins. No declaration, no passkey: `proof_kinds_accepted` omits it and Studio
 does not offer one.

@@ -1,104 +1,67 @@
 ---
 title: What the workspace says about itself
-description: The owner's one read, GET /v1/self/workspace, and what each block on it means, including what null means.
+description: The owner's settings read, GET /v1/self/workspace, and what each block on it means, including what null means.
 ---
 
-`GET /v1/self/workspace` is the one read a person's settings page makes. It is
-owner-only (the credential's admin bit) and it reports what the workspace is,
-whether it can answer, what it has used and has left, who its assistants are,
-and whether its copy will come back. This page is
-the contract for the blocks under `workspace`; the assistant rows are on
-[Actor doors](/docs/reference/actor-doors).
+`GET /v1/self/workspace` is the read behind a person's settings page. Only the owner can call it (the credential must have admin rights). It tells you what the workspace is, whether it can answer, how much it has used and has left, who its assistants are, and whether its copy can be restored. This page describes the blocks under `workspace`. The assistant rows are on [Working with members](/docs/reference/actor-doors).
 
-One rule holds everywhere on this read: **`null` means not known, never zero.**
-A number the workspace cannot source honestly is null, and a surface that
-turns a null into a zero is saying something the workspace did not say.
+One rule holds everywhere on this read: **`null` means not known, never zero.** If the workspace can't source a number honestly, it sends null. Don't show a null as a zero.
 
 ## `plan` and `tier`
 
-`plan` is a fact of the BODY: `operator` on a machine that is not hosted,
-`free` on a hosted body that carries the free tier's store ceiling and no
-entitlement, `paid` on a hosted body with a paid entitlement or with no ceiling.
-`plan_status` is the subscription status when an entitlement is on file, else
-null. `tier` is the READ's tier, the credential's: on a hosted body the owner
-reads as `operator` by construction, so `tier` is never the plan and a surface
-prints `plan`.
+`plan` is one of:
+
+- `operator`: you run the workspace on your own machine.
+- `free`: a hosted workspace on the free plan, with its storage limit and no paid subscription.
+- `paid`: a hosted workspace with a paid subscription, or with no storage limit.
+
+`plan_status` is the subscription status when a subscription is on file, otherwise null. `tier` describes the credential making the read, not the plan. On a hosted workspace the owner reads as `operator`, so show `plan` to people and not `tier`.
 
 ## `usable`, `not_usable_reason`, `provider_degraded`
 
-`usable` is the conjunction the readiness report computes (configured, a
-provider is live, an assistant is present) and the workspace's
-model is funded. `not_usable_reason` names the FIRST unmet condition, in the
-order a workspace clears them: `configuring`, `no_assistant`,
-`provider_starting`, `provider_unfunded`. The last is a fact from outside the
-workspace and is known before you type: on a free body the gateway's grant is
-spent, and nothing here can answer until the operator funds it; that is on
-them, not you.
+`usable` is true when the workspace is set up, an AI provider is running, an assistant exists, and the model has funding. `not_usable_reason` names the first thing that is missing, in the order they usually clear: `configuring`, `no_assistant`, `provider_starting`, `provider_unfunded`. The last one comes from outside the workspace: on a free workspace the shared allowance is used up, and nothing can answer until the operator adds funds. You can't fix that from inside the workspace.
 
-`provider_degraded` is a warning beside `usable`, not a refusal: the workspace
-can still answer, and its last answer failed at the model. It carries the
-error's words (at most 240 characters) when the newest provider error names
-credit, balance, billing, quota or an authorization status and no later run
-succeeded. It clears when a later run succeeds, never on a clock, and a timeout
-does not set it. Neither field claims a probe; each says which kind of fact it
-is.
+`provider_degraded` is a warning beside `usable`, not a refusal. The workspace can still answer, but its last answer failed at the model. When the newest provider error mentions credit, balance, billing, quota or an authorization problem, and no later run has succeeded, it carries the error's words (at most 240 characters). It clears when a later run succeeds. A timeout does not set it.
 
 ## `boot`
 
-The last successful boot against what bounds this body: `peak_bytes`,
-`limit_bytes`, `bounded_by` (`cgroup`, `machine`, or null when nothing bounds
-it), `percent` (null when `limit_bytes` is null, never 0), `boot_unix`, and the
-warn and fail thresholds (85 and 95). A body at or past the warning may not
-come back after a restart; the remedy depends on `bounded_by`.
+How the last successful start compared with the memory available: `peak_bytes`, `limit_bytes`, `bounded_by` (`cgroup`, `machine`, or null when nothing limits it), `percent` (null when `limit_bytes` is null, never 0), `boot_unix`, and the warning and failure thresholds (85 and 95 percent). A workspace at or past the warning level may not start again after a restart. What to do depends on `bounded_by`.
 
 ## `backup`
 
-Whether the last successful backup covered the signing keys, which is what
-makes a restore the same workspace rather than a copy of its records:
-`identity_covered`, `last_covered_unix` (the last backup that did cover them,
-which may be older than `last_success_unix`), `identity_note` (prose), and
-`identity_reason`, a code a surface can route on: `sealed`,
-`no_passphrase`, `passphrase_too_short`, `no_keys`, `unsupported`,
-`seal_failed`, or `not_yet_run` when no successful backup is on file. See
-[Backup and recovery](/docs/guides/backup-restore).
+Whether the last successful backup included the signing keys. Without them, a restore gives you a copy of your records and not the same workspace. The fields are:
+
+- `identity_covered`: whether the keys were included.
+- `last_covered_unix`: the time of the last backup that included them, which may be older than `last_success_unix`.
+- `identity_note`: a sentence explaining the state.
+- `identity_reason`: a code to branch on: `sealed`, `no_passphrase`, `passphrase_too_short`, `no_keys`, `unsupported`, `seal_failed`, or `not_yet_run` when no successful backup is on file.
+
+See [Backup and recovery](/docs/guides/backup-restore).
 
 ## `writeback`
 
-Present when the body holds the write lease on a repository; explicitly `null`
-when nothing replicates. The
-counters (`epoch`, `flushed_watermark`, `flushed_store_seq`,
-`open_tail_records`, `pending_last_tick`, `last_flush_unix`,
-`flush_interval_secs`, `mounted_repo`) and the one honest
-recovery-point number: `oldest_unflushed_age_secs`, the age of the OLDEST
-record not yet in the tree. Three states, which a surface must keep apart:
-`null` is not measured (no flush tick yet, or a store with no ingest clock),
-`0` is nothing pending, measured, and `N` is that many seconds of work at risk
-right now. It is never the time since the last flush, which is largest exactly
-when nothing is wrong. Beside it, `derived_records_last_refresh` and
-`derived_ceiling` say how many records the last refresh of derived data
-processed, against the limit at which it refuses.
+Present when the workspace is saving its records to a repository. It is `null` when nothing is being saved off the machine. Its fields are the counters `epoch`, `flushed_watermark`, `flushed_store_seq`, `open_tail_records`, `pending_last_tick`, `last_flush_unix`, `flush_interval_secs` and `mounted_repo`, plus the one number that tells you how much you could lose: `oldest_unflushed_age_secs`, the age of the oldest record not yet saved to the repository. Keep its three states apart:
+
+- `null`: not measured yet.
+- `0`: nothing is waiting, measured.
+- `N`: that many seconds of work are at risk right now.
+
+It is not the time since the last save, which is largest exactly when nothing is wrong. `derived_records_last_refresh` and `derived_ceiling` show how many records the last refresh of calculated data processed, against the limit at which it refuses.
 
 ## `restore`
 
-The body's own record of having been restored from a published tree, or `null`,
-which a surface words as "not recorded" and never as "never restored" (an older restore may have left no marker, so absence says nothing about history). When present: `record_id`, `restored_unix`,
-`locator`, `repo`, `namespace`, `scope`, `watermark`, `epoch`,
-`restored_at_watermark` (the `--at` cut, when one was used), `flushed_store_seq`,
-the four record counts, `tail` (the open tail's verdict: `status`, `reason`,
-`records`, `not_taken`), `previous_body_anchor` (null when the home was fresh at
-the restore; a value means it was already a body), `spl_version`, and
-`restores_on_file`. The restore writes this record itself, so a restore followed by a failure to start is still recorded. A restored workspace never inherits the restore history of the workspace it came from.
+The workspace's own note that it was restored from a published repository, or `null`. Show null as "not recorded", never as "never restored", because an older restore may have left no note. When present, the fields are: `record_id`, `restored_unix`, `locator`, `repo`, `namespace`, `scope`, `watermark`, `epoch`, `restored_at_watermark` (the `--at` point, when one was used), `flushed_store_seq`, four record counts, `tail` (what happened to the newest unsaved records: `status`, `reason`, `records`, `not_taken`), `previous_body_anchor` (null when the home was fresh at the restore; a value means the home already held a workspace), `spl_version`, and `restores_on_file`. The restore writes this note itself, so a restore that is followed by a failed start is still recorded. A restored workspace does not inherit the restore history of the one it came from.
 
 ## `inference`
 
-`used_usd` is today's usage; `remaining_usd` by who owns the truth: on
-a free body the gateway's grant balance (the readiness report probes it once
-and this read reuses the answer), on a paid body the tier's cap minus today's
-use, and `source: uncapped` on an operator's own machine, which is a third fact
-distinct from not known.
+`used_usd` is today's usage. `remaining_usd` depends on the workspace:
+
+- Free workspace: what is left of the shared allowance.
+- Paid workspace: the plan's daily cap minus today's use.
+- Your own machine: `source: uncapped`, which is different from not known.
 
 ## See also
 
-- [Actor doors](/docs/reference/actor-doors) for `assistants[]`, shape, history and revert.
-- [Doctor](/docs/operate/doctor) for the same facts as rows a terminal reads with the daemon down.
+- [Working with members](/docs/reference/actor-doors) for `assistants[]`, shape, history and revert.
+- [Doctor](/docs/operate/doctor) for the same facts as rows you can read in a terminal while the server is down.
 - [Backup and recovery](/docs/guides/backup-restore) and [Portability](/docs/guides/portability).

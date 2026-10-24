@@ -1,23 +1,21 @@
 ---
 title: Actor memory
-description: Give an actor durable memory. A memory is a record about a thread, private by default on the principal's own memory thread, and shown when that thread is touched. Managed with spl memory and written by a run through the remember tool.
+description: Give an actor memory that lasts across runs. Memories are private to the actor by default, attached to the work they describe, and managed with spl memory.
 ---
 
 ## What it is
 
-Actor memory lets an actor carry a durable fact across runs and sessions. A
-memory is a `core.actor.memory.v1` record. Two things make it more than a note:
+Actor memory lets an actor keep a fact across runs and sessions. Two things
+make it more than a note:
 
-- **It is about a thread.** A memory lands on the thread it describes, so a
-  fact about a piece of work is attached to that work, not filed away
-  somewhere separate.
-- **It is private by default.** A memory lives on the principal's own memory
-  thread, which is private, so an actor's memories are the actor's own unless
-  it says otherwise.
+- **It is about a thread.** A memory is attached to the work it describes, so
+  a fact about a piece of work stays with that work.
+- **It is private by default.** An actor's memories are its own unless you
+  share them.
 
-When a thread is touched, the memories about it are folded in and shown
-(latest per key, attributed), so an actor sees what it learned last time it
-worked here without going to look for it.
+When an actor works on a thread again, it sees the latest memory for each name,
+with who wrote it. It does not have to go looking for what it learned last
+time.
 
 ## The CLI surface: spl memory
 
@@ -58,32 +56,27 @@ spl memory search "task tracking"
 spl memory remove project-context
 ```
 
-`remove` cancels the memory (it writes a cancellation, keeping the ledger
-honest) rather than deleting a row.
+`remove` cancels the memory. The history keeps a record that it existed.
 
 Every subcommand takes `--actor <did>`; without it, the actor is the one in
 your config identity.
 
 ## The remember tool: memory written by a run
 
-A work-loop run does not call `spl memory`. It reaches a member tool,
-`remember`, which writes a `core.actor.memory.v1` record about the thread it is
-working on. This is how an actor records something it learned in the middle of
-doing the work, so the next run over the same thread starts with it.
+A run does not call `spl memory`. It uses a tool named `remember` to save
+something it learned about the thread it is working on, so the next run over
+that thread starts with it.
 
-`remember` is a run tool, not a CLI verb: there is no `spl remember`. A run has
-it only when its definition grants it, and what it writes lands on the same
-private memory thread `spl memory` reads, so a fact a run remembers shows up in
-`spl memory list` for that actor and is folded in the next time its thread is
-touched.
+`remember` is a tool for runs, not a command: there is no `spl remember`. A run
+has it only when its definition grants it. What it saves shows up in
+`spl memory list` for that actor.
 
 ## A note on visibility
 
-A memory is private to the principal's memory thread by default. A private
-memory about a thread is shown when that thread is touched by the same
-principal; it is not published onto the thread itself. If you write a memory
-and do not see it on a shared thread, that is the private-by-default posture
-working, not a lost record: read it with `spl memory list` for that actor.
+A memory is private to its actor by default. It is shown when that same actor
+works on the thread, and it is not published onto the thread for others to see.
+If you write a memory and do not see it on a shared thread, nothing is lost.
+Read it with `spl memory list` for that actor.
 
 ## See also
 

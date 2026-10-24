@@ -5,11 +5,11 @@ description: Connect AI agents to Syncropel — dispatch work, track outcomes, a
 
 ## Overview
 
-Syncropel coordinates AI agents the same way it coordinates humans. An agent registers as an actor, receives work through the dispatch system, and accumulates trust from reviewed outcomes.
+Syncropel coordinates AI agents the same way it coordinates people. An agent is an actor. It receives work by dispatch, and it builds trust from reviewed results.
 
 ## Supported Agents
 
-Any CLI-based agent that reads a prompt and produces output can integrate. Examples in active use:
+Any CLI-based agent that reads a prompt and produces output can integrate. Examples:
 
 | Agent | Binary | Integration |
 |---|---|---|
@@ -19,7 +19,7 @@ Any CLI-based agent that reads a prompt and produces output can integrate. Examp
 | Pi | `pi` | CLI adapter |
 | Custom agents | Any binary | CLI adapter with configurable flags |
 
-The integration shape is the same: register an actor, bind a CLI adapter, point it at the binary. The engine doesn't care which agent — it just spawns the subprocess and parses the output stream.
+The steps are the same for every agent: register an actor, add a CLI adapter, and point it at the program. Syncropel runs the program and reads its output.
 
 ## Register an Agent
 
@@ -51,15 +51,15 @@ Or dispatch a structured task with full context:
 spl task dispatch TASK-0001
 ```
 
-The dispatch system:
-1. Composes a goal with context (task content, actor memories)
-2. Spawns the agent process via the CLI adapter
-3. Monitors output for records
-4. Ingests the agent's records into the shared store
+When you dispatch, Syncropel:
+1. Builds a goal with context (the task content and the actor's memories).
+2. Starts the agent through its CLI adapter.
+3. Watches the agent's output for records.
+4. Saves the agent's records to the workspace.
 
 ## How Agents Report Work
 
-Agents create records on the thread they're assigned to:
+Agents write records on the thread they are assigned to:
 
 - **CALL records** for tool use (shell commands, file reads, API calls)
 - **KNOW records** for observations ("tests pass", "found the bug in auth.py")
@@ -96,11 +96,11 @@ Agents accumulate memories across sessions:
 spl memory list --actor did:sync:agent:dev
 ```
 
-Memories include learned conventions, quality gates, past corrections, and domain knowledge. They are included in dispatch context so the agent starts each session with accumulated knowledge.
+Memories include conventions, quality checks, past corrections, and domain knowledge. They are sent with each dispatch, so the agent starts every session with what it has learned.
 
 ## Remote agents & authentication
 
-When an AI agent runs on a different machine than the `spl serve` instance — e.g. a workflow agent on a CI runner, or a coding agent reaching back to your laptop — the agent needs to authenticate over HTTP. See [Authentication & Service Accounts](/docs/operate/keyring) for the pattern:
+When an AI agent runs on a different machine than your workspace (for example, a workflow agent on a CI runner, or a coding agent reaching your laptop), the agent must authenticate over HTTP. See [Authentication & Service Accounts](/docs/operate/keyring) for the pattern:
 
 1. Create a dedicated service account for the agent with scoped capabilities (`records:write` + `records:read` is usually enough)
 2. Mint a bearer token, pass it to the agent as an environment variable
@@ -108,7 +108,7 @@ When an AI agent runs on a different machine than the `spl serve` instance — e
 
 This gives each agent its own revocable identity without sharing credentials between agents.
 
-An instance-level service account is the right shape for standing instance services — it survives personnel changes by design. For an agent that acts as an extension of a *person's* authority (their budget, their scopes, dying with their membership), see [Agent credentials](/docs/guides/agent-credentials) for the two paths and how to choose.
+A service account suits standing workspace services, and it outlives any member. For an agent that acts for a *person*, using their budget and scopes and ending when they leave, see [Agent credentials](/docs/guides/agent-credentials) for how to choose.
 
 ## What's Next
 

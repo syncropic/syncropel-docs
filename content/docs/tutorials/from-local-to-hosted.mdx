@@ -1,28 +1,28 @@
 ---
 title: From your laptop to a hosted workspace
-description: Graduate from local-only to a hosted workspace. Export your local hub, sign up at syncropel.com, import on the hosted side, repoint your CLI, verify identity continuity.
+description: Graduate from local-only to a hosted workspace. Export your local workspace, sign up at syncropel.com, import it on the hosted side, point your CLI at it, and check that your identity carried over.
 ---
 
 ## What you'll build
 
-You've been running `spl serve` on your laptop, accumulating records, threads, federation pairs, and trust observations. You want to graduate to a managed instance — same identity, same records, accessible from anywhere, no `--insecure-localhost` flags. This tutorial walks the round-trip migration: local export → hosted provision → hosted import → CLI repoint → verification.
+You've been running `spl serve` on your laptop, accumulating records, threads, federation pairs, and trust observations. You want to move to a hosted workspace with the same identity and records, reachable from anywhere, with no `--insecure-localhost` flags. This tutorial walks through the move: export locally, create a hosted workspace, import, point your CLI at it, and verify.
 
-After this, you'll understand why hosted and self-hosted are the same thing: any Syncropel workspace can become any other. Neither is a lesser copy of the other. The migration mechanism is `spl export` / `spl import`, and records keep their identity through the round trip (see the [federation concept](/docs/concepts/federation)).
+Hosted and self-hosted workspaces are the same thing: either can become the other, and neither is a lesser copy. You move with `spl export` and `spl import`, and records keep their identity through the move (see [Federation](/docs/concepts/federation)).
 
-Allow ~30 minutes; most of it is provisioning + verification.
+Allow about 30 minutes, most of it creating the workspace and verifying.
 
 ## Before you start
 
 - `spl` installed (`spl --version`)
-- A local instance with some real-feeling state — at least a few threads, a few records, ideally one federation pair. If you're starting fresh, do [Your first thread](./first-thread) first to populate something to migrate.
+- A local workspace with some real content: a few threads and records, ideally one federation pair. If you're starting fresh, do [Your first thread](./first-thread) first to populate something to migrate.
 - A browser to sign up at `syncropel.com`.
 - $0 budget — hosted workspaces are free, up to three per account (see the [hosted plan](/docs/get-started/hosted)).
 
-This tutorial assumes you'll run the migration *now* in a single session. If you want to migrate later (or rehearse the migration without committing), the steps work just as well — `spl import` is idempotent, so you can re-run.
+You can do this in one session, or rehearse it first. `spl import` is safe to run again.
 
 ## 1. Inspect what you're migrating
 
-Before the export, get a clean picture of what's currently on your local instance:
+Before the export, see what is on your local workspace:
 
 ```bash
 spl status
@@ -31,11 +31,11 @@ spl federation list
 spl actor list
 ```
 
-Note the local DID. After migration, the hosted workspace will identify itself as the **same DID** — that's what "identity preservation" means in practice.
+Note the local DID. After the move, the hosted workspace will have the **same DID**. That is how your identity carries over.
 
 Also note the rough record count (`spl status` reports it). After import on the hosted side, this count should match.
 
-## 2. Export the local instance
+## 2. Export the local workspace
 
 ```bash
 spl export --out ~/migration.tar.zst
@@ -53,11 +53,11 @@ Output:
   signed:        yes
 ```
 
-The bundle is a `tar.zst` archive carrying:
-- Every record, content-addressed
-- Identity (DID document + private key) — without it, the imported instance can't sign new records as the same DID
-- Federation pair records, consent grants, engine config — everything that's "you"
-- A signed manifest tying the bundle to the issuing DID
+The bundle is a `tar.zst` archive containing:
+- Every record
+- Your identity (DID document and private key). Without it, the imported workspace can't sign new records as the same DID.
+- Federation pairs, consent grants and settings, everything that is "you"
+- A signed manifest tying the bundle to your DID
 
 Inspect what's in there without unpacking:
 
@@ -65,7 +65,7 @@ Inspect what's in there without unpacking:
 tar -tzf ~/migration.tar.zst | head
 ```
 
-You'll see `manifest.json`, `manifest.sig`, `identity/`, `records/<thread>/`, and so on. By default `spl export` does **not** carry bearer tokens (a stolen bundle shouldn't grant access). If you specifically need to keep tokens valid across the migration, pass `--carry-tokens` — but think first about whether you'd rather mint fresh tokens on the new workspace.
+You'll see `manifest.json`, `manifest.sig`, `identity/`, `records/<thread>/`, and so on. By default `spl export` does **not** include bearer tokens, so a stolen bundle can't be used to sign in. If you need tokens to keep working, pass `--carry-tokens`, but consider creating fresh tokens on the new workspace instead.
 
 For a deeper read on bundle contents, see [Portability](/docs/guides/portability).
 
@@ -73,17 +73,17 @@ For a deeper read on bundle contents, see [Portability](/docs/guides/portability
 
 Open a browser and go to `https://syncropel.com/signup`. Pick a label (this becomes your subdomain — e.g., `myteam.syncropel.app`; hosted customer workspaces live at `*.syncropel.app`) and confirm the plan tier.
 
-Behind the scenes:
-1. The provisioning service reserves the label.
-2. A hosted workspace boots running the same `spl serve` binary you have locally, on a per-customer persistent volume.
-3. You land in your workspace, already connected — your syncropel.com identity owns the workspace.
+What happens:
+1. Your label is reserved.
+2. A hosted workspace is created, running the same `spl serve` you have locally, with its own storage.
+3. You land in your workspace, already connected. Your syncropel.com account owns it.
 
-The ready screen surfaces:
+The ready screen shows:
 - Your hosted URL (`<label>.syncropel.app`)
 - A CLI access option that mints a device token (copy it if you work from a terminal)
 - The commands to "Connect the CLI"
 
-For provisioning failures (label collision, instance limit, boot timeout), see [hosted onboarding § when provisioning fails](/docs/get-started/hosted#if-setup-doesnt-finish).
+For setup failures (label already taken, workspace limit, timeout), see [hosted onboarding § when provisioning fails](/docs/get-started/hosted#if-setup-doesnt-finish).
 
 ## 4. Connect your CLI to the hosted workspace
 
@@ -101,11 +101,11 @@ spl status
 echo 'export SPL_SERVE_URL=https://myteam.syncropel.app' >> ~/.bashrc   # or ~/.zshrc
 ```
 
-Or save the URL to your shell profile via `spl config path` and the operator runbook.
+Or save the URL in your shell profile (`spl config path` shows where your settings are).
 
 ## 5. Import the bundle into the hosted workspace
 
-The hosted workspace is fresh (zero records), so `spl import` will accept the bundle without `--force-overwrite`:
+The hosted workspace is new (no records), so `spl import` will accept the bundle without `--force-overwrite`:
 
 ```bash
 spl import ~/migration.tar.zst
@@ -128,7 +128,7 @@ Output:
 ✓ Import complete
 ```
 
-The `identity adopted` line is the critical one. Your hosted workspace now signs records as the **same DID** your local one did — not a fresh DID, not a paired-but-distinct DID, the same one. Federation pairs you had locally now think they're paired with this hosted workspace (the URL gets refreshed on first contact via DID resolution; you don't need to re-pair).
+The `identity adopted` line is the important one. Your hosted workspace now signs records with the **same DID** your local one used. Federation pairs you had locally now treat this hosted workspace as you. The address is updated on first contact, so you don't need to pair again.
 
 ## 6. Verify the round-trip
 
@@ -139,21 +139,21 @@ spl federation list
 spl actor list
 ```
 
-These should match what you saw in step 1 against the local instance:
+These should match what you saw in step 1 on the local workspace:
 - Same `instance_did`
 - Same thread count
 - Same federation pair (now with `last_sync: never` on the hosted side until the next sync)
 - Same actors
 
-To strictly verify zero divergence, run the round-trip diff:
+To check that nothing changed, compare the records:
 
 ```bash
 spl thread records <some_thread_id> | sha256sum
 ```
 
-Run this against both your local instance (`SPL_SERVE_URL=http://localhost:9100 spl thread records ...`) and your hosted (`SPL_SERVE_URL=https://myteam.syncropel.app spl thread records ...`). The hashes should match — records are content-addressed, so any divergence means something corrupted in transit.
+Run this against both your local workspace (`SPL_SERVE_URL=http://localhost:9100 spl thread records ...`) and your hosted (`SPL_SERVE_URL=https://myteam.syncropel.app spl thread records ...`). The record IDs should match. Each ID comes from the record's content, so a difference means something changed in transit.
 
-Moving a workspace never changes your records. This is tested on every release.
+Moving a workspace does not change your records.
 
 ## 7. Pair a second device (optional)
 
@@ -163,15 +163,15 @@ While your hosted workspace is fresh, this is a good moment to add a second devi
 spl pair --device "iPhone" --url https://myteam.syncropel.app --scopes records:write
 ```
 
-This emits a pairing record, generates a one-time code, and prints a deep-link / QR code. Open the link on the second device's Syncropel app (or paste the code into the app's "pair device" prompt). The two devices are now both authenticated against the same hosted workspace, with their own bearer tokens (revocable independently).
+This creates a one-time code and prints a link and QR code. Open the link on the second device's Syncropel app (or paste the code into the app's "pair device" prompt). The two devices are now both authenticated against the same hosted workspace, with their own bearer tokens (revocable independently).
 
 For the full device pairing model, see [pairing a second device](/docs/get-started/pairing).
 
-## 8. Decommission the local instance (when ready)
+## 8. Retire the local workspace (when ready)
 
-Don't shut down the local instance yet — give yourself a few days to confirm the hosted workspace is doing what you need.
+Don't shut down the local workspace yet. Give yourself a few days to confirm the hosted workspace does what you need.
 
-When you're ready to retire local:
+When you're ready to retire it:
 
 ```bash
 # Stop the local instance
@@ -182,37 +182,34 @@ mv ~/.syncro ~/.syncro.archived-$(date +%Y%m%d)
 ```
 
 <Callout type="warn">
-**Don't `rm -rf ~/.syncro`** unless you're certain the hosted workspace has all your records and you've verified at least one independent copy of the bundle (`~/migration.tar.zst`) exists. The bundle on its own is sufficient to rebuild your workspace — but only if it's actually somewhere safe.
+**Don't `rm -rf ~/.syncro`** unless you're certain the hosted workspace has all your records and you've verified at least one independent copy of the bundle (`~/migration.tar.zst`) exists. The bundle alone is enough to rebuild your workspace, but only if it is somewhere safe.
 </Callout>
 
-If you ever want to re-spawn local from scratch and re-import the bundle, the migration runs in reverse without ceremony — `spl serve` to boot fresh, `spl import ~/migration.tar.zst` to populate, done. Steward equivalence cuts both directions.
+To go back to a local workspace, run `spl serve` for a fresh one and `spl import ~/migration.tar.zst` to fill it. The move works in both directions.
 
 ## What just happened
 
-You exercised Syncropel's **portability primitive**:
+1. **The bundle is everything.** Every record, thread and federation pair is exported as a signed archive and imported into a new workspace with the same record IDs, thread IDs and pair IDs.
+2. **Your identity moves with you.** The hosted workspace signs records as your DID, not a new one. Paired workspaces still see you.
+3. **The move is reversible.** Hosted to local works the same way as local to hosted.
+4. **You can always leave.** `spl export` works on any workspace, hosted or self-hosted, and the bundle imports into a workspace you run yourself.
 
-1. **The bundle is everything.** Every record, every thread, every federation pair — exported as a content-addressed signed archive, imported into a fresh instance, **structurally identical**. Same record IDs, same thread IDs, same federation pair IDs. Not a "best-effort migration" but a **bit-for-bit equivalence**.
-2. **Identity is portable.** The DID document + private key travel with the bundle. The hosted workspace signs records as your DID, not a new one. Federation pairs you had locally still see "you" on the hosted side — DID resolution refreshes the URL automatically.
-3. **The migration is reversible.** Hosted → local works the same way as local → hosted. Steward equivalence — covered in the [federation concept](/docs/concepts/federation) — is binding: any steward can become any other steward.
-4. **Round-trip is tested.** Every release checks that an export followed by an import gives back exactly the same records. You can rely on it.
-5. **No lock-in is structural, not promised.** The "you can leave any time" claim is a mechanism (`spl export` works on any steward, hosted or self-hosted), not a marketing line. Your hosted workspace can always emit a bundle that imports cleanly into a self-hosted workspace you run yourself.
-
-This is what makes hosted Syncropel a strictly different deal from most SaaS: the data and the system that interpreted it are both portable. You're not paying for proprietary state; you're paying for someone else to run the same `spl` binary you have on your laptop, with the same APIs, the same records, the same exit ramp.
+Hosted Syncropel is different from most services because your data and the system that reads it are both portable. You pay for someone else to run the same `spl` you run on your laptop, with the same APIs, the same records and the same way out.
 
 ## Where to next
 
 - [Hosted onboarding](/docs/get-started/hosted) — the canonical signup flow with provisioning details and failure modes.
 - [Portability guide](/docs/guides/portability) — bundle anatomy, `--dry-run`, `--force-overwrite`, identity-only exports, what's *not* in the bundle (plaintext secrets, default-revoked tokens).
 - [Backup and restore](/docs/guides/backup-restore) — take a snapshot before an import so you can revert if it goes wrong.
-- [Actor portability](/docs/operate/actor-portability) — moving an actor (not a whole instance) between stewards. Different mechanism, similar shape.
-- [Concepts: Federation](/docs/concepts/federation) — why hosted and self-hosted are equivalent, and what that guarantees about portability.
+- [Actor portability](/docs/operate/actor-portability) — moving one actor, not a whole workspace, to another workspace.
+- [Concepts: Federation](/docs/concepts/federation) — how workspaces connect to each other.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `spl import` reports `import refused: local store has N records; pass --force-overwrite to import anyway` | The hosted workspace already has records (someone or something started using it before the import). | Check `spl thread list` on the hosted side. If those records are throwaway (first-run banner ack, etc.), it's safe to pass `--force-overwrite`. If unexpected, investigate before clobbering. |
-| `bundle malformed: signature verification failed` | The bundle was tampered with, corrupted in transit, or was produced by an incompatible version. | Re-export from the source. If the issue persists, check `spl version` on both sides — major version skew can cause manifest schema mismatches. |
-| Federation pair shows stale URL after import | Expected — the pair was originally configured with the local URL. | The URL refreshes on first sync attempt via DID resolution. If the peer is unreachable at the cached URL AND the peer DID can't be resolved, run `spl federation refresh <peer-did>` manually. |
+| `bundle malformed: signature verification failed` | The bundle was changed, damaged in transit, or made by an incompatible version. | Re-export from the source. If the issue persists, check `spl version` on both sides — very different versions may not be compatible. |
+| Federation pair shows stale URL after import | Expected: the pair was set up with the local address. | The address updates on the first sync. If the peer can't be reached at the old address and its DID can't be found, run `spl federation refresh <peer-did>` manually. |
 | `spl status` after token save returns `401` | The device token has expired or was revoked. | Open your workspace in Studio and mint a fresh device token from Settings → Connections, then `spl token save` it. |
-| Hosted DID doesn't match local DID after import | The bundle was exported with `--no-identity`, so the hosted workspace generated its own fresh DID. | Re-export with identity included (the default): `spl export --out ~/migration.tar.zst`. The `--no-identity` flag is for *introspection-only* bundles that aren't meant to be importable. |
+| Hosted DID doesn't match local DID after import | The bundle was exported with `--no-identity`, so the hosted workspace created its own new DID. | Re-export with identity included (the default): `spl export --out ~/migration.tar.zst`. The `--no-identity` flag is only for bundles you want to inspect, not import. |

@@ -103,7 +103,7 @@ Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601
 
 | Flag | Description |
 |---|---|
-| `--dry-run` | Print the plan + exit cleanly. No prompt, no backup, no deletes. Scriptable; useful as a CI gate that asks "what would reset touch right now" |
+| `--dry-run` | Print the plan and exit. No prompt, no backup, no deletes. Scriptable; useful as a CI gate that asks "what would reset touch" |
 | `--force` | Skip both the main confirmation prompt and (when combined with `--wipe-task-data`) the extra task-data prompt |
 | `--keep-config` | Preserve `config.toml` so API keys, routing rules, and CORS settings survive the reset |
 | `--keep-keys` | Preserve `keys/` so the actor DID stays the same after `spl init` (use when rolling back a corrupted record store without re-establishing identity) |
@@ -126,7 +126,7 @@ Omitting `--thread` mints a fresh thread (a `th_` + SHA-256 id, printed on the
 record). `--fulfills` closes a thread (frozen foundation F13): bare, it
 resolves and fulfills the thread's opening INTEND; with an explicit
 `--fulfills <record-id>`, it fulfills that record. Either way the record
-carries `body.fulfills`, which folds and the pattern index read to mark work
+carries `body.fulfills`, which task status and the pattern index read to mark work
 done.
 
 | Command | Creates | Purpose |
@@ -190,7 +190,7 @@ spl session save --draft [--summary "..."] [--reason explicit_end]
 spl resume [room]                        # where was I / what changed / what needs me
 ```
 
-`spl session save --draft` lands a fold-drafted boundary annotation
+`spl session save --draft` saves a drafted note marking the boundary
 (what closed, what's open, what awaits you); `spl resume` reads it back
 next session, with `[room]` (a thread id, prefix, or task alias)
 descending into one room's re-entry brief. See
@@ -203,7 +203,7 @@ spl repo create <ns>/<name>              # thin handle (identity + URL path)
 spl repo list | show <name>
 spl repo publish <name> [--dry-run] [--visibility public|L1|L2|L3] [--relocation]
 spl repo clone <locator>                 # fresh home from a publication (verified)
-spl repo mount <locator>                 # incremental pull past the bound watermark
+spl repo mount <locator>                 # pull only what is new since the last pull
 spl repo fork <name> <branch> [--at W]   # one pointer write; segments shared
 spl repo drift <name>                    # divergence audit (exit 0 aligned / 3 drift)
 spl repo restore <tree>                  # rebuild a home from a relocation tree
@@ -367,10 +367,9 @@ spl share receive <bundle-path> --from <sender-did> [--dry-run]
 | `share send --expires <duration>` | Time-bound the consent. Format: `7d`, `24h`, `45m`, `30s` |
 | `share send --out <path>` | Write the bundle to a specific path. Default: `<thread>.bundle.jsonl` |
 | `share receive <bundle> --from <did>` | Verify signatures and content hashes, replay records into the local instance |
-| `share receive --dry-run` | Verify the bundle without ingesting (good for sanity-checking before replay) |
+| `share receive --dry-run` | Verify the bundle without importing it (good for checking before you replay) |
 
-The bundle format is just records. The receiving instance ingests them through
-the same path it uses for any record. Tampering is detectable — re-hashing
+The bundle format is just records. The receiving instance accepts them the same way it accepts any record. Tampering is detectable — re-hashing
 the seven-field record envelope catches any mutation.
 
 ## Secrets
@@ -400,7 +399,7 @@ Backend URI schemes shipped today:
 - `keychain://syncropel/<handle>` — platform-native (macOS Keychain, Linux Secret Service, Windows DPAPI/Credential Manager)
 - `env://VAR_NAME` — read-only env-var resolver (compiles + tests on every platform)
 
-Future schemes: `1password://`, `vault://`, `kms://`.
+Other schemes (`1password://`, `vault://`, `kms://`) are not supported.
 
 ## Trust
 
@@ -520,10 +519,10 @@ spl config relay push --peer did:sync:peer:alice --thread th_abc123...
 
 ### Responder manifest overrides
 
-Curate the responder list surfaced on `/v1/capabilities` and `/.well-known/syncropel`. The manifest auto-populates from actor/adapter records; these commands let operators add custom entries, override auto-populated values, or suppress specific DIDs.
+Curate the responder list surfaced on `/v1/capabilities` and `/.well-known/syncropel`. The list is filled in automatically from your actors and adapters. These commands let you add your own entries, override automatic values, or hide specific DIDs.
 
 <Callout type="info">
-The responder manifest is dormant in this release — the schema is persisted and surfaced on discovery endpoints so peers can already read it, but the instance does not yet consume these fields for its own routing decisions. A subsequent release will make them load-bearing. Configure now if you're already coordinating cross-peer discovery; otherwise there's no rush.
+Responder details are saved and shown on discovery endpoints so peers can read them, but your instance does not use them for its own routing decisions. Set them if you coordinate discovery across peers; otherwise you can skip this.
 </Callout>
 
 ```bash
@@ -677,7 +676,7 @@ spl work-loop "Find every record tagged 'beta' and emit consent grants" \
 
 ## Review a work loop — `spl work-loop-review`
 
-Record an external verdict on a completed work loop. This is how a loop's outcome is judged: an actor with standing accepts or rejects what the loop produced, and that verdict folds into the loop actor's [trust](/docs/concepts/trust). A loop's own self-reported outcome never earns it trust — only this external verdict does, and it must come from a different actor than the one that ran the loop. See the [work loop concept page](/docs/concepts/work-loop#the-cognitive-loop-read-do-be-judged).
+Record an external verdict on a completed work loop. This is how a loop's outcome is judged: an actor with standing accepts or rejects what the loop produced, and that verdict counts toward the loop actor's [trust](/docs/concepts/trust). A loop's own self-reported outcome never earns it trust — only this external verdict does, and it must come from a different actor than the one that ran the loop. See the [work loop concept page](/docs/concepts/work-loop#the-cognitive-loop-read-do-be-judged).
 
 ```bash
 spl work-loop-review <THREAD> \
@@ -743,11 +742,11 @@ spl completion bash|zsh|fish|powershell|elvish   # Shell completion script
 
 **`spl doctor`** runs 7 read-only checks and prints PASS/WARN/FAIL with a short reason for each. Exit code 0 = all pass, 1 = any warn, 2 = any fail. Suitable for cron/monitoring.
 
-**`spl debug replay`** walks every record on a task thread in clock order and runs the same `derive_status` fold that `spl task show` uses. Status transitions are highlighted with an arrow and yellow highlight, so you can see exactly which record moved the task from `inbox → active → review → approved`.
+**`spl debug replay`** walks every record on a task thread in clock order and works out status the same way `spl task show` does. Status transitions are highlighted with an arrow and yellow highlight, so you can see exactly which record moved the task from `inbox → active → review → approved`.
 
 **`spl debug thread-diff`** prints a side-by-side structural comparison of two threads: record count, participants, fold status, act distribution.
 
-**`spl audit export`** emits one JSON object per line for security-relevant records (system actor writes, decision-gate decisions, dispatch outcomes, governance events). `--since` accepts relative durations (`24h`, `7d`), ISO 8601 timestamps, or unix seconds. Output is directly ingestable into Splunk, Elastic, Loki, or Datadog.
+**`spl audit export`** emits one JSON object per line for security-relevant records (system actor writes, decision-gate decisions, dispatch outcomes, governance events). `--since` accepts relative durations (`24h`, `7d`), ISO 8601 timestamps, or unix seconds. You can load the output directly into Splunk, Elastic, Loki, or Datadog.
 
 **`spl completion`** generates shell completion scripts via `clap_complete`. Pipe to the shell's completion directory:
 
@@ -785,7 +784,7 @@ spl fleet ping <did>                 # HTTP /health reachability + latency check
 spl fleet status                    # Aggregate: live/stale/archived counts + frozen ns
 ```
 
-`spl fleet list` reads the coordinator's `th_instance_registry` fold. Each instance is classified as `live` (heartbeat within last N seconds), `stale` (2-3 N windows old), or `archived` (older than 3N).
+`spl fleet list` reads the coordinator's list of running instances (the `th_instance_registry` thread). Each instance is classified as `live` (heartbeat within last N seconds), `stale` (2-3 N windows old), or `archived` (older than 3N).
 
 `spl fleet status --live` opens a continuously-refreshing view showing active dispatches per instance, pending fan-outs, and fleet-wide frozen namespaces.
 
@@ -802,7 +801,7 @@ spl unkill --emergency
 
 **Soft** (level 1, reversible, preferred): denies new `INTEND`/`DO`/`CALL` records in the namespace; allows `KNOW`/`LEARN` so in-flight dispatches drain cleanly. Common use: release-window lockdown, one-namespace debugging.
 
-**Hard** (level 2, reversible with data loss): same as soft plus after `--grace <secs>` (default 60) the engine refuses all record ingest in that namespace. Use when the drain-cleanly semantics of soft are not safe.
+**Hard** (level 2, reversible with data loss): same as soft plus after `--grace <secs>` (default 60) the workspace refuses all new records in that namespace. Use it when a soft freeze is not safe enough.
 
 **Emergency** (level 3, reversible, fleet-wide): every namespace's effective dial drops to 0. No new CALL or DO records land with non-trivial effects. GETs and KNOWs/LEARNs still pass so state remains inspectable. Use when you don't know what's wrong and need everything to stop immediately.
 
@@ -821,7 +820,7 @@ spl task join-status <parent-alias>             # Current join state
 spl task retry <parent-alias> --subtask <index> # Re-dispatch one failed child
 ```
 
-`spl task fan-out` creates a parent INTEND on the coordinator with the subtask list derived from the `--subtask` flags. The fan-out reconciler spawns one child INTEND per descriptor and POSTs each to its target worker's `/v1/records` endpoint via the instance registry.
+`spl task fan-out` creates a parent INTEND on the coordinator with the subtask list derived from the `--subtask` flags. The workspace then creates one child INTEND per sub-task and sends each to its target worker's `/v1/records` endpoint.
 
 Each `--subtask` flag is a comma-separated list of `key=value` pairs. Supported keys:
 
@@ -829,10 +828,10 @@ Each `--subtask` flag is a comma-separated list of `key=value` pairs. Supported 
 - **`target`** (required) — one of `worker-<alias>`, `specific:<full-did>`, `least-loaded-worker`, `round-robin` (see "Routing strategies" below)
 - **`budget`** (optional) — advisory per-subtask USD budget
 - **`timeout`** (optional) — worker-side timeout in seconds, default 600
-- **`depends`** (optional) — plus-separated list of 0-based subtask indices this child depends on. `depends=0+1` means "wait for subtasks 0 and 1 to accept before spawning this one." The reconciler validates depends indices for cycles at parse time.
+- **`depends`** (optional) — plus-separated list of 0-based subtask indices this child depends on. `depends=0+1` means "wait for subtasks 0 and 1 to accept before spawning this one." Circular dependencies are rejected when the command is read.
 
 <Callout type="info">
-Declaring subtasks via a task body file isn't supported yet. The `--subtask` CLI flag form is the only shape shipped. A future release may add body-file parsing as an alternative form.
+Sub-tasks can only be declared with the `--subtask` flag, not in a task body file.
 </Callout>
 
 The `--join` flag accepts shorthands (`all`, `any`, `k_of_n:K`) or a custom CEL expression evaluating against the `children` binding. Examples:
@@ -844,7 +843,7 @@ k_of_n:3                                          # at least 3 of N subtasks acc
 children.all(c, c.verdict == "accept" && c.cost_usd < 5.00)   # custom CEL
 ```
 
-`spl task join-status` prints which children have reported, which are pending, the current verdict-so-far, and whether the join predicate currently evaluates true.
+`spl task join-status` prints which children have reported, which are pending, the verdict so far, and whether the join condition is met.
 
 `spl task retry --subtask <index>` re-dispatches a single failed subtask (e.g. to a different worker after the original went stale) without disturbing the rest of the fan-out.
 
@@ -898,9 +897,9 @@ spl federation show <id>                         # ≡ spl federation pair show
 
 **Pair direction**: a pair on X with `peer_did=Y` means X pulls from Y (records flow Y→X). For bidirectional sync, run `spl federation pair` on each side.
 
-## Federation — Pair Sync (legacy `spl fleet sync` surface)
+## Federation — Pair Sync (`spl fleet sync`)
 
-Legacy surface for federation pair management. Still functional but **superseded by `spl federation`** above for new pairs. See the [federation guide](/docs/guides/federation) for the legacy walkthrough.
+These commands still work, but use `spl federation` (above) for new pairs. See the [federation guide](/docs/guides/federation) for the older walkthrough.
 
 ```bash
 spl fleet sync add [--peer-url URL] <PEER_DID> <THREAD_ID>   # Create a pair
@@ -921,7 +920,7 @@ spl fleet sync remove <PAIR_ID>                              # Delete pair
 spl sync <THREAD_ID> from <PEER>   # PEER is URL or DID
 ```
 
-Uses thread snapshot/restore under the hood. Useful for onboarding a new instance with existing history.
+Uses thread snapshot/restore under the hood. Useful for setting up a new instance with existing history.
 
 ## Federation — Peer Discovery
 

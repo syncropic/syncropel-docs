@@ -1,23 +1,21 @@
 ---
 title: Dispatch observability
-description: "How Syncropel turns every dispatched task into a queryable record stream — what records get emitted, how to read them, and what the completion codepath and failure reason enums mean."
+description: "See what happened in a dispatched task. Covers the records each dispatch writes, how to read them with spl task diagnose and spl logs, and what the completion and failure values mean."
 ---
 
-## The philosophy — records are spans
+## Overview
 
-Every dispatched task in Syncropel — every `spl task dispatch`, every fanout subtask, every agent invocation that spawns a subprocess — emits a stream of **observation records** as it runs. When the task finishes (or doesn't), you don't need to read logs to know what happened. You query records.
+Every dispatched task (each `spl task dispatch`, each fan-out subtask, each agent run) writes records as it runs. When the task finishes, or fails, you can see what happened by reading those records. You don't need to dig through logs. The records are kept even if the agent crashes or the log file is rotated away.
 
-This follows the same "state = fold(records)" design as the rest of the protocol. Logs are a side-effect-ful stream that can be dropped, corrupted, or silently buffered. Records are content-addressed, immutable, and fold deterministically into a reconstructable state. If the dispatch completed at all, the records are there — even if the subprocess crashed, the log process died, or the log file rotated out from under you.
-
-This page documents what gets emitted, how to query it, and what the enum values mean.
+This page covers what is recorded, how to read it, and what the values mean.
 
 ## The four record kinds
 
-Every CLI-adapter dispatch emits up to four observation record kinds on a **private sub-thread** so tool calls don't pollute the parent task thread. Only the final completion summary flows back to the parent.
+Each dispatch through a CLI adapter writes up to four kinds of records. They go on a **private sub-thread**, so tool calls don't clutter the task thread. Only the final summary is sent back to the task thread.
 
 ### `syncropel.dispatch.stream_event.v1`
 
-Emitted once per `Assistant` event the subprocess writes. Carries delta + running totals for input/output tokens.
+Written each time the agent reports progress. It carries the tokens used since the last event and the running totals.
 
 ```json
 {
@@ -33,11 +31,11 @@ Emitted once per `Assistant` event the subprocess writes. Carries delta + runnin
 }
 ```
 
-**Why it exists**: lets you reconstruct cost and token progress even when the subprocess dies before the terminal `Result` event. Before this record, a subprocess that crashed at 80% through a long task showed `cost_usd: 0.0` — as if nothing had happened. With it, you can sum `*_accum` on the latest record and know what actually got paid for.
+**Why it matters**: you can see cost and token use even if the agent dies before it finishes. Read the `*_accum` values on the latest record to see what was actually used.
 
 ### `syncropel.dispatch.session.v1`
 
-Emitted once, when the subprocess's first `system` init event arrives. Captures the agent CLI's internal `session_id` plus cwd/model.
+Written once, when the agent starts. It captures the agent's own `session_id`, its working directory and its model.
 
 ```json
 {
@@ -50,11 +48,11 @@ Emitted once, when the subprocess's first `system` init event arrives. Captures 
 }
 ```
 
-**Why it exists**: bridges Syncropel records to the agent CLI's own per-project state on disk. When an agent-side bug or unusual tool-use pattern needs diagnosis, you need the raw agent-side log.
+**Why it matters**: it links Syncropel's records to the agent's own session files, which you need if you have to diagnose a problem on the agent's side.
 
 ### `syncropel.dispatch.subprocess_exit.v1`
 
-Emitted **always** after `child.wait()`. Records the objective facts that previously only existed as log lines.
+Written **every time** the agent process ends. It records how the process ended.
 
 ```json
 {
@@ -69,11 +67,11 @@ Emitted **always** after `child.wait()`. Records the objective facts that previo
 }
 ```
 
-**Why it exists**: the subprocess may close its stdout, emit a final `Result` event, and exit with code 0 — or it may die mid-stream with signal 9 from OOM. Either way, `child.wait()` returned something, and this record captures it verbatim. Absence of this record means the dispatch task itself crashed before `child.wait()` returned (engine-level bug — file a ticket).
+**Why it matters**: the agent may finish and exit with code 0, or it may be killed mid-task (signal 9 means it ran out of memory). This record shows which. If it is missing, the dispatch itself crashed. File a ticket.
 
 ### `syncropel.dispatch.complete.v1`
 
-Emitted on every dispatch conclusion — success or any failure path. Carries the completion metadata that makes the full dispatch diagnosable.
+Written whenever a dispatch ends, whether it succeeded or failed. It carries what you need to understand the outcome.
 
 ```json
 {
@@ -92,39 +90,39 @@ Emitted on every dispatch conclusion — success or any failure path. Carries th
 }
 ```
 
-The `completion_codepath`, `failure_reason`, and `cost_source` fields answer three questions that previously required grepping logs:
+Three fields answer the common questions:
 
-**`completion_codepath`** — which of the four exit paths fired:
+**`completion_codepath`** — how the dispatch ended:
 
 | Value                  | When                                                                                                                |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `result_event`         | Subprocess emitted a terminal `Result` stream event. Normal completion.                                             |
-| `line_timeout`         | `per_line_timeout` fired — the subprocess went silent longer than the configured interval.                          |
-| `budget_deadline`      | Absolute wall-clock `budget_deadline` reached. The subprocess was killed.                                           |
-| `stream_eof_fallback`  | stdout closed without a `result` event — the child exited or stdout broke. This is the "silent loss" codepath. |
+| `result_event`         | The agent sent its final result. Normal completion.                                                                 |
+| `line_timeout`         | The agent went silent for longer than the allowed interval.                                                         |
+| `budget_deadline`      | The overall time limit was reached and the agent was stopped.                                                       |
+| `stream_eof_fallback`  | The agent's output ended without a final result, because the agent exited or its output broke.                      |
 
-**`failure_reason`** — the human-queryable reason the dispatch failed (None on success):
+**`failure_reason`** — why the dispatch failed (empty on success):
 
 | Value                        | Meaning                                                                                          |
 | ---------------------------- | ------------------------------------------------------------------------------------------------ |
-| `result_missing`             | stdout closed before a `Result` event arrived.                                                   |
-| `subprocess_exited_nonzero`  | Subprocess exited non-zero after closing stdout.                                                 |
-| `line_timeout`               | Per-line timeout fired.                                                                          |
-| `budget_exceeded`            | Absolute wall-clock deadline reached.                                                            |
-| `read_error`                 | stdout read error mid-dispatch.                                                                  |
-| `result_reported_error`      | The `Result` event carried `is_error: true` — the CLI itself reported failure.                 |
+| `result_missing`             | The agent's output ended before it sent a final result.                                          |
+| `subprocess_exited_nonzero`  | The agent exited with an error code.                                                             |
+| `line_timeout`               | The agent went silent for too long.                                                              |
+| `budget_exceeded`            | The overall time limit was reached.                                                              |
+| `read_error`                 | Reading the agent's output failed partway through.                                               |
+| `result_reported_error`      | The agent reported its own failure (`is_error: true`).                                           |
 
-**`cost_source`** — how we got the cost figure:
+**`cost_source`** — where the cost figure came from:
 
 | Value                       | Meaning                                                                                               |
 | --------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `result_event`              | Figure came from the terminal `Result` stream event. Most accurate.                                  |
-| `accumulated_from_events`   | Figure was summed from per-event usage deltas. Used when Result was never emitted.                   |
-| `unknown`                   | No figure available — stream ended before any cost signal (rare; indicates very early failure).     |
+| `result_event`              | From the agent's final result. Most accurate.                                                         |
+| `accumulated_from_events`   | Added up from progress events. Used when no final result arrived.                                    |
+| `unknown`                   | No figure available. The agent failed before reporting any cost (rare).                              |
 
-## Reading this with `spl task diagnose`
+## Read it with `spl task diagnose`
 
-`spl task diagnose <alias>` reads these records and produces a human-readable summary with recovery guidance.
+`spl task diagnose <alias>` reads these records and prints a summary with advice on what to do next.
 
 ```bash
 spl task diagnose TASK-0042
@@ -134,7 +132,7 @@ spl task diagnose TASK-0042
 Task: TASK-0042 — your task title here
 Sub-thread: th_8c51e9c8...
 
-Dispatch pipeline
+Dispatch steps
   ├─ INTEND on parent thread      clock 24
   ├─ sub-thread created            th_8c51e9c8...
   ├─ subprocess spawned            pid 284123 at 18:02:11
@@ -157,7 +155,7 @@ Or when a dispatch went sideways:
 Task: TASK-0042 — your task title here
 Sub-thread: th_8c51e9c8...
 
-Dispatch pipeline
+Dispatch steps
   ├─ INTEND on parent thread      clock 24
   ├─ sub-thread created            th_8c51e9c8...
   ├─ subprocess spawned            pid 284123 at 18:02:11
@@ -177,22 +175,22 @@ into the agent briefing:
     spl task dispatch --resume TASK-0042
 ```
 
-The key win: `cost=$0.1847` with a definitive failure reason. Work did happen, we know what it cost, and we know why it failed — all surfaced by `spl task diagnose` without touching a log file.
+Here you can see the cost (`$0.1847`) and the reason it failed, without opening a log file.
 
-## Querying the raw log lines with `spl logs --trace-id`
+## Read the log lines with `spl logs --trace-id`
 
-Records give you the shape of what happened. Logs give you the line-by-line narrative. The two are linked by the **sub-thread id** of the dispatch.
+Records show what happened. Logs give the detailed, line-by-line story. They are linked by the dispatch's **sub-thread ID**.
 
 ```bash
 spl logs --trace-id th_8c51e9c8...
 ```
 
-This reads the instance log and its rotated siblings, keeps the lines that belong to that dispatch, merges them chronologically, and prints them pretty-formatted.
+This reads the server log (including older rotated files), keeps the lines for that dispatch, and prints them in time order.
 
 Other selectors:
 
 ```bash
-spl logs --dispatch-id dispatch_th_abc_12345     # tracking_id (PID-scoped)
+spl logs --dispatch-id dispatch_th_abc_12345     # dispatch tracking ID
 spl logs --sub-thread th_8c51e9c8...              # explicit form
 spl logs --turn-id t_01                           # single turn
 spl logs --trace-id th_abc --since 1h             # rolling window
@@ -204,19 +202,19 @@ spl logs --trace-id th_abc -o json                # raw JSONL pass-through
 Example output:
 
 ```
-2026-04-23T18:02:11.000Z [tracing] INFO  syncropel_engine::dispatch::cli_adapter cli_adapter: dispatched with private sub-thread binary=claude pid=284123 sub_thread=th_8c51e9c8...
-2026-04-23T18:15:44.218Z [tracing] WARN  syncropel_engine::dispatch::stream_monitor cli_adapter: stdout read error error=early eof sub_thread=th_8c51e9c8...
-2026-04-23T18:15:44.901Z [tracing] INFO  syncropel_engine::dispatch::stream_monitor cli_adapter: dispatch complete latency_ms=821301 cost_usd=0.0423 codepath=stream_eof_fallback failure_reason=subprocess_exited_nonzero sub_thread=th_8c51e9c8...
+2026-04-23T18:02:11.000Z [tracing] INFO  dispatched with private sub-thread binary=claude pid=284123 sub_thread=th_8c51e9c8...
+2026-04-23T18:15:44.218Z [tracing] WARN  stdout read error error=early eof sub_thread=th_8c51e9c8...
+2026-04-23T18:15:44.901Z [tracing] INFO  dispatch complete latency_ms=821301 cost_usd=0.0423 codepath=stream_eof_fallback failure_reason=subprocess_exited_nonzero sub_thread=th_8c51e9c8...
 ```
 
-At least one filter is required — unfiltered tailing is `spl serve --logs`. The log query deliberately refuses empty filters so you don't drown in every line of the instance's output.
+You must give at least one filter. To follow the whole log, use `spl serve --logs`.
 
 ## Log retention
 
-Instance logs rotate at 10 MB per file with three generations (`spl.log`, `spl.log.1`, `spl.log.2`). Rotated siblings and the legacy foreground `serve.log` are time-pruned at instance startup with a 7-day default. Configure via:
+Server logs rotate at 10 MB per file, keeping three files (`spl.log`, `spl.log.1`, `spl.log.2`). Older rotated files and `serve.log` are removed at startup after 7 days by default. To change that, either:
 
-1. The `SPL_LOG_RETENTION_DAYS` env var on the instance process — runtime override.
-2. A `syncropel.config.log_retention.v1` LEARN record on `th_engine_config` (format below) — persisted via the record log; the instance surfaces its `days` value as `SPL_LOG_RETENTION_DAYS` on subsequent restarts.
+1. Set the `SPL_LOG_RETENTION_DAYS` environment variable on the server. This applies immediately.
+2. Save a `syncropel.config.log_retention.v1` setting (format below). It is kept and applied on later restarts.
 
 ```json
 {
@@ -226,11 +224,11 @@ Instance logs rotate at 10 MB per file with three generations (`spl.log`, `spl.l
 }
 ```
 
-Set `days: 0` to disable retention (files will only be pruned by size rotation).
+Set `days: 0` to keep old files (they are then removed only by size rotation).
 
 ## What to do when a dispatch goes wrong
 
-1. **`spl task diagnose <alias>`** — human-readable summary. 80% of incidents are fully explained by the output.
-2. **`spl logs --trace-id <sub_thread>`** — pull the narrative lines for the dispatch.
-3. **`spl task dispatch --resume <alias>`** — re-run on the preserved worktree, with prior commits surfaced in the agent briefing.
-4. **[Operator runbook](/docs/operate/runbook#dispatched-worker-died-unexpectedly-salvage-procedure)** — the salvage procedure for a partially-completed task.
+1. **`spl task diagnose <alias>`** — human-readable summary. This explains most incidents.
+2. **`spl logs --trace-id <sub_thread>`** — read the log lines for the dispatch.
+3. **`spl task dispatch --resume <alias>`** — re-run on the preserved work folder, with earlier commits included in the agent's briefing.
+4. **[Operator runbook](/docs/operate/runbook#a-worker-was-killed-recover-its-work)** — how to recover a partly finished task.

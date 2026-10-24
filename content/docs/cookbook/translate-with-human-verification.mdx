@@ -1,15 +1,15 @@
 ---
 title: Translate with human verification
-description: Claude Sonnet translates, GPT-4 verifies, Alice is the tiebreaker — a verify-pattern query that only pulls in the human when the two LLMs actually disagree.
+description: One AI model translates, a second checks it, and a person steps in only when the two disagree.
 ---
 
 ## Problem
 
-You need reliable en → es translations for user-facing strings. A single LLM usually gets it right but occasionally fumbles idioms, tone, or formality register. You have a trusted human reviewer (Alice, a native Spanish speaker), but asking her to review every translation doesn't scale — you want her pulled in only when the LLMs actually disagree.
+You need reliable English to Spanish translations for text your users see. One AI model usually gets it right but sometimes mishandles idioms, tone or formality. You have a trusted reviewer (Alice, a native Spanish speaker), but asking her to review every translation doesn't scale. You want her only when the AI models disagree.
 
 ## Recipe
 
-One `spl infer` call with the `verify` orchestration pattern. Primary is Claude Sonnet. Verifier is GPT-4. Tiebreaker is Alice.
+One `spl infer` call using the `verify` pattern. Claude Sonnet translates, GPT-4 checks, and Alice settles any disagreement.
 
 ```bash
 spl infer "Translate to Spanish: 'The early bird catches the worm.'" \
@@ -24,9 +24,9 @@ spl infer "Translate to Spanish: 'The early bird catches the worm.'" \
   --wait
 ```
 
-When they agree, the KNOW lands in ~5-15 seconds and Alice never hears about it. When they disagree, the executor dispatches to Alice. Alice gets a notification via her configured channel (SSE, webhook, Slack relay, or digest email depending on her availability window). She submits a `core.translation.v1` DO with the correct answer, and the executor commits that as the KNOW.
+When they agree, the answer (a `KNOW` record) arrives in about 5 to 15 seconds and Alice never hears about it. When they disagree, the question goes to Alice. She is notified through the channel she has set up (live updates, a webhook, Slack, or a digest email, depending on her availability). She submits a `core.translation.v1` `DO` record with the correct answer, and that becomes the final `KNOW`.
 
-Expected output on agreement (text mode):
+Output when the two agree:
 
 ```text
 answer:
@@ -43,13 +43,13 @@ thread: th_4a7b3c...
 know_record: 8e2f19a4...
 ```
 
-When they disagree and Alice steps in, the trust_summary reflects three contributors and the chosen answer is Alice's.
+When they disagree and Alice steps in, `trust_summary` counts three contributors and the chosen answer is Alice's.
 
 ## The trade-off
 
-`verify` costs ~2× a single-LLM query in the common case (primary + verifier). That's the whole point — you're trading cost for independent confirmation. If your translations are low-stakes (internal logs, developer-facing copy) use `single_shot` with one LLM instead.
+`verify` costs about twice as much as asking one AI model (the translator plus the checker). That is the point: you pay for independent confirmation. If your translations are low-stakes (internal logs, developer-facing text), use `single_shot` with one model instead.
 
-The `agreement_threshold` defaults to 0.85 on structural similarity. For translation, where phrasing differs but semantics are equivalent, you may want to author a `verify.agreement_threshold` expression that compares embeddings instead:
+By default the two answers must be 85% similar in structure (`agreement_threshold` 0.85). For translation, where the wording differs but the meaning is the same, you may want to lower it:
 
 ```json
 {
@@ -69,20 +69,20 @@ Post that via `spl infer --query-file`:
 spl infer --query-file query.json --wait
 ```
 
-Loosening the threshold means fewer escalations to Alice but higher false-agreement rate.
+A lower threshold means fewer questions for Alice but more cases where the two models "agree" even though the translation is wrong.
 
-## Run this against a dev instance
+## Try it on a test workspace
 
-With a local instance and the sonnet + gpt-4 providers configured, register Alice as an actor:
+With a local workspace and the Sonnet and GPT-4 providers set up, register Alice as an actor:
 
 ```bash
 spl actor register did:example:alice --category agent --display-name "Alice (en-es translator)"
 ```
 
-Then run the infer command above. If Alice isn't responding, the executor emits `latency_timeout` after 1800s. To simulate Alice's reply during a test, emit her DO directly with `spl do` (a `core.translation.v1` DO on the same thread), the same way the executor would commit it.
+Then run the infer command above. If Alice doesn't respond, the query ends with `latency_timeout` after 1800 seconds. To simulate her reply in a test, add her `DO` yourself with `spl do` (a `core.translation.v1` `DO` on the same thread).
 
 ## See also
 
-- **[Orchestration Patterns — verify](/docs/guides/inference/orchestration-patterns#pattern-verify)** — how the flow works step-by-step.
-- **[Fold Functions — best_of](/docs/guides/inference/fold-functions#function-best_of)** — why `best_of` is right here.
-- **[Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence)** — variant where the human is the fallback, not the tiebreaker.
+- **[Orchestration Patterns — verify](/docs/guides/inference/orchestration-patterns#pattern-verify)** — how it works, step by step.
+- **[Fold Functions — best_of](/docs/guides/inference/fold-functions#function-best_of)** — why `best_of` fits here.
+- **[Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence)** — a variation where the person is the fallback, not the tiebreaker.

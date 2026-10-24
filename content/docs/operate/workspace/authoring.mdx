@@ -77,8 +77,7 @@ a `body`.
 
 Each region value is a projection document — `{ "srp": "<version>",
 "root": <node> }`. The `root` node and its children are the actual UI:
-tables, forms, text, charts, and so on. Projection documents bind to
-queries rather than carrying data, so the workspace stays static while
+tables, forms, text, charts, and so on. A projection document asks for data rather than carrying it, so the workspace stays the same while
 the records it shows stay live. The node catalog and the document format
 are covered in [Projections](/docs/guides/projections) and
 [React components](/docs/guides/react-components).
@@ -102,13 +101,11 @@ the minimum it needs — a host refuses anything not listed here.
   `emit` empty and is read-only.
 - **`navigate`** is `same-origin`, `external-confirmed`, or `none`.
 
-`capabilities` is part of the hashed body, so it is fixed once the
-workspace is content-addressed. Declare it from the very first record —
-it cannot be added later without changing the workspace's identity.
+Changing `capabilities` later changes the workspace's identity, so it counts as a new version. Declare it from the start.
 
 ## Validate and install
 
-The engine checks the document *shape* on install — that there is no
+Install checks the document *shape* — that there is no
 legacy `components` field, that `meta.slug` is a non-empty string, that
 every region is a well-formed projection document, and that `lifecycle`
 is one of the three allowed values. A document that fails any of these is

@@ -1,6 +1,6 @@
 ---
 title: TypeScript SDK
-description: Integrate with Syncropel from JavaScript or TypeScript — emit records, query threads, enforce grammar, fail open on transport errors. Works in Node, Deno, Bun, edge runtimes, and modern browsers.
+description: "Use Syncropel from JavaScript or TypeScript: add records, query threads, and keep your app running through network errors. Works in Node, Deno, Bun, edge runtimes and browsers."
 ---
 
 ## Install
@@ -14,7 +14,7 @@ Requires Node 18+ or any runtime with a global `fetch`. Zero native dependencies
 
 ## Hello, Syncropel
 
-Start a Syncropel instance locally (`spl serve`), then:
+Start a workspace locally (`spl serve`), then:
 
 ```typescript
 import { Client, Identity, Ref } from "@syncropel/sdk";
@@ -35,20 +35,20 @@ const result = await client.emit({
 console.log(result.success, result.recordId);
 ```
 
-One call validates the `body.kind` grammar, builds the 8-field record envelope, retries on transient 5xx and network errors, and resolves cleanly on transport failures — so a flaky network never crashes your handler.
+One call validates the `body.kind` grammar, builds the record, retries on temporary server and network errors, and returns a result instead of throwing on network failures, so a flaky network never crashes your handler.
 
 ## What you get
 
 - **Universal runtime** — Node, Deno, Bun, edge runtimes, browsers. Uses platform `fetch`.
 - **Async client** — `emit`, `query`, `queryThread`, `intend`, `fulfill`, plus reserved-kind helpers
-- **Files & blobs** — `client.data.*` reads and writes the data plane (see [Files & blobs](/docs/guides/sdk-data-plane))
-- **Folds & live threads** — `client.folds.resolve()` reads any fold; `client.threads.watch()` streams a thread live
-- **Grammar enforcement** — `body.kind` validated client-side before any network call
-- **Canonical references** — 11 built-in constructors for cross-publisher correlation
-- **Fail-open reads, surfaced errors** — record reads fail open (a flaky instance never crashes your UI); malformed requests and data-plane writes raise so a dropped write is never mistaken for success
+- **Files** — `client.data.*` reads and writes files (see [Files & blobs](/docs/guides/sdk-data-plane))
+- **Derived views & live threads** — `client.folds.resolve()` reads computed views such as thread state and trust; `client.threads.watch()` streams a thread live
+- **Kind checking** — `body.kind` is validated before any network call
+- **Shared references** — 11 built-in constructors that let records from different apps point at the same thing
+- **Reads that don't crash, errors that don't hide** — record reads return an empty result on network trouble, so your UI keeps running; malformed requests and file writes throw, so a lost write is never mistaken for success
 - **Identity-aware** — records carry the configured DID
-- **`MockKernel`** — in-memory fake at `@syncropel/sdk/testing` for adapter unit tests
-- **Companion types** — pair with [`@syncropel/projections`](/docs/guides/projections) when you're working with rendered document schemas
+- **`MockKernel`**: a fake workspace at `@syncropel/sdk/testing` for unit tests
+- **Companion types**: pair with [`@syncropel/projections`](/docs/guides/projections) when you work with rendered document formats
 
 ## Core API
 
@@ -56,13 +56,13 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 
 | Method | Purpose |
 |---|---|
-| `emit(opts)` | Primary emit. Validates, envelopes, retries on transient errors. Returns `EmitResult`. Never raises on transport failures. |
-| `intend(opts)` | Open a thread with an `INTEND` record. Generates a thread id if none supplied. |
+| `emit(opts)` | Primary emit. Validates, retries on temporary errors, and returns an `EmitResult`. Never throws on network failures. |
+| `intend(opts)` | Open a thread with an `INTEND` record. Generates a thread ID if none supplied. |
 | `fulfill(opts)` | Close a thread with a `KNOW` record. `fulfills` accepts one record id or an array. |
-| `queryThread(opts)` | All records in a thread. Fail-open (returns `[]` on transport error). |
-| `query(opts)` | Filtered records by kind/actor/thread. Fail-open. |
-| `health()` | Server health probe. Fail-open. |
-| `close()` | No-op (kept for API stability). |
+| `queryThread(opts)` | All records in a thread. Returns `[]` on a network error. |
+| `query(opts)` | Filtered records by kind, actor or thread. Returns an empty result on a network error. |
+| `health()` | Checks the server's health. Returns an empty result on a network error. |
+| `close()` | Does nothing (kept for compatibility). |
 
 **Constructor options (`ClientOptions`):**
 
@@ -71,10 +71,10 @@ new Client({
   endpoint?: string,              // default: http://localhost:9100
   identity: Identity,             // required
   timeoutMs?: number,             // per-request timeout
-  maxRetries?: number,            // transient 5xx/network retry count
+  maxRetries?: number,            // retries on temporary server or network errors
   backoffMs?: number,             // base backoff between retries
   onEmit?: (result) => void,      // observation hook (fires after every emit)
-  apiKey?: string,                // bearer token for authenticated instances
+  apiKey?: string,                // bearer token for workspaces that require sign-in
   fetch?: typeof fetch,           // custom transport (use for testing)
 });
 ```
@@ -85,38 +85,38 @@ Beyond the flat emit/query methods, the rest of the surface is grouped into name
 
 | Namespace | What it covers |
 |---|---|
-| `client.records` | `.create(opts)` (emit alias), `.get(id)`, `.richQuery({ filter, sort?, limit? })` — server-side filtered query. |
+| `client.records` | `.create(opts)` (emit alias), `.get(id)`, `.richQuery({ filter, sort?, limit? })` — filtered query run on the workspace. |
 | `client.threads` | `.list()`, `.records(id)`, `.state(id)`, `.project(id, format)`, and `.watch(id)` — a live `AsyncIterable` of thread events (see below). |
 | `client.folds` | `.resolve<V>(name, cacheKey?)` reads any fold through one typed method; `.watermark(name, key)` checks liveness without recomputing. |
-| `client.data` | Files & blobs — write (with compare-and-swap), read, list, stat, publish, materials. See [Files & blobs](/docs/guides/sdk-data-plane). |
+| `client.data` | Files: write (with conflict detection), read, list, stat, publish, search. See [Files & blobs](/docs/guides/sdk-data-plane). |
 | `client.namespaces` | `.list()`, `.create({ id, description?, policy? })`. |
 | `client.federation` | `.peers()`, `.pair(peer)`, `.sync(thread, peer?)`, `.discoverPeers()`, `.mergeResults()`. |
 | `client.invites` | issue / list / preview / redeem / revoke / audit invitations. |
-| `client.graph` | `.query({ start, edges?, depth?, filter? })` — graph queries over your instance. |
-| `client.expr` | `.eval({ expression, context, record? })` — evaluate a CEL expression server-side. |
-| `client.decisions` | `.pending()`, `.decide(id, { decision, reason? })` — the decision gate: pending decision requests, approve/reject/answer. |
+| `client.graph` | `.query({ start, edges?, depth?, filter? })` — graph queries over your workspace. |
+| `client.expr` | `.eval({ expression, context, record? })` — evaluate a CEL expression on the workspace. |
+| `client.decisions` | `.pending()`, `.decide(id, { decision, reason? })` — pending decisions, and approving, rejecting or answering them. |
 
-### Reading folds
+### Reading derived views
 
-A fold is a derived view computed from a thread's (or the whole instance's) records — the turn timeline, thread state, trust, and more. Read any of them through one method:
+The workspace computes views from a thread's (or the whole workspace's) records: the turn timeline, thread state, trust, and more. In the SDK these are called folds. Read any of them with one method:
 
 ```typescript
-// per-thread fold: pass the thread id as the cache key
+// per-thread view: pass the thread ID as the cache key
 const turns = await client.folds.resolve("turn", threadId);
 render(turns.value);
 
-// global fold: omit the cache key
+// workspace-wide view: omit the cache key
 const trust = await client.folds.resolve("trust");
 
-// liveness check — has the fold moved since you last read it?
+// has the view changed since you last read it?
 const wm = await client.folds.watermark("turn", threadId);
 ```
 
-`resolve` fails open to an empty fold (`watermark: -1`, `value: null`) on a transport error.
+On a network error, `resolve` returns an empty view (`watermark: -1`, `value: null`).
 
 ### Live thread streaming
 
-`client.threads.watch()` returns an `AsyncIterable` over a thread's live events — auto-reconnecting with resume-from-clock, falling back to polling after repeated disconnects, cancellable via `AbortSignal`:
+`client.threads.watch()` returns an `AsyncIterable` over a thread's live events — It reconnects automatically and picks up where it left off, falls back to polling after repeated disconnects, and can be cancelled with an `AbortSignal`:
 
 ```typescript
 for await (const event of client.threads.watch(threadId)) {
@@ -125,19 +125,19 @@ for await (const event of client.threads.watch(threadId)) {
 }
 ```
 
-Prefer `watch()`; the older callback-based `client.subscribe(thread, cb)` remains for compatibility.
+Prefer `watch()`; the older callback-based `client.subscribe(thread, cb)` still works.
 
 ### Identity
 
 ```typescript
 Identity.static("did:example:my-app")    // Supported
-Identity.key(pathOrBytes)                 // Not available yet — raises if called
-Identity.federated(...)                   // Not available yet — raises if called
+Identity.key(pathOrBytes)                 // Not supported; throws if called
+Identity.federated(...)                   // Not supported; throws if called
 ```
 
 ### Reserved-kind helpers
 
-For records that participate in the protocol's coherence story:
+For records that correct, erase, rename or transfer earlier ones:
 
 ```typescript
 await client.emitCorrection({
@@ -177,7 +177,7 @@ await client.emitScopeClaim({
 
 ### Canonical references (`Ref`)
 
-Canonical refs let records about the same real-world entity correlate across apps:
+References let records about the same real-world thing match up across apps:
 
 ```typescript
 Ref.musicTrack({ isrc: "USJI19810404" })            // → @music.track
@@ -214,9 +214,9 @@ interface EmitResult {
 }
 ```
 
-## Authenticating to a remote instance
+## Authenticating to a remote workspace
 
-When the Syncropel instance has bearer-token auth enabled, pass the token via `apiKey`:
+When the workspace requires sign-in, pass the token via `apiKey`:
 
 ```typescript
 const client = new Client({
@@ -230,7 +230,7 @@ The client sends `Authorization: Bearer <token>` on every outbound request. See 
 
 ## Inference — `client.infer()`
 
-`client.infer()` emits an `infer.query.v1` INTEND and (by default) polls until the KNOW lands. The full query anatomy lives in the [Inference guide](/docs/guides/inference/query-anatomy); this section is the SDK surface.
+`client.infer()` sends an inference request and, by default, waits for the answer. The full query anatomy lives in the [Inference guide](/docs/guides/inference/query-anatomy); this section covers the SDK.
 
 ```typescript
 import { Client } from "@syncropel/sdk";
@@ -253,7 +253,7 @@ console.log(`Trust: ${result.trust_summary.mean.toFixed(2)}`);
 console.log(`Cost: $${result.cost_actual_usd.toFixed(4)}`);
 ```
 
-The `InferRequest` shape mirrors the schema field-for-field. TypeScript types for every sub-shape come from `@syncropel/config`:
+The `InferRequest` has the same fields as the query. TypeScript types for each part come from `@syncropel/config`:
 
 ```typescript
 import type {
@@ -267,14 +267,14 @@ import type {
 
 ### Fire-and-forget
 
-Pass `{ wait: false }` to emit the INTEND and return immediately:
+Pass `{ wait: false }` to send the request and return immediately:
 
 ```typescript
 const pending = await client.infer(request, { wait: false });
 console.log(pending.correlation_id, pending.thread_id);
 ```
 
-You get back `InferPending = { pending: true; correlation_id: string; thread_id: string }`. Poll the thread yourself via `client.threadRecords(pending.thread_id)` or subscribe for the KNOW.
+You get back `InferPending = { pending: true; correlation_id: string; thread_id: string }`. Check the thread yourself with `client.threadRecords(pending.thread_id)`, or subscribe, to get the answer.
 
 ### Options
 
@@ -308,28 +308,28 @@ interface InferResult {
 }
 ```
 
-### Error handling — fail-hard (not fail-open)
+### Error handling
 
-Unlike `client.emit()`, `client.infer()` **fails hard**:
+Unlike `client.emit()`, which never throws on network errors, `client.infer()` **throws on failure**:
 
 - Invalid request shape throws before any HTTP call.
-- Network or instance error on INTEND emission throws.
+- A network or workspace error when sending the request throws.
 - Poll timeout throws `TimeoutError`.
 
-Catch timeouts explicitly if you want the thread id preserved for manual polling.
+Catch timeouts explicitly if you want to keep the thread ID and check it yourself.
 
 ## Error model
 
-The SDK distinguishes two failure modes:
+The SDK handles failures in two ways:
 
-- **Fail-open** — record reads (`query`, `queryThread`, `richQuery`, `health`, `folds.resolve`) return an empty result on a *transient* failure (a briefly-unavailable instance, a `5xx`, an auth blip), so a UI never crashes on backend trouble.
-- **Surfaced (thrown)** — a *programmer error* or a write that must not be lost throws, so it can't be mistaken for an empty result:
+- **Empty result**: record reads (`query`, `queryThread`, `richQuery`, `health`, `folds.resolve`) return an empty result on a *temporary* failure (a briefly unavailable workspace, a `5xx`, a sign-in blip), so a UI never crashes on backend trouble.
+- **Thrown error**: a *mistake in your code* or a write that must not be lost throws, so it can't be mistaken for an empty result:
 
 | Error | Thrown when |
 |---|---|
 | `SyncropelKindError` | `body.kind` violates the grammar — raised before any network call. |
 | `SyncropelQueryError` | A read is rejected as **malformed** (HTTP 4xx) — e.g. a bad filter or sort. Carries `.detail`. |
-| `SyncropelDataError` | A `client.data.*` operation fails — a quota, a permission denial, or a compare-and-swap conflict (`.isConflict`). |
+| `SyncropelDataError` | A `client.data.*` operation fails — a quota, a permission denial, or a write conflict (`.isConflict`). |
 
 ```typescript
 import { SyncropelQueryError } from "@syncropel/sdk";
@@ -338,18 +338,18 @@ try {
   const { records } = await client.richQuery({ filter: { thread }, sort: { clock: -1 } });
 } catch (e) {
   if (e instanceof SyncropelQueryError) {
-    // the request was malformed (4xx) — fix the filter/sort, don't treat as "empty"
+    // the request was malformed (4xx) — fix the filter or sort, don't treat it as "empty"
   }
 }
 ```
 
 <Callout type="warn">
-**Malformed queries throw.** `richQuery` / `query` / `queryThread` throw `SyncropelQueryError` on a malformed `4xx` rather than returning an empty result. Valid queries are unaffected; wrap any call that might send a malformed filter/sort in a `try/catch`. The canonical fix for the most common case is the object sort form `{ clock: -1 }` (not a string).
+**Malformed queries throw.** `richQuery` / `query` / `queryThread` throw `SyncropelQueryError` on a malformed `4xx` rather than returning an empty result. Valid queries are unaffected; wrap any call that might send a malformed filter/sort in a `try/catch`. The usual fix is the object form of sort, `{ clock: -1 }` (not a string).
 </Callout>
 
-## Testing without an instance
+## Testing without a workspace
 
-Use `MockKernel` to write unit tests against the SDK interface without running `spl serve`:
+Use `MockKernel` to write unit tests without running `spl serve`:
 
 ```typescript
 import { Client, Identity, Ref } from "@syncropel/sdk";
@@ -371,11 +371,11 @@ test("my adapter emits a track", async () => {
 });
 ```
 
-Useful `MockKernel` helpers: `recordsIn(thread)`, `recordsByKind(kind)`, `recordsByActor(did)`, `count()`, `clear()`, `failNextPostCall(n)`, `failNextGetCall(n)` (for transport-failure testing).
+Useful `MockKernel` helpers: `recordsIn(thread)`, `recordsByKind(kind)`, `recordsByActor(did)`, `count()`, `clear()`, `failNextPostCall(n)`, `failNextGetCall(n)` (for testing network failures).
 
 ## Running on edge runtimes
 
-Because the SDK uses global `fetch`, it runs unmodified on edge runtimes. Pass the runtime's environment bindings explicitly if you're using them:
+Because the SDK uses global `fetch`, it runs unmodified on edge runtimes. If you use the runtime's environment bindings, pass them explicitly:
 
 ```typescript
 export default {
@@ -400,10 +400,10 @@ export default {
 
 ## What's next
 
-- [Files & blobs](/docs/guides/sdk-data-plane) — read and write the data plane with `client.data.*`
-- [Records concept](/docs/concepts/records) — the 8-field envelope and why it's content-addressed
+- [Files & blobs](/docs/guides/sdk-data-plane) — read and write files with `client.data.*`
+- [Records concept](/docs/concepts/records) — what a record contains
 - [Threads concept](/docs/concepts/threads) — how records group into workflows
-- [Projections SDK](/docs/guides/projections) — schema + validators for rendered documents you emit or consume
-- [React components](/docs/guides/react-components) — UI atoms that render projection documents
+- [Projections SDK](/docs/guides/projections) — types and validators for rendered documents you emit or consume
+- [React components](/docs/guides/react-components) — components that render projection documents
 - [Python SDK](/docs/guides/python-sdk) — the equivalent package for Python code
-- [Authentication & Service Accounts](/docs/operate/keyring) — securing the instance your code talks to
+- [Authentication & Service Accounts](/docs/operate/keyring) — securing the workspace your code talks to

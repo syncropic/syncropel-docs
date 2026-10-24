@@ -1,17 +1,17 @@
 ---
 title: Federate one thread
-description: Share a single task thread with a collaborator on a different `spl` instance — and nothing else. The minimal federation recipe.
+description: Share one task thread with a colleague who runs their own workspace, and nothing else.
 ---
 
 ## Problem
 
-A teammate runs their own `spl` instance. You're working on a task (say `TASK-0042`), and you want them to see its records as they land — their instance should pull changes for the task's thread, signature-verify them, and ingest. You do *not* want to share everything. Just this one thread. They should not see your trust data, your other tasks, your engine config, or anything on other threads.
+A teammate runs their own workspace. You're working on a task (say `TASK-0042`), and you want them to see its records as they arrive. Their workspace should fetch the new records for that thread and check their signatures. You do *not* want to share everything, just this one thread. They should not see your trust data, your other tasks, your settings, or any other thread.
 
 ## Recipe
 
-You both already have `spl init`-initialised instances with DIDs. Exchange DIDs and endpoint URLs, then create one pair on each side pointing at the same thread ID.
+You both already ran `spl init` and have an identity (a DID). Swap identities and addresses, then set up one pair pointing at the same thread ID.
 
-On **your** side — you publish the thread, they subscribe:
+On **your** side, you share the thread and they follow it:
 
 ```bash
 # 1. Get the thread ID for the task.
@@ -19,37 +19,37 @@ TASK_THREAD=$(spl task show TASK-0042 -o json | jq -r '.thread')
 echo "$TASK_THREAD"
 # th_a1b2c3d4…
 
-# 2. Tell them your DID and endpoint URL. They'll need both.
+# 2. Tell them your identity and address. They need both.
 spl identity show -o json | jq '{did, endpoint_url}'
 # { "did": "did:sync:user:alice", "endpoint_url": "https://alice.example.com:9100" }
 ```
 
-On **their** side — they add a pair pulling from you:
+On **their** side, they add a pair that fetches from you:
 
 ```bash
-# They need your DID, your endpoint URL, and the thread ID.
+# They need your identity, your address, and the thread ID.
 spl fleet sync add "did:sync:user:alice" "$TASK_THREAD" \
   --peer-url "https://alice.example.com:9100"
 
-# Verify the pair landed and is pulling.
+# Check the pair was added and is fetching.
 spl fleet sync list
 
-# Check for changes right now (instead of waiting for the background pull).
+# Fetch right now (instead of waiting for the next automatic fetch).
 spl fleet sync kick <pair-id>
 ```
 
-Within a few seconds of every record you emit on `TASK-0042`, their instance ingests it. Records arrive, signatures are verified against your DID, and the consent filter runs — if you and your teammate are in different namespaces, the filter stops propagation unless a consent grant exists.
+Within a few seconds of every record you add to `TASK-0042`, their workspace receives it. Signatures are checked against your identity, and consent is checked too: if you and your teammate are in different namespaces, nothing is shared unless a consent grant exists.
 
 ## The trade-off
 
-**Pairs are per-thread.** If you start a sub-thread (e.g., the dispatch thread when you invoke an agent on `TASK-0042`), your teammate won't see records there — their pair subscribes to the parent only. If you want to share sub-threads too, they have to add another pair for each one, or you both move to a shared workspace thread and mirror task threads into it.
+**Each pair covers one thread.** If you start another thread (for example, the thread where an agent works on `TASK-0042`), your teammate won't see it, because their pair follows only the first. To share more threads, they add another pair for each one.
 
-**Cross-namespace sharing needs a consent grant.** If your task is in `default` and theirs is in `their-namespace`, records don't cross without an explicit grant on `th_consent` specifying source, target, and allowed hash levels. See [Consent management](/docs/guides/consent) for the grant flow.
+**Sharing across namespaces needs a consent grant.** If your task is in `default` and theirs is in `their-namespace`, records don't cross without a grant on `th_consent` naming the source, the target and what may be shared. See [Consent management](/docs/guides/consent) for the grant flow.
 
-**There's no push from your side.** Your instance doesn't know their pair exists. They pull on their own schedule (default every few seconds) with exponential backoff if you're unreachable. If their instance is offline when you emit records, the records propagate the next time their pull loop runs — pull is idempotent.
+**Your side doesn't send anything.** Your workspace doesn't know their pair exists. They fetch on their own schedule (every few seconds by default) and wait longer between tries if you're unreachable. If their workspace is offline when you add records, they arrive the next time it fetches. Fetching twice does no harm.
 
 ## See also
 
-- **[Federation](/docs/concepts/federation)** — the full model: pairs, identity, consent, discovery.
-- **[Federation pair guide](/docs/guides/federation-pair)** — end-to-end walkthrough with two local instances via `spl federation pair`.
+- **[Federation](/docs/concepts/federation)** — how pairs, identity, consent and discovery fit together.
+- **[Federation pair guide](/docs/guides/federation-pair)** — step-by-step walkthrough with two local workspaces via `spl federation pair`.
 - **[Consent management](/docs/guides/consent)** — cross-namespace grants.

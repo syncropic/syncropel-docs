@@ -1,50 +1,48 @@
 ---
 title: Records
-description: The immutable, verifiable unit, the only primitive Syncropel writes. Every intent, action, observation, and decision is a record.
+description: The one thing Syncropel writes. Every intent, action, observation and decision is a record that never changes after it is written.
 ---
 
 ## Overview
 
-A record is a single immutable fact. Syncropel writes nothing else. Task status, trust scores, routing rules, configuration, the output of a CI job, a comment on a design doc, all of it is records. When you understand the record, you understand what the system can and cannot do.
+A record is a single fact that never changes after it is written. Syncropel writes nothing else. Task status, trust scores, routing rules, configuration, the output of a CI job and a comment on a design doc are all records.
 
-The single load-bearing idea is this: **the record log is the source of truth, and everything else is derived from it.** Trust scores, proven patterns, workspace state, the engine's calibration, none of these are stored independently. They are all *derived* by replaying the records, the way a bank balance is derived from a ledger of transactions rather than kept as a separate editable number. The immutable log goes in; live state comes out. That is what makes the system auditable, rebuildable from scratch, and consistent across instances. The [State is a fold](#state-is-a-fold) section below develops it.
+**The record log is the source of truth, and everything else is worked out from it.** Trust scores, proven patterns and workspace state are not stored separately. They are calculated from the records, the way a bank balance is calculated from a list of transactions. This is what makes your workspace auditable and consistent across paired workspaces. The [State is a fold](#state-is-a-fold) section below explains more.
 
-The record has a small, fixed set of fields. Every one of them except `judged_by` is part of the record's identity. The system never mutates a record after it lands, corrections, cancellations, and status changes all arrive as new records that reference the old ones.
+A record is never changed once it lands. Corrections, cancellations and status changes are new records that point at the old ones.
 
-If you've written code against Git's commit model or CouchDB's document model, the shape will feel familiar: immutable and history-preserving. The difference is that Syncropel's record is *universal*, the same shape is used for code changes, task tracking, trust evidence, federation sync, and policy records. There's no second primitive to learn.
+If you have used Git commits or CouchDB documents, the shape will feel familiar. The difference is that every kind of work uses the same record: code changes, tasks, trust evidence, sync between workspaces, and policies.
 
 ## The fields
 
 | # | Field | Part of the ID | What it is |
 |---|---|---|---|
-| 1 | `parents` | yes | Record IDs this one builds on (sorted ascending). Empty list `[]` for a root record. |
+| 1 | `parents` | yes | IDs of the records this one builds on. An empty list `[]` for a first record. |
 | 2 | `thread` | yes | The thread this record belongs to, a `th_`-prefixed thread ID. |
 | 3 | `actor` | yes | Who emitted it, a DID like `did:sync:user:alice` or `did:sync:agent:dev`. |
 | 4 | `act` | yes | The act type, one of 8: `INTEND`, `DO`, `KNOW`, `LEARN`, `GET`, `PUT`, `CALL`, `MAP`. |
-| 5 | `body` | yes | The JSON payload. Opaque to Syncropel; conventions live inside it. |
-| 6 | `clock` | yes | A logical timestamp, monotonic per `(actor, thread)`. Starts at 0 on a new thread. |
+| 5 | `body` | yes | The JSON content. Syncropel stores it as given. |
+| 6 | `clock` | yes | A counter that only goes up for each actor on each thread. Starts at 0 on a new thread. |
 | 7 | `data_type` | yes | One of 6: `SCALAR`, `FORMULA`, `DISTRIBUTION`, `REFERENCE`, `MORPHISM`, `VOID`. |
 | 8 | `judged_by` | **no** | Pointer to the record whose judgment this reflects. Often null. |
 
-`judged_by` is excluded from the ID on purpose. The same observation reviewed by two different people is *the same observation*, it shouldn't create two records with different IDs. What changes between those reviews is trust attribution, not content.
+`judged_by` is left out of the ID on purpose. The same observation reviewed by two different people is still the same observation. What changes is who vouches for it, not the content.
 
 ## Identity
 
-The ID of a record is determined entirely by its content: the same content always yields the same ID, and different content always yields a different one. Three consequences follow:
+A record's ID comes from its content: the same content always gives the same ID, and different content gives a different one. This means:
 
-**1. Two identical records collide.** If Alice emits the same `(thread, actor, clock, body, act)` twice, the second call is a no-op, the ID already exists in the store. This makes retries idempotent at the storage layer. The CLI and SDK both rely on this when recovering from a network error mid-emit.
+1. **Sending the same record twice does nothing.** If Alice sends the same `(thread, actor, clock, body, act)` again, the second send is ignored because the ID already exists. Retrying after a network error is safe.
+2. **The ID proves the record is unaltered.** A record pulled from a paired workspace whose ID does not match its content is rejected.
+3. **A record cannot be edited.** Change one character and you have a different record. Two workspaces that hold the same IDs hold the same records.
 
-**2. The ID verifies integrity.** Any downstream process that cares about authenticity can recompute the ID from the fields and check it matches. Federation uses this on every pulled record; a record whose ID does not check out doesn't enter the store.
-
-**3. There's no "renaming" a record.** Every field matters. Change one character in the body, you get a different ID, you get a different record. This is the property that makes federation viable: two instances that hold the same set of IDs hold the same set of records, and that's decidable in one comparison.
-
-Any implementation given the same seven fields arrives at the same ID. See the [Glossary](/docs/reference/glossary) for the full encoding rules.
+See the [Glossary](/docs/reference/glossary) for more.
 
 ## Act types
 
 Eight act types, partitioned into two groups of four.
 
-**Coordination acts**, what hybrid human-AI teams spend most of their time on.
+**Coordination acts** are what teams of people and AI members use most.
 
 | Act | Meaning | Typical body |
 |---|---|---|
@@ -53,7 +51,7 @@ Eight act types, partitioned into two groups of four.
 | `KNOW` | Record an observation, fact, or verdict. | `{"topic": "...", "observation": "..."}`, `{"fulfills": "<record_id>"}` |
 | `LEARN` | Record an insight or decision that should persist. Often used for config changes. | `{"topic": "routing_rule", "rule": {...}}` |
 
-**Effect acts**, what adapters and tools emit when they touch the outside world.
+**Effect acts** are written by tools and integrations when they touch the outside world.
 
 | Act | Meaning | Typical body |
 |---|---|---|
@@ -62,67 +60,59 @@ Eight act types, partitioned into two groups of four.
 | `CALL` | Invoke a tool or service. | `{"tool": "bash", "cmd": "..."}`, `{"provider": "anthropic", "request": {...}}` |
 | `MAP` | Transform data. | `{"from": "...", "to": "..."}` |
 
-Most CLI commands emit a single act, `spl intend` emits `INTEND`, `spl do` emits `DO`, and so on. Higher-level flows like dispatch produce chains: the pipeline writes an `INTEND` for the dispatched goal, then the adapter writes a `CALL` when it invokes the tool, then a `KNOW` when the tool returns.
+Most CLI commands emit a single act, `spl intend` emits `INTEND`, `spl do` emits `DO`, and so on. Larger flows write a chain: an `INTEND` for the goal, a `CALL` when a tool is invoked, then a `KNOW` when the tool returns.
 
-## The body is opaque
+## The body is free-form
 
-Syncropel does not validate the contents of `body`. It stores the record and moves on. All semantic conventions, "a task INTEND has `body.task = true`", "a closing KNOW has `body.fulfills`", "a routing rule is a LEARN on `th_engine_config` with `body.topic = routing_rule`", live one layer up, in the adapters and the SDKs.
+Syncropel does not check what is inside `body`. It stores the record as given. Conventions such as "a task `INTEND` has `body.task = true`", "a closing `KNOW` has `body.fulfills`" and "a routing rule is a `LEARN` on `th_engine_config` with `body.topic = routing_rule`" are applied by the tools and SDKs that read the records.
 
-This is intentional. Syncropel's guarantee is *"every record has the shape"*. The guarantee *"every body of act X has the shape Y"* is a convention that different consumers can agree on and evolve without touching the ingest path.
+- **New kinds of record need no upgrade.** New task statuses and config topics are just new `body.topic` values.
+- **A malformed body is caught when it is used.** A `LEARN` with a broken routing rule is stored, but the rule is left out when rules load, and you get a warning.
 
-Two practical consequences:
+The one exception is `body.namespace`, which Syncropel checks when a record arrives, because namespaces are a security boundary.
 
-- **Adding a new kind of record is a documentation problem, not a runtime change.** New task statuses, new config topics, new adapter metadata, all of them land as new `body.topic` values without changes to the runtime.
-- **Malformed bodies are caught at the consumer, not at ingest.** A LEARN with a broken routing rule ingests fine; the config loader rejects it at reload time and emits a warning. Loose at the boundary, strict at the use site.
+## Changing your mind
 
-The one exception is `body.namespace`, which Syncropel reads to enforce namespace narrowing at ingest. That check has a dedicated code path precisely because namespace is a security boundary, not a semantic convention.
+Records are never edited or deleted. Changes are new records:
 
-## Immutability and supersession
+- **Correct a mistake**: write a `KNOW` with `body.topic: "correction"` and the bad record in `parents`. The later one wins.
+- **Cancel an intent**: write a `DO` with `body.cancels: "<intend_id>"`. The task then shows as cancelled.
+- **Change a setting**: write a new `LEARN` on `th_engine_config`. The latest record wins.
 
-Records are never edited or deleted. Three kinds of "change" become three flavors of new record:
+You cannot backdate a record. If someone disagrees with an earlier observation, they write a later record. Which one wins depends on the rule that applies: usually the latest, sometimes the first accepted, sometimes something specific to the area.
 
-- **Correct a mistake**: emit a `KNOW` with `body.topic: "correction"` referencing the bad record in `parents`. The later one wins.
-- **Cancel a prior intent**: emit a `DO` with `body.cancels: "<intend_id>"`. The task is then shown as cancelled.
-- **Change a config**: emit a new `LEARN` on `th_engine_config`. The engine reloads on broadcast; the latest record wins.
-
-No backdating. Clocks are monotonic per `(actor, thread)`, so you cannot insert a record into the past. An actor who disagrees with a past observation emits a *later* record contradicting it, and the rule that applies decides which wins based on the rule that applies, often "latest by clock", sometimes "accept-first-wins" for the decision gate, sometimes domain-specific.
-
-This is what makes the record log auditable. Every state transition happened when it happened, signed by whoever did it, and nothing downstream can make the log look different later.
+Every change happened when it happened, signed by whoever made it, and nothing later can alter that history.
 
 ## State is a fold
 
-There is no second database. Every piece of state the system exposes, task status, trust scores, active dispatches, routing rules, namespace registry, fleet membership, is computed by replaying records:
+There is no second database. Everything you see, such as task status, trust scores, routing rules and namespaces, is worked out by reading the records:
 
 ```
 current_state = fold(records_on_thread)
 ```
 
-Current state is always worked out the same way from a thread's records. `spl task show` works out a task's state from its thread. `spl trust` works out trust from every verdict the actor has received. `spl config list-rules` returns the latest rule per name.
+`spl task show` works out a task's state from its thread. `spl trust` works out trust from every verdict an actor has received. `spl config list-rules` returns the latest rule per name.
 
-Because of this, three things follow:
+This means:
 
 1. **The records are the ground truth.** If a view looks wrong, the records are still right.
-2. **Consistency across instances is guaranteed.** Two instances with the same records will show the same state.
-3. **Rebuild-from-scratch is always available.** A corrupted derived cache (trust, instance registry, namespace registry) is fixed by replaying records. Syncropel does this automatically on every startup.
-
-On startup, trust and routing rules are rebuilt from the records. Recovering from a crash works the same way.
+2. **Paired workspaces agree.** Two workspaces with the same records show the same state.
+3. **State can always be rebuilt.** If a derived view is damaged, Syncropel rebuilds it from the records. It does this automatically on every start.
 
 ## What goes in and what doesn't
 
-Four rules of thumb for what *should* be a record vs what's legitimately stored elsewhere.
-
 **Record it if:**
-- It represents intent, action, observation, or learning that anyone else might need to audit or replay.
-- It should survive a crash and rebuild the world.
-- It's the unit another actor (human, agent, service) would coordinate against.
+- It is an intent, action, observation or lesson that someone else might need to audit or replay.
+- It should survive a crash.
+- Another member (person, agent or service) would coordinate around it.
 
 **Don't record it if:**
-- It's an implementation-internal cache that's cheaper to recompute (e.g., embedding vectors for semantic search, those live in `sqlite-vec`, keyed by record ID).
-- It's secrets material (private keys, API keys). These live in `~/.syncro/secrets/` and are not records.
-- It's a per-process runtime detail (PID, active subprocess handle, unflushed log buffer).
-- It changes faster than the ingest path can sustain (sub-millisecond telemetry streams). Aggregate at the edge, emit a record with the summary.
+- It is a cache that is cheaper to recompute, such as search embeddings.
+- It is secret material such as private keys or API keys. These live in `~/.syncro/secrets/` and are not records. See [Secrets](/docs/concepts/secrets).
+- It is a detail of a running process, such as a process ID.
+- It changes faster than records can be written, such as a high-rate telemetry stream. Summarize it and record the summary.
 
-When in doubt, record it. The ingest path is fast (under 100µs in the happy path), the SQLite backend scales to tens of millions of records on commodity hardware, and the auditability payoff compounds.
+When in doubt, record it.
 
 ## What's next
 

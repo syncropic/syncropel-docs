@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Engine configuration — routing rules, event triggers, and server settings.
+description: Settings for your workspace — routing rules, event triggers, sign-in, search, relays, and where files live.
 ---
 
 ## Configuration File
@@ -27,9 +27,9 @@ spl config show
 spl config path    # Shows the file location
 ```
 
-## Engine Configuration
+## Workspace settings
 
-Engine behavior is configured through records on a special thread. This means configuration is versioned, auditable, and can change at runtime.
+Workspace settings are saved as records, so every change is kept in history and takes effect without a restart.
 
 ### Routing Rules
 
@@ -103,10 +103,10 @@ spl config model claude-sonnet-4-20250514
 
 Bearer-token authentication for `spl serve` is governed by two config surfaces:
 
-**1. Server-side toggle** — a LEARN record on `th_engine_config`:
+**1. Sign-in switch.** Turn this on to require a token for every request. It is a settings record (a `LEARN` record on the `th_engine_config` thread, which holds workspace settings). There is no `spl config` command for it, so you send the record yourself:
 
 ```bash
-# Enable enforcement (a records-door write, as in Store bounds: set actor and clock)
+# Turn on required sign-in (set your actor and the next clock value)
 curl -X POST http://127.0.0.1:9100/v1/records \
   -H "Authorization: Bearer $SPL_TOKEN" -H 'content-type: application/json' \
   -d '{"thread":"th_engine_config","actor":"<your member id>","act":"LEARN","clock":<next clock>,
@@ -120,47 +120,41 @@ curl -X POST http://127.0.0.1:9100/v1/records \
 
 Exempt routes (always unauthenticated): `GET /health`, `POST /v1/bootstrap/service-account`, `GET /.well-known/syncropel`.
 
-The instance reloads `th_engine_config` on broadcast, so new records take effect on the next request — no restart needed.
+The change takes effect on the next request. You do not need to restart.
 
-**Per-actor tier assignment** — one LEARN record gives a defined actor a
-real tier rung (a defined actor has no invite stamp and otherwise runs at
-Trial, whose daily loop cap cannot carry an hourly schedule):
+**Per-actor plan level.** An actor you define yourself starts on the Trial level, whose daily limit is too low for an hourly schedule. One settings record gives that actor a higher level:
 
 ```json
 {"topic":"actor_tier","actor":"did:sync:agent:director","tier":"team"}
 ```
 
-Write it to `th_engine_config` as the engine actor (the config thread is
-kernel-authority; owner or admin scope required).
+There is no `spl config` command for this, so you write the record to the `th_engine_config` thread as the system actor (`did:sync:system:engine`). Only an owner or admin can do this.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `topic` | string | — | Must be `"actor_tier"` |
 | `actor` | string | — | The actor DID the assignment applies to |
-| `tier` | string | — | `"paid"` or `"team"`; an assignment can never mint an operator (values above team are clamped). An empty or absent `tier` clears the assignment. |
+| `tier` | string | — | `"paid"` or `"team"`. An assignment never grants operator rights; higher values are treated as `team`. An empty or missing `tier` removes the assignment. |
 
-Latest record per actor wins. Assignments are applied when the resolver is
-rebuilt, which happens at boot and on any actor definition write; a bare
-assignment write alone takes effect at the next rebuild or restart. Tier
-resolution takes the higher of the invite-stamped tier and the assignment.
+The latest record for each actor wins. The new level applies the next time actors are reloaded, which happens when the server starts and whenever you change an actor's definition. If you only write this record, restart the server to apply it. If the actor also has a level from its invite, the higher one is used.
 
-**2. CORS allow-list** — a separate LEARN record:
+**2. Allowed websites (CORS).** List the websites that may call your workspace from a browser:
 
 ```bash
 spl config auth-set-cors-origins https://your-app.example.com
 ```
 
-CORS headers are sent only when `auth.required = true`. With auth off, CORS is permissive by default.
+The list applies only when required sign-in is on. With sign-in off, any website may call your workspace.
 
-**3. Escape hatch** — `spl serve --insecure-localhost` force-binds the instance to `127.0.0.1` and disables auth enforcement, regardless of the `auth.required` setting. Used for emergency recovery when tokens are lost. A WARN log is emitted on every startup when this flag is active. **Never use in production.**
+**3. Emergency recovery.** If you lose your tokens, `spl serve --insecure-localhost` starts the server on `127.0.0.1` only, with sign-in turned off. It logs a warning at every start. **Never use it in production.**
 
-See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full workflow — first-SA bootstrap, token lifecycle, federation pairing, and emergency recovery.
+See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full workflow — creating your first service account, managing tokens, pairing with another workspace, and recovering access.
 
 ### Embedding provider
 
-Configure the provider used for [semantic search](/docs/guides/search). Without a provider, `POST /v1/records/search` returns `503 SEMANTIC_SEARCH_DISABLED` and `spl search` surfaces a `disabled: true` flag instead of raising.
+Configure the provider used for [semantic search](/docs/guides/search). Without a provider, `POST /v1/records/search` returns `503 SEMANTIC_SEARCH_DISABLED`, and `spl search` reports `disabled: true`.
 
-Managed via `spl config embedding-provider set|show|clear` (see the [CLI reference](/docs/reference/cli#embedding-provider)). Both commands write a LEARN record on `th_engine_config`; the instance rebuilds its embedder on broadcast — no restart.
+Managed via `spl config embedding-provider set|show|clear` (see the [CLI reference](/docs/reference/cli#embedding-provider)). Each command saves a settings record, and the change applies without a restart.
 
 ```bash
 spl config embedding-provider set ollama --endpoint http://localhost:11434 --model nomic-embed-text
@@ -170,17 +164,17 @@ spl config embedding-provider set ollama --endpoint http://localhost:11434 --mod
 |---|---|---|---|
 | `topic` | string | — | Must be `"embedding_provider"` |
 | `provider` | object \| null | `null` | Provider config. Set `null` to clear (disables semantic search while retaining stored vectors) |
-| `provider.kind` | string | — | Provider kind. Currently only `"ollama"` |
+| `provider.kind` | string | — | Provider kind. Only `"ollama"` is supported |
 | `provider.endpoint` | string | `"http://localhost:11434"` | HTTP endpoint of the embedding service (Ollama) |
 | `provider.model` | string | `"nomic-embed-text"` | Model name. Changing the model is a "different embedder" — old vectors become inactive (retained but unused until cleared) |
 
-After enabling a provider, backfill existing records with `spl embed --loop` (or `POST /v1/records/embed` in a shell loop). New records are embedded inline by the INGEST loop.
+After enabling a provider, backfill existing records with `spl embed --loop` (or `POST /v1/records/embed` in a shell loop). New records are indexed automatically as they arrive.
 
 ### Async-federation relay
 
-Configure one or more store-and-forward relays for [async federation](/docs/guides/async-federation) — used when peers aren't reliably online at the same time. Each entry binds a relay URL to either a specific peer DID or the catch-all sentinel `"all"`. An entry with `enabled: false` is kept so an operator can toggle without losing the URL.
+Configure one or more store-and-forward relays for [async federation](/docs/guides/async-federation) — used when peers aren't reliably online at the same time. Each entry binds a relay URL to either a specific peer DID or the catch-all sentinel `"all"`. An entry with `enabled: false` is kept but ignored, so you can switch it off without losing the URL.
 
-Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation--pair-lifecycle-canonical)). Each mutating subcommand writes a LEARN record:
+Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation--pair-lifecycle-canonical)). Each command that changes settings saves a settings record:
 
 ```bash
 spl config relay set https://relay.syncropel.com --for-pair all
@@ -193,41 +187,37 @@ spl config relay set https://relay.syncropel.com --for-pair all
 | `for_pair` | string | — | Peer DID this relay is for, or the sentinel `"all"` as the catch-all |
 | `enabled` | bool | `true` | When `false`, the entry is preserved but skipped at lookup time |
 
-At send time, lookup proceeds most-specific-first: an exact `for_pair == peer_did` match wins; otherwise the `"all"` catch-all is used. Inbound receive tasks spawn at instance startup — restart `spl serve` after configuring a new relay URL so the receive loop binds.
+When sending, a relay set for that exact peer wins; otherwise the `"all"` relay is used. Restart `spl serve` after adding a new relay URL so that it starts receiving through it.
 
 ### Responder overrides
 
-Responder metadata is auto-populated from live adapters and the actor registry, then merged with operator overrides at serve time. Overrides let you curate the responders advertised on `/v1/capabilities` and `/.well-known/syncropel` — set a cost model, pin a trust floor, tombstone a responder from the manifest, or introduce an operator-authored responder that has no auto-populated entry.
+Responder details are filled in automatically from your connected adapters and actors, then merged with your overrides. Overrides let you curate the responders advertised on `/v1/capabilities` and `/.well-known/syncropel` — set a cost model, pin a trust floor, hide a responder from the list, or add a responder that has no automatic entry.
 
-Managed via `spl config responders-add|responders-list|responders-remove` (see the [CLI reference](/docs/reference/cli#authentication)). Each mutating subcommand writes a LEARN record with `topic: "responder_override"`:
+Managed via `spl config responders-add|responders-list|responders-remove` (see the [CLI reference](/docs/reference/cli#authentication)). Each command that changes an override saves a settings record with `topic: "responder_override"`:
 
 ```bash
-spl learn \
-  --thread th_engine_config \
-  --body '{
-    "topic":"responder_override",
-    "did":"did:sync:agent:dev",
-    "kind":"actor",
-    "capabilities":["code","shell"],
-    "trust_floor":{"code":0.75},
-    "cost_model":{"per_query_usd":0.04}
-  }' \
-  --actor did:sync:system:engine
+spl config responders-add \
+  --did did:sync:agent:dev \
+  --kind actor \
+  --capability code \
+  --capability shell
 ```
+
+The record has these fields:
 
 | Field | Type | Description |
 |---|---|---|
 | `topic` | string | Must be `"responder_override"` |
 | `did` | string | Target responder DID. Required |
-| `kind` | string \| null | `actor`, `llm`, `pattern`, or `system`. Absent ⇒ defer to auto-populated value |
+| `kind` | string \| null | `actor`, `llm`, `pattern`, or `system`. If missing, the automatic value is kept |
 | `capabilities` | list\<string\> \| null | Replaces the capability list for this DID |
 | `trust_floor` | object \| null | Free-form trust-floor object (e.g. `{"code": 0.75}`) |
 | `cost_model` | object \| null | Free-form cost-model object (e.g. `{"per_query_usd": 0.04}`) |
 | `availability` | object \| null | Free-form availability object (e.g. `{"timezone": "PST"}`) |
 | `metadata` | object \| null | Free-form metadata. Non-normative |
-| `remove` | bool | When `true`, tombstone this responder — suppress it from the manifest even if an auto-populated entry exists |
+| `remove` | bool | When `true`, hide this responder from the list even if an automatic entry exists |
 
-Overrides matched by DID replace the auto-populated entry's fields in place; unmatched DIDs are appended as operator-authored responders. The override schema ships today; consumers that route on responder metadata will arrive in a later release.
+An override for an existing DID replaces that entry's fields. An override for an unknown DID adds a new responder.
 
 ## Data Locations
 

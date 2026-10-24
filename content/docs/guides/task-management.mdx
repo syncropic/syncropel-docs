@@ -1,11 +1,11 @@
 ---
 title: Task Management
-description: Create, track, and complete tasks with success criteria — every outcome feeds trust and pattern formation.
+description: Create, track and complete tasks with success criteria. Every outcome feeds trust and patterns.
 ---
 
 ## Overview
 
-Tasks in Syncropel are threads with structure. Each task carries a goal, optional success criteria, and a lifecycle that tracks progress from creation through completion to review. The outcomes feed trust scores and pattern formation.
+A task is a thread with a goal and a lifecycle. Each task carries a goal, optional success criteria, and a lifecycle that tracks progress from creation through completion to review. The outcomes feed trust scores and pattern formation.
 
 ## Creating Tasks
 
@@ -40,11 +40,11 @@ Tasks progress through statuses based on what happens:
 | `failed` | Approach didn't work | `spl task fail TASK-0001 --reason "..."` |
 | `cancelled` | Decided not to proceed | `spl task cancel TASK-0001` (`--reason` optional, default "removed by user") |
 
-Statuses are derived from records — there is no separate status field that can drift from reality.
+A task's status always comes from what has actually happened to it, so it can't get out of date.
 
 ## The Evaluation Gate
 
-When someone completes a task, it doesn't immediately count as "done." The task enters `review` status, awaiting independent evaluation:
+When someone completes a task, it doesn't count as "done" straight away. The task enters `review` status, awaiting independent evaluation:
 
 ```bash
 # Worker completes
@@ -54,7 +54,7 @@ spl task done TASK-0001 --summary "Added rate limiter with sliding window" --dom
 spl task approve TASK-0001 --domain code --notes "Logic correct, tests pass"
 ```
 
-The reviewer must be a different person or agent than the one who did the work. This separation ensures trust evidence comes from independent judgment.
+The reviewer must be a different person or agent than the one who did the work. This keeps the evidence behind trust independent.
 
 ## Viewing Tasks
 

@@ -1,11 +1,11 @@
 ---
 title: Install
-description: Install the spl binary on Linux, Windows, or macOS. Pin to a specific version. Verify the install. Uninstall cleanly.
+description: Install the spl binary on Linux, Windows, or macOS. Choose a specific version, check the install, and remove it.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
-`spl` is a single self-contained binary: no runtime, no package manager, no dependencies. The install scripts below download the right build for your platform from `releases.syncropic.com`, place it in a user-scope location, add that location to your `PATH`, and verify the version.
+`spl` is a single program with nothing else to install. The install scripts below download the right build for your computer from `releases.syncropic.com`, put it in a folder you own, add that folder to your `PATH`, and check the version.
 
 ## Linux
 
@@ -18,7 +18,7 @@ What the script does:
 1. Detects your architecture (`x86_64` or `aarch64`).
 2. Downloads the matching `spl-linux-<arch>` binary from `releases.syncropic.com`.
 3. Verifies the SHA-256 checksum.
-4. Atomically moves the binary to `$INSTALL_DIR` (default `~/.local/bin/spl`).
+4. Moves the program to `$INSTALL_DIR` (default `~/.local/bin/spl`).
 5. Adds `~/.local/bin` to your `PATH` by appending an `export` line to your shell's rc file (`~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`).
 6. Prints the next-step hints (`spl init`, `spl serve`).
 
@@ -40,10 +40,10 @@ irm https://get.syncropic.com/spl.ps1 | iex
 
 What the script does:
 
-1. Detects `x86_64` (ARM Windows is not yet supported).
+1. Detects `x86_64` (ARM Windows is not supported).
 2. Downloads `spl-windows-x86_64.exe` from `releases.syncropic.com`.
 3. Verifies the SHA-256 checksum.
-4. Moves the binary to `%LOCALAPPDATA%\Programs\spl\spl.exe` (user-scope; no admin needed).
+4. Moves the binary to `%LOCALAPPDATA%\Programs\spl\spl.exe` (no administrator rights needed).
 5. Appends that directory to the user `PATH` in the registry.
 6. Prints the next-step hints.
 
@@ -51,9 +51,7 @@ The user `PATH` update takes effect for **new** PowerShell / CMD sessions. Close
 
 ## macOS
 
-Prebuilt macOS binaries **are** published: the release pipeline builds
-both Apple Silicon (`darwin-aarch64`) and Intel (`darwin-x86_64`) targets
-for every tagged release. Install by downloading the binary directly:
+Builds for macOS are available for both Apple Silicon (`darwin-aarch64`) and Intel (`darwin-x86_64`). Download the one for your Mac:
 
 ```bash
 # Apple Silicon (M1/M2/M3/M4):
@@ -94,7 +92,7 @@ SPL_VERSION=0.X.Y curl -sSf https://get.syncropic.com/spl | sh
 $env:SPL_VERSION="0.X.Y"; irm https://get.syncropic.com/spl.ps1 | iex
 ```
 
-Pinning is useful when you're rolling out a specific version across a fleet, or when you want to test an upgrade before moving everyone off the current one. Versions remain on `releases.syncropic.com` indefinitely: an old pin keeps working.
+Pinning is useful when you roll out one version to many machines, or want to test an upgrade first. Old versions stay available, so a pin keeps working.
 
 ## Verify
 
@@ -104,13 +102,13 @@ After install, open a **new** terminal and run:
 spl version
 ```
 
-Expected output (version number will differ):
+You should see a line like this (your version number will differ):
 
 ```
 spl 0.X.Y
 ```
 
-A brief CLI reference:
+To see all commands:
 
 ```bash
 spl --help

@@ -1,33 +1,33 @@
 ---
 title: Tiers and entitlements
-description: Every run is clamped by the tier of the principal it runs for. Tiers are records you can edit without a release, per-actor ceilings only ever tighten, and a subscription status maps to a tier in one place. A self-hoster and operator guide.
+description: Every run is limited by the tier of the person it runs for. How tiers set limits, how to change them, and how a subscription maps to a tier. A guide for self-hosters and operators.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
 ## Why tiers exist
 
-Every work-loop run is bounded before it starts. The bound comes from the tier
-of the principal the run is for: how many turns it may take, how long it may
-run, how much it may spend, how many it may run at once, and how deep it may
-spawn. There are four tiers, in order of increasing capability:
+Every run has limits before it starts. They come from the tier
+of the person the run is for: how many turns it may take, how long it may
+run, how much it may spend, how many runs may go at once, and how deep it may
+start further runs. There are four tiers, in order of increasing capability:
 
-- **Trial**: the safe-by-default floor for a multi-tenant instance.
+- **Trial**: the safe default for a shared workspace.
 - **Paid**: the working tier.
 - **Team**: multi-user accounts, higher concurrency and depth.
 - **Operator**: the workspace's own owner, on their own machine.
 
-The operator is the trust boundary on their own instance, so the Operator tier
-is effectively unbounded on the capability axes. It is not unbounded on the
-fan-out axes, deliberately: a runaway tree spends the operator's money as fast
+The operator is the final authority on their own workspace, so the Operator tier
+has effectively no limits on turns, time and tools. It does limit how many
+further runs one run can start: a runaway chain of runs spends money just as fast
 as a malicious one, so `max_children` and the tree-loop count stay finite even
-there, to bound a mistake rather than the operator's authority.
+there. That limits a mistake, not the operator's authority.
 
-## The ceilings
+## The limits
 
-These are the built-in defaults, seeded from the binary at boot. They are the
-upper bound on each axis: a run gets the lower of its tier's ceiling and
-anything narrower it declares.
+These are the built-in defaults. They are the
+upper limit on each row: a run gets the lower of its tier's limit and
+anything lower it asks for.
 
 | axis | Trial | Paid | Team | Operator |
 |---|---|---|---|---|
@@ -39,20 +39,16 @@ anything narrower it declares.
 | daily loop cap | 10 | 200 | 2,000 | unbounded |
 | concurrency | 1 | 5 | 20 | unbounded |
 
-Trial also forbids `bash`, `write_file` and sub-agent spawning outright; Paid
-and Team forbid `bash` and `write_file`. The forbidden-tool set is fixed in the
-binary and is not editable through a tier record.
+Trial also forbids `bash`, `write_file` and starting sub-agents; Paid
+and Team forbid `bash` and `write_file`. Which tools are forbidden is fixed and cannot be changed through a tier record.
 
-## Tiers are data
+## Changing a tier's limits
 
-Each tier's numeric ceilings are also a `core.engine.tier.v1` record on
-`th_engine_config`, seeded from the constant at boot and read live at the
-run-start clamp. Editing a record changes the next run's ceilings without a
-release. A record only ever sets the numbers; it never widens the reach, and
-the forbidden-tool set stays the binary's.
+Each tier's numeric limits can be changed by writing a `core.engine.tier.v1` record to the
+`th_engine_config` thread. The change applies to the next run, with no
+upgrade. A record only sets numbers; it never gives access to forbidden tools.
 
-A tier record names only the fields it changes; every field it omits keeps the
-constant. To lower Trial's daily spend and raise its turn ceiling, for example (a records-door write, as described in [Store bounds](/docs/operate/store-bounds)):
+A tier record names only the fields it changes; every field it omits keeps its default. To lower Trial's daily spend and raise its turn limit, for example (a record write, as described in [Store bounds](/docs/operate/store-bounds)):
 
 ```bash
 curl -X POST http://127.0.0.1:9100/v1/records \
@@ -61,15 +57,14 @@ curl -X POST http://127.0.0.1:9100/v1/records \
        "body":{"kind":"core.engine.tier.v1","tier":"trial","max_turns":9,"daily_cost_cap_usd":2.5}}'
 ```
 
-A workspace with no tier record for a tier yields the constant, byte-identical
-to the pre-record clamp. Editable fields are `max_turns`, `wall_clock_secs`,
+A tier with no record uses the defaults in the table above. Editable fields are `max_turns`, `wall_clock_secs`,
 `token_budget`, `daily_loop_cap`, `concurrency`, `max_depth`, `max_children`,
 `max_tree_loops`, `daily_cost_cap_usd`, and `default_budget_usd`.
 
 ## Assigning an actor to a tier
 
 By default a defined actor resolves to Trial. To put an actor on a higher rung,
-write an `actor_tier` assignment (also a config LEARN on `th_engine_config`):
+write an `actor_tier` assignment (also written to `th_engine_config`):
 
 ```bash
 curl -X POST http://127.0.0.1:9100/v1/records \
@@ -78,20 +73,19 @@ curl -X POST http://127.0.0.1:9100/v1/records \
        "body":{"kind":"core.engine.config.v1","topic":"actor_tier","actor":"did:sync:agent:dev","tier":"paid"}}'
 ```
 
-Latest wins; an empty `tier` clears the assignment. Resolution takes the higher
-of an invite stamp and an assignment, under a clamp to at most Team. Data can
-never mint the Operator tier: that is the workspace owner's own identity, not
-something a config record confers.
+The latest assignment wins; an empty `tier` clears it. The actor gets the higher
+of its invite's tier and its assignment, up to Team at most. No record can
+grant the Operator tier: that belongs to the workspace owner alone.
 
-## Per-actor daily ceilings
+## Per-actor daily limits
 
-A definition may declare its own `daily_cost_cap_usd` and `daily_loop_cap`. The
-admission clamp takes the minimum of the actor's declared caps and the tier's,
-so a per-actor cap only ever tightens, never widens. A bounded member whose
-declared cap exceeds the Trial tier's is refused at the define door, so a
-member cannot buy itself headroom by asking for it.
+An actor's definition may set its own `daily_cost_cap_usd` and `daily_loop_cap`. The
+lower of the actor's value and the tier's applies,
+so an actor's own limit can only tighten, never raise. A member limited to Trial whose
+own limit exceeds Trial's is refused when it is defined, so a
+member cannot give itself more room by asking.
 
-## The entitlement door
+## Entitlements
 
 A subscription status becomes a tier through one HTTP call:
 
@@ -101,51 +95,48 @@ POST /v1/entitlement
 
 The caller says what the subscription status is; the workspace decides what that
 status entitles. The effect is an ordinary `actor_tier` assignment. The
-record it writes carries its own reason, so you can always see why your limits changed.
+record it writes carries its reason, so you can always see why your limits changed.
 
-The ceiling is the load-bearing part:
+The rules:
 
 - `active` and `trialing` map to **Paid**. Everything else, including
-  `past_due` and any status the workspace does not recognise, reads as **Trial**.
+  `past_due` and any status the workspace does not recognize, reads as **Trial**.
 - An entitlement moves an actor between **Trial and Paid and nothing else**. A
-  billing signal can never mint Team or Operator, whatever it says: those are
-  the operator's own assignments on their own instance, and a payment processor
-  is not the operator.
-- An unrecognised status reads as Trial. That is the fail-closed direction: an
-  unknown word from a payment processor must not buy capacity.
+  billing signal can never grant Team or Operator, whatever it says: those are
+  the operator's own assignments on their own workspace.
+- An unrecognized status reads as Trial, so an
+  unknown word from a payment processor never grants capacity.
 - `past_due` is not a cut-off. A failed card narrows what a workspace may
   spend; it does not take the workspace away. The person keeps their records,
-  the door keeps answering, and the caps come down until they fix it.
+  the workspace keeps answering, and the limits come down until they fix it.
 
 ## A hosted workspace follows its plan
 
 On a hosted workspace every run follows the limits of the workspace's plan: a free workspace runs
-at the Trial ceilings, a paid one at the Paid ceilings. That holds for every way a run starts: a
-message you send, an assistant stepping into a conversation, a scheduled trigger, a delegation. The
-plan is set when the workspace is created, and a workspace on your own machine has no plan ceiling.
+at the Trial limits, a paid one at the Paid limits. That holds for every way a run starts: a
+message you send, an assistant stepping into a conversation, a scheduled trigger, a delegation. A workspace on your own machine has no plan limit.
 
-On a hosted workspace with a plan, the ceilings come from the plan itself: writing a tier record
-or an entitlement through the records door is refused (`PLAN_LIMITS_NOT_WRITABLE`), and the
-entitlement door refuses a request that does not come from the hosting service
-(`ENTITLEMENT_UNSIGNED`). The Trial ceiling allows two runs at once, so a scheduled run
+On a hosted workspace with a plan, the limits come from the plan itself: writing a tier record
+or an entitlement is refused (`PLAN_LIMITS_NOT_WRITABLE`), and
+an entitlement request that does not come from the hosting service is refused
+(`ENTITLEMENT_UNSIGNED`). The Trial limit allows two runs at once, so a scheduled run
 never stops you from starting your own.
 
-## Promotion is surfaced, never automatic
+## Moving up a tier is never automatic
 
-A tier's resolution can surface the next tier up as eligible, but only above a
-trust bar with enough graded outcomes, and it never applies it. A tier never
-widens by itself; moving an actor up a rung is always an explicit assignment or
+Syncropel can show that an actor is eligible for the next tier, but only above a
+trust bar with enough reviewed outcomes, and it never applies the change. Moving an actor up a tier is always an explicit assignment or
 an entitlement.
 
 ## Verify what is in force
 
-The tier clamps and the authorization state are on engine health:
+The tier limits and the permission state are in the health report:
 
 ```bash
 curl -s -H "Authorization: Bearer $ADMIN" localhost:9100/v1/engine/health | jq .
 ```
 
-Because tiers are read live, check what the running service resolved, not only
+Check what the running workspace actually uses, not only
 what you wrote.
 
 ## See also
@@ -153,4 +144,4 @@ what you wrote.
 - [The sandboxed transport](/docs/operate/sandboxed-transport): the transport a
   non-operator tier runs under.
 - [Actors and adapters](/docs/guides/actors-and-adapters): defining the actors
-  a tier clamps.
+  a tier limits.

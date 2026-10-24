@@ -1,29 +1,29 @@
 ---
 title: Your first federation pair
-description: Pair two instances in one command. Emit on one, query on the other, see federated records flow consent-gated. The smallest two-instance walkthrough.
+description: Pair two workspaces with one command, write a record on one, read it on the other, and see how consent controls what is shared.
 ---
 
 ## What you'll build
 
-Two instances (call them **alice** and **bob**), paired via `spl federation pair`, exchanging records over a single signed federation link. You'll emit a record on alice, sync it to bob, and verify the round-trip — all without any hand-wired URL+token plumbing.
+Two workspaces (**alice** and **bob**), paired with `spl federation pair add`, exchanging records over a single signed link. You'll write a record on alice, sync it to bob, and check it arrived, without setting up any URLs or tokens by hand.
 
-After this, you'll understand why federation in Syncropel is just **records on a reserved thread**, not a separate auth or transport system. The pair lifecycle, consent grants, and sync state are all derived from records on `th_federation_pairs`.
+Federation in Syncropel is just **records on a reserved thread**, not a separate sign-in or transport system. The pair, its consent grants and its sync state are all records on `th_federation_pairs`.
 
-Allow ~30 minutes including a one-time decision approval on bob's side.
+Allow about 30 minutes, including one approval on bob's side.
 
 ## Before you start
 
 - `spl` installed (`spl --version`)
-- The shell can run two instances side by side. Easiest setup: same machine, different ports + different `SYNCROPEL_HOME`.
-- Each instance has a cryptographic identity (`spl identity show` reports a DID). If not, `spl identity generate`.
-- Cross-instance reachability — both instances running on the same machine satisfies this trivially.
+- Two workspaces side by side. The easiest setup is the same machine with different ports and different `SYNCROPEL_HOME` folders.
+- Each workspace has an identity (`spl identity show` shows a DID). If not, run `spl identity generate`.
+- Each workspace can reach the other. Two workspaces on the same machine can.
 
-## 1. Boot two instances
+## 1. Start two workspaces
 
 <Callout type="warn" title="Keep the tutorial off port 9100">
-If you already run a Syncropel instance on this machine, it is listening on
-`9100` and using `~/.syncro/`. The tutorial instances use their own home
-directories AND high ports so nothing collides with, or writes into, your
+If you already run Syncropel on this machine, it is listening on
+`9100` and using `~/.syncro/`. The tutorial workspaces use their own home
+folders and different ports so nothing collides with, or writes into, your
 real data.
 </Callout>
 
@@ -41,13 +41,10 @@ SYNCROPEL_HOME="$HOME/.syncro-bob" \
   spl serve --port 9202 --insecure-localhost
 ```
 
-`--insecure-localhost` turns **authentication** off for a loopback-only
-instance (it forces the `127.0.0.1` bind; it is not about TLS). That's what
-lets this tutorial skip token plumbing entirely. Use it for **local
-two-instance dev only** — real instances keep auth on, and cross-host pairs
-exchange real credentials.
+`--insecure-localhost` turns **sign-in** off for a workspace that only listens on this machine (`127.0.0.1`). It is not about TLS. That lets this tutorial skip tokens entirely. Use it for **local
+testing only**. Real workspaces keep sign-in on, and pairs across machines exchange real credentials.
 
-In a third terminal, alias each instance as a separate `spl` invocation:
+In a third terminal, set up a shortcut for each workspace:
 
 ```bash
 alias spl-alice='SYNCROPEL_HOME=$HOME/.syncro-alice SPL_SERVE_URL=http://127.0.0.1:9201 spl'
@@ -61,7 +58,7 @@ spl-alice status
 spl-bob status
 ```
 
-Both should report a green status with their DIDs visible in the `instance_did` field.
+Both should report a green status with their DIDs shown in the `instance_did` field.
 
 ## 2. Initiate the pair from alice
 
@@ -80,12 +77,12 @@ What you'll see, in order:
 → Awaiting peer approval...
 ```
 
-The CLI now polls bob's pair-status endpoint every 2 seconds for up to 60 seconds, waiting for an operator on bob's side to approve.
+The CLI now polls bob's pair-status endpoint every 2 seconds for up to 60 seconds, waiting for someone on bob's side to approve.
 
 ## 3. Approve on bob's side
 
 In a separate terminal (or back in terminal C), list bob's pending decisions
-(the unified operator-attention queue):
+(everything waiting for a person):
 
 ```bash
 spl-bob decisions list
@@ -117,7 +114,7 @@ Output:
             token_ttl: 90d
 ```
 
-Approving a `pair_pending.v1` decision runs the pair completion path: bob's instance minted a service account for alice, emitted a signed `pair.genesis.v1` on its `th_federation_pairs` thread, and handed the result back to alice's waiting handshake.
+Approving a `pair_pending.v1` decision completes the pair: bob's workspace created a service account for alice, saved a signed `pair.genesis.v1` on its `th_federation_pairs` thread, and sent the result back to alice.
 
 ## 4. Watch alice complete the handshake
 
@@ -133,7 +130,7 @@ Back in terminal A's polling, alice now sees the approval:
   Persisted at:  th_federation_pairs (genesis record on both sides)
 ```
 
-The pair is now **active** — the relationship is recorded on both sides, both have peer-bound bearer tokens, and `spl sync` can use this pair without any `--peer-token` plumbing.
+The pair is **active**: it is recorded on both sides, each side has a token for the other, and `spl sync` can use the pair without any `--peer-token`.
 
 Verify with:
 
@@ -152,7 +149,7 @@ And on bob's side:
 spl-bob federation list
 ```
 
-You should see alice's DID with state `active`. Both sides hold the relationship; this is a *bidirectional* pair (records can flow both ways subject to consent).
+You should see alice's DID with state `active`. Both sides hold the relationship; this pair works in both directions (records can flow both ways, subject to consent).
 
 ## 5. Emit a record on alice and sync to bob
 
@@ -175,7 +172,7 @@ Output:
   cursor:  <opaque>
 ```
 
-The pair store knows alice's URL — no `--peer-token`, no `--peer-url`. The sync uses the pair's bearer token automatically. If you tried to sync from a URL with no matching pair, you'd get `ERROR: unpaired_peer`.
+The pair already knows alice's address and token, so you don't need `--peer-token` or `--peer-url`. If you tried to sync from a URL with no matching pair, you'd get `ERROR: unpaired_peer`.
 
 ## 6. Verify the record arrived
 
@@ -188,7 +185,7 @@ ACTOR                              ACT       BODY (excerpt)
 did:sync:user:alice                INTEND    Test the federation link
 ```
 
-Same record id, same body, same thread id on both instances. Records are content-addressed, so this is structural — there's no possibility of divergent state for this record between alice and bob; they're hashing the same bytes and getting the same id.
+Same record ID, same body and same thread ID on both workspaces. A record's ID comes from its content, so the two copies cannot differ.
 
 The reverse direction works the same way:
 
@@ -198,7 +195,7 @@ spl-alice sync th_fed_test from did:sync:instance:bob-fedb12...
 spl-alice thread records th_fed_test
 ```
 
-You'll now see two records on both sides — alice's INTEND and bob's KNOW — building a single consistent thread that spans two stewards.
+You'll now see two records on both sides — alice's INTEND and bob's KNOW — building a single thread that spans both workspaces.
 
 ## 7. Inspect the pair lifecycle records
 
@@ -213,33 +210,33 @@ You'll see at least three records:
 - `pair.genesis.v1` (signed by bob) — the activation record
 - `pair_active.v1` (alice-local) — alice's confirmation
 
-The pair's current state comes from this thread. Pause, resume and revoke each add a record that changes it. There is no separate pair table outside the records.
+The pair's current state comes from this thread. Pausing, resuming and revoking each add a record that changes it.
 
 ## What just happened
 
-You exercised Syncropel's **federation primitive** end-to-end:
+You did the following:
 
-1. **One command established the relationship.** `spl federation pair add <url>` ran a 3-roundtrip handshake (manifest discovery → nonce-protected handshake → reciprocal SA mint), persisted signed pair records on both sides, and returned. No hand-edited config file. No copy-pasted bearer tokens.
-2. **Operator approval is structural, not bypassable.** Bob's instance raised a decision request and refused to complete until an operator approved. The approval is itself a signed record — auditable forever. Auto-approval is opt-in via a CEL decision policy (see the [federation pair guide — auto-approval](/docs/guides/federation-pair#auto-approval-via-cel)) for trusted contexts; default is manual.
-3. **`spl sync` consults the pair store automatically.** The old antipattern (`spl sync ... --peer-token sk_...`) doesn't exist on this command. The pair record holds the credential; sync looks it up.
-4. **Records are content-addressed across stewards.** Alice's record id == bob's record id for the same record. There is no "alice-side id" and "bob-side id." This is what makes CRDT-style merge trivial: same id → same record, no conflicts possible.
-5. **The relationship is auditable + portable.** Pair lifecycle is records, not config. `spl export` from alice carries the pair record; importing to a new instance carries the relationship forward. URLs auto-refresh on first contact via DID resolution (see [portability guide](/docs/guides/portability#migrating-between-workspaces)).
+1. **One command created the pair.** `spl federation pair add <url>` found the peer, completed a secure handshake, created matching accounts, and saved signed pair records on both sides. No config file to edit and no tokens to copy.
+2. **Approval can't be skipped.** Bob's workspace raised a decision request and did not complete until a person approved. The approval is itself a signed record. Auto-approval is optional (see the [federation pair guide](/docs/guides/federation-pair#auto-approval-via-cel)); the default is manual.
+3. **`spl sync` uses the pair automatically.** The pair holds the credential, so you don't pass `--peer-token`.
+4. **The same record has the same ID everywhere.** Alice's record ID equals bob's for the same record, so the two copies cannot conflict.
+5. **The pair is auditable and portable.** Pair changes are records. `spl export` from alice includes the pair, and importing into a new workspace carries it forward (see the [portability guide](/docs/guides/portability#migrating-between-workspaces)).
 
-The pair primitive is the gate to everything else federation does — async relay, cross-namespace consent, multi-instance dispatch — but it itself is just records on a reserved thread.
+Pairing is the gate to everything else federation does, such as relaying while a peer is offline and sharing across namespaces with consent.
 
 ## Where to next
 
-- [Build a multi-user code review flow](./code-review-pair) — the next-step tutorial that builds a complete two-person workflow on top of the pair you just created.
-- [Federation pair guide](/docs/guides/federation-pair) — the full lifecycle reference: pause/resume/revoke, sync mode, thread filtering, auto-approval, token rotation.
-- [Federation concept](/docs/concepts/federation) — the model: pull-first HTTP + SSE, CRDT G-Counter merge, why hosted and self-hosted are equivalent, why federation is just records.
-- [Consent guide](/docs/guides/consent) — cross-namespace record sharing rules. Pair authorization is transport; consent is data policy.
+- [Build a multi-user code review flow](./code-review-pair) — builds a complete two-person workflow on the pair you just created.
+- [Federation pair guide](/docs/guides/federation-pair) — pausing, resuming, revoking, thread filtering, auto-approval and token rotation.
+- [Federation concept](/docs/concepts/federation) — how pairing, sharing and consent fit together.
+- [Consent guide](/docs/guides/consent) — cross-namespace record sharing rules. Pairing connects two workspaces; consent decides what they share.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `peer served /.well-known/syncropel but no federation_manifest key` | The peer instance doesn't have an identity configured. The manifest is generated from the local key. | On the peer instance: `spl identity show`. If it reports `no identity`, run `spl identity generate`. Then re-try the pair from the initiating side. |
-| `pair_handshake_rejected: unauthenticated_initiator` | TLS verification failed. Either the peer URL doesn't serve a valid cert, or you forgot `--insecure-localhost` on a local-only setup. | For local two-instance dev: ensure both instances started with `--insecure-localhost`. For real cross-host: confirm both sides serve TLS. The flag is dev-only and refused on hosts other than `127.0.0.1`. |
-| The approval times out (alice's CLI prints `still pending after 60s`) | Bob's operator didn't approve in the 60-second window. The pair is still in `establishing` state. | The original `pair_pending.v1` decision on bob's side stays valid until bob explicitly rejects it or it TTLs out. Re-run `spl federation pair add <url>` from alice — it'll mint a new nonce and the operator can approve the second attempt. |
-| `unpaired_peer` on `spl sync` | You're syncing from a URL or DID that doesn't match any pair record on this side. | Run `spl federation list` to confirm what pairs exist on this side. If you expected one but it's missing, the pair was never completed (handshake interrupted) — re-run `spl federation pair`. |
-| Pair shows `degraded` state | Peer was unreachable for >24 hours, or a sync call hit a 401 (token expired or revoked). | Run `spl federation refresh <peer-did>` to re-fetch the manifest and revalidate. If the peer is permanently gone, `spl federation revoke <peer-did>` cleanly closes out the pair. |
+| `peer served /.well-known/syncropel but no federation_manifest key` | The other workspace has no identity set up. | On the other workspace: `spl identity show`. If it reports `no identity`, run `spl identity generate`. Then re-try the pair from the initiating side. |
+| `pair_handshake_rejected: unauthenticated_initiator` | Secure connection failed. Either the peer's address doesn't serve a valid certificate, or you forgot `--insecure-localhost` on a local-only setup. | For local testing, make sure both workspaces started with `--insecure-localhost`. For real setups across machines, confirm both sides use TLS. The flag is for testing only and is refused on any host other than `127.0.0.1`. |
+| The approval times out (alice's CLI prints `still pending after 60s`) | Nobody approved on bob's side within 60 seconds. The pair is still in `establishing` state. | The original `pair_pending.v1` decision on bob's side stays valid until bob explicitly rejects it or it TTLs out. Re-run `spl federation pair add <url>` from alice — it starts a new attempt that can be approved. |
+| `unpaired_peer` on `spl sync` | You're syncing from a URL or DID that doesn't match any pair record on this side. | Run `spl federation list` to confirm what pairs exist on this side. If you expected one but it's missing, the pair was never completed (the handshake was interrupted) — re-run `spl federation pair`. |
+| Pair shows `degraded` state | The peer was unreachable for over 24 hours, or a sync call got a 401 (token expired or revoked). | Run `spl federation refresh <peer-did>` to check the peer again. If the peer is permanently gone, `spl federation revoke <peer-did>` cleanly closes out the pair. |

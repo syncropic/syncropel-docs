@@ -5,8 +5,7 @@ description: Every Syncropel instance serves a landing page at GET / — a bespo
 
 Every Syncropel instance serves a landing page at `GET /` — the first
 thing a visitor sees when they hit `<your-instance>.syncropel.com` or
-`alice.syncropel.app`. That page is rendered by the engine itself,
-server-side, from data the instance already has.
+`alice.syncropel.app`. The instance builds that page itself, from information it already has.
 
 The default landing page is a bespoke L0 identity card: the instance
 name, a generative glyph derived from the instance DID, a one-line
@@ -22,8 +21,7 @@ floor.
 
 **Tier 1 — the L0 identity card (always on)**: the floor. A real instance
 serves a real-looking page from the moment it boots, with no setup. The
-glyph, the typography, the structural rhythm — these come from the
-engine and cannot be removed. They are what makes one Syncropel instance
+glyph, the typography, the layout — these are built in and cannot be removed. They are what makes one Syncropel instance
 visibly the same network as every other one.
 
 **Tier 2 — record-driven content overrides**: publish a `core.site.v1`
@@ -39,36 +37,21 @@ and a small allowlist of `<head>` content at known paths on the host
 filesystem, and the renderer picks them up on each request. This is the
 WordPress-theme-style escape hatch for operators who want full control:
 load a custom font, add an Open Graph image, override the accent palette
-across both light and dark themes. The engine enforces strict allowlists
-on what shapes of content can land in `<head>` — no inline scripts, no
-arbitrary HTML — so the L0 floor remains intact even with overlays
+across both light and dark themes. Only a short list of `<head>` content is accepted — no inline scripts, no
+arbitrary HTML — so the L0 card stays intact even with overlays
 applied.
 
 ## What the renderer produces
 
-One render path, one HTML document, sub-100 KB on the wire including
-inlined CSS. No JavaScript framework. The only script the page loads is
-a progressive-enhancement helper for the DID copy button, served from
-the same origin under a strict CSP. The rendered HTML is server-rendered
-markup with the inline stylesheet first, so visitors see the page on
-first paint without waiting for hydration.
+The page is one HTML document, under 100 KB including inlined CSS. It uses no JavaScript framework. The only script is a small helper for the DID copy button, served from the same origin. Visitors see the page on first paint.
 
-The render contract:
+The page is built from three parts:
 
-```
-render_site(card, content, overlay) → HTML
-```
+- The **L0 identity card**, derived from the instance's identity. Always present.
+- Your **content overrides** (a `core.site.v1` record). Optional.
+- Your **filesystem overlay** (theme CSS, head fragment, assets). Optional, and changes show up within 5 seconds.
 
-- `card` — the L0 identity, derived from the instance's identity record.
-  Always present.
-- `content` — the operator's `core.site.v1` content overrides. Optional.
-- `overlay` — the parsed Tier 3 filesystem overlay (theme CSS, head
-  fragment, assets). Optional, cached with a 5-second LRU at the
-  process level.
-
-Anything operator-supplied flows through the same renderer; the L0 card
-shape is always the foundation. Operators add and override, never replace
-the structural design.
+Your additions and overrides sit on top of the L0 card. They never replace its structure.
 
 ## When to use which tier
 
@@ -79,7 +62,7 @@ the structural design.
   to author a `core.site.v1` record, then `spl site publish` to make it
   live. Records are part of normal Syncropel coordination state — they
   back up with the rest of the instance, they federate over the Graph,
-  they version cleanly.
+  and every version is kept.
 - **Need to brand the instance for an organization with their own
   visual language?** Combine Tier 2 with [Tier 3 filesystem overlay](/docs/operate/site/filesystem-overlay).
   Tier 2 covers the copy; Tier 3 covers the typography and color and
@@ -98,23 +81,11 @@ copy helper. Interactive surfaces live in workspaces or in Studio at
 `syncropel.com`, mounted under their own origins with their own CSP and
 their own state.
 
-## The records-native view
+## How the page is chosen
 
-The instance site is a record like everything else in Syncropel. The
-published page you see at `GET /` is the latest `lifecycle: "published"`
-`core.site.v1` record on the `th_site` thread, owned by the operator's
-DID. The resolver folds the thread, picks that record, hands its
-`content` and `theme` to the renderer.
+The page you see at `GET /` is the latest `lifecycle: "published"` `core.site.v1` record on the `th_site` thread, owned by the operator's DID. That means:
 
-That means:
-
-- Every change to the landing page leaves a record. Walking the
-  `th_site` thread shows the history of how the site evolved.
-- Reverting to an older version is a record emit, not a file restore.
-- Archiving the published record returns the instance to the L0
-  default; nothing is lost, the resolver just falls back.
-- A draft (`lifecycle: "draft"`) is installed but invisible to
-  `GET /` until you `spl site publish` it.
-
-For the architecture rationale and the design decisions behind the
-three-tier model, see the protocol specification.
+- Every change to the landing page leaves a record. Reading the `th_site` thread shows the history of the site.
+- To go back to an older version, add that version as a new record.
+- Archiving the published record returns the instance to the L0 default. Nothing is lost.
+- A draft (`lifecycle: "draft"`) is saved but not shown at `GET /` until you `spl site publish` it.

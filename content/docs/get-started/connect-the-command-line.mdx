@@ -50,7 +50,7 @@ Create a separate key for each device so you can switch one off without affectin
 spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.app --scopes admin
 ```
 
-`spl pair` prints a one-click link, a QR code, and plain text: pick whichever fits. For the command line on the same machine, the simplest path is to copy the printed key and run `spl token save <new-token>`. If the laptop is ever lost, you can switch off just that key.
+`spl pair` prints a link, a QR code, and plain text: use whichever fits. For the command line on the same machine, the simplest path is to copy the printed key and run `spl token save <new-token>`. If the laptop is ever lost, you can switch off just that key.
 
 `--scopes admin` gives the key full control of the workspace: it can read and change everything, including creating and switching off other keys. Without it, a key named like this one can read and add records but cannot manage keys or settings.
 

@@ -43,10 +43,10 @@ uploads, nothing becomes visible. Use it to see exactly what a publish
 spl repo publish acme/product-notes
 ```
 
-Publishing runs server-side on your instance and is **owner-gated** — only
+Publishing runs on your instance and only the owner can do it: only
 the identity that owns the namespace can publish under it. The command
 snapshots the repository's records, signs the snapshot and its listing with
-your identity, and uploads to published storage.
+your identity, and uploads it to published storage.
 
 Useful flags:
 
@@ -64,9 +64,9 @@ signed snapshot; readers always see the latest complete one.
 
 You don't have to re-publish by hand. Publishing with `--relocation`
 snapshots the whole instance as its portable form ("backup = publish"),
-and once a home is bound to a published repository the daemon's
-**continuous write-back** flushes new records to the published tree as
-they land — the publication follows your instance instead of trailing
+and once your instance is bound to a published repository it
+**keeps copying** new records to the published copy as
+they arrive, so the publication follows your instance instead of trailing
 it. See [Backup &amp; restore](/docs/guides/backup-restore) for the
 recovery half of the same story.
 
@@ -83,13 +83,13 @@ no key of its own to manage. Three doors do it, each an owner action.
    keeps a private, restorable copy of the whole workspace. With no stored key,
    the hosting service issues the workspace a short-lived key for its own
    repository. Before it writes, it takes the
-   repository's **write lease**, so no second writer can move the published
-   state under a live one. A workspace with no repository bound yet is bound to
+   repository's **write lease** (permission to be the only writer), so no second writer can change the published
+   copy while another is writing. A workspace with no repository bound yet is bound to
    what it just published, and the answer says `bound: true, restart_required: true`:
-   continuous write-back starts at the next start.
+   continuous copying starts the next time the workspace starts.
 3. **Bind** (for an existing, empty published tree): `POST /v1/repo/bind` with
    `{"repo": "<label>/notes"}`. A tree that already holds records is refused
-   `TREE_NOT_EMPTY`, because only a restore or a publish knows where to resume.
+   `TREE_NOT_EMPTY`, because only a restore or a publish knows where to continue from.
 
 Refusals a caller can meet, each by name:
 
@@ -101,9 +101,9 @@ Refusals a caller can meet, each by name:
 | `NAMESPACE_NOT_OWNED` | A declare named a namespace other than this workspace's label. |
 | `MINT_REFUSED` / `MINT_UNAVAILABLE` | The hosting service would not, or could not, issue the key. |
 
-A standby that finds the lease held takes over by itself once the lease is
-released or expires, and a clean stop drains one last flush and hands the lease
-on, so moving a repository's writer does not wait on anyone.
+A workspace waiting for the lease takes over by itself once the lease is
+released or expires. A clean stop copies any last records and hands the lease
+on, so moving a repository to a new writer does not wait on anyone.
 
 ## 4. Verify as a reader would
 
@@ -123,7 +123,7 @@ snapshot is exactly what a stranger sees, so review it as one.
 
 ## Reading it back: clone, mount, fork
 
-A published repository is not just a page — it is a complete, verified
+A published repository is not just a page. It is a complete, verified
 copy other machines can attach to:
 
 ```bash
@@ -133,25 +133,24 @@ spl repo clone syncropel://acme/product-notes
 # Pull ONLY what changed since the last hydration (incremental).
 spl repo mount syncropel://acme/product-notes
 
-# A new branch as one pointer write — segments are shared, nothing is copied.
+# A new branch. Nothing is copied.
 spl repo fork acme/product-notes experiments
 ```
 
 The locator is a connection string (`syncropel://{ns}/{repo}`), an HTTPS
-base URL, or a local directory. `clone` and `mount` run **client-side
-against a home whose daemon is not running** — they verify every segment
-hash and record content-address before ingesting, then the daemon
-re-folds at next boot. `mount` on an already-bound home pulls only the
-segments past its watermark, so a routine sync is cheap.
+base URL, or a local directory. `clone` and `mount` run **on your machine
+while the workspace is stopped**. They verify everything they download before
+adding it, and the workspace picks it up at next start. `mount` on an
+already-bound home pulls only what is new, so a routine sync is cheap.
 
-To check how far a live instance has drifted from its publication
+To check how far a running instance has drifted from its publication
 without changing anything:
 
 ```bash
 spl repo drift acme/product-notes
 ```
 
-Exit `0` means aligned, `3` means drift (the output shows which side has
+Exit `0` means aligned, `3` means they differ (the output shows which side has
 what the other lacks).
 
 ## Deploy keys — scoped access without your identity
@@ -188,19 +187,19 @@ Once a workspace is bound to its repository it saves continuously, and it keeps 
 restarts, stops and sleep without anyone acting:
 
 - **It retries on its own.** If the key is refused or the storage cannot be reached, for example
-  in the first seconds after waking, the workspace tries again with a backoff of at most a minute.
+  in the first seconds after waking, the workspace tries again, waiting up to a minute between tries.
 - **It says when it is not saving.** `/health` and the workspace read carry `attach`
   (`starting`, `holding`, `standing_by` or `refused`), `attach_fact` (the reason) and
   `not_replicating_secs` (how long nothing has been saved). `spl doctor` fails a workspace that is
   refused and names the reason and the seconds.
 - **It hands the repository on cleanly.** A workspace that loses the lease to another one stops
-  counting as the writer at once, including for scheduled work.
+  writing at once, including for scheduled work.
 
 The repository keeps your workspace's records: threads, messages, decisions, definitions and
-configuration. Files you store in a workspace are not saved to its repository yet, and publish and
+configuration. Files you store in a workspace are not saved to its repository; publish and
 restore say so with `files_carried: false`.
 
-A saved copy can lag the workspace by at most one flush interval (30 seconds on the free plan), so
+A saved copy can lag the workspace by at most one copy interval (30 seconds on the free plan), so
 a workspace that is killed outright can lose up to that much of its newest work.
 
 ## Troubleshooting

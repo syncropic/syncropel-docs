@@ -117,7 +117,7 @@ The Syncropel host-to-extension protocol is a small four-message exchange:
 
 **Origin checks happen on both sides.** The host validates the iframe origin against an allowlist before sending `hello`. The extension captures the host's window + origin from the first inbound message and posts back to that origin only. The SDK handles both halves of the validation; you don't write the checks yourself.
 
-Because the iframe runs sandboxed with `allow-same-origin` (or doesn't — depends on the host), the SDK posts replies with target origin `*` and lets the host correlate by source-window identity. This is the standard postMessage pattern for cross-origin iframes; see [the host snippet](/docs/reference/iframe-host-snippet) for the matching outer-page code.
+Whether the iframe is sandboxed with `allow-same-origin` depends on the host, so the SDK posts replies to any origin and lets the host match them to the right window. This is the standard `postMessage` pattern for iframes; see [the host snippet](/docs/reference/iframe-host-snippet) for the matching outer-page code.
 
 ## Section C — Wire up the reference host (10 minutes)
 
@@ -180,7 +180,7 @@ You should see:
 { "clock": ..., "act": "DO", "body": { "description": "User clicked the button at 2026-04-21T...", "kind": "core.action", ... } }
 ```
 
-The DID on the records is `did:example:my-app` — the actor the host announced in the `hello` payload, **not** the extension itself. Extensions never speak as themselves; they speak as the host's currently-authenticated user. That's what makes capability gating safe: the host's permission model decides what records the user is allowed to write, and the extension inherits that grant for the lifetime of the session.
+The DID on the records is `did:example:my-app` — the actor the host named in the `hello` message, **not** the extension itself. Extensions never act as themselves; they act as the host's signed-in user. The host's permissions decide what records the user may write, and the extension gets only that for the session.
 
 ## Section E — Subscribe to live updates (5 minutes)
 
@@ -238,7 +238,7 @@ A working iframe extension that:
 - ✅ Reports its content height for proper iframe sizing
 - ✅ Cleans up subscriptions on unload
 
-This is the same shape every published Syncropel extension takes — the SDK doesn't know whether your iframe is a one-button demo or a 50-route SPA.
+Every published extension has this same shape, whether it is a one-button demo or a large app.
 
 ## What's next
 

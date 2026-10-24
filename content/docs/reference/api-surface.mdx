@@ -1,28 +1,28 @@
 ---
 title: The API surface
-description: Which doors on a workspace are public (a person or an integrator meets them on purpose) and which are internal, with one line per public door, grouped by what you do with them, and the page that explains each one when there is one.
+description: Which API endpoints on a workspace are public and which are internal, with one line per public endpoint, grouped by what you do with it, and the page that explains each one when there is one.
 ---
 
 Every workspace serves one HTTP API. Locally it listens on port 9100; a
 hosted workspace serves the same API at its own origin. This page is the map
-of that API: every public door in one place, grouped by what a person does
+of that API: every public endpoint in one place, grouped by what a person does
 with it, and a short list of the prefixes that belong to the machinery and
 are not part of the public surface.
 
-Where a door has a page of its own, the last column links to it; the [API reference](/docs/reference/api)
+Where an endpoint has a page of its own, the last column links to it; the [API reference](/docs/reference/api)
 carries request and response shapes for many of them.
 
 ## How to read this page
 
-A **public door** is one you, your client, or a program you write calls on
+A **public endpoint** is one you, your client, or a program you write calls on
 purpose. It takes an ordinary credential (a bearer token, or the local socket
 when you are on the machine that runs the workspace), answers JSON, and refuses
 with a small envelope: `{"object": "error", "code": "...", "message": "..."}`.
-A few doors are open without any credential, on purpose: the liveness probe,
-the capability manifest, the sign-in doors, invite preview and redemption, and
+A few endpoints are open without any credential, on purpose: the liveness probe,
+the capability manifest, the sign-in endpoints, invite preview and redemption, and
 public links. Those are marked **open** below.
 
-An **internal door** is one the workspace's own moving parts use to talk to
+An **internal endpoint** is one the workspace's own moving parts use to talk to
 each other: a run's worker asking whether it may make a call, the model relay a
 worker speaks through, the feeds two workspaces exchange when they sync, the
 pairing handshake, the identity directory. They are listed by prefix at the end
@@ -148,21 +148,21 @@ The lane of things waiting on a person. A **decision** needs an answer; a
 | POST | `/v1/attention/annotation` | Save that note | |
 | GET | `/v1/attention/annotation/draft` | A drafted note to edit | |
 
-### The register door
+### The register
 
 `GET /v1/register` answers one object. The fields a client renders from:
 
 - `configured`: whether this workspace has been set up at all. An empty
   register with `configured: false` is a bare workspace, not a quiet one.
 - `asks`: the ranked rows, duplicates merged. `asks_open` counts every open
-  item before folding, `asks_distinct` after.
+  item before duplicates are merged, `asks_distinct` after duplicates are merged.
 - `asks_decisions` and `asks_notices`: the split of those rows into decisions
   (an answer is needed) and heads-ups (a nod is enough). A badge that counts
   what needs a person reads `asks_decisions`.
 - `asks_receivable` and `asks_unreceivable`: how many of the rows a run can
   still take the answer to, and how many nothing can receive any more.
 - `asks_capped` and `ask_scan_ceiling`: whether the ask counts are exact or a
-  floor, and the ceiling they were measured under. `capped` is the combined
+  floor, and the limit they were counted under. `capped` is the combined
   signal for asks and proposals together.
 - `proposal_groups`: open proposals grouped by identical text, each with its
   `summary`, `count`, `confidence`, `latest_clock` and `decision_ids`.
@@ -172,7 +172,7 @@ The lane of things waiting on a person. A **decision** needs an answer; a
   policy, and which of them have come back as a question.
 - `weights`, `oldest_ask_unix`, `viewer`, `root_thread`.
 
-### The decide door
+### Deciding
 
 `POST /v1/decisions/{id}/decide` takes `{decision, reason?, provided_value?,
 becomes_policy?}`. For an item that offers options, `decision` is the chosen
@@ -184,7 +184,7 @@ carries the answer. For a heads-up, `decision` is `"acknowledge"`.
 The answer is `{object: "decision", id, request_id, decision, policy,
 opened_thread}`, plus `fulfills` (an answer) or `cancels` (a rejection) naming
 the request id again. `opened_thread` is the thread this answer opened, when it
-opened one; it is `null` for an ordinary item. A fresh workspace set up with any
+opened one; it is `null` for an ordinary item. A new workspace set up with any
 preset other than `blank` seeds one question in the register, "What are you
 working on?", and answering it opens your first thread, titled with exactly what
 you typed, and returns its id here so your client can take you into it.
@@ -203,9 +203,9 @@ Answering the same question twice returns the same thread. See
 | GET | `/v1/actors/{did}/threads` | The same, by path, with thread details | |
 | POST | `/v1/actors/define` | Define an automated member that runs as itself, within your own bounds | [Members and adapters](/docs/guides/actors-and-adapters) |
 | DELETE | `/v1/actors/{did}/definition` | Retire a member you defined | [Members and adapters](/docs/guides/actors-and-adapters) |
-| PATCH | `/v1/actors/{did}/definition` | Shape a member: model, words, tools, ceilings, name, with a partial body (owner) | [Actor doors](/docs/reference/actor-doors) |
-| GET | `/v1/actors/{did}/history` | A member's versions, newest first, with what changed (owner) | [Actor doors](/docs/reference/actor-doors) |
-| POST | `/v1/actors/{did}/definition/revert` | Put a listed version back, as a new version (owner) | [Actor doors](/docs/reference/actor-doors) |
+| PATCH | `/v1/actors/{did}/definition` | Shape a member: model, words, tools, limits, name, with a partial body (owner) | [Working with members](/docs/reference/actor-doors) |
+| GET | `/v1/actors/{did}/history` | A member's versions, newest first, with what changed (owner) | [Working with members](/docs/reference/actor-doors) |
+| POST | `/v1/actors/{did}/definition/revert` | Put a listed version back, as a new version (owner) | [Working with members](/docs/reference/actor-doors) |
 | POST | `/v1/blueprints/materialize` | Install a blueprint, which can define members, tools and rules together | [Blueprints](/docs/concepts/blueprints) |
 | GET | `/v1/actors/{did}/memories` | What a member remembers | [Member memory](/docs/guides/actor-memory) |
 | POST | `/v1/actors/{did}/memories` | Give a member something to remember | [Member memory](/docs/guides/actor-memory) |
@@ -239,7 +239,7 @@ Answering the same question twice returns the same thread. See
 | Method | Path | What it is for | Documented |
 |---|---|---|---|
 | GET | `/v1/config/rules` | The routing rules in force | [Routing rules](/docs/guides/routing-rules) |
-| GET | `/v1/config/permission-rules` | The permission rules in force, and whether the permission plane is on | [CEL expressions](/docs/guides/cel-expressions) |
+| GET | `/v1/config/permission-rules` | The permission rules in force, and whether permissions are on | [CEL expressions](/docs/guides/cel-expressions) |
 | GET | `/v1/config/fold-rules` | The status rules in force | |
 | GET | `/v1/config/health-checks` | The health checks in force | |
 | GET | `/v1/config/decision-policies` | The decision policies in force | |
@@ -408,7 +408,7 @@ Answering the same question twice returns the same thread. See
 | GET | `/v1/instance/bootstrap` | Everything a client needs to draw its first screen (**open**) | [API reference](/docs/reference/api#instance) |
 | POST | `/v1/instance/configure` | Apply a setup preset to a bare workspace | [First run](/docs/get-started/first-run) |
 | GET | `/v1/capabilities` | What this workspace can do, machine-readable (**open**) | [API reference](/docs/reference/api#capability-discovery) |
-| GET | `/.well-known/syncropel` | The same, for a workspace that has not signed in yet (**open**); it also carries `owner_actions`, the nine actions a control plane may forward on an owner's behalf, each naming a declared door and its scope | [API reference](/docs/reference/api#capability-discovery) |
+| GET | `/.well-known/syncropel` | The same, for a workspace that has not signed in yet (**open**); it also carries `owner_actions`, the nine actions a control plane may forward on an owner's behalf, each naming a declared endpoint and its scope | [API reference](/docs/reference/api#capability-discovery) |
 | GET | `/openapi.json` | The OpenAPI document (**open**) | |
 | GET | `/docs/api` | A rendered view of it (**open**) | |
 | GET | `/v1/console/manifest` | Which commands the operator console may run | |
@@ -416,15 +416,15 @@ Answering the same question twice returns the same thread. See
 | POST | `/v1/corpus/backfill` | Capture runs that finished before the corpus existed | |
 | POST | `/v1/proxy/messages` | Talk to a member through a messages-style API | [API reference](/docs/reference/api#proxy) |
 | POST | `/v1/messages` | Same as `/v1/proxy/messages` | |
-| POST | `/v1/mcp` | The MCP door for AI clients | [AI clients](/docs/integrate/ai-clients) |
+| POST | `/v1/mcp` | The MCP endpoint for AI clients | [AI clients](/docs/integrate/ai-clients) |
 
-## Internal doors
+## Internal endpoints
 
 These prefixes belong to the workspace's own machinery. They are not the
 public surface, they are not documented here, and their shape can change
 between releases without notice.
 
-- `/v1/work/tool-verdict` and `/v1/work/tool-call`: the seam between a run's
+- `/v1/work/tool-verdict` and `/v1/work/tool-call`: the link between a run's
   worker and the workspace that judges each of its tool calls.
 - `/v1/broker/`: the model relay a worker speaks through, so the worker never
   holds a model credential.
@@ -433,19 +433,19 @@ between releases without notice.
   `spl federation pair` and `spl sync`; see [Federation](/docs/guides/federation).
 - `/v1/discovery/`: finding peers on the local network.
 - `/directory/` and `/v1/directory/publish`, `/v1/directory/self-delist`: the
-  identity directory service and the doors other workspaces and the
+  identity directory service and the endpoints other workspaces and the
   provisioning service push into.
-- `/v1/admin/provisioning-worker-restore`: the provisioning service's own door.
+- `/v1/admin/provisioning-worker-restore`: the provisioning service's own endpoint.
 - `/v1/patterns/`: cross-workspace pattern evaluation.
 - The relay, which carries messages between workspaces that cannot reach each
-  other directly, is a separate service with its own doors; see
+  other directly, is a separate service with its own endpoints; see
   [Relay](/docs/operate/relay).
 
 ## Stability
 
-Doors are added, and fields are added to existing answers, in ordinary
+Endpoints are added, and fields are added to existing answers, in ordinary
 releases without notice; a client that ignores fields it does not know keeps
-working. A **breaking change** is a door renamed or removed, a field whose
+working. A **breaking change** is an endpoint renamed or removed, a field whose
 meaning changes, or a call that used to succeed and now refuses. Breaking
 changes are called out in the [release notes](/docs/reference/release-notes)
 and in the source changelog, with the migration; a removed path answers `404`
@@ -454,4 +454,4 @@ when they became `/v1/work/*`. The capability manifest at `GET /v1/capabilities`
 carries a `manifest_version` that changes only when the manifest's own shape
 breaks, so a client can detect that before it parses.
 
-Internal doors carry no such promise.
+Internal endpoints carry no such promise.

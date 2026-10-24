@@ -1,59 +1,57 @@
 ---
 title: Media that plays
-description: "Audio, video — and, ahead, documents, decks, and live apps — are one thing to Syncropel: content a surface presents and you interact with, resolved from records at play time. A new kind of playable media is a record, not new code."
+description: Audio and video are content your workspace presents and you interact with. Adding a new kind of playable media is a matter of writing a record.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-[Your library](/docs/concepts/your-library) is about *keeping* things — content-addressed, versioned, queryable. This page is about *playing* them: how a track sounds, a video plays, and — ahead on the same rail — a report renders, a deck advances, an app runs. To Syncropel these are one thing: **content a surface presents and a human interacts with, resolved from records at play time.**
+[Your library](/docs/concepts/your-library) is about *keeping* things. This page is about *playing* them: how a track sounds or a video plays. Syncropel treats audio and video as one thing: **content that is presented to you and that you interact with.**
 
 ## One idea, not one player per format
 
-In most systems every content type ships its own player, its own resolution path, its own access rules — a new format means new bespoke code. Syncropel applies the pattern it already uses for behavior (a record declares X, a small generic interpreter runs it, X extends by emitting more records) to **presentation**. The result: **a new kind of playable media is a record you emit, not a player you write.**
+Many systems ship a separate player for each content type, so a new format means new code. In Syncropel, a **new kind of playable media is a record you write, not a player you build.**
 
-Two records model any medium:
+Two records describe any medium:
 
-- **`core.medium.v1` — the content descriptor (WHAT).** A typed reference to content (never the bytes inline): a `medium_kind` (an open, registry-classified string — `audio`, `video`, and more as they land), what the content is (a mount path, a content hash, a stream, a document, a runtime, a simulation), and a **modality** — `play`, `render`, `run`, or `simulate` — which is the key the surface dispatches on.
-- **`core.medium.player.v1` — the player descriptor (HOW).** A record deployed exactly like an actor adapter: it binds a `medium_kind` to a **playback primitive** and names how to obtain the content. Adding a declarative medium type is *emitting one of these*. No product change is needed.
+- **`core.medium.v1` describes the content (what).** It points to the content, never holding the bytes. It has a `medium_kind` (such as `audio` or `video`), says where the content is (a mount path, a content hash, a stream), and has a **modality**: `play`, `render`, `run` or `simulate`. The modality tells the screen how to present it.
+- **`core.medium.player.v1` describes the player (how).** It links a `medium_kind` to a **playback method** and says how to get the content. Adding a media type means writing one of these.
 
-<Callout type="info" title="Visibility is inherited, not declared on the medium">
-A medium descriptor never carries who-can-see-it. Visibility comes from the thread it lives on, the consent grant over that thread, and — for anonymous playback — the minted read-token. The same descriptor plays for its owner and (when a public grant exists) for a stranger, with no change to the record.
+<Callout type="info" title="Visibility comes from the thread">
+A medium never says who can see it. That comes from the thread it lives on, the consent grant over that thread, and, for anonymous playback, a short-lived read token. The same record plays for its owner and, when a public grant exists, for a stranger.
 </Callout>
 
-## The playback primitives (a small, closed set)
+## Playback methods
 
-Where media types are open and grow by emitting records, the **primitives** a player can bind to are a deliberately small, closed set — the one place the system itself is involved:
+The playback methods a player can use are a small fixed set:
 
-| Primitive | For | Status |
+| Method | For | Support |
 |---|---|---|
-| **`stream-transport`** | audio, video — ranged byte streaming (HTTP `206`) | **Wired today** |
-| **`static-render`** | documents, reports, decks — presented, not executed | Named, not wired |
-| **`iframe-embed`** | sandboxed embedded surfaces | Named, not wired |
-| **`wasm-app`** | live apps, games, world-models — executable media | Named, not wired |
+| **`stream-transport`** | audio and video, streamed in ranges (HTTP `206`) | Supported |
+| **`static-render`** | documents, reports, decks | Not supported |
+| **`iframe-embed`** | sandboxed embedded pages | Not supported |
+| **`wasm-app`** | live apps, games, simulations | Not supported |
 
-Today the substrate **plays** (audio and video) end to end. The `render` / `run` / `simulate` modalities are named so the model is whole; only `stream-transport` is wired. A medium that maps onto `stream-transport` is pure data right now.
+Only audio and video (`stream-transport`) play. The other modalities (`render`, `run`, `simulate`) are named but have no playback.
 
-## Playing it — for you, and for a stranger
+## Playing it for you and for a stranger
 
-For the owner, a medium plays inside your library like any other content. The distinguishing capability is **anonymous playback**: a public link can make a crate *play* for someone with no account. That path resolves the medium without a login:
+For the owner, a medium plays inside your library like any other content. A public link can also make a crate *play* for someone with no account, using:
 
-`GET /v1/public/medium/resolve?thread=&ref=&kind=` — anonymous, gated by a public consent grant, and **grounded**: the requested `ref` must actually be referenced by a record on the granted thread, so a grant over one crate can't be used to fish for arbitrary files. It returns the descriptor plus a short-lived, grant-bound read-token and a read URL; the player streams the bytes with a ranged `206`, and re-resolves when the token expires. Revoking the grant kills every outstanding token at once.
+`GET /v1/public/medium/resolve?thread=&ref=&kind=`
 
-This is what makes a shared link *play* rather than just *describe*: the link resolves to an instance and a crate, and the crate's media stream without any credential the viewer has to hold. (The minted read-token exists because media elements can't send an `Authorization` header; it is a credential, never a record — it never enters the substrate.)
+This needs no login, but it is gated by a public consent grant. The requested `ref` must be referenced by a record on the granted thread, so a grant over one crate can't be used to reach other files. It returns the descriptor, a short-lived read token and a read URL. The player streams the bytes in ranges and asks again when the token expires. Revoking the grant ends every outstanding token at once.
 
-## Why it's built this way
-
-The bespoke alternative — one hardcoded player per content type — is the exact CRUD-screen regression the rest of Syncropel avoids: it works for the first format and re-implements everything for the second. Modeling the player as a **record** means the surface, the resolution, and the access story are written once and every new medium reuses them. A format not yet invented is a `core.medium.player.v1` emit away from playing.
+This is what makes a shared link *play* rather than just describe. The read token exists because media players can't send an `Authorization` header. It is a credential, not a record.
 
 ## In short
 
-- Audio and video are **one thing**: content a surface presents, resolved from records at play time.
-- Two records model any medium: **`core.medium.v1`** (what) + **`core.medium.player.v1`** (how). A new medium type is a record, not new code.
-- The **playback primitives** are a small closed set; **`stream-transport`** (audio/video) is the one that is wired.
-- **Anonymous playback** lets a public link *play* — grant-gated, grounded, token-metered — with no account.
+- Audio and video are content presented to you and resolved from records when played.
+- Two records describe any medium: **`core.medium.v1`** (what) and **`core.medium.player.v1`** (how).
+- **`stream-transport`** (audio and video) is the only supported playback method.
+- **Anonymous playback** lets a public link play with no account, gated by a consent grant.
 
 ## Related
 
-- [Your library](/docs/concepts/your-library) — how content is kept, versioned, and found.
-- [Files](/docs/concepts/files) — the content-addressed storage model the bytes live in.
-- [Consent](/docs/guides/consent) — the grants that gate anonymous access.
+- [Your library](/docs/concepts/your-library): how content is kept, versioned and found.
+- [Files](/docs/concepts/files): where the bytes are stored.
+- [Consent](/docs/guides/consent): the grants that gate anonymous access.

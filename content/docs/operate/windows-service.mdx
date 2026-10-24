@@ -5,7 +5,7 @@ description: Run `spl serve` as a Windows Service so the instance starts at boot
 
 On Linux and macOS, `spl serve` already detaches from the
 terminal, writes a PID file, and survives shell close — a quick
-`systemd` or `launchd` unit on top is enough for boot-time autostart.
+`systemd` or `launchd` unit is enough for boot-time autostart.
 
 Windows needs something different. {/* vocab-lint-disable-next-line: "Console applications" is a Windows OS term, not the retired UI primitive */}
 Console applications launched from
@@ -22,9 +22,9 @@ flags drive the full lifecycle:
 |---|---|---|
 | `--install-service` | Register the instance with the SCM (default name `SyncropelInstance`) | yes |
 | `--uninstall-service` | Remove the registration (stops the service first if running) | yes |
-| `--service` | Internal — SCM invokes the binary with this flag | n/a |
+| `--service` | Used by Windows when it starts the service. Do not run it yourself. | n/a |
 
-The non-service paths (`--daemon`, foreground) continue to work
+Running `spl serve` in a window (`--daemon` or foreground) works
 exactly as on Unix. Operators who are happy running `spl serve`
 manually inside a PowerShell window don't need any of this.
 
@@ -72,38 +72,11 @@ characters, or leading / trailing whitespace. The CLI validates before
 calling the SCM so an invalid name fails fast with a clear message
 rather than an opaque Win32 error.
 
-## How the pieces fit
+## How it works
 
-```
-  services.msc                              Event Viewer
-       │                                        │
-       ▼                                        ▼
-  ┌──────────┐     start / stop           ┌───────────────┐
-  │   SCM    │ ◄───────────────────────── │  Application  │
-  └──────────┘                            │     log       │
-       │                                  └───────────────┘
-       │  spawn                                 ▲
-       ▼                                        │ log events
-  spl serve --service --service-name <name>    │
-       │                                        │
-       ├── registers control handler (Stop ─► graceful shutdown)
-       ├── sets state Running
-       ├── runs the same foreground server as `spl serve`
-       └── on Stop / system shutdown: drain, flush, exit
-```
+The service runs the same `spl.exe` you use interactively. `--install-service` tells Windows to start it with `serve --service --service-name <name>` every time. Do not run the `--service` flag yourself.
 
-The service binary is the same `spl.exe` you invoke interactively.
-`--install-service` tells the SCM to launch that binary with
-`serve --service --service-name <name>` on every start. The
-`--service` flag is an internal marker that flips the process from
-the normal foreground path into the SCM dispatcher — direct
-invocation by an operator is not supported.
-
-A `Stop` control from SCM (or `sc.exe stop <name>`, or the red square
-in Services MMC) is translated into the same graceful-shutdown path
-that Ctrl+C triggers on Unix: in-flight dispatches drain, the store
-flushes, shutdown records land on the relevant threads, and the
-process exits with code 0.
+A stop from Windows (`sc.exe stop <name>`, or the stop button in Services) shuts the instance down cleanly, the same as Ctrl+C on Unix: in-flight work finishes, the store is saved, and the process exits with code 0.
 
 ## Event Log
 
@@ -141,9 +114,9 @@ request in a timely fashion." Most common causes:
 1. **Port 9100 already in use** — another `spl serve` is already
    listening. Run `spl status` from a regular shell to see the
    existing instance, then stop it first.
-2. **Missing auth bootstrap** — if `auth.required = true` in the
-   store and no service-account authorizes the instance's default
-   user actor, the instance's pre-flight fails. Stop the service,
+2. **Missing first sign-in setup** — if `auth.required = true` and
+   no service account is set up for the instance's default
+   user, the start-up check fails. Stop the service,
    run interactively with
    `spl serve --insecure-localhost` once to mint a recovery token,
    then restart the service.
@@ -168,9 +141,7 @@ hide which binary is actually running.
 ### `sc.exe stop` hangs
 
 The service reports `StopPending` to SCM and then runs the same
-graceful-shutdown path as `Ctrl+C` on Unix. Drain can take up to
-the engine's drain-timeout (default a few seconds of in-flight
-dispatches plus store flush). If it hasn't stopped after ~30
+graceful-shutdown path as `Ctrl+C` on Unix. Shutdown can take a few seconds while in-flight work finishes and the store is saved. If it hasn't stopped after ~30
 seconds, the service may be hung — use `sc.exe queryex <name>`
 to read the PID and kill it forcibly:
 
@@ -179,8 +150,7 @@ sc.exe queryex SyncropelInstance
 taskkill /F /PID <pid>
 ```
 
-Then investigate the tracing log — a stuck `sc.exe stop` is a
-real bug worth reporting.
+Then check the log at `%USERPROFILE%\.syncro\logs\spl.log`; a stuck stop is worth reporting.
 
 ### Uninstall says "service is marked for deletion"
 
@@ -194,13 +164,11 @@ stop hangs past the 10-second wait.
 
 | Capability | Unix (`systemd` / `launchd`) | Windows Service |
 |---|---|---|
-| Detach from terminal | `spl serve` uses `setsid()` | `--install-service` + SCM owns process |
+| Detach from terminal | `spl serve` detaches itself | `--install-service`; Windows owns the process |
 | Start at boot | systemd unit / launchd plist | `--install-service` sets `AutoStart` |
 | Survive logoff | yes (via systemd) | yes (SCM session 0) |
-| Graceful shutdown | `SIGTERM` | SCM `Stop` control ➜ Notify ➜ same path |
+| Graceful shutdown | `SIGTERM` | Windows stop request, same clean shutdown |
 | View in UI | `systemctl status` | `services.msc` |
 | Lifecycle log | journald | Event Log (Application, source = service name) |
 
-The Windows Service wrapper is a wrapper, not a rewrite. Everything
-inside — the engine, the HTTP API, the dispatch pipeline — behaves
-identically no matter which entry point started it.
+Everything else behaves the same no matter how the instance was started.

@@ -1,16 +1,16 @@
 ---
 title: Your first decision gate
-description: Walk through Syncropel's self-improvement loop. Emit a record that has no routing rule yet, see the engine propose one as a decision request, approve it from the decision gate, and watch the next similar record route automatically.
+description: Write a record that has no routing rule yet, see Syncropel propose one as a decision request, approve it, and watch the next similar record route automatically.
 ---
 
 ## What you'll learn
 
-In about 30 minutes, you'll exercise the **decision gate**, the path that makes Syncropel a learning system, not just a record store. You'll emit a record the engine doesn't yet know how to route, see it surface a **decision request** for your approval, approve it, and verify the next similar record routes without any new reasoning.
+In about 30 minutes, you'll use the **decision gate**, which lets your workspace learn. You'll write a record that Syncropel doesn't yet know how to route, see it raise a **decision request** for your approval, approve it, and check that the next similar record routes without any new reasoning.
 
-After this, you'll understand why Syncropel is described as "self-improving" — the engine never silently changes routing or policy. It proposes, an operator decides, and the decision becomes a record that future runs replay.
+Syncropel never silently changes routing or permissions. It proposes, you decide, and your decision is saved as a record that is reused later.
 
 <Callout type="info">
-The mechanism is the **decision gate**: a proposal is a `core.work.decision_request.v1` record, and you answer it with `spl decisions`. The system proposes, a human decides, and the decision is kept as a durable record.
+A proposal is a `core.work.decision_request.v1` record, and you answer it with `spl decisions`. Syncropel proposes, a person decides, and the decision is kept.
 </Callout>
 
 ## Before you start
@@ -18,26 +18,26 @@ The mechanism is the **decision gate**: a proposal is a `core.work.decision_requ
 - `spl` installed (`spl --version`)
 - A running workspace — either local (`spl serve`) or hosted (`<label>.syncropel.app`).
 - `spl status` returns `healthy`.
-- An LLM provider key configured (`spl config set-key anthropic <key>`) — the engine's intelligence loop needs a model to reason about new routing. On a hosted workspace the key is already wired.
+- A model provider key configured (`spl config set-key anthropic <key>`), because Syncropel needs a model to reason about new routing. On a hosted workspace the key is already set up.
 
 If you've never emitted a record before, do [Your first thread](./first-thread) first. This tutorial assumes you can read `spl thread records <id>` output.
 
-## 1. Confirm intelligence is enabled
+## 1. Confirm proposals are enabled
 
-Intelligence (the loop that reasons about unrouted work and proposes decisions) ships off-by-default on local installs. Check:
+Proposals (Syncropel reasoning about unrouted work and suggesting a rule) are off by default on local installs. Check:
 
 ```bash
 spl config show | grep -i intelligence
 ```
 
-If you see `intelligence_enabled: false` (or no entry at all), enable it by giving the engine a model to think with:
+If you see `intelligence_enabled: false` (or no entry at all), enable it by giving Syncropel a model to use:
 
 ```bash
 spl config set-key anthropic <your-key>
 spl config model claude-sonnet-4-6
 ```
 
-The engine hot-reloads on the next config broadcast — no restart.
+The change applies right away, with no restart.
 
 ## 2. Emit a record with no matching routing rule
 
@@ -56,11 +56,11 @@ Output includes a record id and thread id:
   act:     INTEND
 ```
 
-The engine ingests it, runs the routing match cascade, and finds nothing — no L0/L1/L2/L3 hash hit, no semantic match, no static rule. That miss is what triggers the intelligence loop.
+Syncropel checks for a matching rule or pattern and finds none. That miss is what triggers a proposal.
 
 ## 3. See the proposal land in the decision queue
 
-Within a few seconds, the intelligence loop reasons about the unrouted intent. Because it isn't confident enough to auto-apply (confidence ≥ 0.90 auto-applies; ≥ 0.60 asks a human; < 0.60 is logged and dropped), it emits a **decision request** and waits for you. List the pending decisions:
+Within a few seconds, Syncropel reasons about the unrouted intent. Because it isn't confident enough to apply the rule on its own, it raises a **decision request** and waits for you. List the pending decisions:
 
 ```bash
 spl decisions list
@@ -78,17 +78,17 @@ You'll see something like:
 1 pending
 ```
 
-The request carries a structured body: the match expression the engine synthesized, the recommended target actor, and a confidence score. The full body is visible with:
+The request includes the matching expression Syncropel suggests, the recommended target actor, and a confidence score. The full body is visible with:
 
 ```bash
 spl decisions list --json | jq '.[0]'
 ```
 
-Until you act, no rule exists in `th_engine_config` and no future record will route differently. The same pending decision also shows up in `spl resume` under **NEEDS** — the decision gate is the one queue for "anything on the workspace is waiting on you."
+Until you act, no rule exists and no future record will route differently. The pending decision also shows up in `spl resume` under **NEEDS**. The decision gate is the one place for everything waiting on you.
 
 ## 4. Approve the proposal
 
-`spl decisions approve` is sugar for the CHOOSE response `choose <id> approve` — approving a routing proposal tells the engine to apply it:
+`spl decisions approve` is shorthand for `choose <id> approve`. Approving a routing proposal applies it:
 
 ```bash
 spl decisions approve e6a0f87dfc917aba
@@ -103,7 +103,7 @@ Output:
   result:   routing_rule_added (name: routing_translator_v1)
 ```
 
-What happened mechanically: your approval is itself a record — a DO with `body.fulfills` pointing at the `core.work.decision_request.v1`. The engine reads the answered request, recognizes it as a routing-rule proposal, and emits a `routing_rule.add.v1` LEARN on `th_engine_config`. The engine hot-reloads the rule on broadcast. From this point forward the rule is part of the workspace's state — not config-file state, not in-memory state, **record state** that survives restarts and round-trips through `spl export` / `spl import`.
+What happened: your approval is itself a record, a DO with `body.fulfills` pointing at the `core.work.decision_request.v1`. Syncropel saw the answer, recognized a routing-rule proposal, and saved a `routing_rule.add.v1` LEARN on `th_engine_config`. The rule applies right away. It is stored as records, so it survives restarts and travels with `spl export` and `spl import`.
 
 Verify the rule landed:
 
@@ -114,13 +114,13 @@ spl config list-rules
 You should see `routing_translator_v1` in the list.
 
 <Callout type="info">
-**Three ways to answer a decision.** Not every decision is yes/no. A `core.work.decision_request.v1` declares one of three response shapes, and the CLI has a verb for each:
+**Three ways to answer a decision.** Not every decision is yes or no. A `core.work.decision_request.v1` asks for one of three kinds of answer, and the CLI has a command for each:
 
 - **CHOOSE** — pick from declared options. `spl decisions choose <id> <option-id>`; `approve` / `reject` are sugar for the common two-option case.
 - **PROVIDE** — supply an open value. `spl decisions provide <id> --value <json-or-string>`.
-- **ACKNOWLEDGE** — a zero-data "seen it." `spl decisions ack <id>`.
+- **ACKNOWLEDGE** — a plain "seen it". `spl decisions ack <id>`.
 
-Same gate, same audit trail, whether the asker is the intelligence loop, a paused work loop, a `spl decompose` plan, or a federated peer.
+It is the same gate and audit trail whoever is asking: Syncropel itself, a paused work loop, a `spl decompose` plan or a paired workspace.
 </Callout>
 
 ## 5. Emit a similar record and watch it route automatically
@@ -129,15 +129,15 @@ Same gate, same audit trail, whether the asker is the intelligence loop, a pause
 spl intend "Translate the CONTRIBUTING.md to Spanish" --thread th_es_translate
 ```
 
-This time the routing match cascade hits at L1 (or L2, depending on how the proposal generalized) and the engine fires an INTEND at the translator agent without any new reasoning. Inspect the thread:
+This time the new rule matches, and the work goes to the translator agent without any new reasoning. Inspect the thread:
 
 ```bash
 spl thread records th_es_translate
 ```
 
-You should see two records back-to-back: your INTEND, and a follow-on engine-emitted DO with `body.dispatch_handled: true` showing the route fired.
+You should see two records back-to-back: your INTEND, and a follow-on DO from Syncropel with `body.dispatch_handled: true`, showing the route was used.
 
-Compare to step 2's thread, which has only your bare INTEND with no follow-on — that's the difference between "the engine is reasoning every time" and "the engine is replaying a learned rule."
+Compare to step 2's thread, which has only your bare INTEND with no follow-on — that is the difference between reasoning every time and reusing a learned rule.
 
 ## 6. Inspect the audit trail
 
@@ -147,33 +147,33 @@ The proposal, your answer, and the rule application are all records. The decisio
 spl audit export --since 1h | jq 'select(.body.kind | test("decision|routing_rule"))'
 ```
 
-Every decision is a record. There is no "approved by gut feel" path — the trail is structurally complete (per the [governance concept](/docs/concepts/governance)), and the same trail is what trust scoring uses to attribute future routing successes to your approval.
+Every decision is a record, so the trail is complete (see [Governance](/docs/concepts/governance)).
 
 ## What just happened
 
 You exercised Syncropel's **decision-record loop**:
 
-1. **A miss is data.** When routing finds no match, the engine doesn't fall back to a fixed default — it emits a structured `core.work.decision_request.v1` and waits.
-2. **An operator's answer is a record.** Not a flag, not a session decision — a DO that fulfills the request, which stays on record through export, import and audit.
-3. **The rule is record-derived, not config-derived.** Routing rules are stored as LEARN records on `th_engine_config`. Those records are the current routing rules.
-4. **Replay closes the loop.** The next similar record matches and skips reasoning entirely. Cost goes from "one LLM call" to "one expression evaluation" — that's the gradient that makes the system economically viable at scale (see [patterns](/docs/concepts/patterns)).
+1. **No match is useful.** When routing finds no match, Syncropel doesn't fall back to a default. It raises a `core.work.decision_request.v1` and waits.
+2. **Your answer is a record.** It is a DO that fulfills the request, and it stays on record through export, import and audit.
+3. **Rules are records.** Routing rules are stored as LEARN records on `th_engine_config`.
+4. **Reuse closes the loop.** The next similar record matches and skips reasoning, so the cost goes from one model call to checking one expression (see [patterns](/docs/concepts/patterns)).
 
-This is the smallest example of why the decision gate is Syncropel's self-improvement primitive: the engine proposes, you decide, and your decision becomes a durable record.
+Syncropel proposes, you decide, and your decision becomes a lasting record.
 
 ## Where to next
 
-- [Your first crystallized pattern](./your-first-crystallized-pattern) — what happens after the same approved rule fires 100 times: the pattern crystallizes, replay short-circuits the cascade entirely.
-- [Patterns concept](/docs/concepts/patterns) — the four hash levels, crystallization criteria C1-C4, the matching cascade.
-- [Engine concept](/docs/concepts/engine) — the four loops (INGEST, RECONCILE, TICK, CRON) and how the decision gate slots into RECONCILE.
-- [Governance concept](/docs/concepts/governance) — why permissions, the decision gate, and audit are all the same primitive (records on reserved threads).
-- [CEL expressions guide](/docs/guides/cel-expressions) — author your own routing rules directly instead of waiting for the engine to propose them.
+- [Your first crystallized pattern](./your-first-crystallized-pattern) — what happens as the same kind of work repeats and becomes a pattern.
+- [Patterns concept](/docs/concepts/patterns) — how patterns are matched, reused and made permanent.
+- [Engine concept](/docs/concepts/engine) — what keeps your workspace running, including how proposals are raised.
+- [Governance concept](/docs/concepts/governance) — how permissions, decisions and audit all work through records.
+- [Expressions guide](/docs/guides/cel-expressions) — write your own routing rules instead of waiting for a proposal.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `spl decisions list` always returns empty | Intelligence is disabled, so the engine never proposed anything. | Confirm `spl config show` reports a model + provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. The workspace hot-reloads on the next broadcast. |
-| A decision stays pending forever | You're reading from a paired peer, not the originating instance. Decision state is per-instance until the resulting rule federates. | Run `spl decisions list` against the workspace that *emitted* the original record. Check `spl actor list` to confirm which DID is the active actor. |
+| `spl decisions list` always returns empty | Proposals are disabled, so nothing was proposed. | Confirm `spl config show` reports a model and provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. |
+| A decision stays pending forever | You're reading from a paired workspace, not the one where the record was written. Decisions belong to the workspace that raised them. | Run `spl decisions list` against the workspace where the original record was written. Check `spl actor list` to confirm which DID is the active actor. |
 | `spl decisions approve` returns `403 forbidden` | Default-secure auth on a hosted workspace — answering a decision emits a record, and the bearer token lacks write scope. | Mint a service account with write scope: `spl service-account create --name "Decider" --scopes records:write --with-token`, then `spl token save <token>`. |
-| Approved rule didn't fire on the next similar record | The proposal generalized too narrowly (matches L0 only) — the second record differs at L0. | Inspect with `spl config list-rules`, find the rule, and broaden its CEL `match` expression. The pattern layer will eventually crystallize the broader shape on its own; manual editing is the fast path. |
+| Approved rule didn't fire on the next similar record | The proposed rule is too narrow and matches only the exact first record. | Inspect with `spl config list-rules`, find the rule, and broaden its `match` expression. |
 | `spl audit` shows no decision records after approving | The approve command ran against a different namespace from the one you're reading. | Pass `--namespace <ns>` to match the namespace the original record was emitted into. |

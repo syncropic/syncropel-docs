@@ -1,27 +1,25 @@
 ---
 title: Scheduled triggers
-description: Use cron-schedule event triggers to run periodic work (daily summaries, stale-task reminders, trust decay audits) without external schedulers.
+description: Run periodic work on a schedule (daily summaries, stale-task reminders, trust audits) without an external scheduler.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
 ## What they are
 
-Event triggers in Syncropel are stored as LEARN records on
-`th_engine_config` with `body.topic = "event_trigger"`. They come in
-two flavors:
+A trigger starts an actor on its own. Triggers come in
+two kinds:
 
-- **Record-matching**: fire when a record matching a CEL expression is
-  ingested (documented in [Routing rules](/docs/guides/routing-rules))
-- **Schedule-based** (this guide): fire when a cron schedule elapses
+- **Record-matching**: fire when a new record matches a [CEL expression](/docs/guides/cel-expressions)
+  (see [Routing rules](/docs/guides/routing-rules))
+- **Schedule-based** (this guide): fire on a cron schedule
 
-This guide is about the schedule flavor: the "give me a daily summary
-at 9am" pattern. No external scheduler needed; the engine's CRON loop
-evaluates schedules on every tick.
+This guide is about schedules, such as "give me a daily summary
+at 9am". You don't need an external scheduler.
 
 ## Prerequisites
 
-- Running `spl serve` instance
+- A running workspace (`spl serve`)
 - An actor DID to dispatch to (typically `did:sync:agent:<role>`)
 - The actor must have a registered adapter (see [Actors and adapters](/docs/guides/actors-and-adapters))
 
@@ -41,8 +39,7 @@ spl config add-trigger \
 ```
 
 Cron format is standard: `minute hour day month weekday`. The above
-reads "at 9am UTC every day". The instance evaluates each cron on every
-`tick_interval_ms` (default 1s), so firing resolution is ~1s.
+reads "at 9am UTC every day". Schedules are checked about once a second, so a trigger fires within about a second of its time.
 
 ## Verify the trigger
 
@@ -57,16 +54,14 @@ matches. To see past firings:
 spl config trigger-history --limit 10
 ```
 
-Each row shows the trigger name, firing time, thread id produced, and
-cost.
+Each row shows the trigger name, firing time, the thread it produced, and
+the cost.
 
 ## Pause, resume, remove
 
 `spl trigger` is the verb group for a trigger's life after it exists.
-`list` and `show` read the LIVE loaded set, which is not always the same as
-the records: a trigger whose schedule, timezone or idempotency declaration is
-invalid is REFUSED at load and marked `REFUSED` in the listing rather than
-silently behaving like a live one.
+`list` and `show` show the triggers that are actually running. A trigger whose schedule, timezone or idempotency setting is
+invalid is not loaded and is marked `REFUSED` in the listing, so it is never mistaken for a working one.
 
 ```bash
 spl trigger list                 # the live set, with refusals marked
@@ -76,15 +71,9 @@ spl trigger resume <name>        # puts it back exactly as it was
 spl trigger remove <name>        # removes it for good
 ```
 
-`remove` writes a TOMBSTONE record rather than deleting anything: records are
-never overwritten, so the removal is added to the history and the original
-declaration stays there. That has one consequence worth knowing before you
-reach for it: **declaring the same name again brings the trigger back**, which
-is what latest-wins means on an append-only log.
+`remove` does not delete the original definition. The removal is added to the history, because records are never overwritten. One consequence: **creating a trigger with the same name again brings it back**.
 
-Removing a trigger that was REFUSED at load works too, and is the reason the
-verb exists: before it, a trigger that could not load also could not be taken
-out of the listing.
+You can also remove a trigger that shows as `REFUSED`.
 
 ## Common patterns
 
@@ -104,7 +93,7 @@ spl config add-trigger \
 
 ### Trust decay audit
 
-Weekly Wilson-LB-dropped actors get surfaced for operator review:
+Each week, surface actors whose trust has dropped, for you to review:
 
 ```bash
 spl config add-trigger \
@@ -117,7 +106,7 @@ spl config add-trigger \
 
 ### Fleet heartbeat verification
 
-Every 15 minutes, fail-fast if any fleet peer hasn't posted health:
+Every 15 minutes, check that every fleet peer is reporting in:
 
 ```bash
 spl config add-trigger \
@@ -144,35 +133,32 @@ Schedules are UTC unless the trigger names a `timezone` (an IANA name such as `E
 
 ## Rate limiting
 
-`--cooldown <secs>` throttles a trigger's firings. Useful if the CEL
-schedule somehow produces double fires, or if you want a defensive
-minimum gap.
+`--cooldown <secs>` sets a minimum gap between a trigger's firings. Use it if a trigger fires twice by mistake, or if you want a guaranteed minimum gap.
 
 ## Actors that run unattended
 
 A scheduled actor's definition can say what its runs may write and what they owe:
 
 - `work_loop.writes` names the threads its runs may write, and `work_loop.write_kinds` the record
-  kinds. Configuration and authority threads and kinds are refused when the actor is defined, so a
-  scheduled run can never arm a trigger or change a workspace's limits.
+  kinds. Settings and permission threads and kinds are refused when the actor is defined, so a
+  scheduled run can never create a trigger or change a workspace's limits.
 - `work_loop.revert` says how the actor's effects are undone. An actor that holds a tool with an
   effect outside the workspace (an HTTP call, for example) needs it to start. `work_loop.contract`
   and `work_loop.promises` state what a run commits to and produces. A trigger's `dispatch` can set
   its own `contract`, `revert` and `promises` for the runs it starts.
-- A run that promised a kind or a thread and wrote nothing to it reads `stopped_short` with the
+- A run that promised a kind or a thread and wrote nothing to it shows `stopped_short` with the
   reason `promised <kind>, wrote none`, never done.
-- A failed item in a batch releases its slot, and a question the actor asks again replaces its
-  older unanswered copy on your register.
+- A failed item in a batch frees its place, and if the actor asks the same question again, it replaces the
+  older unanswered copy in [your call](/docs/guides/your-call).
 
 ## When a hosted workspace sleeps
 
 A hosted workspace sleeps when nobody is using it. Scheduled triggers run while the workspace is
-awake. When a trigger falls due while the workspace sleeps, the missed run is dealt with the next
+awake. When a trigger falls due while the workspace sleeps, the missed run is handled the next
 time the workspace wakes, for example when you open it. The trigger's catch-up setting (`catchup`)
 decides what happens: skip the missed run, run only the most recent one, or run each one it missed.
 
-Waking a sleeping hosted workspace at the moment its next trigger falls due is built but not switched
-on yet. Until it is, do not rely on a schedule firing on time while
+A sleeping hosted workspace does not wake itself when a trigger falls due. Do not rely on a schedule firing on time while
 nobody is using the workspace.
 
 On the free plan, a trigger whose schedule fires more often than hourly is refused when you turn it
@@ -181,7 +167,7 @@ on (`SCHEDULE_FINER_THAN_PLAN`).
 ## Turn a trigger off
 
 ```bash
-# Remove by name (writes a tombstone; re-declaring the name brings it back)
+# Remove by name (creating a trigger with the same name brings it back)
 spl trigger remove daily-summary
 
 # Or pause without removing (keeps the whole definition)
@@ -195,4 +181,4 @@ spl trigger pause daily-summary
 - **[CEL expressions](/docs/guides/cel-expressions)**: the expression
   language for record-matching trigger conditions
 - **[Actors and adapters](/docs/guides/actors-and-adapters)**: how
-  dispatched actors actually run
+  triggered actors run

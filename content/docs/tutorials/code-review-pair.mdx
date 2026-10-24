@@ -1,19 +1,18 @@
 ---
 title: Build a multi-user code review flow
-description: Two instances paired in one command, code-review records flowing both ways consent-gated. The complete two-person federation walkthrough.
+description: Pair two workspaces with one command and exchange code-review records in both directions, with consent controlling what is shared.
 ---
 
-By the end of this tutorial, two instances — call them **alice** and
-**bob** — will be paired, share a workspace, and exchange code-review
-records over a single federation link. Alice opens a review request;
+By the end of this tutorial, two workspaces, **alice** and
+**bob**, will be paired and exchanging code-review
+records over a single link. Alice opens a review request;
 Bob publishes a verdict; both surface in a shared three-pane view.
 
-This is the smallest end-to-end multi-user flow Syncropel supports.
-It uses the composed `spl federation invite` command shipped in the
-standard binary — no extra setup, the records and threads are created
-as the flow runs.
+This is the smallest complete multi-user flow.
+It uses the `spl federation invite` command. There is no extra setup: the records and threads are created
+as you go.
 
-Allow ~15-20 minutes for the happy path.
+Allow 15 to 20 minutes.
 
 ## What you'll build
 
@@ -30,25 +29,23 @@ Allow ~15-20 minutes for the happy path.
 ```
 
 Three threads (`th_review_inbox`, `th_review_active`,
-`th_review_done`) flow over a single federation pair, gated by
+`th_review_done`) flow over a single federation pair, limited by
 consent on a `code` namespace.
 
 ## Prerequisites
 
-- Two instances. The simplest setup: one running on the default port
+- Two workspaces. The simplest setup: one running on the default port
   (`9100`) and a second on `9201` in a separate terminal. Both can
   live on the same machine; that's what this tutorial uses.
-- Identity initialized on each — `spl identity show` should report
-  a DID; if not, `spl identity generate`.
-- `spl` installed, with the `code-review-pair` template and
-  `spl federation invite` available (`spl version`).
+- Identity initialized on each — `spl identity show` should show
+  a DID; if not, run `spl identity generate`.
+- `spl` installed, with `spl federation invite` available (`spl version`).
 
-For convenience this tutorial gives each instance its own data
+This tutorial gives each workspace its own data
 directory and uses `--insecure-localhost` so they can pair without
-TLS certificates. For real cross-host setups, both instances should
-serve TLS instead.
+TLS certificates. For real setups across machines, use TLS on both.
 
-## 1. Boot two instances
+## 1. Start two workspaces
 
 In terminal A (alice):
 
@@ -73,26 +70,24 @@ curl -s http://127.0.0.1:9201/health
 
 Each should return a JSON `{"status": "ok", ...}`.
 
-## 2. Confirm both instances are ready
+## 2. Confirm both are ready
 
-There is nothing to scaffold. The code-review flow runs on records and
-threads directly — the threads are created as records flow into them.
-A workspace is only the optional surface you would *install* to view
-those records side by side; see
-[Authoring a workspace](/docs/operate/workspace/authoring) if you want
-to build that view afterwards.
+There is nothing to set up. The threads are created as records arrive in them.
+A workspace screen is optional, if you want to view
+the records side by side; see
+[Authoring a workspace](/docs/operate/workspace/authoring) to build one afterwards.
 
-In a third terminal, confirm each instance is reachable:
+In a third terminal, confirm each one is reachable:
 
 ```bash
 SPL_SERVE_URL=http://127.0.0.1:9100 spl status
 SPL_SERVE_URL=http://127.0.0.1:9201 spl status
 ```
 
-Both should report a healthy instance. You now have two instances ready
-to be paired.
+Both should report healthy. You now have two workspaces ready
+to pair.
 
-## 3. Pair the instances
+## 3. Pair the workspaces
 
 Alice initiates the pair:
 
@@ -105,8 +100,7 @@ spl federation invite http://127.0.0.1:9201 \
     --grant-thread th_review_done
 ```
 
-The first time, the handshake will pause for actor-in-the-loop
-approval on bob's side. Switch to bob's terminal and approve:
+The first time, the handshake pauses until someone approves it on bob's side. Switch to bob's terminal and approve:
 
 ```bash
 SPL_SERVE_URL=http://127.0.0.1:9201 \
@@ -130,19 +124,18 @@ Invited did:sync:instance:bob-...
     - th_review_active
     - th_review_done
 
-Send the recipient this URL so they can rediscover the pair:
+Send the recipient this URL so they can find the pair again:
   http://127.0.0.1:9201/.well-known/syncropel
 ```
 
-The pair is live. From now on `spl sync` consults the pair store
-automatically.
+The pair is live. From now on `spl sync` uses it automatically.
 
 ## 4. Open a review request (alice)
 
 Alice publishes a `code_review.request.v1` record on the inbox
 thread. For records with custom body shapes (anything beyond the
 built-in `intend`/`know`/`do`/`learn` shortcuts), `POST /v1/records`
-on the instance is the canonical surface:
+is the way to do it:
 
 ```bash
 ALICE_DID=$(curl -s http://127.0.0.1:9100/.well-known/syncropel | jq -r .did)
@@ -167,10 +160,9 @@ curl -s -X POST http://127.0.0.1:9100/v1/records \
   }"
 ```
 
-The instance assigns the canonical record id (SHA-256 of the
-content-addressed fields) and returns it. Setting the right `clock`
-manually is fine for a tutorial; in real adapters the SDKs handle
-clock sequencing for you (see [TypeScript
+The workspace assigns the record ID (a SHA-256 of its content) and returns it. Setting `clock`
+by hand is fine for a tutorial; the SDKs handle
+it for you (see [TypeScript
 SDK](../guides/typescript-sdk) or [Python
 SDK](../guides/python-sdk)).
 
@@ -181,9 +173,8 @@ SPL_SERVE_URL=http://127.0.0.1:9201 \
 spl sync th_review_inbox from did:sync:instance:alice-...
 ```
 
-(Substitute alice's DID — `spl identity show` on alice's instance
-prints it. You can also derive it from the invite output's pair
-record on bob's side via `spl federation list`.)
+(Substitute alice's DID. `spl identity show` on alice's workspace
+prints it, or you can find it on bob's side with `spl federation list`.)
 
 After the pull completes, bob's inbox thread carries alice's
 request:
@@ -236,34 +227,32 @@ spl thread records th_review_done
 
 ## 6. Render in Studio (optional)
 
-The `code-review-pair` template ships with a three-pane view
+There is a three-pane view available
 (`Inbox` / `In review` / `Verdicts`). To see it rendered, point a
-browser at each instance's Studio surface (the path depends on your
-deployment — typically `/local` against the local instance).
+browser at each workspace's Studio (the path depends on your
+setup, typically `/local`).
 
 The Inbox pane shows `code_review.request.v1` records. The In
 review pane shows `code_review.assignment.v1` (a record bob would
-emit when claiming a request). The Verdicts pane shows
+write when claiming a request). The Verdicts pane shows
 `code_review.verdict.v1`.
 
 ## What you just demonstrated
 
-- A code-review flow that's *multi-user by design* — two roles, two
-  instances, distinct publishing patterns on each side.
-- A federation pair established with one composed command, including
+- A code-review flow with two roles on two workspaces.
+- A pair created with one command, including
   consent and thread allowlists.
-- Records flowing in both directions consent-gated. Alice's request
-  reaches bob; bob's verdict reaches alice; nothing else crosses
+- Records flowing in both directions under consent. Alice's request
+  reaches bob and bob's verdict reaches alice. Nothing else crosses
   unless you grant it.
-- A pattern anyone can repeat to start the same flow with their own
-  collaborators — and a flow you can wrap in an installed workspace to
-  view both sides side by side.
+- A flow anyone can repeat with their own
+  collaborators.
 
 ## Where to go next
 
-- [Pair two stewards in one command](../guides/federation-pair) —
+- [Pair two workspaces in one command](../guides/federation-pair) —
   what `invite` composes on top of.
-- [Invite another steward (composed)](../guides/federation-invite) —
+- [Invite another workspace](../guides/federation-invite) —
   full reference for the `invite` arguments.
 - [Consent management](../guides/consent) — what hash levels mean
   and how the consent filter chooses between competing grants.

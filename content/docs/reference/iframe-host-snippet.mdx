@@ -1,6 +1,6 @@
 ---
 title: Iframe Host Snippet
-description: A copy-paste-able vanilla HTML + JS snippet that embeds a Syncropel iframe extension into any web app. Implements the SAP handshake, origin allowlisting, capability gating, and emits relayed to the instance.
+description: A copy-paste-able vanilla HTML + JS snippet that embeds a Syncropel iframe extension into any web app. It performs the extension handshake, checks message origins, limits what the extension can do, and sends its record writes to the instance.
 ---
 
 <Callout type="warn">
@@ -20,7 +20,7 @@ The snippet is intentionally framework-free — vanilla HTML + JS, no build step
 - Origin allowlisting — messages from any origin not in `EXT_ORIGINS` are dropped
 - The full host-side handshake: `hello` → wait for `ready` → reply with `action.result` confirming granted capabilities
 - A capability policy that gates `records.emit`, `records.query`, `records.subscribe`, `navigate`
-- Relayed `records.emit` calls to a Syncropel instance via authenticated `fetch`
+- Forwarding of `records.emit` calls to a Syncropel instance with an authenticated `fetch`
 - A minimal consent prompt when the extension requests a sensitive capability for the first time
 - iframe height adjustment via the extension's `height` messages
 - Goodbye signal on tab unload
@@ -359,7 +359,7 @@ Three constants control everything:
 
 | Constant | What |
 |---|---|
-| `EXT_URL` | Where the extension lives. Schemes + ports must match exactly — `http://localhost:5173/` is not the same origin as `http://127.0.0.1:5173/`. |
+| `EXT_URL` | Where the extension lives. The scheme and port must match exactly — `http://localhost:5173/` is not the same origin as `http://127.0.0.1:5173/`. |
 | `DAEMON_URL` | Your `spl serve` instance. Default `http://localhost:9100`. |
 | `DAEMON_TOKEN` | A bearer token. Read it from `~/.syncro/token` and paste in. **Never commit a token to git.** |
 
@@ -367,9 +367,9 @@ For multi-extension hosts, expand `EXT_ORIGINS` from a `Set` to a per-iframe loo
 
 ## Security expectations
 
-The snippet ships safe-by-default — you should not weaken any of these without a clear threat-model story.
+The snippet is safe by default. Don't weaken any of these without a clear reason.
 
-### Origin allowlisting is the only trust boundary
+### Allowed origins are your only protection
 
 The browser cannot tell you which iframe sent a message; it tells you which **origin**. The snippet drops every message whose `event.origin` is not in `EXT_ORIGINS`. If you remove that check, a malicious page in another tab can `window.postMessage` to your iframe and impersonate the extension.
 
@@ -381,7 +381,7 @@ The default `sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`
 
 ### Pin the target origin
 
-Every host-side `postMessage` uses the captured `extOrigin`, never `"*"`. This guarantees the extension is the only thing that can read the host's payload. The extension's own SDK posts back with `"*"` because sandboxed iframes have an opaque origin — that's fine, the host validates by source-window identity instead.
+Every host-side `postMessage` uses the captured `extOrigin`, never `"*"`. This guarantees the extension is the only thing that can read the host's payload. The extension's own SDK posts back with `"*"` because sandboxed iframes have no usable origin. That is fine: the host checks which window sent the message instead.
 
 ### Rotate the bearer token
 
@@ -401,11 +401,11 @@ The validator drops envelopes more than five minutes off `Date.now()`. This blun
 
 ### Treat the extension as untrusted
 
-Even with all the above, treat every extension as untrusted code running with the user's authority. Your instance's [permission CEL rules](/docs/guides/cel-expressions) should encode what records each user is allowed to write, and the instance will reject requests that violate them. The iframe host is **not** the policy enforcement point — the instance is.
+Even with all the above, treat every extension as untrusted code running with the user's authority. Use [permission rules](/docs/guides/cel-expressions) on your instance to say what records each user may write; the instance rejects requests that break them. The iframe host does **not** enforce policy. The instance does.
 
 For more on iframe sandboxing, see the [OWASP Cheat Sheet on HTML5 Security](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing-cors-and-iframes).
 
-## What's next
+## Where to go next
 
 - **See the snippet in action** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) uses this as the host page.
 - **Deeper protocol reference** — [Extensions SDK guide](/docs/guides/extensions) documents every message kind, payload, and the validator's rules.

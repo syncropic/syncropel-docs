@@ -4,8 +4,8 @@ description: Install a workspace from a document file, list what your instance s
 ---
 
 A workspace is a `core.workspace.v1` record. Managing workspaces means
-emitting and reading those records on your instance's workspace catalog —
-nothing is compiled in, and nothing needs a restart. The `spl workspace`
+adding and reading those records in your instance's workspace catalog.
+Nothing needs a restart. The `spl workspace`
 commands below are the runtime surface for that.
 
 ## Install a workspace
@@ -14,8 +14,7 @@ commands below are the runtime surface for that.
 spl workspace install ./my-workspace.json
 ```
 
-`install` reads a `core.workspace.v1` document file, checks it against the
-workspace body shape, and emits it as a record onto your instance's
+`install` reads a `core.workspace.v1` document file, checks its shape, and adds it as a record to your instance's
 workspace catalog. The moment the record lands, the workspace is live —
 open it at its `slug` route.
 
@@ -31,9 +30,8 @@ document format.
 spl workspace list
 ```
 
-This folds the workspace catalog and shows the latest record for each
-`slug` — title, lifecycle, and content hash. Because every install is a
-new immutable record, `list` always reflects the most recent version of
+This shows the latest record for each
+`slug` — title, lifecycle, and content hash. `list` always shows the most recent version of
 each workspace.
 
 Add `-o json` for a machine-readable list.
@@ -58,9 +56,8 @@ spl workspace update tasks ./my-workspace.json
 
 `update <slug> <file>` re-emits a workspace under an existing slug. The
 file's `meta.slug` must match the slug you name. Records are immutable, so
-this appends a new record rather than mutating the old one — the previous
-version stays addressable forever, and `list` resolves the latest by
-clock.
+this adds a new record rather than changing the old one. The previous
+version stays available, and `list` shows the latest.
 
 Updating an *unchanged* document is a no-op: identical content produces an
 identical hash, and the catalog already holds that record.
@@ -75,10 +72,9 @@ Every workspace body carries a `lifecycle` field with one of three values:
 | `published` | Ready for use — the normal state. | Yes | Yes |
 | `archived` | Retired — kept for history, not for new use. | No | Existing subscriptions keep working |
 
-Lifecycle is not separate engine state — it is just a field on the record. Moving a
-workspace between states means emitting a new record with a different
-`lifecycle` value. The **latest record by clock for a given slug** is the
-authoritative state.
+Lifecycle is just a field on the record. To move a
+workspace between states, add a new record with a different
+`lifecycle` value. The **latest record for a given slug** decides the state.
 
 ## Archive a workspace
 
@@ -92,7 +88,7 @@ spl workspace archive tasks
 - The workspace stops appearing in `spl workspace list`.
 - It can no longer be newly subscribed to.
 - Existing subscriptions are grandfathered — subscribers keep resolving it.
-- Every historical record stays addressable forever; records are immutable.
+- Every earlier version stays available.
 
 To bring an archived workspace back, `update` it with a body whose
 `lifecycle` is `published` again.
@@ -103,12 +99,11 @@ To bring an archived workspace back, `update` it with a body whose
 spl workspace subscribe <workspace-hash>
 ```
 
-`subscribe` records *your* relationship to a workspace — it emits a
-`core.subscription.v1` record naming the workspace by its content hash.
+`subscribe` records *your* relationship to a workspace — it adds a `core.subscription.v1` record naming the workspace by its hash.
 Subscriptions carry your pin (which version you track), any permission
 grants you have accepted, and your pinned-publisher choice. `unsubscribe
 <workspace-hash>` re-asserts the relationship as inactive; it never
-deletes, because records are immutable.
+deletes anything.
 
 Subscriptions are namespace-local by default. Pass `--federated` on
 `subscribe` to make a subscription visible to your peers.
@@ -124,7 +119,7 @@ curl -s -X POST http://127.0.0.1:9100/v1/records/query \
   -d '{"filter":{"body.kind":"core.workspace.v1"}}'
 ```
 
-This is the same fold `spl workspace list` performs. Filtering on
+This is the same lookup `spl workspace list` performs. Filtering on
 `body.kind` is how any tool — a browser, a script, another instance —
 finds the workspaces an instance serves.
 

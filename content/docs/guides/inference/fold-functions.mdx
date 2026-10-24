@@ -1,15 +1,15 @@
 ---
 title: Fold Functions
-description: The five fold functions that combine multi-responder answers into one — consensus, best_of, waterfall_first, ensemble_weighted, and the expression escape hatch — each deterministic and pure over a canonical record order.
+description: "The five fold functions that combine answers from several responders into one: consensus, best_of, waterfall_first, ensemble_weighted, and expression. Each gives the same result for the same answers."
 ---
 
 ## Overview
 
-Fold is the **pure function** at the heart of inference. Given a list of responses on a thread and a canonical order, it returns a single answer plus provenance. It has no I/O. It has no retries. It has no state. Calling it twice with the same inputs returns exactly the same output.
+The **fold** step combines the answers from your responders into one answer, and lists which answers contributed. The same answers always give the same result.
 
-That purity is why queries are replayable — re-ingest the thread, re-fold, same answer. It's also why orchestration (the policy layer) has to stay separate; orchestration is where you put retries, escalation, and multi-step state.
+Because of that, a query can be replayed and give the same answer. Retries and escalation belong to orchestration, not fold.
 
-The library ships five fold functions. This guide covers each, when to reach for it, the determinism contract, and a worked example.
+There are five fold functions. This guide covers each one, when to use it, and an example.
 
 ## The five functions
 
@@ -21,17 +21,11 @@ The library ships five fold functions. This guide covers each, when to reach for
 | `ensemble_weighted` | Weighted aggregation with a custom signal. | Confidence-weighted, recency-weighted, custom-metric fusion |
 | `expression` | Full CEL escape hatch over the response list. | Domain-specific aggregation (median, regex, IQR filter…) |
 
-## Canonical order — the determinism contract
+## Order of responses
 
-Every fold function starts with the same line:
+Before combining, every fold function sorts the responses by their `clock` and then by `id`, lowest first. The result never depends on the order the answers arrived in. You don't need to do anything for this.
 
-```text
-canonical_order(responses) = sort by (clock, id) ascending
-```
-
-Every fold function sorts responses this way before combining them. This means the result never depends on the order in which responses arrived.
-
-You don't need to do anything for this. It's useful to know what it means in practice: **two responses that tie in canonical order tie for the rest of the pipeline** (tiebreak rules kick in there), and **inserting a new response between two existing ones only re-orders if the new response has a clock between them**.
+If two responses tie, the `tie_break` rule decides.
 
 ## Fold output
 
@@ -46,19 +40,19 @@ Every fold returns the same envelope:
 }
 ```
 
-`chosen_response_id` is a **reference** (not an embedded copy). The orchestration layer reads it to pull the winner's modifiers (`body.fulfills`, `body.cancels`, `body.awaits`) without breaking fold purity. For fold functions where no single winner exists (`expression`), it's `null`.
+`chosen_response_id` is the ID of the winning response. It is used to carry over the winner's modifiers (`body.fulfills`, `body.cancels`, `body.awaits`). When there is no single winner (the `expression` function), it is `null`.
 
-`provenance` is every response that contributed. Use this to audit "who weighed in on this KNOW".
+`provenance` lists every response that contributed, so you can see who weighed in on this answer.
 
-`tally` is present for `consensus` and `ensemble_weighted`. It lets you see how far the second-place answer was from first.
+`tally` is present for `consensus` and `ensemble_weighted`. It shows how close the second-place answer was.
 
 ## Trust floor
 
-Fold shares a trust floor with the relevance scorer — default `0.05`. A responder's trust multiplier can never drop below that for weighting purposes. Without the floor, a cold-start responder (zero trust, no history) would contribute nothing to any consensus vote, which makes it impossible to ever accumulate history.
+Combining uses the same minimum trust as ranking: `0.05` by default. A responder's trust never counts for less than that. Without it, a new responder with no history would count for nothing and could never build any.
 
-If every contributor is below the floor, the KNOW carries `body.fold.cold_start_warning: true`. You can route on that in downstream rules.
+If every contributor is below the floor, the answer carries `body.fold.cold_start_warning: true`. You can route on that in later rules.
 
-The floor is configurable via a `syncropel.config.fold.v1` record on `th_engine_config`:
+The floor is set with a `syncropel.config.fold.v1` record on `th_engine_config`:
 
 ```bash
 spl config add-fold-rule \
@@ -68,11 +62,11 @@ spl config add-fold-rule \
   --expression 'true'
 ```
 
-(Authoring fold rules is covered in the task-management guide; here we just note that the floor lives alongside them.)
+(Fold rules are covered in the task-management guide. The floor is saved alongside them.)
 
 ## Min quorum
 
-Fold won't run if fewer than `min_quorum` non-error responses came back. Default is 1. If quorum isn't met, the executor emits `infer.error.v1` with `code: "quorum_not_met"` instead of a KNOW.
+Syncropel won't combine answers unless at least `min_quorum` responses came back without errors. The default is 1. If there aren't enough, you get an `infer.error.v1` record with `code: "quorum_not_met"` instead of an answer.
 
 Raise quorum when you want a minimum of 2 or 3 answers before you believe anything:
 
@@ -82,19 +76,19 @@ Raise quorum when you want a minimum of 2 or 3 answers before you believe anythi
 
 ## Modifier preservation
 
-Some responses carry modifiers on body — `fulfills`, `cancels`, `awaits`. The fold doesn't touch these; it just picks a winner. The executor then looks at `chosen_response_id`, loads that response's modifiers, and attaches them to the committed KNOW.
+Some responses carry modifiers in their body: `fulfills`, `cancels`, `awaits`. Fold doesn't change them. It picks a winner, and the winner's modifiers are attached to the saved answer.
 
-The `obligation_resolution` field in `side_effects` decides what happens when multiple responses carry conflicting modifiers (e.g., two winners, one `fulfills` and one `cancels`):
+The `obligation_resolution` field in `side_effects` decides what happens when responses carry conflicting modifiers (for example, one `fulfills` and one `cancels`):
 
 - `last_writer_wins` (default) — the most-recent response's modifiers apply.
 - `fulfills_wins` — any `fulfills` preempts any `cancels`.
-- `validation_error` — conflict aborts the fold with `obligation_conflict`.
+- `validation_error` — a conflict stops the query with `obligation_conflict`.
 
 ## Function: consensus
 
-Trust-weighted plurality vote. Groups responses by canonical-JSON of the `body.answer` field, sums the weights per group, picks the highest-sum group. Tiebreak: `lexicographic` by default (or whatever `tie_break` is set to).
+Trust-weighted vote. Responses with identical `body.answer` values are grouped, the weights in each group are added up, and the group with the highest total wins. Ties are broken by the `tie_break` setting.
 
-**Weight expression** (default): `trust * recency * pattern_confidence`. All three factors are read from the candidate's metadata at dispatch time. You can override per query:
+**Weight expression** (default): `trust * recency * pattern_confidence`. All three come from the responder's details when the query is sent. You can override this for a query:
 
 ```json
 "fold": { "function": "consensus", "weight_expression": "response.trust" }
@@ -117,11 +111,11 @@ Response bodies:
 - B: `{ "sentiment": "positive", "confidence": 0.8 }` (trust 0.7)
 - C: `{ "sentiment": "neutral", "confidence": 0.6 }` (trust 0.6)
 
-A and B are keyed identically under canonical-JSON (assuming the bodies are sorted). Weight sum for `positive` = 0.8 + 0.7 = 1.5. Weight sum for `neutral` = 0.6. Winner: `positive`. `chosen_response_id` is A (higher trust within the group).
+A and B give the same answer. Weight sum for `positive` = 0.8 + 0.7 = 1.5. Weight sum for `neutral` = 0.6. Winner: `positive`. `chosen_response_id` is A (higher trust within the group).
 
 ## Function: best_of
 
-Highest-trust responder wins. Full winner body preserved. Tiebreak uses `(clock, id)` ascending, then `tie_break` rule.
+The highest-trust responder wins, and its whole answer is kept. Ties are broken by `clock` and `id` (lowest first), then by the `tie_break` rule.
 
 **When to use:** one expert is right about this, you just don't know which one at dispatch time. Code review, medical suggestion, legal reasoning — domains where you'd rather hear the most-trusted voice than a mediocre consensus.
 
@@ -137,11 +131,11 @@ If Alice has trust 0.95 and Bob has 0.82, Alice's response wins. The full body �
 
 ## Function: waterfall_first
 
-First response (in canonical order) that passes `accept_fn` wins. `accept_fn` defaults to "non-null answer" but can be a CEL `accept_expression`.
+The first response, in the order described above, that passes the acceptance test wins. By default a response is accepted if its answer is not null. You can set your own test with a CEL `accept_expression`.
 
 **When to use:** you've deliberately ordered responders cheap-to-expensive (or fast-to-slow). You'd rather take the first one that's good enough than wait for the best one.
 
-This is *not* an orchestration pattern — the orchestration `waterfall` dispatches sequentially. `waterfall_first` as a fold takes a batch of responses that already arrived and picks the first-by-order that passes acceptance.
+This is *not* the `waterfall` orchestration pattern, which asks responders one after another. `waterfall_first` takes responses that have already arrived and picks the first one that passes.
 
 **Example — pattern first, then LLM:**
 
@@ -160,7 +154,7 @@ Responders: one `pattern` responder at clock 100, one `llm` responder at clock 1
 
 ## Function: ensemble_weighted
 
-Like `consensus`, but the weight is a CEL expression you write. The result is a **weighted answer**, not necessarily one of the input responses — the executor picks the highest-weight answer group but the body is the one from the highest-trust responder in that group.
+Like `consensus`, but the weight is a CEL expression you write. The highest-weight group of matching answers wins, and the answer returned is the one from the highest-trust responder in that group.
 
 Default weight expression: `response.trust`. Common overrides:
 
@@ -170,15 +164,15 @@ Default weight expression: `response.trust`. Common overrides:
 | Recency-weighted | `response.trust * (1.0 - (now() - response.clock) / 86400)` |
 | Kind-biased (favour patterns) | `response.trust * (response.kind == "pattern" ? 1.5 : 1.0)` |
 
-Negative weights clamp to 0 — you can't downweight into oblivion.
+Negative weights are treated as 0.
 
 **When to use:** you trust responders differently than their raw trust score suggests, and the difference is a deterministic function of per-response metadata.
 
 ## Function: expression
 
-The full CEL escape. `fold.expression` is evaluated with bindings `responses` (the canonical-ordered list) and `tally` (always empty for this function), and whatever it returns is the `answer`. `chosen_response_id` is always null.
+Write your own combining logic in CEL. `fold.expression` can use `responses` (the sorted list) and `tally` (always empty for this function), and whatever it returns becomes the `answer`. `chosen_response_id` is always null.
 
-**When to use:** aggregation logic doesn't fit the first four. Median over numeric answers, inter-quartile-range filtering, regex extraction, custom multi-body merge.
+**When to use:** none of the first four fit. Median over numeric answers, inter-quartile-range filtering, regex extraction, custom multi-body merge.
 
 **Example — median numeric answer:**
 
@@ -202,7 +196,7 @@ The full CEL escape. `fold.expression` is evaluated with bindings `responses` (t
 }
 ```
 
-Because `expression` doesn't produce a `chosen_response_id`, you can't preserve modifiers through it. If your responders carry `fulfills`/`cancels`/`awaits` and you need to keep them, prefer `best_of` or `consensus`.
+Because `expression` doesn't produce a `chosen_response_id`, modifiers can't be kept. If your responders carry `fulfills`/`cancels`/`awaits` and you need to keep them, prefer `best_of` or `consensus`.
 
 ## Choosing a function
 
@@ -214,7 +208,7 @@ Because `expression` doesn't produce a `chosen_response_id`, you can't preserve 
 | Custom weight on trust (confidence, recency) | `ensemble_weighted` |
 | Custom aggregation logic (median, regex, merge) | `expression` |
 
-When in doubt, start with `consensus` — it's the default, it's the most forgiving, and the tally tells you exactly how close second place was.
+When in doubt, start with `consensus` — it is the most forgiving, and the tally shows how close second place was.
 
 ## See also
 

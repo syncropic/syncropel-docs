@@ -54,7 +54,7 @@ Follow the [Quickstart](/docs/start) for a five-minute walkthrough, or jump to t
 
 ### What a Syncropel thread looks like
 
-Every coordination event (chat, task, code change, tool call, observation, intent) becomes a record. Records group into threads. Threads produce trust:
+Everything that happens (a chat message, a task, a code change, a tool call, an observation, a goal) is saved as a record. Records are grouped into threads. As people and assistants finish work, the workspace builds up trust in them:
 
 ```text
 fix-checkout-timeout              5 records · 3 actors
@@ -67,9 +67,9 @@ fix-checkout-timeout              5 records · 3 actors
                    captured · next similar issue replays the solution
 ```
 
-`●` is human; `○` is an AI agent or system. Every record is content-addressed and signed by its actor. The `LEARN` at the end is captured as a reusable pattern: next time the same shape of issue appears, the workspace can reuse what worked.
+`●` is a person; `○` is an AI assistant or system. Every record is signed by whoever wrote it and can't be changed afterwards. The `LEARN` at the end is saved as a reusable pattern: next time the same kind of issue appears, the workspace can reuse what worked.
 
-That same thread can be queried via the [TypeScript SDK](/docs/guides/typescript-sdk), [Python SDK](/docs/guides/python-sdk), or [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others). Hosted workspaces ship with **[the chief of staff](/docs/get-started/the-assistant)**, a default conversational assistant that responds in any thread you open by typing, so you do not have to wire anything up.
+You can read that same thread with the [TypeScript SDK](/docs/guides/typescript-sdk), [Python SDK](/docs/guides/python-sdk), or [MCP-compatible AI clients](/docs/integrate/ai-clients) (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others). Hosted workspaces come with **[the chief of staff](/docs/get-started/the-assistant)**, an assistant that answers in any thread you open by typing, so there is nothing to set up.
 
 ---
 
@@ -80,19 +80,19 @@ Step-by-step learning: follow along from start to finish.
 | Tutorial | Description |
 |---|---|
 | [Your First Task](/docs/tutorials/first-task) | Create, complete, and see trust grow |
-| [Working with Threads](/docs/tutorials/first-thread) | Open, fork, and close coordinated workflows |
-| [Build your First Workspace](/docs/tutorials/first-workspace) | Scaffold, edit, test, publish, and share: the canonical workspace path |
+| [Working with Threads](/docs/tutorials/first-thread) | Open, branch and close a thread of work |
+| [Build your First Workspace](/docs/tutorials/first-workspace) | Create, edit, test, publish and share a workspace |
 
 ## Concepts
 
-Understand how Syncropel works under the hood.
+Understand the ideas behind Syncropel.
 
 | Concept | Description |
 |---|---|
-| [Records](/docs/concepts/records) | The 8-field immutable, content-addressed unit |
-| [Threads](/docs/concepts/threads) | Group records into coordinated workflows |
-| [Actors](/docs/concepts/actors) | Identity, trust profiles, and persistent memory |
-| [Trust](/docs/concepts/trust) | Evidence-based reputation with the dial |
+| [Records](/docs/concepts/records) | The unit everything is saved as, which can't be changed |
+| [Threads](/docs/concepts/threads) | Group records into one piece of work |
+| [Actors](/docs/concepts/actors) | Who they are, how much they're trusted, and what they remember |
+| [Trust](/docs/concepts/trust) | How trust is earned, and how much freedom it gives |
 
 ## Guides
 
@@ -102,13 +102,13 @@ Solve specific problems: task-oriented, practical.
 |---|---|
 | [Task Management](/docs/guides/task-management) | Full lifecycle from creation to approval |
 | [Find](/docs/guides/find) | Search file names, file contents, and conversations: no setup required |
-| [Semantic Search](/docs/guides/search) | Meaning-based search over records (requires an embedding provider) |
-| [Namespaces](/docs/guides/namespaces) | Set up multi-tenant scoping |
-| [Debugging Syncropel](/docs/guides/debugging) | doctor → status → debug replay → audit export |
+| [Semantic Search](/docs/guides/search) | Meaning-based search over records (needs an embedding provider) |
+| [Namespaces](/docs/guides/namespaces) | Keep separate groups of work apart |
+| [Debugging Syncropel](/docs/guides/debugging) | Check your setup, see what happened, export an audit |
 | [TypeScript SDK](/docs/guides/typescript-sdk) | Universal JS/TS client: Node, Deno, Bun, edge runtimes, browsers |
 | [Python SDK](/docs/guides/python-sdk) | Emit records and query threads from Python |
-| [Backup & Recovery](/docs/guides/backup-restore) | Protect your data and recover safely |
-| [body.kind manifest](/docs/guides/body-kind-manifest) | Record kind grammar and reserved scopes |
+| [Backup & Recovery](/docs/guides/backup-restore) | Protect your data and get it back |
+| [Record kinds](/docs/guides/body-kind-manifest) | The names records use for what they hold |
 
 ## Integrate
 
@@ -116,18 +116,18 @@ Connect Syncropel to other tools.
 
 | Page | Description |
 |---|---|
-| [api.syncropic.com](/docs/integrate/api-syncropic) | The Syncropic-hosted AI gateway: single endpoint, many providers |
+| [api.syncropic.com](/docs/integrate/api-syncropic) | The Syncropic-hosted AI gateway: one address, many AI providers |
 | [AI clients](/docs/integrate/ai-clients) | Plug Syncropel into MCP-compatible clients (Claude Desktop, Cursor, Cline, Zed, OpenCode, and others) |
 
 ## Operate
 
-Day-2 operations for production instances.
+Running a workspace day to day.
 
 | Page | Description |
 |---|---|
-| [Operator Runbook](/docs/operate/runbook) | Instance lifecycle, recovery from corruption, backup discipline, in-place upgrades |
-| [Doctor](/docs/operate/doctor) | Top-down diagnostic tree: when something doesn't work, start here |
-| [Security Model](/docs/operate/security-model) | Authentication, service accounts, what's on-disk, threat surface |
+| [Operator Runbook](/docs/operate/runbook) | Starting and stopping, recovery, backups, upgrades |
+| [Doctor](/docs/operate/doctor) | Step-by-step checks: when something does not work, start here |
+| [Security Model](/docs/operate/security-model) | Sign-in, service accounts, what is stored on disk, what to protect |
 
 ## Reference
 
@@ -137,6 +137,6 @@ Look things up: commands, endpoints, formats.
 |---|---|
 | [CLI](/docs/reference/cli) | Every spl command with flags and examples |
 | [HTTP API](/docs/reference/api) | All endpoints with request examples |
-| [Configuration](/docs/reference/configuration) | Settings, rules, and data locations |
+| [Configuration](/docs/reference/configuration) | Settings, rules, and where your data is kept |
 | [Glossary](/docs/reference/glossary) | Key terms A to Z |
 | [FAQ](/docs/reference/faq) | Common questions about vocabulary, hosted vs self-hosted, connecting workspaces |

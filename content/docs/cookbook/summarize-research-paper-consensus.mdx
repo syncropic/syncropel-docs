@@ -1,17 +1,17 @@
 ---
-title: Summarize a research paper — 3-LLM consensus
-description: Three LLMs independently summarise a paper, and Syncropel picks the most-agreed-upon summary. CLI, TypeScript SDK, and Python SDK variants.
+title: Summarize a research paper with 3 AI models
+description: Three AI models each summarise a paper, and Syncropel picks the answer most of them agree on. Shown for the command line, the TypeScript SDK and the Python SDK.
 ---
 
 ## Problem
 
-You want a reliable one-paragraph summary of a research paper, plus a 1-5 rating of methodology quality. A single LLM is good but occasionally hallucinates or anchors on the abstract. You'd rather fan out to three models and take the answer that most agree on.
+You want a reliable one-paragraph summary of a research paper, plus a 1-5 rating of methodology quality. One AI model is good but sometimes invents details or leans too much on the abstract. You'd rather ask three and take the answer most of them agree on.
 
 ## Recipe
 
-One query. Three LLM responders. `consensus` fold. `min_quorum: 2` so the query doesn't block on a slow third responder.
+One query, three AI models, combined with `consensus` (take the answer most agree on). `min_quorum: 2` means the query doesn't wait for a slow third model.
 
-### Via CLI
+### With the command line
 
 ```bash
 spl infer "Summarise this paper in one paragraph and rate methodology 1-5: <paste abstract + methods>" \
@@ -27,7 +27,7 @@ spl infer "Summarise this paper in one paragraph and rate methodology 1-5: <past
   --wait
 ```
 
-Expected output (text mode):
+Example output:
 
 ```text
 answer:
@@ -44,7 +44,7 @@ thread: th_9d4e2a...
 know_record: 2f7c91b8...
 ```
 
-### Via TypeScript SDK
+### With the TypeScript SDK
 
 ```typescript
 import { Client } from "@syncropel/sdk";
@@ -75,7 +75,7 @@ console.log(`Trust: ${result.trust_summary.mean.toFixed(2)}`);
 console.log(`Cost: $${result.cost_actual_usd.toFixed(4)}`);
 ```
 
-### Via Python SDK
+### With the Python SDK
 
 ```python
 from syncropel import Client
@@ -106,24 +106,24 @@ print(f"Trust: {result.trust_summary['mean']:.2f}")
 print(f"Cost: ${result.cost_actual_usd:.4f}")
 ```
 
-## How consensus picks the winner
+## How the answer is chosen
 
-Each response body is serialised to canonical JSON (keys sorted alphabetically, no whitespace). Bodies with identical canonical JSON group together. Group weights are the sum of each contributor's trust (clamped to a 0.05 floor). The highest-weight group wins.
+Answers that are exactly the same are grouped together. Each group's weight is the total trust of the models that gave it (each counts for at least 0.05). The group with the highest weight wins.
 
-If the three summaries are textually different but the rating is the same, consensus on the full body won't tie them — structural equality is exact. For text-heavy answers, `ensemble_weighted` with a similarity-based weight expression is usually better, or you can prompt the LLMs to produce a single structured rating and let consensus tie on that field alone.
+Only identical answers count as agreeing. If the three summaries are worded differently but give the same rating, they do not group together. For long text answers, `ensemble_weighted` with a similarity-based weight usually works better. Or ask the models for a single rating and let them agree on that alone.
 
 ## The trade-off
 
-Three LLMs at ~5-15s each cost 3× a single query. You're paying for variance reduction. If a single LLM's summary is reliably good enough for your use case, use `single_shot` with one responder; save the fan-out for cases where you've empirically seen divergent answers.
+Asking three models (about 5 to 15 seconds each) costs three times as much as asking one. You are paying for more reliable answers. If one model's summary is good enough, use `single_shot` with one model, and keep this for cases where you have seen the models disagree.
 
-`min_quorum: 2` keeps you from blocking on a single slow responder. If you raise it to 3, a single timeout kills the query — you'd see `quorum_not_met` instead of a KNOW.
+`min_quorum: 2` stops one slow model from holding everything up. If you raise it to 3, one timeout ends the query, and you get `quorum_not_met` instead of an answer.
 
-## Run this against a dev instance
+## Try it on a test workspace
 
-With three LLM providers configured in `~/.syncro/providers.yaml`, the CLI above runs end-to-end. If you only have one provider, point the other two at the same provider with different model aliases or replace them with a pattern / system responder.
+With three LLM providers configured in `~/.syncro/providers.yaml`, the command above runs as written. If you only have one provider, point the other two at the same provider with different model names.
 
 ## See also
 
-- **[Fold Functions — consensus](/docs/guides/inference/fold-functions#function-consensus)** — how the tally is computed.
-- **[Orchestration Patterns — single_shot](/docs/guides/inference/orchestration-patterns#pattern-single_shot)** — the default pattern used here.
-- **[Cost-bounded query waterfall](/docs/cookbook/cost-bounded-query-waterfall)** — cascade instead of fan-out.
+- **[Fold Functions — consensus](/docs/guides/inference/fold-functions#function-consensus)** — how the votes are counted.
+- **[Orchestration Patterns — single_shot](/docs/guides/inference/orchestration-patterns#pattern-single_shot)** — the default pattern, used here.
+- **[Cost-bounded query waterfall](/docs/cookbook/cost-bounded-query-waterfall)** — try models in turn instead of asking all at once.

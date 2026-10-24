@@ -1,11 +1,11 @@
 ---
 title: Troubleshooting
-description: A diagnostic tree for the real failure modes users hit on install and first instance start. Start here before filing an issue.
+description: Fixes for the problems people most often hit when installing and starting Syncropel. Start here before asking for help.
 ---
 
-Use this page when something that should work isn't working. Each section names a concrete symptom, explains what's happening, and gives the exact recovery command.
+Use this page when something that should work isn't working. Each section names a symptom, says what is going on, and gives the command to fix it.
 
-For a healthy-machine audit, prefer [`spl doctor`](/docs/operate/doctor): it runs seven checks and pinpoints which layer is failing.
+For a healthy-machine audit, prefer [`spl doctor`](/docs/operate/doctor): it runs seven checks and tells you which one is failing.
 
 ## "Failed to start spl serve" after install
 
@@ -26,29 +26,29 @@ The most common causes and their fixes:
 
 ### `unable to open database file`
 
-The instance could not open `hub.db`: either the path is wrong, the directory isn't writable, or the current working directory is in a location that doesn't support file locking well (notably UNC or WSL-mounted paths on Windows).
+The workspace could not open `hub.db`. Either the path is wrong, the folder isn't writable, or you are in a folder that doesn't support file locking well (such as a network path or WSL folder on Windows).
 
-Quick workaround: specify the store path explicitly.
+Try giving the path explicitly:
 
 ```bash
 spl serve --store ~/.syncro/hub.db
 ```
 
-If that succeeds, the path resolution was the issue. On Linux and macOS the instance always uses `~/.syncro/hub.db` implicitly; the `--store` flag just makes it explicit. On Windows, run from a native PowerShell (not a WSL shell) to avoid 9P filesystem weirdness.
+If that works, the path was the problem. On Linux and macOS the workspace always uses `~/.syncro/hub.db`; `--store` just says so explicitly. On Windows, run from a native PowerShell (not a WSL shell).
 
 ### `auth.required is enabled but no service accounts exist`
 
-On Linux/macOS this is not an error: the local CLI authenticates over the Unix socket (filesystem-trust) and a zero-service-account instance is the canonical happy path. If you see this message anyway:
+On Linux and macOS this is not an error: the command line connects through a local socket that only your user can use, so a workspace with no service accounts is normal. If you see this message anyway:
 
-- **On Windows**: Unix-socket trust is not yet wired for the Windows local-CLI path. Create a bearer with [`spl pair --device local-windows --url http://127.0.0.1:9100 --scopes admin`](/docs/get-started/pairing) and save the printed token.
-- **You've opted out of Unix-socket trust** (`[auth] unix_socket = false` in `config.toml`). You've explicitly chosen the bearer-only model; see [Service accounts](/docs/get-started/service-accounts) for the pair flow.
-- **You're on an older instance**: upgrade with `curl get.syncropic.com/spl | sh` to land the canonical first-run flow.
+- **On Windows**: the local socket isn't used on Windows. Create a token with [`spl pair --device local-windows --url http://127.0.0.1:9100 --scopes admin`](/docs/get-started/pairing) and save the printed token.
+- **You turned off the local socket** (`[auth] unix_socket = false` in `config.toml`). Every command then needs a token; see [Service accounts](/docs/get-started/service-accounts).
+- **You're on an older version**: upgrade with `curl get.syncropic.com/spl | sh`.
 
-The legacy "bootstrap dance" (`--insecure-localhost` → `spl service-account create --bootstrap` → `spl token save`) still works but is no longer required on the canonical first run.
+The older way (`--insecure-localhost`, then `spl service-account create --bootstrap`, then `spl token save`) still works, but you don't need it on a first run.
 
 ### `address already in use`
 
-Another process is already on port 9100. Either a zombie instance, another `spl serve`, or a different program.
+Something else is already using port 9100: a leftover copy of `spl`, another `spl serve`, or a different program.
 
 ```bash
 # Linux / macOS
@@ -59,11 +59,11 @@ lsof -iTCP:9100 -sTCP:LISTEN  # alternative
 Get-NetTCPConnection -LocalPort 9100
 ```
 
-If the owner is a stale `spl`, see "stale PID file" below. If it's a different program, either stop that program or start the instance on a different port with `--port`.
+If it is a leftover `spl`, see "Stale PID file" below. If it is a different program, stop it or start the workspace on another port with `--port`.
 
 ## "Database is locked"
 
-The records file is locked. Two common causes.
+The records file is locked. There are two common causes.
 
 ### A zombie `spl.exe` still holds the file (Windows)
 
@@ -71,17 +71,17 @@ The records file is locked. Two common causes.
 Get-Process spl
 ```
 
-If a process is listed with an old PID, kill it:
+If a process is listed, end it:
 
 ```powershell
 Stop-Process -Id <pid> -Force
 ```
 
-Then start the instance again.
+Then start the workspace again.
 
-### 9P or WSL cwd interaction (Windows)
+### Running from a WSL folder (Windows)
 
-Running `spl.exe` from a WSL shell inherits a working directory under `\\wsl$\<distro>\...`. Windows does not handle file locking well on that kind of path. Symptoms: intermittent `database is locked` that clears after a machine reboot and returns the next time you start from WSL.
+Running `spl.exe` from a WSL shell starts it in a folder under `\\wsl$\<distro>\...`, where Windows cannot lock files properly. You see `database is locked` errors that go away after a reboot and return the next time you start from WSL.
 
 Fix: run `spl` from a native Windows terminal (PowerShell or Windows Terminal), not from a WSL shell.
 
@@ -93,15 +93,15 @@ Rare but possible. Check for orphan processes:
 pgrep -af "spl serve"
 ```
 
-If a PID is listed but `spl stop` can't find it, see stale PID file.
+If a PID is listed but `spl stop` can't find it, see "Stale PID file" below.
 
 ## Dashboard shows "connected" but no records
 
-The browser paired successfully (it can reach `/health`), but every `/v1/records` request is returning 401 or 403.
+The browser paired and can reach `/health`, but every request for records returns 401 or 403.
 
-Cause: the browser has no token, or its token lacks `records:read`.
+Cause: the browser has no token, or its token doesn't include `records:read`.
 
-Fix: re-pair with appropriate scopes.
+Fix: pair again with the right scopes.
 
 ```bash
 spl pair \
@@ -110,7 +110,7 @@ spl pair \
   --scopes records:read,records:write
 ```
 
-If the issue persists, verify the dashboard is on the CORS allowlist:
+If it still fails, check that the dashboard is on the allowed list for web pages (CORS):
 
 ```bash
 spl config show | grep -i cors
@@ -119,7 +119,7 @@ spl config auth-set-cors-origins https://syncropel.com
 
 ## Windows: command hangs on first install
 
-The install script runs `spl.exe` briefly to verify the version. Windows Defender and Windows Firewall both prompt on first run of a new executable. If the prompt lands behind other windows, the install appears to hang.
+The install script runs `spl.exe` briefly to check the version. Windows Defender and Windows Firewall both prompt on first run of a new executable. If the prompt lands behind other windows, the install appears to hang.
 
 Check for a hidden prompt:
 
@@ -127,7 +127,7 @@ Check for a hidden prompt:
 wf.msc
 ```
 
-Accept the firewall prompt (or add an inbound rule manually for `spl.exe` in `wf.msc`). The install proceeds once the binary is allowed to bind.
+Accept the firewall prompt (or add an inbound rule for `spl.exe` in `wf.msc`). The install continues once `spl.exe` is allowed.
 
 ## `where.exe spl` returns nothing after install
 
@@ -136,11 +136,11 @@ where.exe spl
 # (empty)
 ```
 
-Your current PowerShell session predates the `PATH` registry update. The install script appended to user `PATH`, but that change only affects **new** sessions.
+Your current PowerShell session predates the `PATH` registry update. The install script added `spl` to your `PATH`, but only new windows see that.
 
 Fix: close the terminal and open a new one. `where.exe spl` should then report `%LOCALAPPDATA%\Programs\spl\spl.exe`.
 
-If the new session still can't find it, verify the registry update landed:
+If the new session still can't find it, check that the `PATH` change was saved:
 
 ```powershell
 [Environment]::GetEnvironmentVariable('Path','User')
@@ -150,17 +150,17 @@ The output should include `%LOCALAPPDATA%\Programs\spl` (or the expanded path).
 
 ## Stale PID file
 
-`spl stop` reports the instance isn't running, but `spl status` or `curl http://127.0.0.1:9100/health` shows an instance is clearly alive. The PID file has been orphaned.
+`spl stop` says the workspace isn't running, but `spl status` or `curl http://127.0.0.1:9100/health` shows that it is. The file that records the running copy has been left behind.
 
 Recovery:
 
 ```bash
 # Linux / macOS
 pgrep -af "spl serve"             # find the actual PID
-kill <pid>                        # graceful
+kill <pid>                        # ask it to stop
 # if it doesn't exit within ~10 seconds:
-kill -9 <pid>                     # force
-rm ~/.syncro/run/spl.pid          # clear the stale file
+kill -9 <pid>                     # force it to stop
+rm ~/.syncro/run/spl.pid          # remove the leftover file
 spl serve                # start fresh
 ```
 
@@ -172,11 +172,11 @@ Remove-Item $env:USERPROFILE\.syncro\run\spl.pid -ErrorAction SilentlyContinue
 spl serve
 ```
 
-`spl doctor` detects stale PID files and prints the exact recovery command.
+`spl doctor` finds this problem and prints the command to fix it.
 
 ## Corrupted record store or stuck locks
 
-If `hub.db` is corrupted beyond a simple lock issue (perhaps after a disk-full event or a mid-write kernel panic), the nuclear option is to wipe `~/.syncro/` and re-initialize:
+If `hub.db` is damaged and not just locked (for example after the disk filled up or the computer crashed while writing), the last resort is to wipe `~/.syncro/` and start again:
 
 ```bash
 # First, make a backup if the file is at all recoverable:
@@ -185,7 +185,7 @@ cp ~/.syncro/hub.db ~/hub.db.broken.$(date +%s)
 # Then wipe:
 rm -rf ~/.syncro
 
-# Re-initialize and re-bootstrap:
+# Set up again:
 spl init
 spl serve --insecure-localhost
 spl service-account create --bootstrap \
@@ -198,13 +198,13 @@ spl stop
 spl serve
 ```
 
-Any records you had are gone. Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` (a per-instance directory keyed by the instance DID) may contain a recent snapshot: see [Operator runbook → Recovery](/docs/operate/runbook) for the full restore procedure.
+Any records you had are gone. Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` (a folder named after this workspace's identity) may contain a recent snapshot: see [Operator runbook → Recovery](/docs/operate/runbook) for how to restore.
 
 ## Data went to `System32` (Windows)
 
-If you ran `spl serve` from an elevated `cmd.exe` whose working directory was `C:\Windows\System32\`, and the instance's path resolution was misbehaving, `hub.db` may have been created in `System32`. Symptoms: no data in `%USERPROFILE%\.syncro\`, but the instance reports records exist.
+If you ran `spl serve` from an elevated `cmd.exe` whose working directory was `C:\Windows\System32\`, `hub.db` may have been created in `System32`. You would see no data in `%USERPROFILE%\.syncro\` even though the workspace reports records.
 
-Fix: stop the instance, move the file, point the instance at the right location.
+Fix: stop the workspace, move the file, and point the workspace at the right place.
 
 ```powershell
 spl stop
@@ -214,14 +214,14 @@ Move-Item C:\Windows\System32\hub.db $env:USERPROFILE\.syncro\hub.db
 spl serve --store $env:USERPROFILE\.syncro\hub.db
 ```
 
-Always start `spl serve` from a working directory you control (your home directory is safe). Never run as Administrator unless you have a specific reason: the user-scope install does not need it.
+Always start `spl serve` from a working directory you control (your home directory is safe). Never run as Administrator unless you have a specific reason: the install does not need it.
 
 ## Hosted workspace
 
 These apply to a workspace created at syncropel.com.
 
-- **A connection error right after a quiet period.** The workspace was asleep and is waking up. Waking usually takes a couple of seconds; try again in a moment.
-- **A `401` after reconnecting a machine.** The key this machine holds is no longer accepted. Connect the machine again and save the new key with `spl token save <token>`; see [Connect your command line](/docs/get-started/connect-the-command-line).
+- **A connection error right after a quiet period.** The workspace was asleep and is waking up. This usually takes a couple of seconds; try again.
+- **A `401` after reconnecting a machine.** This computer's key is no longer accepted. Connect it again and save the new key with `spl token save <token>`; see [Connect the command line](/docs/get-started/connect-the-command-line).
 - **Storage full on the free plan.** A free workspace has 1 GB of storage; a storage-full error means it has reached that limit. See [Pricing](/docs/get-started/pricing) for what each plan includes.
 
 ## Still stuck
@@ -232,10 +232,10 @@ Run the full diagnostic:
 spl doctor --json
 ```
 
-Every check reports `pass`, `warn`, or `fail` with a specific fix. If `doctor` is green but behavior is still wrong, capture the instance log around the failure: `spl doctor --json` produces a machine-readable summary you can attach when reporting the issue.
+Every check reports `pass`, `warn` or `fail`, with a fix. If everything passes but something is still wrong, look at the log (`~/.syncro/logs/spl.log`) around the time of the problem. You can attach the output of `spl doctor --json` when you ask for help.
 
 ## See also
 
-- [`spl doctor`](/docs/operate/doctor): one-command diagnostic with specific fixes
-- [Reset and uninstall](/docs/get-started/reset-uninstall): how to cleanly start over
-- [Operator runbook → Recovery](/docs/operate/runbook): restore from backup after data loss
+- [`spl doctor`](/docs/operate/doctor): one command that checks your setup and suggests fixes
+- [Reset and uninstall](/docs/get-started/reset-uninstall): how to start over cleanly
+- [Operator runbook → Recovery](/docs/operate/runbook): restore from a backup after losing data

@@ -1,19 +1,19 @@
 ---
 title: Audit export to Elastic
-description: Pipe Syncropel's security-relevant record stream into Elasticsearch or another SIEM. JSONL in, indexed and searchable out.
+description: Send Syncropel's security-related records to Elasticsearch or another security monitoring (SIEM) tool, where you can search them.
 ---
 
 ## Problem
 
-Security-relevant events — auth failures, decision-gate outcomes, dispatch outcomes, governance denials, permission-rule refusals — need to land in your SIEM so they're searchable alongside everything else: firewall logs, auth provider logs, Kubernetes audit. You don't want to write a custom integration. You want to take what Syncropel already exports and pipe it.
+Security events (failed sign-ins, decision outcomes, agent run outcomes, governance denials, refused permissions) need to reach your SIEM so you can search them next to your other logs, such as firewall and sign-in logs. You don't want to build a custom integration. You want to take what Syncropel already exports and send it on.
 
 ## Recipe
 
-`spl audit export` emits a JSONL stream on stdout. Point it at your SIEM's ingestion endpoint.
+`spl audit export` prints one JSON object per line (JSONL). Send that to your SIEM's intake address.
 
 ```bash
-# Hourly export via cron. The --since flag ensures overlap-free pulls.
-# Run this every hour; it pulls the last 65 minutes to give a 5-minute safety margin.
+# Hourly export. Run this every hour from cron; it covers the last 65 minutes,
+# which leaves a 5-minute overlap so nothing is missed.
 spl audit export --since 65m | \
   curl -s -X POST "https://elastic.example.com:9200/syncropel-audit/_bulk" \
     -H "Content-Type: application/x-ndjson" \
@@ -21,7 +21,7 @@ spl audit export --since 65m | \
     --data-binary @-
 ```
 
-Elasticsearch's bulk API accepts JSONL natively — no format translation needed. Each line in the export becomes one indexed document. The `_bulk` endpoint expects alternating action and document lines, but `spl audit export` emits plain JSONL, so interleave the action lines with `jq`:
+Elasticsearch's bulk API accepts JSONL, so each line becomes one searchable document. The `_bulk` endpoint expects an action line before each document, and `spl audit export` prints only documents, so add the action lines with `jq`:
 
 ```bash
 spl audit export --since 65m | jq -c '{"index":{}}, .' | \
@@ -31,7 +31,7 @@ spl audit export --since 65m | jq -c '{"index":{}}, .' | \
     --data-binary @-
 ```
 
-For Splunk HEC, Datadog, or a generic webhook, replace the curl target — the JSONL stream is the same.
+For Splunk HEC, Datadog, or a generic webhook, change the curl target. The output is the same.
 
 Drop it in cron:
 
@@ -40,34 +40,34 @@ Drop it in cron:
 0 * * * * syncropeluser /usr/local/bin/export-audit.sh
 ```
 
-Where `export-audit.sh` wraps the command above with error handling + logging.
+Here `export-audit.sh` is a script that runs the command above and handles errors and logging.
 
 ## What's in the stream
 
-The audit export filters the record log to security-relevant records. By default it includes:
+The export includes only security-related records. By default it includes:
 
-- **`system`** — records from `did:sync:system:engine` and related system actors (config reloads, notifications, governance events).
-- **`decision`** — pending and decided decision-gate records.
-- **`dispatch`** — dispatch outcomes, budget exhausted, timeout.
-- **`governance`** — namespace narrowing rejections, permission rule denials, kill-switch records.
+- **`system`** — records from `did:sync:system:engine` and other system actors (settings reloads, notifications, governance events).
+- **`decision`** — decisions waiting and decisions made.
+- **`dispatch`** — agent run outcomes, budget used up, timeouts.
+- **`governance`** — refused namespace changes, permission denials, emergency-stop records.
 
-Narrow further if your SIEM ingestion has cost implications:
+Export less if your SIEM charges by volume:
 
 ```bash
-# Only decision-gate + governance — the decisions-that-matter slice.
+# Only decisions and governance.
 spl audit export --since 65m --categories decision,governance
 ```
 
 ## The trade-off
 
-**Export is pull-based, not streaming.** You run `spl audit export` on your cron schedule; the command queries the record log and emits everything matching since the watermark. If your SIEM needs *real-time* alerting (sub-minute latency from event to alert), an hourly cron is too slow. For that, tail the instance log or subscribe via SSE to the broadcast channel — but you lose the structured audit categorisation and have to filter in your pipeline.
+**The export runs when you run it; it does not stream.** You run `spl audit export` on your own schedule, and it prints everything that matches since the time you give. If your SIEM needs *real-time* alerts (within a minute), hourly is too slow. For that, follow the workspace log or subscribe to live events (SSE), but then you lose the audit categories and must filter in your own pipeline.
 
-**`--since` is wall-clock, not per-record.** Records ingested in a brief burst and then quiet for an hour can straddle the window boundary. The 5-minute overlap (`--since 65m` on an hourly cron) gives the SIEM's dedupe (by record ID) a chance to drop duplicates. Every record's ID is stable and in the export — dedupe is safe.
+**`--since` uses the clock, not the records.** A burst of records at the edge of a window can be split across two exports. The 5-minute overlap (`--since 65m` on an hourly cron) means some records appear twice, so let your SIEM drop duplicates by record ID. Every record has a fixed ID in the export, so this is safe.
 
-**Permission-rule denials are written to the instance log, not to your records.** `spl audit export` does not include them. To capture them, also collect the instance log in your SIEM pipeline.
+**Permission denials go to the workspace log, not to your records.** `spl audit export` does not include them. To capture them, also collect the workspace log in your SIEM.
 
 ## See also
 
-- **[SIEM integration guide](/docs/guides/siem-integration)** — full pipeline shapes for Elastic, Splunk, Datadog, and generic webhooks.
+- **[SIEM integration guide](/docs/guides/siem-integration)** — complete setups for Elastic, Splunk, Datadog and generic webhooks.
 - **[CLI reference — audit export](/docs/reference/cli)** — every flag the command takes.
-- **[Governance](/docs/reference/glossary#g)** — what Syncropel considers security-relevant.
+- **[Governance](/docs/reference/glossary#g)** — what Syncropel treats as security-related.

@@ -5,11 +5,11 @@ description: How a workspace learns from work that keeps succeeding the same way
 
 ## Overview
 
-When the same shape of work succeeds in your workspace several times, the workspace remembers the shape. The next time similar work arrives, it recognises the match and reuses the proven outcome instead of asking a model to work it out from scratch: no model call, no fresh reasoning, the same result. Over a workload that repeats, this is what pushes the cost of a routine piece of work toward nothing.
+When the same shape of work succeeds in your workspace several times, the workspace remembers the shape. The next time similar work arrives, it recognises the match and reuses the proven outcome instead of asking a model to work it out from scratch: no model call, no fresh reasoning, the same result. Over a workload that repeats, this is what pushes the cost of routine work toward nothing.
 
 Think of a pattern as a memory of what worked, not a theory of why. A pattern does not understand the work. It knows that this shape of work, done this way, came out well often enough to be worth doing the same way again. Whether the reused outcome still fits the situation in front of you is checked each time it is used, never assumed.
 
-A pattern is derived from your workspace's own history. It is not a separate library you maintain, and it can always be rebuilt from that history, so it never drifts from what actually happened.
+A pattern comes from your workspace's own history. You don't maintain a separate library, and patterns can always be rebuilt from that history.
 
 ## What counts as a match
 
@@ -22,11 +22,11 @@ The workspace tries the cheapest option first and only moves to a dearer one whe
 
 Most of the saving comes from the first two steps, which is where the bulk of a repeating workload ends up once a workspace has been running for a while.
 
-An exact duplicate of a record you already hold is a separate question ("is this already here?") and is answered before any matching starts, so the same event is never stored twice.
+An exact duplicate of a record you already hold is handled first, so the same event is never stored twice.
 
 ## When a pattern is reused
 
-A pattern exists the moment a thread closes successfully; its shape is on record and available for matching. But one success is not enough to act on. The workspace reuses a pattern's outcome only when:
+A pattern exists as soon as a thread closes successfully. But one success is not enough to act on. The workspace reuses a pattern's outcome only when:
 
 - **it has succeeded several times**, not once;
 - **its reuses have kept working**: a pattern whose attempts keep failing is not reused, however many times it once succeeded;
@@ -58,13 +58,13 @@ A pattern that used to work and stopped working does not keep being reused into 
 
 Early in a workspace's life almost all work is done fresh. As shapes repeat and earn reuse, more and more of the routine work is reused, and the operational cost concentrates in the genuinely new work. How fast this happens depends on how concentrated your workload is: a narrow pipeline with three kinds of task saturates quickly, a broad research assistant takes longer.
 
-`spl insights` shows how much of your work is currently being reused, how many distinct shapes are currently eligible for reuse, and warns when the workspace has been repeating itself while discovering nothing new. There is no dedicated `spl pattern` command yet; `spl insights` is the surface today.
+`spl insights` shows how much of your work is currently being reused, how many distinct shapes are currently eligible for reuse, and warns when the workspace has been repeating itself while discovering nothing new. There is no `spl pattern` command; use `spl insights`.
 
 ## Patterns and paired workspaces
 
 A pattern's *shape* can benefit another workspace without exposing what the work was about. Exact copies of your records never leave your workspace except by a permission you grant. What can be shared, with consent, is the shape of a permanent pattern: that this kind of work, done this way, is reliable. The sensitive contents stay home.
 
-Automatic pattern exchange between paired workspaces is not available. See [Federation](/docs/concepts/federation) for what pairing shares today.
+Automatic pattern exchange between paired workspaces is not available. See [Federation](/docs/concepts/federation) for what pairing shares.
 
 ## When patterns won't help
 
@@ -76,9 +76,9 @@ Two shapes of work where the pattern layer adds little.
 
 ## What's next
 
-- **[The Engine](/docs/concepts/engine)**: the loops that run matching and reuse.
+- **[The Engine](/docs/concepts/engine)**: what runs matching and reuse.
 - **[Trust](/docs/concepts/trust)**: the standing that decides whether a pattern becomes permanent.
-- **[Records](/docs/concepts/records)**: the unit patterns are built from.
+- **[Records](/docs/concepts/records)**: what patterns are built from.
 - **[Federation](/docs/concepts/federation)**: how paired workspaces share, and what stays home.
 - **[Insights & Observability](/docs/guides/insights-observability)**: reading how much of your work is being reused.
-- **[Glossary](/docs/reference/glossary)**: the vocabulary this page assumes.
+- **[Glossary](/docs/reference/glossary)**: the vocabulary used across the docs.

@@ -1,28 +1,28 @@
 ---
-title: Pair two stewards in one command
-description: Use `spl federation pair` to establish a record-bound persistent relationship between two instances. Replaces hand-wired URL+DID+token plumbing with a single CLI command.
+title: Pair two instances in one command
+description: Use `spl federation pair` to set up a lasting, consent-gated connection between two instances with a single command. Covers approval, pausing, sharing rules, and token renewal.
 ---
 
 ## What this is
 
-A *steward* is any running Syncropel instance — your laptop instance, a hosted instance at `<label>.syncropel.app`, or a self-hosted server you run for a project. Two stewards can be **paired** so they sync records consent-gated.
+An *instance* is any running Syncropel server: your laptop, a hosted instance at `<label>.syncropel.app`, or a self-hosted server. Two instances can be **paired** so they share records, with consent controlling what is shared.
 
-`spl federation pair add <peer-url>` is the one-command way to establish that pair between two stewards. The command:
+`spl federation pair add <peer-url>` sets up that pair with one command. The command:
 
-1. Discovers and verifies the peer's signed manifest at `/.well-known/syncropel`.
-2. Runs a 3-roundtrip handshake (nonce-protected against replay).
-3. Mints reciprocal service accounts and bearer tokens — each instance gets a token bound to the *peer's* DID, so one peer can never impersonate another actor.
-4. Persists signed pair records on both sides on the reserved thread `th_federation_pairs`.
-5. Returns. From that point on, `spl sync` consults the pair store automatically — no `--peer-token` flag, ever.
+1. Finds the peer and checks its signed manifest at `/.well-known/syncropel`.
+2. Runs a short, replay-protected handshake.
+3. Creates a service account and token on each side, each tied to the other instance's identity, so neither can pose as someone else.
+4. Saves the pair on both sides.
+5. Returns. From then on, `spl sync` uses the pair automatically. You never pass a `--peer-token`.
 
-This guide assumes you have two instances (call them **alice** and **bob**), each with cryptographic identity configured, and you can reach each other's URLs.
+This guide assumes you have two instances (**alice** and **bob**), each with an identity, and each can reach the other's URL.
 
 ## Prerequisites
 
-- Both instances are running a recent version of `spl`: `spl version`.
-- Each instance has a cryptographic identity. Run `spl identity show` — if it says "no identity," run `spl identity generate`.
+- Both instances run `spl` (check with `spl version`).
+- Each instance has an identity. Run `spl identity show` — if it says "no identity," run `spl identity generate`.
 - Each instance's URL is reachable from the other. For local two-instance setups, use `--insecure-localhost` on both. For cross-host, both should serve TLS.
-- Optional but recommended: `spl identity verify` on each side first to make sure the local key matches the instance's resolved DID.
+- Optional but recommended: `spl identity verify` on each side first, to check that the local key matches the instance's identity.
 
 ## The headline command
 
@@ -32,7 +32,7 @@ From alice's host:
 spl federation pair add https://bob.example.com
 ```
 
-That's it. Output looks like:
+That's it. The output looks like this:
 
 ```
 ✓ Discovered https://bob.example.com
@@ -50,36 +50,36 @@ That's it. Output looks like:
   token TTL:     90d (auto-renew at 83d)
   state:         active
 
-  Persisted at:  th_federation_pairs (genesis record on both sides)
+  Saved on:      both instances
   Try:           spl federation list
                  spl sync th_workspace from did:sync:instance:bob-fedb12...
 ```
 
-The default posture is **manual approval on both sides**. The operator on bob's host sees the pending request via `spl decisions list` and approves with `spl decisions approve <id>`. Once approved, bob mints the SA + token and the result becomes retrievable by alice via the pair status poll.
+The default posture is **manual approval on both sides**. The owner of bob's instance sees the pending request with `spl decisions list` and approves it with `spl decisions approve <id>`. Once approved, bob creates the account and token, and alice's command picks them up.
 
-For trusted environments where you want auto-approve (e.g., a fleet of stewards under one operator), see [Auto-approval via CEL](#auto-approval-via-cel) below.
+For trusted environments where you want auto-approve (for example, several instances under one owner), see [Auto-approval via CEL](#auto-approval-via-cel) below.
 
-### What happens during operator approval
+### What happens during approval
 
-When alice runs `spl federation pair add <peer-url>` and bob's posture is manual-approval:
+When alice runs `spl federation pair add <peer-url>` and bob requires manual approval:
 
-1. Bob receives the handshake POST, validates the manifest, and emits a `pair_pending.v1` decision request on `th_federation_pairs`. Bob's response: `202 Accepted` with the `pair_id` and the decision record id.
-2. Alice's CLI auto-polls `POST /v1/federation/pair/<pair_id>/poll` (with the original nonce) on a 2-second interval, up to a 60-second window. The poll endpoint is unauthenticated; the nonce serves as the knowledge-factor proof that the caller is the original initiator.
-3. Bob's operator runs `spl decisions approve <id>`. The decision-gate handler recognizes the pair-pending request kind (`syncropel.federation.pair_pending.v1`) → calls the federation pair completion path → mints SA + token, emits a signed `pair.genesis.v1` on bob's `th_federation_pairs`, stores the result in bob's pending-pair-approvals map (5-minute TTL).
-4. Alice's next poll receives `state: "active"` along with the issued token + responder manifest. The pending-pair-approvals entry is consumed (one-shot — the plaintext token does not linger in bob's memory beyond a successful poll).
-5. Alice's CLI continues with the post-init flow: persists the local genesis on her `th_federation_pairs`, stores the peer credential locally, sends the confirm POST to bob.
+1. Bob receives the request and checks alice's manifest. Bob creates an approval request and answers `202 Accepted`.
+2. Alice's command checks with bob every 2 seconds, for up to 60 seconds.
+3. Bob's owner runs `spl decisions approve <id>`. Bob creates the account and token, and records the pair.
+4. Alice's next check receives `state: "active"` along with the token. Bob forgets the token once it has been collected, and keeps it for 5 minutes at most.
+5. Alice's command saves the pair and the peer's credential locally, and confirms with bob.
 
-If alice's 60-second poll window elapses without approval (operator on PTO, weekend, etc.), her CLI prints a hint and exits 0:
+If the 60 seconds pass without approval (the owner is away, say), alice's command prints a hint and exits successfully:
 
 ```
 ! still pending after 60s; re-run `spl federation pair add` once the peer operator approves
 ```
 
-Re-running creates a new `pair_id` (new nonce); the stale decision request on bob's side can be rejected manually (`spl decisions reject <id>`) or will TTL out.
+Running the command again creates a new `pair_id`. Bob can reject the old request with `spl decisions reject <id>`, or it will expire on its own.
 
 ## The full lifecycle
 
-After pairing, the new `spl federation` subcommands manage the relationship:
+After pairing, use these `spl federation` commands to manage the pair:
 
 ```bash
 spl federation list                           # all pairs + state column
@@ -90,30 +90,30 @@ spl federation refresh <peer-did>             # re-fetch peer manifest
 spl federation revoke <peer-did> --reason X   # any → revoked (terminal)
 ```
 
-States transition based on what's happening:
-- **establishing**: handshake in flight (no genesis record yet)
-- **active**: handshake complete, peer reachable
-- **paused**: operator paused via `spl federation pause`
-- **degraded**: peer unreachable >24h (auto)
-- **revoked**: terminal (operator revoked, or peer notified revoke)
+A pair is always in one of these states:
+- **establishing**: pairing is in progress.
+- **active**: pairing is complete and the peer is reachable.
+- **paused**: you paused it with `spl federation pause`.
+- **degraded**: the peer has been unreachable for more than 24 hours.
+- **revoked**: final. You revoked it, or the peer did.
 
-The state machine is fold-derived from records on `th_federation_pairs`. A 90-day no-contact threshold auto-archives degraded pairs.
+A degraded pair with no contact for 90 days is archived automatically.
 
-## How `spl sync` changes
+## Syncing with a pair
 
-The old way, with manual peer-token plumbing:
+Without a pair, you had to pass a token by hand:
 
 ```bash
 spl sync th_workspace from https://bob.example.com --peer-token sk_...   # tedious
 ```
 
-The new way, after pairing:
+With a pair:
 
 ```bash
 spl sync th_workspace from did:sync:instance:bob-fedb12...               # uses pair store
 ```
 
-The `--peer-token` flag is intentionally NOT added to `spl sync`. If you try to sync from a peer URL with no matching pair, you'll get:
+`spl sync` has no `--peer-token` flag. If you try to sync from a peer URL that isn't paired, you get:
 
 ```
 ERROR: unpaired_peer
@@ -121,7 +121,7 @@ ERROR: unpaired_peer
   Run: spl federation pair https://bob.example.com
 ```
 
-If your peer hits a 401 on outbound sync, your pair transitions to `degraded`. The next successful call transitions back to `active` automatically. Audit emission on every transition.
+If the peer answers a sync with 401, the pair becomes `degraded`. The next successful sync makes it `active` again. Every change of state is logged.
 
 ## Cross-namespace consent
 
@@ -134,7 +134,7 @@ spl federation grant <peer-did> \
   --hash-level L1
 ```
 
-This composes with [namespace consent](./consent) — pair authorization is the transport layer, consent grants are the data-policy layer. They're orthogonal.
+This works with [namespace consent](./consent): the pair decides whether two instances can talk, and consent decides what they may share. They are separate.
 
 To revoke a specific grant without revoking the pair:
 
@@ -142,13 +142,13 @@ To revoke a specific grant without revoking the pair:
 spl federation revoke-grant <peer-did> --grant-id <id>
 ```
 
-## Sync mode + thread filtering
+## Sync mode and thread filtering
 
 Per pair you can configure how often to sync:
 
 ```bash
-spl federation set-mode <peer-did> --mode polling     # 5min default poll
-spl federation set-mode <peer-did> --mode continuous  # SSE
+spl federation set-mode <peer-did> --mode polling     # checks every 5 minutes by default
+spl federation set-mode <peer-did> --mode continuous  # stays connected and syncs as changes happen
 spl federation set-mode <peer-did> --mode on-demand   # only when explicitly run
 spl federation set-poll-interval <peer-did> --interval 1m
 ```
@@ -160,11 +160,11 @@ spl federation thread-allow <peer-did> --thread th_workspace
 spl federation thread-rule <peer-did> --expression 'thread().id.startsWith("th_research_")'
 ```
 
-Thread rules accept any [CEL expression](./cel-expressions) with `record` + `thread()` bindings.
+Thread rules accept any [CEL expression](./cel-expressions) that uses `record` and `thread()`.
 
 ## Auto-approval via CEL
 
-For trusted contexts (fleet stewards under one operator, known-org pairs, CI test environments), you can configure auto-approval via a CEL decision policy (`spl config add-decision-policy`):
+For trusted situations (your own instances, known organisations, CI test setups), you can approve pairs automatically with a decision policy (`spl config add-decision-policy`):
 
 ```bash
 spl config add-decision-policy \
@@ -174,53 +174,51 @@ spl config add-decision-policy \
   --expression 'record.body.aitl.kind == "pair_pending.v1" && record.body.peer_did.startsWith("did:web:my-org.example.com/")'
 ```
 
-This auto-approves any pair handshake where the peer DID starts with your org's domain. The handshake completes immediately without operator intervention.
+This auto-approves any pair handshake where the peer DID starts with your org's domain. The pair completes immediately, without anyone approving it.
 
-Default: no auto-approval. Trust comes from explicit handshake decisions.
+By default there is no auto-approval. Someone approves each pair.
 
 ## Token rotation
 
-Pair tokens default to 90-day TTL with auto-renewal at 83 days (7-day window). The instance detects the upcoming expiry, runs a lighter handshake-refresh with the peer, and emits update records on both sides with new token IDs. The old token is revoked at issuance time — no overlap window.
+Pair tokens last 90 days and renew automatically at 83 days. The old token stops working as soon as the new one is issued.
 
-If automatic refresh fails:
-- 1 day before expiry: emits a `pair_renewal_failed` audit record
-- At expiry: sync calls fail with `token_expired_renew_pair`, pair transitions to `degraded`
-- Operator runs `spl federation refresh <peer-did>` to manually re-handshake
+If automatic renewal fails:
+- One day before expiry, a `pair_renewal_failed` entry is added to the audit log.
+- At expiry, syncs fail with `token_expired_renew_pair` and the pair becomes `degraded`.
+- Run `spl federation refresh <peer-did>` to renew it by hand.
 
 ## Auditing
 
-Every state transition is recorded on `th_audit_federation_pairs`. Subscribe to that thread for an operator-facing stream of pair lifecycle events:
+Every change of state is logged on the thread `th_audit_federation_pairs`. Read that thread to follow what is happening with your pairs:
 
 ```bash
 spl thread records th_audit_federation_pairs -o json | jq '.[] | {when: .body.timestamp, peer: .body.peer_did, transition: .body.transition}'
 ```
 
-Audit records are separate from the pair-state records on `th_federation_pairs` — the pair-state records drive the computed state; audit records are for humans.
-
 ## Troubleshooting
 
-**"peer served `/.well-known/syncropel` but no `federation_manifest` key"** — Peer doesn't have identity configured. Run `spl identity generate` on the peer side.
+**"peer served `/.well-known/syncropel` but no `federation_manifest` key"** — The peer has no identity set up. Run `spl identity generate` on the peer side.
 
-**"pair_handshake_rejected: unauthenticated_initiator"** — TLS verification failed. If you're testing locally without TLS, both sides need `--insecure-localhost`.
+**"pair_handshake_rejected: unauthenticated_initiator"** — Certificate (TLS) verification failed. If you're testing locally without TLS, both sides need `--insecure-localhost`.
 
 **"pair_paused" on `spl sync`** — Pair is paused. Run `spl federation resume <peer-did>`.
 
 **"unpaired_peer"** — You're trying to sync from a URL or DID that doesn't match any pair record. Run `spl federation pair add <peer-url>` first.
 
-**Peer returns 410 Gone** — Replay attack defense kicked in. Re-run the original `spl federation pair` command; nonces are single-use.
+**Peer returns 410 Gone** — The request was already used. Run `spl federation pair` again; each attempt needs a fresh request.
 
-## What this enables
+## What you get
 
-The pair primitive is the gate to several things:
+Pairing gives you:
 
-- **N stewards as a real network**, not a fleet of disconnected islands
-- **`spl sync` without manual token plumbing** — the end of the antipattern
-- **Auditable trust relationships** — pair lifecycle is records, not config; survives `spl export` / `spl import`
-- **Composable with consent** — pair is transport, consent is data policy; each is independent
+- **A network of instances**, not disconnected islands.
+- **`spl sync` without handling tokens by hand.**
+- **A trail you can audit.** The pair's history is kept as records and survives `spl export` and `spl import`.
+- **Separate controls.** Pairing decides who can connect, and consent decides what is shared.
 
 ## See also
 
-- [Federation discovery](./federation-discovery) — finding peers by handle or directory
-- [Async federation](./async-federation) — record sync via relay when peers are offline
-- [Concepts: Federation](../concepts/federation) — the model (immutable records + pull-based sync + explicit consent)
+- [Federation discovery](./federation-discovery) — finding peers by URL or directory
+- [Async federation](./async-federation) — sync through a relay when peers are offline
+- [Concepts: Federation](../concepts/federation) — how federation works
 - [Consent](./consent) — cross-namespace record sharing rules
