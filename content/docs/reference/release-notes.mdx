@@ -9,9 +9,11 @@ This page summarizes releases in plain language: what changed and why it matters
 
 ---
 
-## 0.279.0
+## 0.279.0 "Only The Name You Chose"
 
-- **People without a name on the members page.** There, a member who hasn't chosen a name shows as "Unnamed member", and a guest as "A guest". A member's handle is sent to the owner only, and never as the member's name.
+**Someone who hasn't chosen a name shows as "Unnamed member" or "A guest" instead of a code.**
+
+- **People without a name.** A member who hasn't chosen a name shows as "Unnamed member", and a guest as "A guest", in conversations and on the members page. A member's handle is sent to the owner only, and never as the member's name.
 - **Long reads stop instead of piling up.** Every read has a time limit. One that goes over answers "This is taking longer than it should, so it stopped. Try again in a moment." A second large read from the same person waits up to a few seconds for the first to finish, and is refused only if it's still waiting then. An export that overlaps with an erase stops and has to be run again. See [Reads, budgets and cursors](/docs/reference/read-path).
 - **Page markers belong to one person.** A page marker works only for the person it was given to, and only when it's sent back unchanged. A list left open across an upgrade starts again from the top.
 - **Guests and members see less when searching.** A guest or a member can't search a workspace's text. Outside what a workspace declares, they can filter only by kind and by a record's own fields. They read the conversations they're in instead.
