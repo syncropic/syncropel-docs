@@ -119,7 +119,7 @@ If the namespace does not exist, the response is:
 }
 ```
 
-The error always names the failing ancestor and includes the exact recovery command. To declare namespaces use the [`spl namespace`](/docs/reference/cli#namespaces-v0100) CLI commands, which write to the well-known thread `th_namespace_registry` that the engine hot-reloads on every change.
+The error always names the failing ancestor and includes the exact recovery command. To declare namespaces use the [`spl namespace`](/docs/reference/cli#namespaces) CLI commands, which write to the well-known thread `th_namespace_registry` that the engine hot-reloads on every change.
 
 ### Rich query
 
@@ -153,7 +153,7 @@ Request body:
 
 Two response fields are easy to misread. `capped: true` means more disclosable rows may exist beyond this page, whatever `limit` you asked for; it is the only truthful signal that a page is partial.
 
-`matched_total` **is disclosure-aware**, and has been since v0.174. It was once the store's count taken before the disclosure filter ran, which made it a measured existence oracle: a narrowed caller could ask about a name it was not allowed to see and learn from the denominator whether anything by that name existed, while `data` came back empty. It is now served only when nothing was withheld from you; when something was, you are told how many rows *you* may see instead. An unrestricted reader is unaffected.
+`matched_total` **only counts what you are allowed to see**. It is served only when nothing was withheld from you; when something was, you are told how many rows *you* may see instead. An unrestricted reader is unaffected.
 
 So `matched_total` is a count over your own view, not over the instance. Two callers with different grants can both receive honest and different totals for the same filter, and neither number is evidence about what the other can see. It is still not a substitute for `capped` when deciding whether you have the whole answer.
 
@@ -275,7 +275,7 @@ curl -s -X POST http://localhost:9100/v1/records/embed \
 | GET | `/v1/threads` | List all threads |
 | GET | `/v1/threads/:id/records` | Get all records on a thread |
 | GET | `/v1/threads/:id/state` | Get folded thread state |
-| GET | `/v1/threads/:id/project` | Get thread projection (formatted view) |
+| GET | `/v1/threads/:id/project` | Get a formatted view of the thread |
 | GET | `/v1/threads/:id/participants` | Get thread participants |
 
 ### Thread Projections
@@ -734,7 +734,7 @@ For the discovery workflow and how this composes with `did:web`, `did:sync`, and
 
 Returns the instance's own identity — `{actor, display_name, did, method, key_path, key_fingerprint}` — populated at instance startup. New installs generate a `did:key:...` on `spl init`; upgraded installs without a DID need `spl init --force` once.
 
-This endpoint requires a valid bearer token. Since **v0.53** the response also reports the calling token's own authentication state, so a renderer can decide what to show the viewer:
+This endpoint requires a valid bearer token. The response also reports the calling token's own authentication state, so a renderer can decide what to show the viewer:
 
 | Field | Description |
 |---|---|
@@ -1228,7 +1228,7 @@ curl -s http://localhost:9100/v1/members \
 
 Rows carry `member` (the DID), `status`, `scopes`, and `expires_at`. A non-admin caller receives exactly their own row — a one-row answer is complete, not truncated.
 
-Since v0.279.0 each person row also carries the fields below, and `GET /v1/principals` serves the same name fields:
+Each person row also carries the fields below, and `GET /v1/principals` serves the same name fields:
 
 | Field | Meaning |
 |---|---|
@@ -1238,9 +1238,9 @@ Since v0.279.0 each person row also carries the fields below, and `GET /v1/princ
 | `is_owner` | `true` only for the workspace's owner. Present on every seen person's row. A never-seen or erased row carries none. |
 | `handle` | Owner-only on `/v1/members`: the member's label, beside the name and never as it. |
 
-`fallback` and `workspace_label` are no longer served for people. When `display_name` is null, draw the stand-in from `standing` and `is_owner`. The command line prints "Unnamed member", "A guest", "Someone from another workspace" and "The owner". An erased person reads exactly as one never seen: the same row but for `id`, with no `standing`. The owner's erase-request queue (`GET /v1/erasure/requests`) carries the requester's `handle` the same way, read live and never stored.
+`fallback` and `workspace_label` are not served for people. When `display_name` is null, draw the stand-in from `standing` and `is_owner`. The command line prints "Unnamed member", "A guest", "Someone from another workspace" and "The owner". An erased person reads exactly as one never seen: the same row but for `id`, with no `standing`. The owner's erase-request queue (`GET /v1/erasure/requests`) carries the requester's `handle` the same way, read live and never stored.
 
-Migration from 0.278: type `display_name` as nullable (`@syncropel/sdk` does), and stop reading `fallback` and `workspace_label`.
+Type `display_name` as nullable (`@syncropel/sdk` does).
 
 ### Forget where I was
 

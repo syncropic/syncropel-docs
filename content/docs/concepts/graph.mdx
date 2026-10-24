@@ -51,7 +51,7 @@ The shape is clearest drawn in negative space.
 
 Finding what the Graph offers is an ordinary query. To see the
 workspaces a node publishes, you ask it for records of kind
-`core.workspace.v1` — the same fold your own instance runs for
+`core.workspace.v1` — the same lookup your own instance runs for
 [`spl workspace list`](/docs/operate/workspace/lifecycle). A node adds
 no new format; it is an instance whose records are readable, queried
 like any other records.
@@ -67,7 +67,7 @@ whole store.
 Do not confuse the Graph with your instance's **workspace catalog**.
 
 - Your **workspace catalog** is local — the list of `core.workspace.v1`
-  records *your* instance serves. `spl workspace list` folds it. See
+  records *your* instance serves. `spl workspace list` shows it. See
   [Workspaces](/docs/concepts/workspaces).
 - The **Graph** is how a workspace published on *another* instance can
   reach yours at all: you pair with that instance, discover its

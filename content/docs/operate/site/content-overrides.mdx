@@ -78,13 +78,11 @@ indicators may land in later versions.
 
 ### `theme` (status note)
 
-The `theme.accent` field is part of the v1.0 record schema, but in
-v0.50.0 the renderer does not yet thread theme overrides from the
+The `theme.accent` field is part of the record schema, but the renderer does not yet thread theme overrides from the
 record into the inline `:root` block. Setting `theme.accent` via record
 is currently a no-op visually. The accent override IS reachable today
 via the [Tier 3 filesystem overlay](/docs/operate/site/filesystem-overlay)'s
-`theme.css`. The record-side wiring is tracked as a follow-up and will
-land in a patch release without changing the record shape.
+`theme.css`. The record shape will not change when record-side support arrives.
 
 ## The `spl site` family
 

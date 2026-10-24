@@ -11,12 +11,12 @@ After this, you'll understand the **economic claim** behind Syncropel: the margi
 
 ## Before you start
 
-- `spl 0.33.0` or later (`spl --version`)
+- `spl` installed (`spl --version`)
 - An instance running with `spl status` healthy.
 - Completed [Your first decision gate](./your-first-decision) — patterns build on top of approved rules.
 - Patience for ~3 emissions and the engine's tick interval. The pattern detector is part of the TICK loop; defaults run every 60 seconds.
 
-This tutorial uses observability via `spl thread records`, `spl trust`, and `curl http://localhost:9100/v1/patterns` (the HTTP surface — `spl pattern` CLI is on the polish backlog per the [patterns concept doc](/docs/concepts/patterns#whats-enforced-today-vs-the-spec)).
+This tutorial uses observability via `spl thread records`, `spl trust`, and `curl http://localhost:9100/v1/patterns` (the HTTP surface — `spl pattern` CLI is on the polish backlog per the [patterns concept doc](/docs/concepts/patterns)).
 
 ## 1. Pick a thread shape and emit three of them
 
@@ -52,7 +52,7 @@ Each closed thread is now in the pattern index at four levels:
 spl thread show $THREAD1
 ```
 
-You'll see the standard projection plus a `pattern_hashes` block:
+You'll see the usual output plus a `pattern_hashes` block:
 
 ```
 Thread:  th_count_lines_a  (closed, fulfilled)
@@ -101,7 +101,7 @@ did:sync:user:you       general          3       3    0.439
 
 Three out of three successes. Trust uses Wilson lower-bound — a small sample size always has high uncertainty, so 3/3 ≠ 1.0; it ≈ 0.44. With more observations the score will climb.
 
-Trust is one of the four [crystallization criteria](/docs/concepts/patterns#crystallization-when-a-pattern-graduates):
+Trust is one of the four [crystallization criteria](/docs/concepts/patterns#when-a-pattern-becomes-permanent):
 
 | Criterion | What it measures | Threshold |
 |---|---|---|
@@ -110,7 +110,7 @@ Trust is one of the four [crystallization criteria](/docs/concepts/patterns#crys
 | **C3 Compression** | MDL compression vs. listing observations | meaningful |
 | **C4 Multi-source** | Distinct (actor, evaluator) pairs | ≥ 2 |
 
-This tutorial demonstrates the **observation phase**, not full crystallization. Three observations from one actor doesn't crystallize. But — and this is the point — the pattern is *queryable* and the *next similar record will match* even before crystallization. Replay short-circuits at L1 today (see the [patterns concept — what's enforced today](/docs/concepts/patterns#whats-enforced-today-vs-the-spec)).
+This tutorial demonstrates the **observation phase**, not full crystallization. Three observations from one actor doesn't crystallize. But — and this is the point — the pattern is *queryable* and the *next similar record will match* even before crystallization. Replay short-circuits at L1 today (see the [patterns concept — what's enforced today](/docs/concepts/patterns)).
 
 ## 5. Trigger a fourth record and watch automatic match
 
@@ -131,15 +131,15 @@ If routing has any rules that match the L1 signature of the closed pattern, you 
 
 If no rules exist yet for this shape, Syncropel will treat the new INTEND like the unrouted record from [the decision-gate tutorial](./your-first-decision) — proposing a routing rule as a decision request for you to approve. The pattern is observable but no auto-routing happens until a rule covers the shape.
 
-## 6. Inspect the routing fold
+## 6. Inspect the routing rules
 
-The engine's runtime config — what rules will fire next — is the fold over `th_engine_config`:
+The rules that will fire next are the records on the `th_engine_config` thread:
 
 ```bash
 spl thread records th_engine_config | jq '.[] | select(.body.kind == "core.routing_rule.v1") | {name: .body.name, match: .body.match}'
 ```
 
-Each entry is a LEARN record describing one rule. The fold-over-records *is* the routing table. There is no separate routing config file. This is what "state = fold(records)" looks like in production code.
+Each entry is a LEARN record describing one rule. The records are the routing table. There is no separate routing config file.
 
 ## What just happened
 

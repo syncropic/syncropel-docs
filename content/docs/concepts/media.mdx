@@ -14,7 +14,7 @@ In most systems every content type ships its own player, its own resolution path
 Two records model any medium:
 
 - **`core.medium.v1` — the content descriptor (WHAT).** A typed reference to content (never the bytes inline): a `medium_kind` (an open, registry-classified string — `audio`, `video`, and more as they land), what the content is (a mount path, a content hash, a stream, a document, a runtime, a simulation), and a **modality** — `play`, `render`, `run`, or `simulate` — which is the key the surface dispatches on.
-- **`core.medium.player.v1` — the player descriptor (HOW).** A record deployed exactly like an actor adapter: it binds a `medium_kind` to a **playback primitive** and names how to obtain the content. Adding a declarative medium type is *emitting one of these*. No kernel change.
+- **`core.medium.player.v1` — the player descriptor (HOW).** A record deployed exactly like an actor adapter: it binds a `medium_kind` to a **playback primitive** and names how to obtain the content. Adding a declarative medium type is *emitting one of these*. No product change is needed.
 
 <Callout type="info" title="Visibility is inherited, not declared on the medium">
 A medium descriptor never carries who-can-see-it. Visibility comes from the thread it lives on, the consent grant over that thread, and — for anonymous playback — the minted read-token. The same descriptor plays for its owner and (when a public grant exists) for a stranger, with no change to the record.
@@ -22,7 +22,7 @@ A medium descriptor never carries who-can-see-it. Visibility comes from the thre
 
 ## The playback primitives (a small, closed set)
 
-Where media types are open and grow by emitting records, the **primitives** a player can bind to are a deliberately small, closed set — the one place the kernel is involved:
+Where media types are open and grow by emitting records, the **primitives** a player can bind to are a deliberately small, closed set — the one place the system itself is involved:
 
 | Primitive | For | Status |
 |---|---|---|

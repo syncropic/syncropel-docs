@@ -1,9 +1,7 @@
 ---
 title: The sandboxed transport
-description: Run every work loop in a separate isolated process instead of inside the daemon. How to turn it on and off, what the kernel judges per tool call, the admission ceiling, what changes on your machine, and how to verify it on your instance.
+description: Run every work loop in a separate isolated process instead of inside the daemon. How to turn it on and off, what the instance judges per tool call, the admission ceiling, what changes on your machine, and how to verify it on your instance.
 ---
-
-Requires 0.197.1 or later; the per-tier default, the declared narrowing and the stop at a step boundary need 0.200.
 
 ## What it is
 
@@ -66,9 +64,9 @@ curl -s -X POST -H "Authorization: Bearer $ADMIN" -H 'content-type: application/
 
 The instance's built-in file tools (`read_file`, `write_file`, `list_dir`, `search`) are built from handles a separate process does not have. A sandboxed run whose tier grants them starts anyway: the four are withheld from its reach and the run says so. The run's anchor and its row at `GET /v1/runs/{thread}` carry `narrowed`, the list of granted tools the transport withheld, and the model is told the same in its opening. Nothing is dropped silently.
 
-## Every tool call is judged by the kernel
+## Every tool call is judged by the instance
 
-A sandboxed worker holds no permission rules. Before it runs any tool it proposes the call to the kernel, which evaluates the same guard the in-process loop would have used, over the live rules, and writes its judgment as a `core.work.tool_verdict.v1` record before answering. Three layers answer in order:
+A sandboxed worker holds no permission rules. Before it runs any tool it proposes the call to the instance, which evaluates the same guard the in-process loop would have used, over the live rules, and writes its judgment as a `core.work.tool_verdict.v1` record before answering. Three layers answer in order:
 
 | layer | meaning | what to change |
 |---|---|---|
@@ -85,12 +83,12 @@ spl config add-permission-rule --name stop-that --action deny --priority 100 \
   --expression 'resource == "tool:bash"'
 ```
 
-The verdict is authored by the kernel, and so is the run's outcome. The run credential cannot write either kind, so a run cannot declare that it was allowed to act or that it succeeded. The outcome's `success` is also checked against what the tools did: a run whose every call failed is not a success whatever its final answer says, and the outcome carries `tool_calls_ok` and `tool_calls_failed` so a reader has the evidence beside the verdict.
+The verdict is written by the instance, and so is the run's outcome. The run credential cannot write either kind, so a run cannot declare that it was allowed to act or that it succeeded. The outcome's `success` is also checked against what the tools did: a run whose every call failed is not a success whatever its final answer says, and the outcome carries `tool_calls_ok` and `tool_calls_failed` so a reader has the evidence beside the verdict.
 
 ## After a call, not just before it
 
 The permission rules above run *before* a tool call. After one returns, the
-kernel may add an **observation**: something the environment noticed about the
+instance may add an **observation**: something the environment noticed about the
 run, put in front of the model on its next turn beside the tool's own result,
 never in place of it.
 
@@ -176,7 +174,7 @@ Then read the outcome record on the thread and check three things: `transport` i
 spl thread records $THREAD -o json | jq '.data[] | select(.body.kind == "core.work.loop_outcome.v1" or .body.kind == "core.work.note.v1") | .body'
 ```
 
-If the outcome says `stopped_short` and its summary names the worker socket or the inference relay, the instance is on a version before 0.197.1.
+If the outcome says `stopped_short` and its summary names the worker socket or the inference relay, the instance is on an older version. Upgrade it and run again.
 
 ## What is on by default
 

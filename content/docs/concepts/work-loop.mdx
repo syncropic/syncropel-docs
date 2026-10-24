@@ -7,7 +7,7 @@ description: A work loop is a records-native primitive — a managed plan/act/ch
 
 A **work loop** is what you get when you stop treating "an actor doing goal-structured work" as an opaque process and start treating it as a sequence of records on a thread.
 
-The actor doing the work can be an LLM agent, a human driving a UI, a workflow, or any other automation — the loop primitive is the same. Every turn it takes, every tool it calls, every result it gets, every halt reason, are all records on the loop's thread. You can subscribe to them, query against them, fold them, and audit them with the same tools you use for every other Syncropel record. There is no separate "agent log" to scrape.
+The actor doing the work can be an LLM agent, a human driving a UI, a workflow, or any other automation — the loop primitive is the same. Every turn it takes, every tool it calls, every result it gets, every halt reason, are all records on the loop's thread. You can subscribe to them, query against them, and audit them with the same tools you use for every other Syncropel record. There is no separate "agent log" to scrape.
 
 A loop is more than a one-shot task runner, though. It is a **cognitive loop**: it reads its own track record before it acts, does real work, and is judged by someone else when it finishes — and that external judgment is the only thing that moves its standing. The next section unpacks each of those three edges.
 
@@ -50,11 +50,11 @@ A work loop is a citizen of the coordination protocol, not an island. It closes 
 
 **It does real work.** The middle is the plan/act/check cycle described below — turns, tool calls, results, all recorded.
 
-**It is judged by someone else.** This is the part that makes the loop honest. A loop's own outcome record — its self-reported "done, succeeded" — does **not** earn it any trust. A loop cannot give itself a passing grade. Trust moves only when a *different* actor with standing — a person, or a trusted reviewer — looks at what the loop produced and records a **verdict**: accept or reject, optionally with notes and a work domain. That verdict is itself a record, and it is what folds into the loop actor's trust.
+**It is judged by someone else.** This is the part that makes the loop honest. A loop's own outcome record — its self-reported "done, succeeded" — does **not** earn it any trust. A loop cannot give itself a passing grade. Trust moves only when a *different* actor with standing — a person, or a trusted reviewer — looks at what the loop produced and records a **verdict**: accept or reject, optionally with notes and a work domain. That verdict is itself a record, and it is what counts toward the loop actor's trust.
 
 The cycle then closes: the verdict updates trust, and the *next* loop reads that updated trust when it decides how cautiously to proceed. A loop that consistently produces accepted work earns more latitude over time; one whose outcomes are routinely rejected does not — and it can never shortcut that by grading itself.
 
-You record a verdict with `spl work-loop-review <thread> --accept` (or `--reject`), the same way a completed task is approved or rejected at the [evaluation gate](/docs/concepts/trust#the-evaluation-gate). The separation is structural: the actor doing the work and the actor judging it must be different identities for the judgment to count toward trust.
+You record a verdict with `spl work-loop-review <thread> --accept` (or `--reject`), the same way a completed task is approved or rejected at the [evaluation gate](/docs/concepts/trust). The separation is structural: the actor doing the work and the actor judging it must be different identities for the judgment to count toward trust.
 
 ## Why "records-native"
 
@@ -132,9 +132,9 @@ Requests that exceed the tier's ceiling are denied up front — the loop does no
 A loop runs in one of two places, and which one is decided by the tier of the principal it runs for, at the moment it starts.
 
 - **In process.** Inside the daemon, sharing its memory with the provider credential, the operator's bearer and the store. This is the operator's transport on their own machine, where the operator is already the trust boundary.
-- **Sandboxed.** A separate process with no network, no view of the instance's home directory, a restricted set of system calls, limits on memory, processes, file size and CPU time, and one short-lived credential handed to it at start. Every tool call it wants to make is proposed to the kernel first and judged over the live permission rules. This is the default for every other tier.
+- **Sandboxed.** A separate process with no network, no view of the instance's home directory, a restricted set of system calls, limits on memory, processes, file size and CPU time, and one short-lived credential handed to it at start. Every tool call it wants to make is checked by Syncropel first and judged over the live permission rules. This is the default for every other tier.
 
-What a stranger's loop reaches, then, is exactly what the kernel hands it: the doors on a local socket, bounded by the run's credential (which threads it may read and write, which kinds it may author) and by the tool set its tier and its definition declared. It cannot reach the provider credential, the operator's bearer, the store, the network, or another run. What it cannot reach it is told about: a tool its tier granted but the sandbox cannot serve is withheld and named on the run (`narrowed`), never silently dropped.
+What a stranger's loop reaches, then, is exactly what Syncropel hands it: the doors on a local socket, bounded by the run's credential (which threads it may read and write, which kinds it may author) and by the tool set its tier and its definition declared. It cannot reach the provider credential, the operator's bearer, the store, the network, or another run. What it cannot reach it is told about: a tool its tier granted but the sandbox cannot serve is withheld and named on the run (`narrowed`), never silently dropped.
 
 The preview reports which transport a start would take, and every run's outcome records the one it took. The operator can move any tier's default with one config record; see [The sandboxed transport](../operate/sandboxed-transport).
 

@@ -62,7 +62,7 @@ One call validates the `body.kind` grammar, builds the 8-field record envelope, 
 | `queryThread(opts)` | All records in a thread. Fail-open (returns `[]` on transport error). |
 | `query(opts)` | Filtered records by kind/actor/thread. Fail-open. |
 | `health()` | Server health probe. Fail-open. |
-| `close()` | No-op today (kept for API stability); reserved for pooled-client variants. |
+| `close()` | No-op (kept for API stability). |
 
 **Constructor options (`ClientOptions`):**
 
@@ -125,14 +125,14 @@ for await (const event of client.threads.watch(threadId)) {
 }
 ```
 
-Prefer `watch()` for new code; the older callback-based `client.subscribe(thread, cb)` remains for compatibility.
+Prefer `watch()`; the older callback-based `client.subscribe(thread, cb)` remains for compatibility.
 
 ### Identity
 
 ```typescript
-Identity.static("did:example:my-app")    // Available today
-Identity.key(pathOrBytes)                 // Planned — raises if called
-Identity.federated(...)                   // Planned — raises if called
+Identity.static("did:example:my-app")    // Supported
+Identity.key(pathOrBytes)                 // Not available yet — raises if called
+Identity.federated(...)                   // Not available yet — raises if called
 ```
 
 ### Reserved-kind helpers
@@ -344,7 +344,7 @@ try {
 ```
 
 <Callout type="warn">
-**Migrating from 0.7.x:** `richQuery` / `query` / `queryThread` used to swallow a malformed `4xx` into an empty result. As of 0.8.0 they throw `SyncropelQueryError` instead. Valid queries are unaffected; wrap any call that might send a malformed filter/sort in a `try/catch`. The canonical fix for the most common case is the object sort form `{ clock: -1 }` (not a string).
+**Malformed queries throw.** `richQuery` / `query` / `queryThread` throw `SyncropelQueryError` on a malformed `4xx` rather than returning an empty result. Valid queries are unaffected; wrap any call that might send a malformed filter/sort in a `try/catch`. The canonical fix for the most common case is the object sort form `{ clock: -1 }` (not a string).
 </Callout>
 
 ## Testing without an instance

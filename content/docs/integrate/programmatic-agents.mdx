@@ -213,8 +213,8 @@ When the agent delegates subtasks to other agents, open a parent thread then one
 for worker in ["agent-a", "agent-b", "agent-c"]:
     child = await client.intend(goal=f"Review module X for {worker}")
     # Each worker reads child.thread_id, does the work,
-    # and emits records on that thread. The parent folds
-    # them back via query_thread for the join decision.
+    # and emits records on that thread. The parent collects
+    # them via query_thread for the join decision.
 ```
 
 Uses Syncropel's [fleet + fan-out primitives](/docs/tutorials/first-fanout) under the hood.

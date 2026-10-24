@@ -193,7 +193,7 @@ Right before an upgrade, a permission rule rollout, or a destructive migration:
 cp ~/.syncro/hub.db ~/.local/share/syncropel/backups/hub.db.before-$(date +%Y%m%d-%H%M%S)
 ```
 
-The instance does not need to be stopped — SQLite's WAL makes this safe — but it does need to not be in the middle of a heavy write burst. Watch `spl status` first.
+The instance does not need to be stopped — SQLite makes this safe — but it does need to not be in the middle of a heavy write burst. Watch `spl status` first.
 
 ### Restore
 
@@ -268,7 +268,7 @@ spl drain status   # waits until in-flight = 0
 spl stop
 ```
 
-This sends `SIGTERM`. The instance flushes the SQLite WAL, closes the socket, and removes its PID file. If `--stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).
+This sends `SIGTERM`. The instance finishes pending writes, closes the socket, and removes its PID file. If `--stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).
 
 ### Reclaim space (optional)
 

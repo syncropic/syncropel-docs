@@ -5,7 +5,7 @@ description: "A plain-language summary of recent Syncropel releases: intelligent
 
 ## Overview
 
-This page summarizes recent releases in plain language: what changed and why it matters for using Syncropel day to day. For the exhaustive, version-by-version technical record, see the changelog in the source repository.
+This page summarizes recent releases in plain language: what changed and why it matters for using Syncropel day to day.
 
 ---
 
@@ -13,26 +13,26 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 **Someone who hasn't chosen a name shows as "Unnamed member" or "A guest" instead of a code.**
 
-- **People without a name aren't shown by a code.** A member who hasn't chosen a name shows as "Unnamed member", a guest as "A guest", a person from another workspace as "Someone from another workspace", and an owner with no name as "The owner". No door serves an id, the tail of an identity or a handle as a person's name. The members list shows a member's handle to the owner only, beside the name and never as it.
-- **Long reads stop instead of piling up.** Every read has a time limit. One that goes over answers "This is taking longer than it should, so it stopped. Try again in a moment." Each person runs one large read at a time, and an export that an erase overtakes stops and has to be run again. See [Reads, budgets and cursors](/docs/reference/read-path).
-- **Page markers are sealed.** A page marker works only for the person it was given to, and only when it's sent back unchanged. A list left open across the upgrade starts again from the top.
-- **What others can search and filter is narrower.** A guest or a member can't search a workspace's text. Outside what a workspace declares, they can filter only by kind and by a record's own fields. They read the conversations they're in instead.
-- **Timing details are the owner's.** Only the owner sees how long each step of a request took.
+- **People without a name aren't shown by a code.** A member who hasn't chosen a name shows as "Unnamed member", a guest as "A guest", a person from another workspace as "Someone from another workspace", and an owner with no name as "The owner". An identifier is never shown in place of a name. The members list shows a member's handle to the owner only, beside the name.
+- **Long reads stop instead of piling up.** Every read has a time limit. One that goes over answers "This is taking longer than it should, so it stopped. Try again in a moment." A second large read from the same person waits a few seconds for the first to finish instead of failing. An export that overlaps with an erase stops and has to be run again. See [Reads, budgets and cursors](/docs/reference/read-path).
+- **Page markers belong to one person.** A page marker works only for the person it was given to, and only when it's sent back unchanged. A list left open across an upgrade starts again from the top.
+- **Guests and members see less when searching.** A guest or a member can't search a workspace's text. Outside what a workspace declares, they can filter only by kind and by a record's own fields. They read the conversations they're in instead.
+- **Timing details are for the owner.** Only the owner sees how long each step of a request took.
 - **Forget where I was.** One request clears everything a workspace kept about where you were in it (`POST /v1/private/kept/purge`).
-- **Signatures mean who signed.** A signature verifies only against the key of the one it names as signing. A blueprint's signing time is inside its signature.
-- **An erased person leaves fewer traces.** Records sealed from 0.279 on carry no identifier for the person in the saved copy. Records sealed earlier still do, and the erase receipt says so. An erased person who decided something leaves nothing for an export to name them by. A sign-in that an erase ended says so after a restart.
-- **Saved copies are checked by name.** `spl doctor` compares the off-machine copy with the workspace and fails when the copy lacks records the workspace holds. Where the check can't run, as on a hosted workspace, it says so.
+- **Signatures name who signed.** A signature verifies only against the key of the one it names as signing.
+- **An erased person leaves fewer traces.** Newly saved records carry no identifier for the person in the saved copy, and an export has nothing to name an erased person by. The erase receipt says which older records may still carry one. A sign-in that an erase ended says so after a restart.
+- **Saved copies are checked.** `spl doctor` compares the off-machine copy with the workspace and fails when the copy lacks records the workspace holds. Where the check can't run, as on a hosted workspace, it says so.
 - **Apps that read, and pages you publish.** Both are off on hosted workspaces. An app reads only what it declares, and only what the person using it can already read. The owner can publish an app's files as a page at the workspace's address, after approving it. See [Apps that read, and published pages](/docs/reference/apps-and-sites).
 - **For the command line and the API.**
-  - Page cursors from 0.278 or earlier are refused with `CURSOR_INVALID`. Start the walk again.
-  - `/v1/principals` serves `display_name: null`, `name_source: "none"` and `standing` for an unnamed person. `fallback` and `workspace_label` are gone.
+  - A page cursor from an older version is refused with `CURSOR_INVALID`. Start the walk again from the first page.
+  - `/v1/principals` serves `display_name: null`, `name_source: "none"` and `standing` for an unnamed person.
   - A record count that takes too long is `read.total: null` with `read.total_at_least`. Send `"total": "skip"` to skip counting.
-  - New refusals: `503 READ_BUDGET_EXCEEDED`, `429 READ_IN_FLIGHT`, `409 READ_STOPPED_BY_ERASE`, `400 QUERY_FIELD_NOT_READABLE`, `403 SITE_THREAD_KERNEL_ONLY`.
-  - An anonymous `/health` shows only the write-back attach state. Send the owner's bearer, or read through the socket, for the detail.
-  - `th_site_*` threads belong to the kernel. A client write there is refused.
-- **Known.**
-  - Files uploaded before 0.279 have no recorded writer. Save one again to publish it.
-  - Restore a copy saved by 0.279 or later with 0.279 or later. An older version brings other people's sealed items back as gaps, and restoring again with 0.279 or later fills them.
+  - Refusals: `503 READ_BUDGET_EXCEEDED`, `429 READ_IN_FLIGHT`, `409 READ_STOPPED_BY_ERASE`, `400 QUERY_FIELD_NOT_READABLE`, `403 SITE_THREAD_KERNEL_ONLY`.
+  - An anonymous `/health` shows only the write-back state. Send the owner's bearer, or read through the socket, for the detail.
+  - Threads whose names start with `th_site_` are managed by Syncropel. A client write there is refused.
+- **Known limits.**
+  - Files uploaded long ago have no recorded writer. Save one again to publish it.
+  - Restore a saved copy with the same or a newer version than the one that made it. An older version brings other people's sealed items back as gaps, and restoring again with a newer version fills them.
   - A guest can still tell roughly how many writes happened between two rows it can see.
 
 ---
@@ -80,15 +80,15 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 **When you accept an invitation from another workspace, you now join it. An answer shows the tools it used, and an owner can make keys for a repository from the browser.**
 
-- **Accepting an invitation joins you.** When someone in another workspace invites you and you accept, you're now a member there straight away. If that workspace can't be reached, you're told, and you can try again. In the two releases before this one, Accept recorded your answer without joining you. If that happened to you, the invitation now says you didn't finish joining. Ask whoever invited you for a new one.
+- **Accepting an invitation joins you.** When someone in another workspace invites you and you accept, you're now a member there straight away. If that workspace can't be reached, you're told, and you can try again. If an earlier Accept recorded your answer without joining you, the invitation says you didn't finish joining. Ask whoever invited you for a new one.
 - **See the tools an answer used.** Under "About this reply", an answer says which tools it used and how often, for example "It ran code 3 times (1 didn't work) and read files once." It never shows what a tool was given or what it returned.
 - **Repository keys from the browser.** An owner can make a key that reads, or reads and writes, a repository, from the workspace's settings, after confirming it's them. The key is shown once. Each key says when it was made, when it ends and when it was last used, and removing one stops it at once.
-- **Invitation addresses leave the copy off this machine.** Your workspace's copy off this machine no longer keeps the email address of anyone you invited. On upgrade, the copy is rewritten without those addresses, and the replaced files are deleted an hour later.
+- **Invitation addresses leave the copy off this machine.** Your workspace's copy off this machine no longer keeps the email address of anyone you invited. The copy is rewritten without those addresses, and the replaced files are deleted an hour later.
 - **Searches see only what's still there.** An owner's searches and filters match only what the workspace still holds.
-- **A newer assistant model.** A workspace's built-in assistant that was never set to a particular model now uses Claude Haiku 5.5, in new workspaces and in existing ones when they upgrade. An assistant set to a specific model keeps it.
+- **A newer assistant model.** A workspace's built-in assistant that was never set to a particular model now uses Claude Haiku 5.5, in new and existing workspaces. An assistant set to a specific model keeps it.
 - **Sharing says what it shows.** A public link to a conversation can show "Messages only" or "Messages and records". Details kept for a group stay hidden, and a new type of record added after you share isn't shown.
 - **Known.**
-  - If your storage keeps earlier versions of files, those versions keep invitation addresses until the storage's own rules remove them. Backups and copies taken before you upgraded aren't changed.
+  - If your storage keeps earlier versions of files, those versions keep invitation addresses until the storage's own rules remove them. Backups and copies taken earlier aren't changed.
   - Content an erasure setting didn't cover when it was written stays readable after an erase.
 
 ---
@@ -105,16 +105,16 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **A group nobody declared is yours alone.** If a field in a package is marked for a group the package doesn't declare, only the workspace's owner can read it. Installing such a package is refused, once for each such field. If a package you already installed has one, the field becomes owner-only and you get a notice.
 - **An erased person's details are hidden.** Their contact details and what they told you about themselves are no longer shown to any reader, the owner included, or to an assistant.
 - **An erased person stays erased.** After you erase someone, nothing about them goes out in the clear to your workspace's copy off this machine or to a copy you export. The one exception is a record you're keeping under a legal hold, such as a tax filing you must keep: it's kept whole.
-- **Invitation addresses aren't kept longer than needed.** When you invite someone by email, your workspace keeps their full address only while the invitation can still be used. Once it's used up, withdrawn or expired, it keeps at most a masked hint and a one-way fingerprint. Invitations that had already ended are reduced once your workspace is running this release.
-- **A member's invite limits now hold.** If a membership invite limited what the new member may add, those limits now apply after they join, as they already did for guests. People who joined before this release keep what they had.
+- **Invitation addresses aren't kept longer than needed.** When you invite someone by email, your workspace keeps their full address only while the invitation can still be used. Once it's used up, withdrawn or expired, it keeps at most a masked hint and a one-way fingerprint.
+- **A member's invite limits now hold.** If a membership invite limited what the new member may add, those limits now apply after they join, as they already did for guests. People who joined earlier keep what they had.
 - **For people who run their own workspace.** If you keep a list of who you've erased somewhere outside the workspace, restoring an older copy now checks that list and leaves those people out. If it can't check the list, it refuses and says why.
 - **For the command line and the API.**
   - Issuing an invite whose limits include an option the workspace doesn't recognize is now refused, naming the option, instead of quietly ignoring it.
 - **Known.**
-  - Searching or sorting as the owner still looks at an erased person's contact details. A search for their phone number can still find the record, though the number itself isn't shown. Fixed in When You Say Yes.
+  - Searching or sorting as the owner still looks at an erased person's contact details. A search for their phone number can still find the record, though the number itself isn't shown.
   - A field holding a person's own details is hidden in lists and search even from that person, because a search doesn't know whose record each one is.
-  - Your workspace's copy off this machine, and its backups, still hold the full address of an invitation that has ended, because they were written while it was waiting. A copy restored from before this release brings those addresses back until your workspace next starts. For the copy off this machine, fixed in When You Say Yes.
-  - An invitation sent before this release keeps its address until it ends.
+  - Your workspace's copy off this machine, and its backups, still hold the full address of an invitation that has ended, because they were written while it was waiting. A copy restored from an older backup brings those addresses back until your workspace next starts.
+  - An earlier invitation keeps its address until it ends.
 
 ---
 
@@ -134,7 +134,7 @@ This page summarizes recent releases in plain language: what changed and why it 
   - A request option a page doesn't use is now refused by name instead of being quietly ignored.
   - With `--json`, a command that fails always prints one JSON result describing the failure.
 - **Known.**
-  - A field marked for a group, for example `board` or `staff`, isn't yet hidden from other readers on its own. Who can read a record is still decided by the conversation or list it's in, so keep sensitive records where only that group can see them. Fixed in Only Who It's Meant For.
+  - A field marked for a group, for example `board` or `staff`, isn't yet hidden from other readers on its own. Who can read a record is still decided by the conversation or list it's in, so keep sensitive records where only that group can see them.
 
 ## From Your Browser
 
@@ -178,7 +178,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Uploads on Free.** Free workspaces can take uploads.
 - **A workspace that stops responding restarts itself** instead of staying dark.
 - **When included use runs out.** When a Pro workspace has used the assistant use included for now, the assistant says more becomes available later. A Free workspace is told it can upgrade to keep going.
-- **From the command line today.** These are in this release for the command line and the API. The browser shows the first four from the next release.
+- **From the command line and the API.** These are available from the command line and the API.
   - **Every sign-in is its own session.** Each browser and connected app signs in separately. You can see your sessions, end one, or end all the others. Anything a session writes is written as you.
   - **Your passkey for important changes.** Changing who is in your workspace, its keys, its invites or its sharing asks for your passkey first. A run of the same change reuses it for a few minutes.
   - **Private notes and messages.** You can keep an item sealed to your own devices. The workspace stores only the sealed version: search, automations and assistants never see the words, and an assistant in the room is told only that there is something private it can't read.
@@ -221,7 +221,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 **An owner can now choose what each person may open in a room, files and audio included, and change someone's access without removing them; owners see how often each item is opened, never by whom; an invite names the conversation instead of showing a code; members can take a copy of what they wrote; and when someone asks to be erased, a company can keep only the records the law requires, and tells them what it kept and until when.**
 
-- **Seeing is not opening.** For each room you now choose three things separately: what a person can see, what they can write, and what they can open. Opening covers files and audio. Invites made before this release keep working as they did, and you get a notice listing what they can open.
+- **Seeing is not opening.** For each room you now choose three things separately: what a person can see, what they can write, and what they can open. Opening covers files and audio. Earlier invites keep working as they did, and you get a notice listing what they can open.
 - **Change access without removing someone.** You can widen or narrow what a person can see, write or open in a room, and they keep their place and their history.
 - **Removing someone stops their live view at once.** A person you remove, or whose access you narrow, stops getting live updates immediately rather than at their next page load.
 - **How often, never by whom.** Owners see how often each item in a room is opened. The count never names the person who opened it.
@@ -230,7 +230,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Keeping only what the law requires.** When someone asks to be erased, a company can keep the records a law requires it to keep, and only those. The person is told what was kept, why, and until when. Everything else is hidden at once, from the owner too, and erased when the last kept record's period ends.
 - **Older key copies stop holding erased words.** After an erasure, older backups of your keys are re-sealed so they can't unlock what was erased. If some can't be re-sealed yet, your workspace says which ones and what to do.
 - **A workspace has a lasting ID.** Every workspace now has an ID that stays the same through restarts and moves. A copy gets its own.
-- **Faster upgrades.** Our largest workspace came back in about ten seconds after this upgrade, down from over three minutes, because its startup backup is now taken after it is already answering.
+- **Faster upgrades.** A workspace answers requests before its startup backup finishes, so a large workspace is back in seconds instead of minutes.
 - **Known.**
   - The first time a row's details are opened, they can take up to about a second.
   - A retraction hides an item from view. It does not erase it.
@@ -274,7 +274,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Only models you can use.** The list of models you can give an assistant now shows only the ones your workspace can actually use.
 - **Undo an install.** A workspace can now list what an install added and take it back out, with a preview first. The preview names every scheduled task it would stop.
 - **Large workspaces keep up.** A workspace's repository keeps its ready-made views current past 600,000 items, within the memory the workspace has.
-- **Known.** A table whose answers come from another table is slower on very large libraries for now. This will be addressed in the next release.
+- **Known.** A table whose answers come from another table is slower on very large libraries for now.
 
 ## The Read Path At Scale
 
@@ -287,17 +287,17 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Closing a tab no longer stops live updates in your other tabs.**
 - **A guest's key sees only their rooms.** A key given to a guest for one room could list the titles of other conversations in the workspace. It no longer can.
 - **If you have your own scripts:** reading a whole conversation in one go now returns its most recent 1,000 items, along with a marker to continue from. Scripts that relied on getting everything at once should read page by page until nothing more is left.
-- **Known.** The first time a large table is opened after an upgrade, it can take a few seconds while it is prepared in the background. On a workspace where items have been erased, opening a large table right after a change is a little slower for each erasure. This will be addressed in the next release.
+- **Known.** The first time a large table is opened after an upgrade or restart, it can take a few seconds while it is prepared in the background. On a workspace where items have been erased, opening a large table right after a change is a little slower for each erasure.
 
 ## Nothing Waits Behind A Load
 
 **Loading a large library no longer slows the rest of your workspace or drops anything along the way, stopping something or taking someone's access away takes effect at once, and the warning that files weren't saved now appears only when one really is missing and stays gone once you dismiss it.**
 
 - **Your workspace stays quick while it loads.** Sending thousands of items used to make everything else on a small workspace slow, sometimes for many seconds. Now the rest of the workspace keeps answering quickly while a load runs, even on the smallest hosted size.
-- **Nothing is dropped under load.** If your workspace is busy, it asks the sender to wait and try again, and keeps every item. A workspace that had fallen behind catches up on its own after the upgrade; older items are brought up to date without re-running anything they already did.
+- **Nothing is dropped under load.** If your workspace is busy, it asks the sender to wait and try again, and keeps every item. A workspace that had fallen behind catches up on its own; older items are brought up to date without re-running anything they already did.
 - **Stopping and revoking take effect at once.** Stopping an assistant, taking someone's access away, or erasing someone takes effect before you're told it's done, however busy the workspace is.
 - **Sending the same file twice adds nothing**, including names with accented letters, which could previously be added a second time.
-- **Tables show only what is current.** A table no longer counts items that were closed or replaced, so some counts may go down after the upgrade. A table that asks for a setting the workspace does not support yet, such as sorting, is told so by name instead of the setting being quietly ignored.
+- **Tables show only what is current.** A table no longer counts items that were closed or replaced, so some counts may be lower than before. A table that asks for a setting the workspace does not support yet, such as sorting, is told so by name instead of the setting being quietly ignored.
 - **Tables open faster**, especially when you look at the same one again.
 - **Only you can change what your forms offer.** The forms a venture shows can now be set up only by the workspace's owner.
 - **The "files not saved" warning tells the truth.** It appears only when a file really is missing, and dismissing it sticks.
@@ -307,7 +307,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 **An invite can now limit a guest to the kinds of record you choose, people you erase stay erased through every backup and restore, your connected storage opens only to you, and a whole library loads in minutes.**
 
-- **Invites can limit what a guest reads.** When you invite someone, you can now say which kinds of record they may read, for example the RSVPs on an event but not the contact details. The limit holds everywhere they might read: the conversation, search, counts, live updates and tables. If a guest can write something private (like their own phone number), the invite must say what they may read, so one guest can never see another guest's details. Invites made before this release keep their current access, and `spl doctor` tells you how many there are.
+- **Invites can limit what a guest reads.** When you invite someone, you can now say which kinds of record they may read, for example the RSVPs on an event but not the contact details. The limit holds everywhere they might read: the conversation, search, counts, live updates and tables. If a guest can write something private (like their own phone number), the invite must say what they may read, so one guest can never see another guest's details. Earlier invites keep their current access, and `spl doctor` tells you how many there are.
 - **Erased stays erased.** When you erase someone's data, the keys that could unlock it are now handled with your sealed backup, and a record of the erasure is kept outside the workspace and re-applied every time it starts. Restoring an older backup can no longer bring back someone you erased. `spl doctor` warns you if your backups are not protected by a passphrase, or if they sit only on the same disk as your workspace.
 - **Your connected storage opens only to you.** Files in storage you have connected (for example a Drive folder) can now be browsed and opened directly only by you. Everyone else plays a file through the table it belongs to. A Drive connection now stays inside the folder you connected, and switching a connection off takes effect straight away.
 - **Large loads in minutes.** You can now send many records in one request. A music library of about 12,000 records loads in under two minutes, where it used to take close to an hour, and sending the same file again adds nothing twice. Resend the same file rather than rebuilding it, so nothing is counted as new.
@@ -371,7 +371,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Recovery advice is safe.** When the workspace cannot start, it no longer suggests deleting files that can hold your recent work. A damaged store is named as damaged and points you to the restore guide. `spl reset` works for workspaces on any port.
 - **Tighter checks at the door.** Open live connections end as soon as the key they use is revoked. A signature on a record must be genuine to be accepted. The workspace's public startup information no longer shows the owner's identity to people who are not signed in as the owner. Invitations refuse settings they do not understand instead of quietly ignoring them.
 - **Hosted workspaces cost less per conversation.** Hosted workspaces now reuse the parts of a conversation that repeat between steps, so each later step costs a fraction of the first.
-- **"Got it" only appears when you can use it.** A notice now offers "Got it" only on a device that is allowed to dismiss it. A device paired before recent releases is asked to pair again instead.
+- **"Got it" only appears when you can use it.** A notice now offers "Got it" only on a device that is allowed to dismiss it. A device paired a long time ago is asked to pair again instead.
 
 ## The Assistant Does What It Says
 
@@ -389,9 +389,9 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 **Your second device gets your powers, the room you opened is yours, and older copies are named for what they hold.**
 
-- **A device you pair for yourself has the same rights you do.** Until now a phone or second browser paired for the workspace owner knew who you were but could not invite anyone: "this browser cannot make invitations yet". A device paired for the owner from a signed-in owner's browser now carries the owner's rights, and the members page on it works the way it does on your first browser. A device paired before this release keeps what it had until you pair it again, and the workspace says so rather than showing a greyed button.
+- **A device you pair for yourself has the same rights you do.** Until now a phone or second browser paired for the workspace owner knew who you were but could not invite anyone: "this browser cannot make invitations yet". A device paired for the owner from a signed-in owner's browser now carries the owner's rights, and the members page on it works the way it does on your first browser. An older paired device keeps what it had until you pair it again, and the workspace says so rather than showing a greyed button.
 - **The room you opened belongs to you.** On hosted workspaces the assistant's first reply could sort ahead of your first message, and the workspace then treated the assistant as the room's owner and refused to show you its members. Ties are now broken by the order things actually arrived, so the person who opened the room owns it.
-- **Copies exported before version 0.254 are named as secrets.** The previous release stopped credentials travelling in an exported copy. It could not reach copies already on disk, which still hold them. `spl doctor` now finds any such copy in the usual places and names it, `spl import --dry-run` says the same of any file you point it at, and the portability guide explains what to do (keep the file as you would a password, or rotate your tokens if it has left your machine).
+- **Older exported copies are named as secrets.** Exported copies no longer carry credentials, but older copies already on disk still do. `spl doctor` now finds any such copy in the usual places and names it, `spl import --dry-run` says the same of any file you point it at, and the portability guide explains what to do (keep the file as you would a password, or rotate your tokens if it has left your machine).
 - **A copy whose files arrived late is not deleted.** A copy imported while one file's contents had not yet reached it used to leave that file out of the list, and the next tidy-up could then record it as deleted, which a later complete copy could not undo. The file now stays listed, says that its contents are missing, and opens as soon as a complete copy arrives.
 - **"Download a copy" says three numbers.** How many files the copy carries, how many distinct contents that is, and how many files could not be included, each stated rather than worked out from the others.
 - **Ask for an app and get one.** The assistant's instructions now say how to write an app when you ask for one, so a plain "build me a tip calculator" is enough. Existing workspaces pick this up with `spl workspace repair --apply`.
@@ -491,8 +491,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 **You can ask your workspace to do something on a schedule, without being there.**
 
-- **Schedules you can create.** Until this release there was no way for somebody on a hosted
-  workspace to set up recurring work at all. Now you can create an automation, pause it, resume
+- **Schedules you can create.** On a hosted workspace you can create an automation, pause it, resume
   it, and see its history.
 - **Time zones.** A schedule can name a time zone, so "every weekday at 9" means nine where you
   are. The two awkward days of the year are handled deliberately: the spring change moves the run
@@ -520,7 +519,7 @@ This page summarizes recent releases in plain language: what changed and why it 
 
 - **One place to define "the latest".** A team can declare how to reduce many records to the
   current value per item, and every screen and assistant reads the same answer instead of each
-  working it out. A ledger stops showing every past version of everything.
+  working it out. A list of records stops showing every past version of everything.
 - **Assistants can read those answers too.** A scheduled assistant can consult a declared summary
   rather than re-reading raw history.
 
@@ -560,10 +559,8 @@ This page summarizes recent releases in plain language: what changed and why it 
 - **Files travel with a published repository.** Publishing a workspace now carries the files you
   stored in it, and restoring gives them back, each checked against its fingerprint. The publish
   report says whether every file was carried. Files written while the workspace is continuously
-  saving to its repository are not carried yet; a later release adds that.
-- **Smaller fixes.** A fresh workspace's welcome thread always shows as your conversation; the
-  run lists show the runs you just started; and an assistant started right after an install no
-  longer fails on its first step.
+  saving to its repository are not carried.
+- **Smaller fixes.** A new workspace's welcome thread always shows as your conversation, run lists show the runs you just started, and an assistant started right after an install no longer fails on its first step.
 
 ## The Unattended Workspace
 
@@ -573,12 +570,10 @@ This page summarizes recent releases in plain language: what changed and why it 
   wakes, it tries again on its own within a minute instead of waiting for a restart, and its first
   request after waking no longer fails. Files stored in a workspace are not part of its saved copy
   yet, and the workspace now says so.
-- **Scheduled work can wake a sleeping workspace.** A hosted workspace can tell the service when it
-  next needs to run, so the service can wake it at that moment. This is built and is being switched
-  on for hosted workspaces; until then, schedules run while the workspace is awake.
+- **Scheduled work and sleep.** Schedules run while a hosted workspace is awake.
 - **Your plan's limits hold everywhere.** Every run on a hosted workspace with a plan, scheduled
   ones included, follows that plan's limits, and those limits cannot be raised by writing
-  configuration. Workspaces created before this release get their plan as they are updated.
+  configuration.
 - **Scheduled assistants can run unattended.** An assistant that runs on a schedule no longer reads
   as done when it promised a result and produced nothing, and a question it asks every day replaces
   yesterday's copy instead of piling up.
@@ -589,9 +584,9 @@ For people running their own workspace or using the API:
   how long. Publish and restore now report that files are not carried.
 - A replacement machine for the same workspace takes over saving once the old one stops; while
   the old one still runs, the replacement reports that it cannot save rather than that it is
-  standing by, which a later release corrects.
+  standing by.
 - An actor's definition can name the threads and kinds its runs write, what they promise to
-  produce, and how their effects are undone. A failed item in a batch releases what it held.
+  produce, and how their effects are undone.
 
 ## The Kept Repository
 
@@ -616,269 +611,168 @@ For people running their own workspace or using the API:
 
 ## The First Question
 
-A fresh workspace now greets you with one real question in your call: "What
-are you working on?" It is an ordinary item in the lane, not a welcome card,
-and answering it opens your first thread, titled with exactly what you typed,
-and puts you inside it. Answering twice lands you in the same thread, never a
-second empty one, and a failure part way through leaves you with a thread and
-the question still open rather than an answer pointing at nothing. The question
-seeds only when a workspace is first set up with a preset other than `blank`,
-so a workspace that already existed gains nothing on upgrade. If you self-host,
-the wording is yours: set `SPL_FIRST_RUN_ASK` before the workspace is first
-configured.
+**A new workspace greets you with one real question: "What are you working on?"**
 
-Your call can now be read honestly. It says whether the workspace has been
-configured at all, so an empty lane means "nothing needs you" and not "never
-set up". It counts decisions (which need an answer) apart from heads-ups
-(which need only a nod), so a badge never overstates what needs a person, and
-it says whether its count is exact or a floor.
+- **Answering opens your first thread.** The thread is titled with exactly what you typed, and you land inside it. Answering twice takes you to the same thread, never a second empty one. If something fails part way, you keep the thread and the question stays open.
+- **Only new workspaces get it.** The question appears when a workspace is first set up with a preset other than `blank`. Existing workspaces gain nothing.
+- **Your own wording.** If you run your own workspace, set `SPL_FIRST_RUN_ASK` before the workspace is first configured to change the question.
+- **Your call reads honestly.** An empty list means "nothing needs you", not "never set up". Decisions (which need an answer) are counted apart from heads-ups (which need only a nod), and the count says whether it is exact or a minimum.
 
 ## The Stranger
 
-A record you send is stored exactly as you sent it, and the name you get back
-is the name of what was stored. Previously a number with many decimal places
-could be stored with slightly different digits than you wrote, so a client that
-computed its own record name disagreed with the workspace about the same
-record. That is fixed for anything sent to the workspace directly; a copy
-arriving from a paired workspace is not yet covered.
+**A record you send is stored exactly as you sent it, and the name you get back is the name of what was stored.**
 
-Your call reduces noise to what you can act on. When an automated member
-proposes the same thing over and over (one workspace held nearly two hundred
-identical suggestions), you see one row with the count, and deciding it once
-settles the whole group. A genuinely new proposal with the same wording later
-is shown again rather than silently absorbed.
-
-A workspace can now say what fills its disk (the records, each cache, and the
-rest, measured: three quarters of a busy workspace's disk is derived data, not
-your records) and hold its caches under a declared bound. A declared disk
-ceiling refuses ordinary writes above it while never refusing a configuration
-change, so a ceiling set too low can always be lifted. Every bound defaults to
-none, so an existing workspace behaves as before. `spl doctor` names the eight
-frame acts available on any open thread instead of reporting an empty
-vocabulary. The assistant was measured answering a stranger's first
-message on a fresh workspace in about eleven seconds.
+- **Exact numbers.** A number with many decimal places used to be stored with slightly different digits, so a client that worked out its own record name could disagree with the workspace. That is fixed for anything sent to the workspace directly.
+- **Fewer repeated suggestions.** When an automated member proposes the same thing over and over, you see one row with a count, and deciding it once settles the whole group. A genuinely new proposal with the same wording shows again.
+- **Disk use you can see.** A workspace can say what fills its disk and keep its caches under a limit you set. A disk limit refuses ordinary writes above it but never refuses a settings change, so a limit set too low can always be lifted. With no limit set, a workspace behaves as before.
+- **Clearer checks.** `spl doctor` lists the actions available on any open thread.
 
 ## The Proven Copy
 
-Recovery from the off-machine copy is now proven rather than assumed. A fresh
-workspace was rebuilt from the live copy of a busy workspace with every record
-coming back under its own name, none renamed, the copy current to the second,
-and the signing keys byte-identical. What you read from a workspace is now the
-exact bytes it stores, on every reading surface, so a name you compute from
-what you read matches the name the workspace holds.
+**Recovery from the copy kept off the machine works, and is checked.**
 
-A restore now names what it refused and why, and distinguishes a record whose
-parent was already missing at the source (which no restore can invent and is
-not loss) from a record the workspace turned away. `spl repo drift` decides by
-who the workspace is: a copy taken from a live writer is expected to run
-slightly behind and is no longer reported as drifted, while a missing flush is
-always reported.
-
-Two defects on the very first path a new operator walks are closed. A
-credential request with no credential could close the workspace's first-boot
-door and lock everyone out; it is refused before anything is written. And on a
-brand-new local workspace, `spl run` died on its first turn; it runs. A local
-workspace with no model now says what to do next (`spl config set-key`) instead
-of printing an internal sentence, and every release is now walked through a
-fresh workspace the way this documentation describes before it ships. A run is
-told to ask rather than guess when its goal is ambiguous, and a question it asks
-pauses the run until you answer.
+- **A full rebuild.** A fresh workspace can be rebuilt from the live copy of a busy workspace with every record back under its own name and the same signing keys.
+- **What you read is what is stored.** Every way of reading a workspace returns the stored records unchanged, so a name you work out from what you read matches the name the workspace holds.
+- **A restore explains itself.** It says what it refused and why, and tells a record whose parent was already missing at the source apart from a record the workspace turned away.
+- **Less false alarm.** `spl repo drift` expects a copy taken from a live workspace to run slightly behind, and no longer calls that drift. A missing save is always reported.
+- **A safer first start.** A credential request with no credential no longer locks everyone out of a new workspace. On a brand-new local workspace, `spl run` works on its first turn. A local workspace with no model tells you what to do next (`spl config set-key`).
+- **Ask, don't guess.** A run asks when its goal is unclear, and pauses until you answer.
 
 ## The Seat
 
-A run that asks you a question now pauses and resumes when you answer, by
-default. An ask whose run had already ended says so ("an answer records your
-decision and resumes nothing") and is counted apart in your call, so you always
-know whether answering will move anything. A member working in its own copy of
-a repository can delete a file there, one named file at a time, never a
-directory and never anything outside its own copy.
+**A run that asks you a question pauses, and resumes when you answer.**
 
-`spl doctor` gains rows that say when nothing is happening: whether this
-workspace replicates anywhere (and if not, that it is bound to no repository),
-and whether an enabled scheduled trigger has a target that is unavailable or
-has tripped its own breaker. Your task briefs join the daily backup. `spl repo
-drift` no longer reports a faithful copy as drifted, and a thread snapshot now
-carries each record's name so a restore cannot rename it. A built-in routing
-rule that had been erroring on most records is fixed.
+- **You know whether answering matters.** If the run behind a question has already ended, the question says so ("an answer records your decision and resumes nothing") and is counted apart.
+- **Deleting a file in a member's copy.** A member working in its own copy of a repository can delete a file there, one named file at a time. It can't delete a directory or anything outside its own copy.
+- **`spl doctor` says when nothing is happening.** It shows whether the workspace is saved anywhere, and whether an enabled scheduled trigger has a target that is unavailable or has stopped itself.
+- **Task briefs are backed up.** Your task briefs join the daily backup.
+- **Fixes.** `spl repo drift` no longer reports a faithful copy as drifted. A restore cannot rename a record. A built-in routing rule that failed on most records now works.
 
 ## The Faithful Round Trip
 
-A copy of your workspace is a faithful copy. Export and import, publish and
-restore, and the continuous off-machine copy all keep every record under the
-name it was stored under: on a busy workspace, over a hundred thousand records
-were published and restored with none renamed, where more than a thousand had
-been renamed before. Import now verifies that every record's contents match
-the name it claims, so a bundle cannot smuggle a record under another name.
-A workspace holding records with no thread can be exported again.
+**A copy of your workspace is a faithful copy.**
 
-Every request with a malformed body gets the same error shape, whichever door
-you sent it to. `spl adapter remove` actually removes, and `spl repo publish`
-says plainly when it only staged and did not publish. The first-boot door is
-decided by one rule, so the documented recovery flow on a fresh workspace works
-again. Known issue, deliberately not rushed: a workspace that has ever retired
-a member cannot yet be exported; the fix is a design decision and is tracked.
+- **Nothing renamed.** Export and import, publish and restore, and the continuous off-machine copy all keep every record under the name it was stored under.
+- **Import checks every record.** A bundle cannot smuggle in a record under another name.
+- **Records with no thread can be exported again.**
+- **One error shape.** Every request with a malformed body gets the same error, whichever endpoint you sent it to.
+- **Commands that do what they say.** `spl adapter remove` removes, and `spl repo publish` says plainly when it only staged and did not publish.
+- **Recovery on a fresh workspace works.** The documented recovery steps on a new workspace work again.
+- **Known limit.** A workspace that has ever retired a member cannot be exported.
 
 ## The First Hour
 
-The release after The Door, built from an audit of the surface a stranger
-touches first. The first-boot credential door now closes after first boot, so
-nobody can mint a credential on an already-running workspace without one.
-Writing a record no longer crashes on the second call, the command line no
-longer talks to a different workspace silently when the one you named is down,
-`spl health check` stops calling a healthy workspace unhealthy, and
-`spl token rotate` actually revokes the old token. `spl know`, `spl do` and
-`spl learn` gain `--fulfills`, the command-line way to close a thread. The
-documentation was rewritten to match the software: the retired assistants are
-gone from it, ten releases of capability got guide pages, and the Quickstart
-was tested end to end.
+**The first things a new person touches are safer and clearer.**
+
+- **No credentials on a running workspace.** The first-start credential step closes after first start, so nobody can create a credential on a running workspace without one.
+- **Fixes.** Writing a record no longer fails on the second call. The command line no longer quietly talks to a different workspace when the one you named is down. `spl health check` no longer calls a healthy workspace unhealthy. `spl token rotate` revokes the old token.
+- **Close a thread from the command line.** `spl know`, `spl do` and `spl learn` accept `--fulfills`.
+- **Documentation matches the software.** The Quickstart was tested end to end.
 
 ---
 
 ## The Door
 
-The sandbox now does real repository work end to end. A member actor takes a
-private git worktree, edits and tests the code through the governed seam, and
-hands back a diff the run names, while the rest of the host filesystem stays
-read-only and every attempt to write outside the worktree is refused by name. A
-run can also declare what it consumes and what it promises, so a record landing
-on a thread a live run watches wakes that run. Paid entitlement now reaches the
-instance: a caller reports what a subscription did and the kernel decides the
-tier it grants, under a ceiling no status can exceed.
+**The sandbox does real repository work end to end.**
+
+- **A private working copy.** A member actor takes a private copy of the repository, edits and tests the code, and hands back a diff the run names. The rest of the host's files stay read-only, and any attempt to write outside the working copy is refused by name.
+- **Runs that wake on new records.** A run can declare what it consumes and what it promises, so a record landing on a thread a live run watches wakes that run.
+- **Paid plans take effect.** A subscription's plan now reaches the workspace, within a ceiling no status can exceed.
 
 ## The Developer's Day
 
-A person can now sit at the terminal with a run. A member actor gets a git
-worktree it owns, runs the repository's declared check, makes the fix, turns the
-check green, and `spl run` streams the whole thing and prints the diff. The
-writable surface of a sandboxed non-operator run is its own worktree or nothing,
-verified before its credential is minted, and a run names a repository rather
-than a path.
+**You can sit at the terminal with a run.**
+
+- **Fix, check, diff.** A member actor gets its own copy of the repository, runs the repository's declared check, makes the fix, turns the check green, and `spl run` streams it all and prints the diff.
+- **A run can only write to its own copy.** A run names a repository rather than a path.
 
 ## The Honest Builder
 
-The words a run works by are now editable records. The guiding frame is resolved
-from a stored prompt at the start of every run, so an operator override reaches
-the next run instead of sitting unused. A failed run says why in one line, a
-turn may not both ask a question and quietly write, and two general tools
-(`query_records` and `emit_record`) let a bounded member read and write records
-directly. The spend and turn ceilings for each tier are now data you can edit
-rather than constants baked into the binary.
+**The instructions a run works under can be edited.**
+
+- **Editable instructions.** The guiding instructions come from a stored prompt at the start of every run, so an override reaches the next run.
+- **Short failure reasons.** A failed run says why in one line.
+- **Direct record tools.** `query_records` and `emit_record` let a bounded member read and write records directly.
+- **Limits you can edit.** The spend and turn limits for each tier are settings you can change.
 
 ## The Governed Session
 
-Dispatched engines like Claude Code are now first-class runs on the same ledger.
-A dispatched task records its start, its questions, and a kernel-authored report
-with clear outcome verbs, exactly like a native run. A new register
-(`spl register`) ranks your open questions blocking-first so you can see what
-needs you, and an answer you give can become standing policy: a permission rule,
-a hook, or a remembered fact.
+**Engines like Claude Code run as first-class runs.**
+
+- **Same record as a native run.** A dispatched task records its start, its questions and a report with clear outcomes.
+- **Your questions, ranked.** `spl register` ranks your open questions, blocking first.
+- **Answers become policy.** An answer you give can become a permission rule, a hook, or a remembered fact.
 
 ## The Measured Actor
 
-This release acts on the first honest measurement of how close the loop is to
-replacing Claude Code, fixing what a real-user battery turned up one failure at
-a time. Actor memory arrives: a run can `remember` a fact on the thread it is
-about, private by default, and those notes are shown the next time that thread
-is touched. Record search now returns the newest matches first instead of
-scanning the oldest, and an installed actor runs at its installer's tier rather
-than being throttled to trial limits.
+**Actors remember, and search finds the newest first.**
+
+- **Actor memory.** A run can `remember` a fact on the thread it is about. It is private by default and shown the next time that thread is touched.
+- **Newest first.** Record search returns the newest matches first.
+- **No trial limits for installed actors.** An installed actor runs at its installer's tier.
 
 ## The Record That Steers
 
-A post-tool hook is now a record you can write. `core.hook.v1` lets an operator
-add a short lesson that a running actor is shown after a matching tool call,
-authored as a config record and live on the next call with no restart and no
-code change. A hook can only add an observation, never silence or reorder
-anything, which keeps its effect easy to reason about.
+**A post-tool hook is a record you can write.**
+
+- **Add a lesson.** `core.hook.v1` lets an operator add a short lesson that a running actor is shown after a matching tool call. It takes effect on the next call, with no restart.
+- **Observation only.** A hook can add an observation but never silence or reorder anything.
 
 ## The Turn That Escalates
 
-Conversational turns can now escalate to run code and use tools when the work
-needs it, instead of replying that they cannot. A single reply can carry an
-escalation that the kernel runs through the full tool loop, and the answer
-records whether it ran, was refused, or was unavailable. This closed a
-long-standing gap where Studio agents said they could not run code even after
-the tools had shipped. Two same-day patches, The Second Block and The Offered
-Program, fixed reply parsing and turned the `run_code` switch on end to end.
+**A conversation can run code and use tools when the work needs it.**
+
+- **Escalate when needed.** Instead of replying that it cannot, a reply can escalate to a full tool run. The answer records whether it ran, was refused, or was unavailable.
+- **Turn it off.** You can turn this off for a given assistant.
 
 ## The Improvement Loop
 
-The actors can now be measured getting better. A run is graded against an eval
-suite, an actor is defined by what it makes the actor do, and this release wires
-those together so a new definition is compared against the one it succeeded, per
-axis, and "it improved" becomes a number rather than a claim. `spl eval history`
-reads that graded history for an actor.
+**You can measure whether an actor is getting better.**
+
+- **Compare definitions.** A run is graded against an evaluation suite, and a new definition is compared with the one it replaced, axis by axis.
+- **History.** `spl eval history` shows the graded history for an actor.
 
 ## The Self-Configuring Actor
 
-When an actor needs an integration nobody set up, it now reaches a person with a
-complete proposal naming the service, the operations, and the credential it
-needs, instead of failing quietly. A person provides the key and the key becomes
-a stored secret, never a record. A new `spl tool` surface shows what the
-instance can reach and whether each tool's credential resolves.
+**When an actor needs a service nobody set up, it asks you properly.**
+
+- **A complete proposal.** It names the service, the operations and the credential it needs, instead of failing quietly.
+- **Keys stay secret.** You provide the key, and it is stored as a secret, never as a record.
+- **See what is reachable.** `spl tool` shows what the instance can reach and whether each tool's credential works.
 
 ## The Program That Calls
 
-A JavaScript program run by an actor can now call a granted tool through the
-governed network edge, and the same gate can refuse it mid-flight; every other
-host is refused at that one edge. The JavaScript runtime is published and
-installable with `spl runtime install`, content-addressed and version-pinned.
+**A JavaScript program run by an actor can call a granted tool.**
+
+- **One controlled way out.** Network access goes through a single checked route that can refuse a call mid-flight. Every other host is refused.
+- **Install the runtime.** `spl runtime install` installs the JavaScript runtime.
 
 ## The Kind Decides
 
-The compute substrate gains its capability model, keeping what a program may
-reach separate from what it may spend, plus a governed egress seam, so a
-program's network access is a decision rather than an open door. A decision
-request that is valid by its own contract is answerable again across the pending
-queue, and the records door now refuses a field it would previously have dropped
-silently, naming the fields it accepts.
+**What a program may reach is separate from what it may spend.**
+
+- **Network access is a decision.** A program's network access is checked, not left open.
+- **Decision requests work again.** A valid decision request can be answered again from the pending list.
+- **Clearer refusals.** An unknown field in a request is refused, naming the fields that are accepted.
 
 ## The second principal
 
-Every run for a principal other than the operator now takes the sandboxed
-transport by default, decided per run by the tier of the principal it runs
-for; the operator's own runs stay in process unless they choose otherwise,
-and each default is one config record to move. A tool the tier grants but
-the sandbox cannot serve is withheld and named on the run, never dropped
-silently; a run that was refused for reaching one now starts. A stop lands
-at the run's next step: its next tool call is answered with a stop verdict,
-the run ends cancelled, and its worker is reaped. Approving a proposal wakes
-the run that made it, so it reads the decision and finishes instead of
-waiting forever.
+**Runs for people other than the owner are sandboxed by default.**
 
-What a run is told and what fails are on its records: the kernel's own
-frame is a record named on every run, a provider failure inside a run is a
-record of its own, every turn says how its provider was resolved and every
-tool result how long it took. Runs are listable across actors, the event
-stream types verdicts and guardrails, the health door reports live runs,
-the roster carries each definition's ceilings, and `spl runs list|show|tail`
-reads it all from the terminal. The define door writes what it accepts and
-refuses what it cannot honour.
-
-Every release now runs an escape suite from inside a real sandboxed run, on
-the same-user shape and on a root daemon with a separate worker user; it
-found and closed a gap where a hosted worker had no resource limits.
+- **Sandboxed by default.** Runs for anyone other than the owner use the sandbox. The owner's own runs stay in process unless they choose otherwise.
+- **Missing tools are named.** A tool the sandbox cannot serve is named on the run instead of being dropped silently.
+- **Stop takes effect at the next step.** A stopped run ends as cancelled.
+- **Approving wakes the run.** Approving a proposal wakes the run that made it, so it reads the decision and finishes.
+- **More on every run.** Each run shows what it was told, why a provider failed, and how long each tool took. Runs can be listed across actors, and `spl runs list|show|tail` reads them from the terminal.
 
 ## An actor that defines actors
 
-Every work-loop actor can now read the roster (`list_actors`), read a run
-(`explain_run`) and propose a definition (`propose_definition`). A proposal
-is a decision request to the operator carrying a complete blueprint and the
-diff against what is installed; the run waits on the answer, and approving
-it installs the blueprint as the approver, bounded by the approver's own
-grant. The installed definition records who proposed it, a verdict on its
-runs also grades the proposer, and the proposer may never verdict such a run
-itself.
+**An actor can propose another actor, and you approve it.**
 
-A work-loop actor's instructions can be a chain of prompt records, and a
-work-loop actor set as a thread default now answers a person the way the
-conversational actors do, so no adapter code is needed for an actor that
-talks.
-
-Also in this release: a definition's declared budget and turn ceilings
-apply to runs started without their own; the roster is a door
-(`GET /v1/actors/roster`); and a sandboxed run reads the roster and run rows
-through the instance rather than through a store its credential cannot see.
+- **New tools for actors.** Actors can read the roster (`list_actors`), read a run (`explain_run`) and propose a definition (`propose_definition`).
+- **You decide.** A proposal reaches you with a complete blueprint and what would change. Approving it installs the blueprint with your own permissions. A proposer can never judge a run of its own proposal.
+- **Instructions as a chain.** An actor's instructions can be a chain of prompts.
+- **The roster.** `GET /v1/actors/roster` lists every actor with its limits.
 
 ---
 
@@ -932,7 +826,7 @@ See [Faculties](/docs/concepts/faculty) and [The calibrated marketplace](/docs/c
 
 ## Intelligence out of the box
 
-Fresh instances now come with a working intelligence path configured automatically: there's no manual provider setup before the conversational agent and work loops can run. The instance is recognized as a metered, audited participant against the shared gateway, governed by its own permission model.
+A new workspace comes with the assistant already working: there is no provider to set up before you can talk to it or run work.
 
 ---
 

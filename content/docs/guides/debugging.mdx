@@ -259,7 +259,7 @@ grep "PERMISSION DENIED" ~/.syncro/logs/spl.log | tail -20   # what got denied?
 spl audit export --since 1h --categories decision                # decision-gate decisions in the same window
 ```
 
-If you've locked yourself out, see [`spl config permissions-unlock`](/docs/reference/cli#emergency-recovery-v0100).
+If you've locked yourself out, see [`spl config permissions-unlock`](/docs/reference/cli#emergency-recovery).
 
 ### "I deleted the record store by accident"
 
@@ -274,20 +274,20 @@ spl namespace show <claimed-ns>       # walk the ancestor chain
 
 The `show` output marks each ancestor with `✓` (Active) or `✗` (Archived/Deleted). If any ancestor is non-Active, the descendant is rejected — that's the [monotonic narrowing rule](/docs/concepts/namespaces#the-narrowing-rule).
 
-## What's NOT yet covered by these tools
+## What these tools don't cover
 
-A few things still require log reading or direct database inspection:
+A few things still require reading the log:
 
-- **Trust score derivation traces** — `spl trust` shows current scores, but not the per-record evidence chain that produced them. A `spl debug trust <actor> <domain>` command is planned for a future release; for now, read the verdict records on the actor's trust thread directly.
-- **Dispatch internals** — when a dispatch fails, you see the failure in the task thread, but not the adapter-side timings, retries, or sub-thread tool calls. Pull these from the instance log filtered by `target=syncropel_engine::dispatch`.
+- **Trust score derivation traces** — `spl trust` shows current scores, but not the per-record evidence chain that produced them. To see the evidence, read the verdict records on the actor's trust thread directly.
+- **Dispatch internals** — when a dispatch fails, you see the failure in the task thread, but not the adapter-side timings, retries, or sub-thread tool calls. Pull these from the instance log.
 - **Performance regressions** — the expression cache stats are exposed by doctor, but per-rule evaluation timings live only in the log.
 
-These are bounded follow-ups. None are urgent — the four shipped tools cover the everyday investigation surface.
+The tools above cover the everyday investigation surface.
 
 ## Reference
 
-- [`spl doctor`](/docs/reference/cli#developer-tools-v0100) — CLI reference
-- [`spl debug replay/thread-diff`](/docs/reference/cli#developer-tools-v0100) — CLI reference
-- [`spl audit export`](/docs/reference/cli#developer-tools-v0100) — CLI reference
+- [`spl doctor`](/docs/reference/cli#developer-tools) — CLI reference
+- [`spl debug replay/thread-diff`](/docs/reference/cli#developer-tools) — CLI reference
+- [`spl audit export`](/docs/reference/cli#developer-tools) — CLI reference
 - [SIEM Integration Guide](/docs/guides/siem-integration) — pipeline recipes for Splunk/Elastic/Loki
 - [Operator Runbook](/docs/operate/runbook) — recovery procedures

@@ -13,7 +13,7 @@ Allow ~30 minutes including a one-time decision approval on bob's side.
 
 ## Before you start
 
-- `spl 0.33.0` or later (`spl --version`)
+- `spl` installed (`spl --version`)
 - The shell can run two instances side by side. Easiest setup: same machine, different ports + different `SYNCROPEL_HOME`.
 - Each instance has a cryptographic identity (`spl identity show` reports a DID). If not, `spl identity generate`.
 - Cross-instance reachability — both instances running on the same machine satisfies this trivially.
@@ -213,7 +213,7 @@ You'll see at least three records:
 - `pair.genesis.v1` (signed by bob) — the activation record
 - `pair_active.v1` (alice-local) — alice's confirmation
 
-State is the fold over this thread. Pause/resume/revoke commands all emit records that change the fold result. There is no "pair table" that lives outside records.
+The pair's current state comes from this thread. Pause, resume and revoke each add a record that changes it. There is no separate pair table outside the records.
 
 ## What just happened
 
@@ -223,7 +223,7 @@ You exercised Syncropel's **federation primitive** end-to-end:
 2. **Operator approval is structural, not bypassable.** Bob's instance raised a decision request and refused to complete until an operator approved. The approval is itself a signed record — auditable forever. Auto-approval is opt-in via a CEL decision policy (see the [federation pair guide — auto-approval](/docs/guides/federation-pair#auto-approval-via-cel)) for trusted contexts; default is manual.
 3. **`spl sync` consults the pair store automatically.** The old antipattern (`spl sync ... --peer-token sk_...`) doesn't exist on this command. The pair record holds the credential; sync looks it up.
 4. **Records are content-addressed across stewards.** Alice's record id == bob's record id for the same record. There is no "alice-side id" and "bob-side id." This is what makes CRDT-style merge trivial: same id → same record, no conflicts possible.
-5. **The relationship is auditable + portable.** Pair lifecycle is records, not config. `spl export` from alice carries the pair record; importing to a new instance carries the relationship forward. URLs auto-refresh on first contact via DID resolution (see [portability guide](/docs/guides/portability#migrating-between-instances)).
+5. **The relationship is auditable + portable.** Pair lifecycle is records, not config. `spl export` from alice carries the pair record; importing to a new instance carries the relationship forward. URLs auto-refresh on first contact via DID resolution (see [portability guide](/docs/guides/portability#migrating-between-workspaces)).
 
 The pair primitive is the gate to everything else federation does — async relay, cross-namespace consent, multi-instance dispatch — but it itself is just records on a reserved thread.
 

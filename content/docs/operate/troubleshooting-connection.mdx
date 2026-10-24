@@ -41,7 +41,7 @@ orphaned.
 **Symptom**: Banner says "Pair required". The dashboard shows the
 pairing screen.
 
-**Why**: Instance has `auth.required = true` (the v0.16+ default) and the
+**Why**: Instance has `auth.required = true` (the default) and the
 browser has no stored credential for this instance's DID.
 
 **Fix (fastest, no CLI)**: if you kept a key to this place, open **+ add a connection** and paste the whole line; you are back in as the same person ([Keeping your access](/docs/guides/keeping-your-access)). Members and guests without the CLI should always start here.
@@ -133,8 +133,7 @@ to an instance you've reached on your LAN.
 **Symptom**: Amber banner says "DEV MODE · auth bypassed".
 
 **Why**: Instance was started with `auth.required = false`, typically
-during dev with `--insecure-localhost` or before v0.16's default
-flip. Functional but not safe to expose.
+during dev with `--insecure-localhost` or on an old instance that predates the secure default. Functional but not safe to expose.
 
 **Fix**: Restart with `auth.required = true` (the default in current
 releases) once you've finished dev work. Or leave as-is for ephemeral

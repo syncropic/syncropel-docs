@@ -34,7 +34,7 @@ Both should report `ok` with the current version and record count.
 spl stop
 ```
 
-This reads `~/.syncro/run/spl.pid`, sends `SIGTERM` to the instance process, and waits for graceful shutdown. The instance flushes the SQLite WAL, closes the socket, removes the PID file, and exits.
+This reads `~/.syncro/run/spl.pid`, sends `SIGTERM` to the instance process, and waits for graceful shutdown. The instance finishes pending writes, closes the socket, removes the PID file, and exits.
 
 ### When `spl stop` says "not running" but the instance clearly is
 
@@ -144,7 +144,7 @@ docker run -d \
 
 For added safety, a daily `cron` or `systemd timer` snapshotting that host directory to remote storage (S3, B2, SFTP, etc.) is appropriate for any instance carrying real data.
 
-### Portable backup — publish the instance (v0.118+)
+### Portable backup — publish the instance 
 
 The sqlite `.bak` protects against local file loss. For a backup that travels — one you can rebuild a working instance from on any machine — publish the whole instance as a repository snapshot:
 
@@ -274,8 +274,8 @@ The upgrade drill (`bash tests/drills/upgrade.sh`) verifies the data-preservatio
 ### What can go wrong, and how to recognize it
 
 - **Binary download fails partway**: the install script downloads to a temp file and atomically `mv`s into place. A failed download leaves the old binary intact. You'll see the old version on `spl version`.
-- **Instance won't start on the new binary**: a panic or graceful refusal. Read the log. Roll back by reinstalling the previous version (`curl -sSf https://get.syncropic.com/spl?v=0.9.1 | sh`) and restarting.
-- **Records present but trust scores empty**: the new instance rebuilt trust from records on startup. Wait a moment for `rebuild_from_store()` to complete; check `spl trust` again.
+- **Instance won't start on the new binary**: a panic or graceful refusal. Read the log. Roll back by reinstalling the previous version (`curl -sSf https://get.syncropic.com/spl?v=<previous-version> | sh`) and restarting.
+- **Records present but trust scores empty**: the new instance rebuilt trust from records on startup. Wait a moment for the rebuild to finish; check `spl trust` again.
 
 ## Common issues and fixes
 
@@ -343,7 +343,7 @@ Completion
   success:         false
 ```
 
-If `signal: Some(15)` (SIGTERM) instead of `Some(9)`, you're in a different failure class — process-level shutdown rather than kernel OOM. The salvage steps below still apply, but the prevention guidance at the bottom of this section won't help; investigate budget exhaustion, agent-CLI signal handling, or container/cgroup limits instead.
+If the signal is 15 (SIGTERM) instead of 9, you're in a different failure class — process-level shutdown rather than kernel OOM. The salvage steps below still apply, but the prevention guidance at the bottom of this section won't help; investigate budget exhaustion, agent-CLI signal handling, or container/cgroup limits instead.
 
 ### Step 2 — Inspect the worktree
 

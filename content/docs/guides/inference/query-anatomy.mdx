@@ -5,7 +5,7 @@ description: The full infer.query.v1 body shape — every field, every type, eve
 
 ## Overview
 
-An `infer.query.v1` body is validated against a JSON Schema shipped in `@syncropel/config@0.3.x`. This page walks every field. If you want the canonical schema source, see the [schema reference](/docs/reference/infer-query-schema).
+An `infer.query.v1` body is validated against a published JSON Schema. This page walks every field. If you want the canonical schema source, see the [schema reference](/docs/reference/infer-query-schema).
 
 Every query has three required parts: `input` (what to answer), `responders` (who may answer), `fold` (how answers combine). The `answer_shape` is also required and validates the folded result. Everything else is optional with sensible defaults.
 
@@ -224,7 +224,7 @@ If the filter yields fewer than `min_quorum` candidates, the executor emits `no_
 
 ## Dial
 
-The dial is Syncropel's [novelty knob](/docs/concepts/trust#the-dial) — d in [0, 1], with thresholds at 1/3 (REPLAY), 1/2 (ADAPT), 2/3 (EXPLORE). In an inference query it influences relevance weighting (higher d = more willingness to try novel responders).
+The dial is Syncropel's [novelty knob](/docs/concepts/trust) — d in [0, 1], with thresholds at 1/3 (REPLAY), 1/2 (ADAPT), 2/3 (EXPLORE). In an inference query it influences relevance weighting (higher d = more willingness to try novel responders).
 
 Scalar form:
 
@@ -324,4 +324,4 @@ Claude Sonnet does the primary review. GPT-4 verifies. If they disagree beyond t
 - **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step flows.
 - **[Schema reference](/docs/reference/infer-query-schema)** — the authoritative JSON Schema.
 - **[CEL Expressions](/docs/guides/cel-expressions)** — bindings for predicate and fold expressions.
-- **[`spl infer` CLI](/docs/reference/cli#infer)** — build queries from the shell.
+- **[`spl infer` CLI](/docs/reference/cli#inference--spl-infer)** — build queries from the shell.

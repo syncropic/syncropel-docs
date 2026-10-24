@@ -26,7 +26,7 @@ The most common causes and their fixes:
 
 ### `unable to open database file`
 
-The instance could not open `hub.db`: either the path is wrong, the directory isn't writable, or the current working directory is in a location SQLite doesn't handle well (notably UNC or WSL-mounted paths on Windows).
+The instance could not open `hub.db`: either the path is wrong, the directory isn't writable, or the current working directory is in a location that doesn't support file locking well (notably UNC or WSL-mounted paths on Windows).
 
 Quick workaround: specify the store path explicitly.
 
@@ -63,7 +63,7 @@ If the owner is a stale `spl`, see "stale PID file" below. If it's a different p
 
 ## "Database is locked"
 
-SQLite reports the store is locked. Two common causes.
+The records file is locked. Two common causes.
 
 ### A zombie `spl.exe` still holds the file (Windows)
 
@@ -81,7 +81,7 @@ Then start the instance again.
 
 ### 9P or WSL cwd interaction (Windows)
 
-Running `spl.exe` from a WSL shell inherits a working directory under `\\wsl$\<distro>\...`. The Windows SQLite build does not play well with 9P filesystem locking. Symptoms: intermittent `database is locked` that clears after a machine reboot and returns the next time you start from WSL.
+Running `spl.exe` from a WSL shell inherits a working directory under `\\wsl$\<distro>\...`. Windows does not handle file locking well on that kind of path. Symptoms: intermittent `database is locked` that clears after a machine reboot and returns the next time you start from WSL.
 
 Fix: run `spl` from a native Windows terminal (PowerShell or Windows Terminal), not from a WSL shell.
 
@@ -221,7 +221,7 @@ Always start `spl serve` from a working directory you control (your home directo
 These apply to a workspace created at syncropel.com.
 
 - **A connection error right after a quiet period.** The workspace was asleep and is waking up. Waking usually takes a couple of seconds; try again in a moment.
-- **A `401` after reconnecting a machine.** The key this machine holds is no longer accepted. Connect the machine again and save the new key with `spl token save <token>`; see [Connect your command line](/docs/get-started/hosted#connect-your-command-line-to-the-hosted-workspace).
+- **A `401` after reconnecting a machine.** The key this machine holds is no longer accepted. Connect the machine again and save the new key with `spl token save <token>`; see [Connect your command line](/docs/get-started/connect-the-command-line).
 - **Storage full on the free plan.** A free workspace has 1 GB of storage; a storage-full error means it has reached that limit. See [Pricing](/docs/get-started/pricing) for what each plan includes.
 
 ## Still stuck

@@ -1,55 +1,25 @@
 ---
 title: Body kinds
-description: Schema reference for built-in `body.kind` values. Records you can subscribe to, query against, and project from — emitted by the engine during dispatch, inference, and federation.
+description: Schema reference for built-in `body.kind` values. Records you can subscribe to, query against, and project from — written during dispatch, inference, and federation.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-<Callout type="info" title="Body-kind family renamed: `core.agent.*` → `core.work.*`">
+<Callout type="info" title="Older records use `core.agent.*` names">
 
-The family of body kinds that describes goal-structured work was
-renamed from `core.agent.*` to `core.work.*`. The same primitive
-serves any actor doing goal-structured work — humans, LLM agents,
-workflows, automation — so the family name reflects that.
+Goal-structured work is recorded under the `core.work.*` family (`loop`, `turn`, `tool_call`, `tool_result`, `loop_outcome`, `loop_cancel`, `plan`, `criteria`, `evaluation`, `turn_judgment`, `note`, `compensation`, `artifact`, `coercion`). Older records written under the previous `core.agent.*` names remain readable: you can still query them and project from them. New writes must use the `core.work.*` names; the old names are refused.
 
-What changed:
-
-- `core.agent.*` (15 kinds: `loop`, `turn`, `tool_call`, `tool_result`,
-  `loop_outcome`, `loop_cancel`, `plan`, `criteria`, `evaluation`, `turn_judgment`,
-  `note`, `compensation`, `artifact`, `coercion`) → `core.work.*` with the
-  same names.
-- `core.agent.aitl.v1` → `core.work.decision_request.v1`, with a clearer
-  body shape: `requester` + `decider_did` or `decider_role` + `question`
-  + `options` + `context`.
-- `core.scribe.delegation.v1` and `core.guide.delegation.v1` → unified
-  `core.work.delegation.v1` with a `delegator_kind` field.
-- New kinds: `core.work.trust_delta.v1`, `core.actor.preferences.v1`,
-  `core.engine.actor_defaults.v1`.
-
-What stays the same:
-
-- Records emitted under the old names before v0.52 remain readable —
-  you can still query them, fold them, and project from them.
-- The 8-record-field envelope (`parents`, `thread`, `actor`, `act`,
-  `body`, `clock`, `data_type`, `judged_by`) is unchanged.
-
-What to update:
-
-- Clients emitting `core.agent.*` records need to switch to the new
-  names — the engine rejects new emits of the old names.
-
-See the [unified body-kinds list](#body-kinds) below for the v0.52
-shape.
+See the [unified body-kinds list](#body-kinds) below.
 
 </Callout>
 
-`body.kind` is the body-convention discriminant — a string in scope.category.entity[.version] format that names the schema of `record.body`. Built-in kinds emitted by the engine are documented here; user-extension kinds (anything outside the `core.*` and `syncropel.*` reserved scopes) follow the same grammar but live in their own registries.
+`body.kind` is the body-convention discriminant — a string in scope.category.entity[.version] format that names the schema of `record.body`. Built-in kinds are documented here; user-extension kinds (anything outside the `core.*` and `syncropel.*` reserved scopes) follow the same grammar but live in their own registries.
 
 For the kind grammar itself (3 vs 4 segments, allowed characters, reserved scopes, version semantics), see the [body.kind manifest guide](/docs/guides/body-kind-manifest).
 
 <Callout type="info" title="The manifest is the authoritative kind registry; this page is a curated tour">
 
-This page documents the kinds most worth knowing by hand. The **complete, machine-readable enumeration** of every built-in kind is the code-derived registry, published as **`sdks/manifest.json`** (mirrored by the `@syncropel/config` package) and re-exported on every release — it is generated from the kernel's constitutional registry, so it never drifts from what the daemon actually accepts. When you need the exact fields or `substrate_role` of a specific kind, or a kind not listed here, the manifest is canonical and this page is not. A new kind joins the manifest at build; this reference gains an entry only for kinds an integrator will reach for directly.
+This page documents the kinds most worth knowing by hand. The **complete, machine-readable enumeration** of every built-in kind is published as **`sdks/manifest.json`** (mirrored by the `@syncropel/config` package). It always matches what the server accepts. When you need the exact fields of a specific kind, or a kind not listed here, the manifest is canonical and this page is not. This reference lists only the kinds an integrator is likely to reach for directly.
 
 </Callout>
 
@@ -79,7 +49,7 @@ resumed) carries a `context` block a client reads instead of parsing prose:
 | `context.escalation.loop_cost_usd` | This beat's share of the run: everything up to the park, or the resume's spend alone when `resumed` is true. |
 | `context.escalation.resumed` | `true` on the reply composed back after a parked run was answered and finished. |
 | `context.report` | The verb the run closed with (`done`, `blocked`, `surprised`, `needs_you`, `rejected`). The `REPORT:` line itself never reaches the person. |
-| `context.wordless` | `true` when the model returned no words and the content is the kernel's one-line stand-in. |
+| `context.wordless` | `true` when the model returned no words and the content is a one-line stand-in. |
 
 **One coherent cost.** A parked-then-resumed run produces two reply beats.
 The first carries the run's cost up to the park; the second carries only what
@@ -245,8 +215,8 @@ Every run of a work loop (`spl work-loop`, `POST /v1/work/loop`, or a chat-actor
 ### Loop lifecycle
 
 - **`core.work.loop.v1`** — the loop record itself. Carries goal, tier, ceilings (`max_turns`, `wall_clock_secs`, `token_budget`), and any per-loop `task_budget`.
-- **`core.work.turn.v1`** — one turn of the loop. Sequenced by `body.turn_index`; carries the prompt fold, model call summary, and per-turn cost.
-- **`core.work.tool_call.v1`** + **`core.work.tool_result.v1`** — every tool invocation and its result. The tool-call body is permission-checked through the engine; the result body carries success or a structured failure code. Failure feedback is always returned to the agent as a tool result so the next turn can read it and self-correct.
+- **`core.work.turn.v1`** — one turn of the loop. Sequenced by `body.turn_index`; carries the prompt, model call summary, and per-turn cost.
+- **`core.work.tool_call.v1`** + **`core.work.tool_result.v1`** — every tool invocation and its result. The tool call is permission-checked; the result body carries success or a structured failure code. Failure feedback is always returned to the agent as a tool result so the next turn can read it and self-correct.
 - **`core.work.loop_outcome.v1`** — the terminal record. `body.outcome` is one of `completed`, `failed`, `cancelled`, `blocked`, `max_turns`, `budget_exhausted`, `guardrail_halt`, or `awaiting_actor` (paused). Non-terminal outcomes carry structured payloads — `budget_exhausted` includes `budget_kind`; `guardrail_halt` includes `tool`, `args_hash`, and `count`.
 
 ### Halts and signals
@@ -254,42 +224,42 @@ Every run of a work loop (`spl work-loop`, `POST /v1/work/loop`, or a chat-actor
 - **`core.work.coercion.v1`** — paired with a `blocked` outcome. Names the structured `reason` (`tool_unavailable` / `ambiguous_goal` / `precondition_failed` / `decision_required` / `input_invalid` / `internal_error`), a `narrative` field, and where relevant a `missing_tools` array or `decision_request_ref`. This is how the loop reports an honest "I can't do this" instead of producing noise.
 - **`core.work.guardrail.v1`** — emitted when a repeated-failure pattern is detected. `verdict: "block"` fires mid-loop when the next attempt at a thrashing signature gets a synthetic failure result returned to the agent (the loop continues — the agent gets to change strategy); `verdict: "halt"` fires when the loop terminates with a `guardrail_halt` outcome. Body carries `tool`, `args_hash`, `count`, and `threshold`.
 - **`core.work.compensation.v1`** — emitted when a loop violates a harness assumption (today: context-reset firings, where the model wraps up prematurely as it nears its context limit). The compensation record names the seam + the violated assumption + context. Operators can review per-actor anomalies via `GET /v1/work/compensation/review`.
-- **`core.work.observation.v1`** — the environment steering a running actor. When something other than the model notices something about a run and puts it in front of the model on its next turn, that intervention is a record: it names the `rule` that fired, carries the exact `text` the actor was shown, and names the `loop_thread` it steered. Hooks in other agent harnesses are configuration files and leave nothing behind, so nobody can ask afterwards why a run changed course. Here you can. `rule` is required and non-empty at ingest, because an anonymous nudge is indistinguishable from the model having changed its own mind.
+- **`core.work.observation.v1`** — the environment steering a running actor. When something other than the model notices something about a run and puts it in front of the model on its next turn, that intervention is a record: it names the `rule` that fired, carries the exact `text` the actor was shown, and names the `loop_thread` it steered. Because the nudge is a record, you can always ask afterwards why a run changed course. `rule` is required and must not be empty.
 
 - **`core.work.decision_request.v1`** — pause for human approval. When a loop needs a decision, it raises one of these and pauses with an `awaiting_actor` outcome until you respond.
-- **`core.work.loop_cancel.v1`** — built-in cancel. A `DO` of this kind on the loop thread propagates through the reconciler to the in-process loop, which exits with a `cancelled` outcome.
+- **`core.work.loop_cancel.v1`** — built-in cancel. A `DO` of this kind on the loop thread stops the running loop, which exits with a `cancelled` outcome.
 
-### Chat-actor delegation (v0.49)
+### Chat-actor delegation
 
 When a Scribe or Guide chat-actor receives a message that opens with `@agent <goal>`, it delegates to a real loop running under the **user**'s identity (not the chat-actor's), and pair-completes when the loop terminates.
 
 - **`core.work.delegation.v1`** — Scribe's record that it has handed a goal off to a work loop. `body.parent_loop_id` references the spawned loop.
 - **`core.work.delegation.v1`** — same shape, for the Guide actor.
-- **`core.actor.usage.v1`** — daily per-actor aggregate (loop count, input/output tokens, cost). Emitted by the usage aggregator; consumed by the cost-preview endpoint to surface "you've used $X.YZ of your $Z.WW daily cap."
+- **`core.actor.usage.v1`** — daily per-actor aggregate (loop count, input/output tokens, cost). Used by the cost-preview endpoint to show "you've used $X.YZ of your $Z.WW daily cap."
 
-For the complete work-loop family (29 kinds total — including artifact, note, coercion, and the v0.39 scribe/guide call/response/error family) see [the body-kinds manifest](/docs/guides/body-kind-manifest) — the manifest is the canonical source, and stays byte-identical with the engine's registry.
+For the complete work-loop family (including artifact, note, coercion, and the scribe/guide call/response/error family) see [the body-kinds manifest](/docs/guides/body-kind-manifest), which is the canonical list.
 
 ## Other built-in kinds
 
 Pointers to the rest of the kind surface — full schemas live in their own reference pages.
 
-- **`core.workspace.v1`** + **`core.workspace_view.v1`** — a workspace (an interactive surface carried as a record) + per-thread-per-actor projection memory. See [Workspaces](/docs/concepts/workspaces).
+- **`core.workspace.v1`** + **`core.workspace_view.v1`** — a workspace (an interactive surface carried as a record) + remembered view state per thread and actor. See [Workspaces](/docs/concepts/workspaces).
 - **`core.instance.shell.v1`** — an instance's Studio chrome (the navigation rail, side panels, and footer that frame every screen) carried as a record. Resolved at `GET /v1/instance/shell` and in the `GET /v1/instance/bootstrap` aggregate. See [Instance chrome](/docs/concepts/instance-chrome).
 - **`core.credential.v1`** — secrets and external credentials. See [Secrets](/docs/concepts/secrets).
 - **`core.consent.v1`** — cross-namespace consent grants for federation. See [Consent](/docs/guides/consent).
-- **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`** — CEL-driven engine config records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).
+- **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`** — CEL-driven configuration records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).
 - **`core.subscription.v1`** — Server-Sent-Events subscription manifests.
 - **`core.invite.v1`** — pair-share-invite envelope on `th_invites`. Fields: `invite_id`, `issuer_did`, `issuer_key_fp`, `scope_target` (`instance` / `thread:<id>` / `namespace:<ns>`), `scopes[]`, `ttl_seconds`, `max_uses`, `accept_holder_types[]` (`guest` / `federated` / `*`), `device_label?`, `notes?`, `signature`. See [Pair, share, invite](/docs/guides/pair-share-invite) and the [API reference — pair, share, invite](/docs/reference/api#pair-share-invite).
 - **`core.invite.event.v1`** — invite lifecycle events on `th_audit_invites` mirror. Discriminated by `event_kind`: `redeemed` (carries `holder_type`, `holder_did?`, `holder_pubkey?`, `bearer_token_id?`, `bearer_sa_id?`), `revoked` (carries `revoker_actor`, `revoker_reason?`), `exhausted` (auto-emitted when `uses_remaining` reaches 0), `refused` (carries `refusal_reason`: `expired` / `revoked` / `holder_type_mismatch` / `bad_proof` / `freshness_violation` / `key_unknown` / `consent_denied`).
 - **`core.invite_template.v1`** — operator's saved invite shapes on `th_invite_templates`. Fields: `template_id`, `label`, `ttl_seconds`, `max_uses`, `scopes[]`, `accept_holder_types[]`, `notes?`. Surfaces in the `spl invite templates` picker.
-- **`core.identity.grant.v1`** — a grant between principals; membership is one of these. Carries the scope facet (the runtime normal form), `expires_at`, attenuation caveats (`max_depth` / `max_fanout` / `budget`), and `chain` — the ordered ancestor grant ids, ingest-verified against the record's parents walk (64-hop cap). Credentials minted at membership redemption are parented to this record; grant liveness is checked at the request door (`401 GRANT_EXPIRED` / `GRANT_REVOKED`). See [Principals & grants](/docs/concepts/principals-and-grants).
+- **`core.identity.grant.v1`** — a grant between principals; membership is one of these. Carries the scope facet (the runtime normal form), `expires_at`, attenuation caveats (`max_depth` / `max_fanout` / `budget`), and `chain` — the ordered ancestor grant ids, checked when the record is written (up to 64 hops). Credentials minted at membership redemption are parented to this record; grant liveness is checked at the request door (`401 GRANT_EXPIRED` / `GRANT_REVOKED`). See [Principals & grants](/docs/concepts/principals-and-grants).
 - **`core.identity.acceptance.v1`** — the custodian-signed acceptance that completes a membership: the counter-signature making the grant bilateral rather than something done *to* the member. Written at membership redemption alongside the grant.
 - **`core.identity.revoke.v1`** — a signed revocation naming a grant (`revoked_grant`). One record ends a membership: every credential parented to the revoked grant (bearers, agent sub-grants) dies with it. Also emitted on renewal (reason `membership-renewed`) to close the superseded grant.
-- **`core.api_token.activity.v1`** — bearer last-use telemetry (v0.64 B2). Emitted by the token-index `mark_used` path on every request authenticated by the token, joined into invite list rows via `bearer_token_id`. Used by the **Last seen** column on the operator panel.
+- **`core.api_token.activity.v1`** — when a bearer token was last used. Written on every request authenticated by the token and joined into invite list rows via `bearer_token_id`. Used by the **Last seen** column on the operator panel.
 - **`core.runtime.v1`** — pluggable runtime descriptor for extensions. See [Extensions](/docs/guides/extensions).
 - **`core.artifact.v1`** — published artifact records.
 - **`infer.query.v1`** — inference query records. Documented in detail at [infer.query.v1 schema reference](/docs/reference/infer-query-schema).
-- **`core.trigger.outcome.v1`** — the completion of one governed trigger dispatch, on the dispatch thread. Carries `trigger`, `target`, `success`, `cost_usd`, `error`, and (when the dispatch hit its deadline while the loop still ran) `disposition: "pending"`. The trigger governor frees the concurrency slot, folds daily spend and feeds the circuit breaker from exactly this record.
+- **`core.trigger.outcome.v1`** — the completion of one governed trigger dispatch, on the dispatch thread. Carries `trigger`, `target`, `success`, `cost_usd`, `error`, and (when the dispatch hit its deadline while the loop still ran) `disposition: "pending"`. Trigger limits (concurrency, daily spend, circuit breaker) are tracked from this record.
 - **`core.eval.case.v1`** — one eval case: a `request`, its established `answer`, a closed `quartile` naming how the case was obtained (`mined` / `held-out` / `adversarial` / `unknown` / `misdirected`), an optional `citation` (the record id of the primary evidence), and the `scope` / `subject` / `predicate` supersede key.
 - **`core.eval.run.v1`** — one scoring of one definition (its 64-hex content address as `subject`) against its `suite`. Carries `structure_score` and `substance_score` separately, both in `[0, 1]`; a blended `score` field is refused at the door, because a well-formatted wrong answer must not pass on style.
 

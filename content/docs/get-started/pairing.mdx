@@ -69,15 +69,14 @@ For the full set of failure modes, see [Troubleshooting](/docs/get-started/troub
 
 ### On a phone or iPad
 
-`syncropel.com` on mobile no longer probes `localhost:9100`: phones can't reach a workspace there, and the resulting browser-blocked error confused more than it helped. Mobile users now land on a welcome screen with three explicit paths:
+`syncropel.com` on mobile does not look for a workspace at `localhost:9100`, because phones can't reach one there. Mobile users land on a welcome screen with two paths:
 
 | Action | When to use |
 |---|---|
 | **Scan pairing QR** | You're standing next to your laptop and just ran `spl pair --device browser-mobile`. Point the phone camera at the printed QR. |
 | **Enter instance URL** | Your workspace is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
-| **Browse public records** | Placeholder for a future release: read feeds that other workspaces publish, without pairing. |
 
-The mobile entry deliberately omits the localhost probe. If you previously paired this phone and the workspace URL is stored, the dashboard probes it directly and skips the welcome screen.
+If you previously paired this phone and the workspace URL is stored, the dashboard connects to it directly and skips the welcome screen.
 
 If you're seeing this welcome screen on a desktop and you do have a workspace at localhost, your viewport may be narrower than 640px or Chrome DevTools touch-emulation is on: widen the window or disable emulation.
 

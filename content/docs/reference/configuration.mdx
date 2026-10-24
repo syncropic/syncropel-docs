@@ -180,7 +180,7 @@ After enabling a provider, backfill existing records with `spl embed --loop` (or
 
 Configure one or more store-and-forward relays for [async federation](/docs/guides/async-federation) — used when peers aren't reliably online at the same time. Each entry binds a relay URL to either a specific peer DID or the catch-all sentinel `"all"`. An entry with `enabled: false` is kept so an operator can toggle without losing the URL.
 
-Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation--pair-sync)). Each mutating subcommand writes a LEARN record:
+Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation--pair-lifecycle-canonical)). Each mutating subcommand writes a LEARN record:
 
 ```bash
 spl config relay set https://relay.syncropel.com --for-pair all

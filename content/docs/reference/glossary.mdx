@@ -15,7 +15,7 @@ One of 8 types that classify what a record represents: `INTEND`, `DO`, `KNOW`, `
 A bridge between the Syncropel engine and an external system. CLI adapters spawn subprocesses (any agent CLI binary — Claude Code, Codex CLI, OpenCode, Pi, etc. — plus `bash` and custom binaries). Proxy adapters make HTTP calls (Anthropic, OpenAI, and other providers; custom endpoints). An actor can be registered with an adapter so dispatches to the actor's DID route through the adapter.
 
 **AITL (Actor-in-the-Loop) — retired term; see the decision gate**
-The former name for what is now the **decision gate**. A request for a decision from an actor, typically a human or trusted agent — the body kind is `core.work.decision_request.v1`, expressed as a `KNOW` with `body.awaits: "actor_decision"` and resolved by a `DO` with `body.fulfills` or `body.cancels`. Surfaced with `spl decisions list`; answered with `spl decisions approve` / `reject` / `choose` / `provide` / `ack` (the three response shapes CHOOSE, PROVIDE, ACKNOWLEDGE). Used by the engine's intelligence path to surface routing proposals for approval before acting.
+The former name for what is now the **decision gate**. A request for a decision from an actor, typically a human or trusted agent — the body kind is `core.work.decision_request.v1`, expressed as a `KNOW` with `body.awaits: "actor_decision"` and resolved by a `DO` with `body.fulfills` or `body.cancels`. Surfaced with `spl decisions list`; answered with `spl decisions approve` / `reject` / `choose` / `provide` / `ack` (the three response shapes CHOOSE, PROVIDE, ACKNOWLEDGE). Used to surface routing proposals for approval before acting.
 
 **Approval**
 A `KNOW` record with `body.verdict: "accept"` from an independent evaluator. Creates trust evidence. See [Trust](/docs/concepts/trust).
@@ -26,7 +26,7 @@ A `KNOW` record with `body.verdict: "accept"` from an independent evaluator. Cre
 A random credential string minted by `spl service-account create` and presented in the `Authorization: Bearer <token>` HTTP header. The instance resolves the token to a service account DID via the token map, then enforces namespace and permission rules as if the SA were the actor. See [Keyring](/docs/operate/keyring).
 
 **Body**
-The JSON payload field of a record (`record.body`). Opaque to the engine; conventions are documented per topic. See [Record Format](/docs/reference/record-format).
+The JSON payload field of a record (`record.body`). Free-form; conventions are documented per topic. See [Record Format](/docs/reference/record-format).
 
 **Body Kind**
 A convention inside `body.kind` for integration records. Grammar: `scope.category.entity[.version]`. Enforced by the SDK at emit time. See [`body.kind` manifest](/docs/guides/body-kind-manifest).
@@ -55,10 +55,10 @@ The fleet instance that holds the instance registry thread, receives heartbeats,
 A `KNOW` record with `body.topic: "correction"` referencing a prior incorrect record in `parents`. The fold walks both and picks the later record's content. Immutable supersession — the bad record stays in the log.
 
 **CRON (loop)**
-The engine's daily / hourly maintenance loop. Runs trust decay, pattern crystallization sweeps, snapshots, cost reports. See [The Engine](/docs/concepts/engine#cron-hours-daily).
+The engine's daily / hourly maintenance loop. Runs trust decay, pattern crystallization sweeps, snapshots, cost reports. See [The Engine](/docs/concepts/engine#running-scheduled-work).
 
 **Crystallization**
-When a pattern meets the four quality thresholds (C1 trust ≥ 0.90, C2 observations ≥ 100, C3 MDL compression gain, C4 multi-source), it becomes crystallized — proven reliable enough for automatic REPLAY. See [Patterns](/docs/concepts/patterns#crystallization-when-a-pattern-graduates).
+When a pattern meets the four quality thresholds (C1 trust ≥ 0.90, C2 observations ≥ 100, C3 MDL compression gain, C4 multi-source), it becomes crystallized — proven reliable enough for automatic REPLAY. See [Patterns](/docs/concepts/patterns#when-a-pattern-becomes-permanent).
 
 **CUSUM**
 Cumulative sum drift detection. The trust loop runs CUSUM against each `(actor, domain)` baseline and emits alerts when the success rate shifts meaningfully. Observable at `GET /v1/governance/cusum-alerts`.
@@ -72,7 +72,7 @@ The path by which anything on the instance — the intelligence loop, a paused w
 The permanent identity of an actor. Three methods supported: `did:key` (self-describing public key), `did:web` (domain-rooted HTTPS resolution), `did:sync` (directory-resolved with key rotation support). System-local DIDs use the `did:sync:user:…`, `did:sync:agent:…`, `did:sync:system:…` conventions.
 
 **Dial**
-A continuous value in `[0, 1]` that maps trust and pattern match strength to cost zones. Zones: REPLAY (0.00–0.33), ADAPT (0.33–0.50), EXPLORE (0.50–0.67), CREATE (0.67–1.00). See [Trust — the dial](/docs/concepts/trust#the-dial-and-the-cost-curve).
+A continuous value in `[0, 1]` that maps trust and pattern match strength to cost zones. Zones: REPLAY (0.00–0.33), ADAPT (0.33–0.50), EXPLORE (0.50–0.67), CREATE (0.67–1.00). See [Trust — the dial](/docs/concepts/trust).
 
 **Dispatch**
 The act of routing work to an actor for execution. `spl task dispatch` opens a dispatch thread, emits an `INTEND`, and registers an adapter to invoke the target. See [Routing rules](/docs/guides/routing-rules).
@@ -86,7 +86,7 @@ A category of work — `code`, `ops`, `data`, `research`, `shell`, `api`, `spec`
 The 4-loop engine: INGEST (receive, hash, store, broadcast), RECONCILE (route and dispatch), TICK (periodic trust / drift work), CRON (maintenance). See [The Engine](/docs/concepts/engine).
 
 **Evaluation Gate**
-The requirement that completed work be reviewed by an independent evaluator (a different DID than the completer) before trust evidence is created. Structurally enforced — self-verdicts produce no trust. See [Trust — independence](/docs/concepts/trust#independence-is-structural-not-advisory).
+The requirement that completed work be reviewed by an independent evaluator (a different DID than the completer) before trust evidence is created. Structurally enforced — self-verdicts produce no trust. See [Trust — independence](/docs/concepts/trust).
 
 **Event Trigger**
 A `LEARN` on `th_engine_config` with `body.topic: "event_trigger"`. Fires when a matching record lands or on a cron schedule. Rate-limited, with cooldown and causal-chain protection to prevent loops. See [Scheduled triggers](/docs/guides/scheduled-triggers).
@@ -112,7 +112,7 @@ The in-memory snapshot of freeze / emergency-stop LEARN records on `th_fleet_con
 Computing the current state by replaying all records on a thread: `state = fold(records)`. This is how status, trust, and configuration are derived — there is no separate state database. Every fold is a pure function.
 
 **Fold Rule**
-A CEL expression (stored as a `LEARN` on `th_engine_config`) that customises the task or thread status projection. Used to express deployment-specific status transitions without changing engine code. See [CEL — fold_rule context](/docs/guides/cel-expressions).
+A CEL expression (stored as a `LEARN` on `th_engine_config`) that customises how a task or thread status is worked out. Used to express deployment-specific status transitions. See [CEL — fold_rule context](/docs/guides/cel-expressions).
 
 ## G
 
@@ -122,7 +122,7 @@ The union of namespaces, permission rules, CEL policies, consent grants, kill sw
 ## H
 
 **Hash Levels (L0 / L1 / L2 / L3)**
-Four hash-signature levels of a record, each throwing away more detail. L0 is exact content. L1 is structural (`dial + in + op + out + p`). L2 is flow (`in + out + p`). L3 is intent (`in + out`). L0 never crosses a namespace without consent; L1–L3 can. Containment: `L0 ⟹ L1 ⟹ L2 ⟹ L3`. See [Patterns](/docs/concepts/patterns#the-four-levels-of-hash).
+Four hash-signature levels of a record, each throwing away more detail. L0 is exact content. L1 is structural (`dial + in + op + out + p`). L2 is flow (`in + out + p`). L3 is intent (`in + out`). L0 never crosses a namespace without consent; L1–L3 can. Containment: `L0 ⟹ L1 ⟹ L2 ⟹ L3`. See [Patterns](/docs/concepts/patterns).
 
 **Heartbeat**
 A `DO` record with `body.topic: "heartbeat"` emitted by each live instance on `th_instance_registry` at a configured interval (default 15 seconds). Carries instance DID, endpoint URL, version, uptime, active dispatch count, health status. The coordinator's fold treats the latest heartbeat per DID as authoritative and classifies instances as live / stale / archived.
@@ -130,13 +130,13 @@ A `DO` record with `body.topic: "heartbeat"` emitted by each live instance on `t
 ## I
 
 **INGEST (loop)**
-The engine's hot path: receive a record, validate, hash, store, broadcast. Budget under 100 microseconds. Never blocks on downstream work.
+The step that receives a record, validates it, stores it and announces it. It is fast and never waits on downstream work.
 
 **Instance**
-A single `spl serve` instance with its own `SYNCROPEL_HOME`, `hub.db`, port binding, and identity. An instance may run standalone or as a coordinator/worker in a fleet.
+A single `spl serve` instance with its own `SYNCROPEL_HOME`, record database, port, and identity. An instance may run standalone or as a coordinator/worker in a fleet.
 
 **Instance Registry**
-The in-memory fold of `th_instance_registry` that maintains the live-instance map. Coordinator-local (single writer).
+The coordinator's live map of which instances are running.
 
 **Intelligence**
 Syncropel's reasoning actor — `did:sync:system:intelligence`. Runs when the routing cascade finds no match; proposes a routing rule via the decision gate rather than executing directly. Its proposals accumulate meta-trust from accepted/rejected outcomes.

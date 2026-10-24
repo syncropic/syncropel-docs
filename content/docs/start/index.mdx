@@ -5,7 +5,7 @@ description: Install Syncropel, run your first task through completion, and earn
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
-The shortest path from zero to a working Syncropel loop. Eight commands. About five minutes.
+The shortest path from zero to a working Syncropel workflow. Eight commands. About five minutes.
 
 > **Prefer hosted?** Skip install entirely: sign up at [syncropel.com/sign-up](https://syncropel.com/sign-up) and follow [Hosted workspace signup](/docs/get-started/hosted). Same protocol, same CLI, no machine to maintain.
 
@@ -35,18 +35,18 @@ If those eight commands ran clean, you're done. The rest of this page explains w
 
 ## What just happened
 
-You produced four immutable, content-addressed records on a thread, accumulated trust evidence in the `meta` domain (where Syncropel groups infrastructure/process/onboarding work), and proved the loop works. Every other Syncropel feature (federation, AI agent dispatch, CEL automation, namespaces) composes on top of this primitive.
+You produced four immutable, content-addressed records on a thread, built up trust evidence in the `meta` domain (where Syncropel groups setup and process work), and proved the loop works. Every other Syncropel feature (federation, AI agent dispatch, CEL automation, namespaces) composes on top of this primitive.
 
 | Step | What ran | What got recorded |
 |---|---|---|
 | `spl init` | Created `~/.syncro/` (config, logs, secrets dir) | none |
-| `spl start` | Started the instance (background daemon) on `127.0.0.1:9100`, opened `~/.syncro/hub.db` | The instance's bootstrap LEARN on `th_engine_config` |
+| `spl start` | Started the instance (background daemon) on `127.0.0.1:9100` | A start-up record |
 | `spl task add` | Created task thread `TASK-0001` | INTEND record: task creation |
 | `spl task start` | Marked active | DO record: work-started |
 | `spl task done` | Submitted for evaluation | KNOW record: completion claim |
 | `spl task approve` | Reviewer-actor evaluated and accepted | KNOW record: verdict; trust evidence accumulates |
 
-`spl thread records TASK-0001` shows all four. `spl trust` shows the evidence the verdict produced: it appears a few seconds after the approve, once the engine's periodic trust fold runs, so if the first `spl trust` reads empty, run it again in a moment.
+`spl thread records TASK-0001` shows all four. `spl trust` shows the evidence the verdict produced: it appears a few seconds after the approve, after a short delay, so if the first `spl trust` reads empty, run it again in a moment.
 
 ## Why a separate actor for `approve`?
 
@@ -63,7 +63,7 @@ The instance may have failed to bind port 9100. Check `~/.syncro/logs/spl.log`: 
 The task-completion gate refuses to attribute completion when the working tree is dirty (so wrong commits don't get tied to the wrong task). Either `git commit` first, or pass `--force` if the changes are unrelated.
 
 **`spl stop` says "not running" but an instance clearly is.**
-The PID file got orphaned (rare but real). Use `pgrep -af "spl serve"` then `kill <pid>` directly. See [Operator Runbook → orphan PID recovery](/docs/operate/runbook#when-spl-serve---stop-says-not-running-but-the-instance-clearly-is) for the full procedure.
+The PID file got orphaned (rare but real). Use `pgrep -af "spl serve"` then `kill <pid>` directly. See [Operator Runbook → orphan PID recovery](/docs/operate/runbook#when-spl-stop-says-not-running-but-the-instance-clearly-is) for the full procedure.
 
 ## What to do next
 

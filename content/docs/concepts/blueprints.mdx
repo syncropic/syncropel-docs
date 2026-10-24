@@ -25,7 +25,7 @@ Two pressures motivate the primitive:
 
 A blueprint doesn't do anything magical at the storage layer — it works *with* the record model, not around it.
 
-When a blueprint is applied, it **lays down its seed records** into the instance's log. Each seed becomes an ordinary record, indistinguishable afterward from one a user wrote by hand: the same 8 fields, the same content addressing, the same audit trail. Once those seeds land, the usual machinery takes over — the [folds](/docs/concepts/records#state-is-a-fold) that derive live state replay the seed records just like any others, so the seeded workspace, threads, and configuration appear in exactly the surfaces they would if you'd created them yourself.
+When a blueprint is applied, it **lays down its seed records** into the instance's log. Each seed becomes an ordinary record, indistinguishable afterward from one a user wrote by hand: the same 8 fields, the same content addressing, the same audit trail. Once those seeds land, the usual machinery takes over — the system that works out live state from records ([how state is derived](/docs/concepts/records#state-is-a-fold)) treats the seed records like any others, so the seeded workspace, threads, and configuration appear in exactly the surfaces they would if you'd created them yourself.
 
 A few consequences follow from materializing as plain records:
 
@@ -103,7 +103,7 @@ In short: the blueprint is the cookie cutter; the workspace is the cookie. The b
 
 ## What's next
 
-- **[Records](/docs/concepts/records)** — the unit a blueprint's seeds become, and the fold model that turns them into live state.
+- **[Records](/docs/concepts/records)** — the unit a blueprint's seeds become, and how they turn into live state.
 - **[Workspaces](/docs/concepts/workspaces)** — the surface a starter blueprint commonly seeds.
 - **[Threads](/docs/concepts/threads)** — the coordination context seed records are organized into.
 - **[The engine](/docs/concepts/engine)** — how seeded records flow through the same loops as any other record.

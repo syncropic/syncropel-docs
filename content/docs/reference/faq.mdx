@@ -9,7 +9,7 @@ Short answers with links to deeper docs. If a question isn't here and you think 
 
 ### What's a steward? What's an instance?
 
-They're the same thing. A **steward** is any running Syncropel instance — your laptop instance, a hosted instance at `<label>.syncropel.app`, a self-hosted server you run for a project. Syncropel commits that every steward — laptop, hosted, or self-hosted — is a full instance with identical capabilities. See the [glossary entry](/docs/reference/glossary#steward) and the [federation pair guide](/docs/guides/federation-pair).
+They're the same thing. A **steward** is any running Syncropel instance — your laptop instance, a hosted instance at `<label>.syncropel.app`, a self-hosted server you run for a project. Syncropel commits that every steward — laptop, hosted, or self-hosted — is a full instance with identical capabilities. See the [glossary entry](/docs/reference/glossary) and the [federation pair guide](/docs/guides/federation-pair).
 
 ### What's a thread? How is it different from a record?
 
@@ -36,7 +36,7 @@ The frontend treatment of multi-instance UX continues to evolve; the CLI and SDK
 
 ### Why am I getting `AUTH_REQUIRED` when I `curl` my instance?
 
-The default posture since v0.16 is auth-on (`auth.required = true`). Four causes:
+By default, authentication is on (`auth.required = true`). Four causes:
 
 1. **No `Authorization` header.** Add `-H "Authorization: Bearer <token>"`. See [Service accounts and tokens](/docs/get-started/service-accounts).
 2. **Expired or revoked token.** Verify with `spl serve --status` and re-pair if needed.

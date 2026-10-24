@@ -94,7 +94,7 @@ Do it in this order. If you run `restore-keys` before the store is in place, the
 original keys but can report the new machine's workspace name on `/health`. If that happened, put the store
 in place and run `restore-keys` again with `--force`.
 
-From v0.270 a backup set also holds the workspace's order log (`order.<timestamp>`, beside `keys.<timestamp>`).
+A backup set also holds the workspace's order log (`order.<timestamp>`, beside `keys.<timestamp>`).
 `restore-keys` puts it back for you. If you copy files by hand instead, copy `order.<timestamp>` too: a store
 that held an order log and boots without one refuses to start (`ORDER_LOG_MISSING`) rather than quietly
 beginning a new history. If the set really has none, start with `SPL_ACCEPT_NO_ORDER_LOG=1`: the new log's
@@ -102,7 +102,7 @@ first entry records the gap.
 
 ## Portable Backup: Publish the Instance
 
-From v0.118, the recommended portable backup is a published repository snapshot of the whole instance:
+The recommended portable backup is a published repository snapshot of the whole instance:
 
 ```bash
 spl repo publish <namespace>/<repo> --relocation
@@ -122,26 +122,20 @@ The startup `.bak` file protects against local file loss; the published reposito
 
 ### The open tail is verified, or refused by name
 
-A tree's sealed segments were always verified on restore. Since v0.235 the
-open tail (`log/open/current.jsonl`, the records since the last seal) is too:
-the writer records the tail's hash in `refs/HEAD`, measured from the bytes in
-the store, and `spl repo restore`, `spl repo mount` and `spl repo drift` read
-the tail through one verdict, reported as `tail.status`:
+A restore checks every part of the copy, including the newest records that were saved after the last full seal (the open tail). `spl repo restore`, `spl repo mount` and `spl repo drift` report the result as `tail.status`:
 
 | Status | Meaning |
 |---|---|
-| `verified` | HEAD vouched for the tail and the bytes matched; its records were taken. |
-| `refused` | The fetch, the hash or the parse failed against HEAD's claim. Nothing from the tail was taken, the sealed set was restored alone, `tail.reason` names why and `tail.not_taken` says how many lines stood behind it. One well-formed record appended to the tail by anyone who can write one object into the prefix is exactly this case: content-addressing says nothing about who wrote a whole object. |
-| `unverified` | The tree was written before v0.235 and HEAD carries no tail hash; the caller passed `--accept-unverified-tail` and the lines were taken with the verdict on the report. Without the flag such a tail is refused. |
-| `absent` | HEAD names no open segment. |
+| `verified` | The copy vouched for the tail and the bytes matched; its records were taken. |
+| `refused` | The fetch, the hash or the parse failed against what the copy claimed. Nothing from the tail was taken, the sealed set was restored alone, `tail.reason` names why and `tail.not_taken` says how many lines stood behind it. |
+| `unverified` | The copy was written by an older version and carries no tail check; the caller passed `--accept-unverified-tail` and the lines were taken with the verdict on the report. Without the flag such a tail is refused. |
+| `absent` | The copy has no open tail. |
 
-The price of refusing to trust an unvouched tail is bounded by one flush
-interval: a different body re-basing a dead writer's tree does not carry
-records that lived only in a tail HEAD could not vouch for.
+A tail that cannot be verified is never restored, so the most recent records may be missing from a restore in that case.
 
 ### A copy older than your live workspace is refused unless you say so
 
-From v0.272, `spl repo restore` checks the copy against the live workspace before anything lands. If the copy
+`spl repo restore` checks the copy against the live workspace before anything lands. If the copy
 is older, the restore stops and names both points, so an old copy can't quietly undo newer changes, such as
 a key you removed:
 
@@ -161,7 +155,7 @@ removed stays revoked or removed: the lists of revoked keys and erased people ar
 
 ### Your task notes travel with the backup
 
-From v0.272, task notes (`~/.syncro-data/`) travel with the off-machine copy, and the startup backup writes
+Task notes (`~/.syncro-data/`) travel with the off-machine copy, and the startup backup writes
 `data.bak.tar.zst` beside `hub.db.bak`. Restore them on their own with:
 
 ```bash

@@ -7,7 +7,7 @@ description: The immutable, verifiable unit, the only primitive Syncropel writes
 
 A record is a single immutable fact. Syncropel writes nothing else. Task status, trust scores, routing rules, configuration, the output of a CI job, a comment on a design doc, all of it is records. When you understand the record, you understand what the system can and cannot do.
 
-The single load-bearing idea is this: **the record log is the source of truth, and everything else is folded from it.** Trust scores, proven patterns, workspace state, the engine's calibration, none of these are stored independently. They are all *derived* by replaying the records, the way a bank balance is derived from a ledger of transactions rather than kept as a separate editable number. The immutable log goes in; live state is folded out. That one move, `state = fold(records)`, is what makes the system auditable, rebuildable from scratch, and consistent across instances. The [State is a fold](#state-is-a-fold) section below develops it.
+The single load-bearing idea is this: **the record log is the source of truth, and everything else is derived from it.** Trust scores, proven patterns, workspace state, the engine's calibration, none of these are stored independently. They are all *derived* by replaying the records, the way a bank balance is derived from a ledger of transactions rather than kept as a separate editable number. The immutable log goes in; live state comes out. That is what makes the system auditable, rebuildable from scratch, and consistent across instances. The [State is a fold](#state-is-a-fold) section below develops it.
 
 The record has a small, fixed set of fields. Every one of them except `judged_by` is part of the record's identity. The system never mutates a record after it lands, corrections, cancellations, and status changes all arrive as new records that reference the old ones.
 
@@ -66,7 +66,7 @@ Most CLI commands emit a single act, `spl intend` emits `INTEND`, `spl do` emits
 
 ## The body is opaque
 
-Syncropel does not validate the contents of `body`. It stores the record and moves on. All semantic conventions, "a task INTEND has `body.task = true`", "a closing KNOW has `body.fulfills`", "a routing rule is a LEARN on `th_engine_config` with `body.topic = routing_rule`", live one layer up, in the projector, the fold, the adapters, and the SDKs.
+Syncropel does not validate the contents of `body`. It stores the record and moves on. All semantic conventions, "a task INTEND has `body.task = true`", "a closing KNOW has `body.fulfills`", "a routing rule is a LEARN on `th_engine_config` with `body.topic = routing_rule`", live one layer up, in the adapters and the SDKs.
 
 This is intentional. Syncropel's guarantee is *"every record has the shape"*. The guarantee *"every body of act X has the shape Y"* is a convention that different consumers can agree on and evolve without touching the ingest path.
 
@@ -81,11 +81,11 @@ The one exception is `body.namespace`, which Syncropel reads to enforce namespac
 
 Records are never edited or deleted. Three kinds of "change" become three flavors of new record:
 
-- **Correct a mistake**: emit a `KNOW` with `body.topic: "correction"` referencing the bad record in `parents`. The fold walks both and picks the latter.
-- **Cancel a prior intent**: emit a `DO` with `body.cancels: "<intend_id>"`. The task fold reads this and transitions the task to cancelled.
+- **Correct a mistake**: emit a `KNOW` with `body.topic: "correction"` referencing the bad record in `parents`. The later one wins.
+- **Cancel a prior intent**: emit a `DO` with `body.cancels: "<intend_id>"`. The task is then shown as cancelled.
 - **Change a config**: emit a new `LEARN` on `th_engine_config`. The engine reloads on broadcast; the latest record wins.
 
-No backdating. Clocks are monotonic per `(actor, thread)`, so you cannot insert a record into the past. An actor who disagrees with a past observation emits a *later* record contradicting it, and the fold decides which wins based on the rule that applies, often "latest by clock", sometimes "accept-first-wins" for the decision gate, sometimes domain-specific.
+No backdating. Clocks are monotonic per `(actor, thread)`, so you cannot insert a record into the past. An actor who disagrees with a past observation emits a *later* record contradicting it, and the rule that applies decides which wins based on the rule that applies, often "latest by clock", sometimes "accept-first-wins" for the decision gate, sometimes domain-specific.
 
 This is what makes the record log auditable. Every state transition happened when it happened, signed by whoever did it, and nothing downstream can make the log look different later.
 
@@ -97,22 +97,22 @@ There is no second database. Every piece of state the system exposes, task statu
 current_state = fold(records_on_thread)
 ```
 
-Folds are pure functions over a thread's record chain. `spl task show` runs a fold over the task thread. `spl trust` runs a fold over every thread the actor has touched, projecting KNOW records with verdicts into a trust score. `spl config list-rules` runs a fold over `th_engine_config` and returns the latest rule per name.
+Current state is always worked out the same way from a thread's records. `spl task show` works out a task's state from its thread. `spl trust` works out trust from every verdict the actor has received. `spl config list-rules` returns the latest rule per name.
 
-Because folds are pure, three properties follow:
+Because of this, three things follow:
 
-1. **Any divergence is a bug in the fold, not data corruption.** The records are the ground truth.
-2. **Consistency across instances is guaranteed.** Two instances with the same records will produce the same folded state.
+1. **The records are the ground truth.** If a view looks wrong, the records are still right.
+2. **Consistency across instances is guaranteed.** Two instances with the same records will show the same state.
 3. **Rebuild-from-scratch is always available.** A corrupted derived cache (trust, instance registry, namespace registry) is fixed by replaying records. Syncropel does this automatically on every startup.
 
-The instance bootstraps trust by replaying all KNOW records with verdicts. It bootstraps engine config by replaying all LEARN records on `th_engine_config`. Crash recovery is not a special path, it's the only path.
+On startup, trust and routing rules are rebuilt from the records. Recovering from a crash works the same way.
 
 ## What goes in and what doesn't
 
 Four rules of thumb for what *should* be a record vs what's legitimately stored elsewhere.
 
 **Record it if:**
-- It represents intent, action, observation, or learning that anyone else might need to audit, replay, or fold over.
+- It represents intent, action, observation, or learning that anyone else might need to audit or replay.
 - It should survive a crash and rebuild the world.
 - It's the unit another actor (human, agent, service) would coordinate against.
 

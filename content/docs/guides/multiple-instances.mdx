@@ -94,7 +94,7 @@ spl-project task list     # the project instance
 
 | Concern | Isolation |
 |---|---|
-| Records | Each home has its own `hub.db`. A record added to one never appears on the other. |
+| Records | Each home has its own record store. A record added to one never appears on the other. |
 | Identity | `spl init` per home generates a separate identity and keypair. |
 | Auth | Service accounts, tokens, and pairings are per-instance. |
 | Config | `config.toml`, routing rules, assistant settings: all per-home. |
@@ -107,7 +107,7 @@ list tasks on your default instance: it isn't there.
 ## Gotchas
 
 - **Never point two running instances at one home.** One home directory =
-  one instance. Two processes on the same `hub.db` is the one setup this
+  one instance. Two processes on the same home is the one setup this
   guide's isolation promises don't cover.
 - **The default shell targets the default instance.** If a command's output
   looks like the wrong world, check `echo $SYNCROPEL_HOME` first.

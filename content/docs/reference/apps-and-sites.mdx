@@ -1,9 +1,9 @@
 ---
 title: Apps that read, and published pages
-description: The app read door (dark on hosted) and the first stage of publishing a workspace's pages. Since v0.279.
+description: How an app reads live workspace data, and how the owner publishes an app's files as a page.
 ---
 
-Two doors arrive in v0.279.0 behind flags. Both are dark by default on hosted workspaces. A dark door answers exactly as an unknown route does (same status, body, headers and timing), for every method including `OPTIONS` and `HEAD`. A client can't tell a dark door from a path that doesn't exist.
+Both features can be switched off on a workspace. When one is off, its endpoints answer exactly as an unknown route does (same status, body and headers), for every method including `OPTIONS` and `HEAD`. A client can't tell a switched-off endpoint from a path that doesn't exist.
 
 ## Apps read live data
 
@@ -18,10 +18,10 @@ The declaration is checked when the app is saved. A bad one is `422 APP_READS_IN
 - `kinds` is an exact allow-list of registered record kinds. Account, keyring, private and kept, connection plumbing, run internals, engine config, assistant memory and site kinds are never readable.
 - System threads (`th_site*`, `th_alerts`, and the like) are never readable.
 - Each thread must be one its writer can read.
-- A later version can't widen `reads` unless the basis person is the head's or the owner. A `venture update` that widens an app's `reads` is a definitions widening by id `app:<title>` and is refused with `UPDATE_WIDENING_NOT_ACCEPTED` unless accepted.
+- A new version of an app can't widen `reads` unless it is saved by the same person as the current version, or by the owner. A `venture update` that widens an app's `reads` is refused with `UPDATE_WIDENING_NOT_ACCEPTED` unless you accept the change.
 - Package apps declare kinds only.
 
-`POST /v1/apps/{app_id}/read` (flag `apps_read`, scope `records:read`) serves each viewer their own reach intersected with the head's `reads`.
+`POST /v1/apps/{app_id}/read` (flag `apps_read`, scope `records:read`) serves each viewer only what they are allowed to read, limited to what the app's current version declares in `reads`.
 
 | Status | Code | Meaning |
 |---|---|---|
@@ -29,35 +29,35 @@ The declaration is checked when the app is saved. A bad one is `422 APP_READS_IN
 | `404` | `APP_HAS_NO_READS` | The app declares no `reads`. |
 | `403` | `APP_READ_UNDECLARED` | The request names something the app didn't declare. |
 
-A by-id read of anything absent, unreachable or undeclared answers `{record: null}`. An answer holds at most 200 rows and 1 MiB, with `read.truncated {at, next}` when cut short. The cursor is sealed and bound to the viewer, app, head and filter. A read through an app counts as the viewer's read: the owner's `GET /v1/reads` shows it with `reader_kind: app`, door `app:<root>`, and `app {id, title}`, `via` and `for_name`.
+A by-id read of anything absent, unreachable or undeclared answers `{record: null}`. An answer holds at most 200 rows and 1 MiB, with `read.truncated {at, next}` when cut short. The cursor is sealed and tied to the viewer, the app and the filter. A read through an app counts as the viewer's read: the owner's `GET /v1/reads` shows it with `reader_kind: app`, door `app:<id>`, and `app {id, title}`, `via` and `for_name`.
 
-An app's code receives the raw actor ids of the records it reads, exactly what `POST /v1/records/query` serves that viewer.
+An app receives the actor ids of the records it reads, exactly as `POST /v1/records/query` would serve them to that viewer.
 
-Person-facing words, from the manifest:
+Suggested wording for people, from the words manifest:
 
 - `APP_READS_INVALID`: "This app's list of what it reads has a problem, so it wasn't saved." followed by the reason line.
 - `APP_NOT_FOUND`: "This app isn't available to you."
 - `APP_READ_UNDECLARED`: "This app tried to read something it didn't say it would, so nothing was read."
 - `APP_HAS_NO_READS`: "This app doesn't read anything." (never shown on screen; the command line and developers only)
 
-## Publishing pages (stage 1)
+## Publishing pages
 
-Stage 1 lets the owner publish an app's files as a page at the workspace's own address. The `sites` flag gates the doors.
+The owner can publish an app's files as a page at the workspace's own address. The `sites` flag turns this on.
 
-- `core.app.v1` gains `slug`: this workspace's own label, set by the owner. One holder per slug.
-- `POST /v1/sites/propose` raises a publish proposal (`proposal.proposes: "publish"`). The owner's yes at `POST /v1/decisions/{id}/decide` settles it. The proposal is bound to `{site, version, manifest_digest}` and rebuilt when accepted. Only a closing admitted as one settles a proposal.
+- `core.app.v1` has a `slug`: this workspace's own label, set by the owner. Only one app can hold a slug.
+- `POST /v1/sites/propose` raises a publish proposal (`proposal.proposes: "publish"`). The owner's yes at `POST /v1/decisions/{id}/decide` settles it. The proposal is tied to `{site, version, manifest_digest}` and is checked again when accepted.
 - `GET /v1/sites` lists published sites. `POST /v1/sites/unpublish` and `POST /v1/sites/checked` complete the doors.
-- The history lives on `th_site_<label>`, which is the kernel's alone: a client write to any thread whose id starts `th_site_` is `403 SITE_THREAD_KERNEL_ONLY`. A thread of your own with that prefix keeps its records. Write new ones to a differently named thread.
-- Records: `core.site.publish.v1`, `core.site.publish_result.v1`, `core.site.purge.v1` (kernel kinds) and `core.site.checked.v1` (owner kind), all owner-read only.
-- A file's first write now also writes a `core.data.revision.v1` (`prev_hash: null`) naming its writer. Files uploaded before 0.279 have no first revision: re-save such a file to publish it (`SITE_FILE_NOT_OWNERS` until then).
-- A site file an erase withheld is served nulled by every door: `{path: null, sha256: null, removed_by_erase: true}`, to the owner too.
-- Overrides: `SPL_SITES_DOOR_URL` (the publishing service's address) and `SITES_RECEIPT_PUBLIC_KEY` (normally fetched from `GET /v1/sites/keys`).
+- A page's history lives on a thread named `th_site_<label>`, which only the workspace itself writes. A client write to any thread whose id starts `th_site_` is `403 SITE_THREAD_KERNEL_ONLY`. Use a different thread name for your own records.
+- Records: `core.site.publish.v1`, `core.site.publish_result.v1`, `core.site.purge.v1` (written by the workspace) and `core.site.checked.v1` (written by the owner). Only the owner can read them.
+- A file's first write also writes a `core.data.revision.v1` (`prev_hash: null`) naming its writer. An older file uploaded without one can't be published and answers `SITE_FILE_NOT_OWNERS`. Re-save the file, then publish it.
+- A site file removed by an erase is served as `{path: null, sha256: null, removed_by_erase: true}` everywhere, to the owner too.
+- Settings: `SPL_SITES_DOOR_URL` (the publishing service's address) and `SITES_RECEIPT_PUBLIC_KEY` (normally fetched from `GET /v1/sites/keys`).
 
 A node sealed to a person is never published (`SITE_SOURCE_PRIVATE`).
 
-Not in this stage: two apps holding one address after a merge import fold to the older claim. The assistant has no publish tool, so the owner proposes.
+Known limits: if two apps end up claiming one address after a merge import, the older claim wins. The assistant can't publish; the owner proposes.
 
-Person-facing words for the refusals come from the manifest (approved D540, D541 and D545). Quote the manifest entry for each code, don't write new ones. Examples:
+Suggested wording for people comes from the words manifest. Quote the manifest entry for each code. Examples:
 
 - `SITE_THREAD_KERNEL_ONLY`: "Only the workspace itself writes a page's history, so this wasn't saved."
 - `SITE_FILE_NOT_OWNERS`: "That file wasn't added by the owner, so it can't go on a page."
@@ -68,4 +68,4 @@ Person-facing words for the refusals come from the manifest (approved D540, D541
 
 - [Reads, budgets and cursors](/docs/reference/read-path): the read rules the app door follows.
 - [API reference](/docs/reference/api): the other doors.
-- [Release notes](/docs/reference/release-notes): what changed in 0.279.
+- [Release notes](/docs/reference/release-notes): what changed.

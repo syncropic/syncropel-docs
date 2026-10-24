@@ -298,7 +298,7 @@ Common next steps:
 |---|---|
 | Show a filtered slice (only `INTEND` records, only mine) | Pass `client.query({ kind, actor })` instead of `queryThread` |
 | Render server-derived layouts instead of streaming records | [Projections (SRP) guide](/docs/guides/projections) |
-| Replace polling with a live SSE feed | The SDK doesn't ship SSE in v0.1; until then, polling at 1-3s is the recommended pattern |
+| Replace polling with a live SSE feed | The SDK doesn't include live streaming; polling at 1-3s is the recommended pattern |
 | Multi-thread inbox | Use `client.query({ actor: "did:example:..." })` to pull across threads |
 | Optimistic UI on Add | After `POST /api/inbox`, don't wait for `refresh()` — push the new record into local state first |
 

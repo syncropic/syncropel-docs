@@ -1,13 +1,13 @@
 ---
 title: Threads
-description: A thread is a coordination context, the shared scope inside which records are ordered, folded, and closed. Every task, dispatch, federation pair, and config domain is a thread.
+description: A thread is a coordination context, the shared scope inside which records are ordered, and closed. Every task, dispatch, federation pair, and config domain is a thread.
 ---
 
 ## Overview
 
-A thread is a named context that records attach to. Its ID is stable and derived from what it is, its contents are immutable, and its meaning is whatever the fold that consumes it decides. A task is a thread. A dispatch is a thread. The engine config is a thread. A federation sync subscription targets a thread.
+A thread is a named context that records attach to. Its ID is stable and derived from what it is, its contents are immutable, and its meaning comes from how it is used. A task is a thread. A dispatch is a thread. The engine config is a thread. A federation sync subscription targets a thread.
 
-Threads give Syncropel its coordination semantics: *records written to the same thread participate in the same story*. Two records on different threads are independent by construction, no fold mixes them unless you explicitly ask.
+Threads give Syncropel its coordination semantics: *records written to the same thread participate in the same story*. Two records on different threads are independent by construction, nothing mixes them unless you explicitly ask.
 
 If you're mentally importing from elsewhere: a thread is closer to a Git branch than to a Slack channel. It's the unit of history, not the unit of conversation. A single agent dispatch is a thread. A conversation with a user may span dozens.
 
@@ -34,7 +34,7 @@ INTEND  →  DO/CALL  →  KNOW  →  KNOW(fulfills)
 - **Opened** by an `INTEND` stating the goal or purpose. Every thread starts with an INTEND; if you see a thread whose first clock is `DO` or `KNOW`, that's a bug or a partially-migrated import.
 - **Active** while `DO` and `CALL` records land. An adapter executing work emits these as it goes.
 - **Observed** when `KNOW` records capture intermediate facts, verdicts, or summaries.
-- **Closed** by a `KNOW` carrying `body.fulfills: "<intend_id>"` referencing the opening INTEND. The fold transitions the thread to "done" on that signal. A thread can also close via cancellation, a `DO` with `body.cancels` or a `KNOW` with `body.verdict: "reject"`.
+- **Closed** by a `KNOW` carrying `body.fulfills: "<intend_id>"` referencing the opening INTEND. The thread then shows as "done". A thread can also close via cancellation, a `DO` with `body.cancels` or a `KNOW` with `body.verdict: "reject"`.
 
 Lifecycle state is *derived* from records, not stored as a column. Two threads with different visible "statuses" have different record sets. There is no `UPDATE threads SET status = ...` anywhere in the system.
 
@@ -54,15 +54,15 @@ Parent: th_deploy_v2
 
 A child thread has its own ID. The parent records an INTEND that references the child (`body.sub_thread`), and the reconciler dispatches the work on the child thread. When the child closes, a synthesising record on the parent thread says "child X completed with result Y". The join predicate in the parent INTEND decides when the parent itself should close, `all` (every child), `any` (first accept), `k_of_n`, or an arbitrary CEL expression.
 
-This gives clean audit: the child thread has the full execution trace; the parent thread carries a summary and the fold result. You can drill in or stay at the summary level depending on what question you're answering.
+This gives clean audit: the child thread has the full execution trace; the parent thread carries a summary and the result. You can drill in or stay at the summary level depending on what question you're answering.
 
 ## Tasks are threads (with conventions)
 
-A task in Syncropel is a thread whose opening INTEND has `body.task = true` and whose body carries alias, assignee, domain, priority, labels, and success criteria. Nothing in the runtime enforces this, it's the task fold that recognizes the pattern and projects it into the `spl task show` view.
+A task in Syncropel is a thread whose opening INTEND has `body.task = true` and whose body carries alias, assignee, domain, priority, labels, and success criteria. Nothing in the runtime enforces this, `spl task show` recognizes the pattern and presents it as a task.
 
 This has three practical consequences:
 
-1. **Every task has a thread with real records.** If you want the ground truth on what a task did and when, read its thread. `spl debug replay TASK-XXXX` walks the records with the fold's status transitions annotated.
+1. **Every task has a thread with real records.** If you want the ground truth on what a task did and when, read its thread. `spl debug replay TASK-XXXX` walks the records with the status changes annotated.
 2. **Task state can never drift from record state.** There's no status column to get stuck; the status is a pure function of the records on the thread.
 3. **Two sibling threads are two independent tasks.** Forking a thread creates a child task; the parent task status depends on the child's close signals per the join predicate.
 
@@ -85,11 +85,11 @@ Every one of these is just a thread. Records on them follow the same rules. The 
 
 Every actor who writes a record on a thread is a participant. Participation is derived automatically from the record log, no separate participant table. `spl thread show <id>` lists participants with record counts and inferred roles (opener, reviewer, adapter, observer).
 
-Role inference is convention-based, not enforced. The opener is whoever emitted the first INTEND. A reviewer is an actor emitting KNOW with a verdict. An adapter is an actor whose records are paired INTEND/DO/CALL/KNOW with `dispatch_handled = true`. The fold computes these on-demand; you don't have to maintain a participants list by hand.
+Role inference is convention-based, not enforced. The opener is whoever emitted the first INTEND. A reviewer is an actor emitting KNOW with a verdict. An adapter is an actor whose records are paired INTEND/DO/CALL/KNOW with `dispatch_handled = true`. These are worked out on demand; you don't have to maintain a participants list by hand.
 
 ## Why threads instead of labels or rooms
 
-The thread is deliberately a single-dimensional construct: a record belongs to *exactly one* thread. No multi-tag, no multi-room. This isn't an oversight, it's the property that makes folds composable. If a record could belong to multiple threads, the fold would need a join semantics, and *which* join would depend on the consumer. Single-thread keeps folds pure and cacheable.
+The thread is deliberately a single-dimensional construct: a record belongs to *exactly one* thread. No multi-tag, no multi-room. This isn't an oversight, it keeps every thread's state simple and predictable.
 
 Categorisation across threads happens through labels (in `body.labels`), through `body.topic`, through namespace (`body.namespace`), and through DID filters (actor). These are query-time dimensions; the thread is the coordination-time dimension.
 
@@ -100,7 +100,7 @@ Two rules of thumb:
 - **New thread when the goal is new.** A new task, a new dispatch, a new deployment, a new federation subscription, each gets its own thread. Thread IDs are cheap; there is no penalty to having many.
 - **Continuation on the same thread when the goal is the same.** Follow-up observations, correction records, the final verdict on a long-running task, these all land on the original thread. Forking into a sub-thread is appropriate when a branch of work is independent enough to need its own close signal.
 
-A typical engineer's weekly footprint is dozens of task threads, a handful of dispatch threads per active task, plus participation in the six reserved threads. All immutable, all auditable, all foldable on demand.
+A typical engineer's weekly footprint is dozens of task threads, a handful of dispatch threads per active task, plus participation in the six reserved threads. All immutable, all auditable, all available to replay on demand.
 
 ## What's next
 

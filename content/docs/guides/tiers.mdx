@@ -1,6 +1,6 @@
 ---
 title: Tiers and entitlements
-description: Every run is clamped by the tier of the principal it runs for. Tiers are records you can edit without a release, per-actor ceilings only ever tighten, and a subscription status maps to a tier through one kernel decision. A self-hoster and operator guide.
+description: Every run is clamped by the tier of the principal it runs for. Tiers are records you can edit without a release, per-actor ceilings only ever tighten, and a subscription status maps to a tier in one place. A self-hoster and operator guide.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
@@ -15,7 +15,7 @@ spawn. There are four tiers, in order of increasing capability:
 - **Trial**: the safe-by-default floor for a multi-tenant instance.
 - **Paid**: the working tier.
 - **Team**: multi-user accounts, higher concurrency and depth.
-- **Operator**: the daemon's own owner, on their own machine.
+- **Operator**: the workspace's own owner, on their own machine.
 
 The operator is the trust boundary on their own instance, so the Operator tier
 is effectively unbounded on the capability axes. It is not unbounded on the
@@ -80,7 +80,7 @@ curl -X POST http://127.0.0.1:9100/v1/records \
 
 Latest wins; an empty `tier` clears the assignment. Resolution takes the higher
 of an invite stamp and an assignment, under a clamp to at most Team. Data can
-never mint the Operator tier: that is the daemon owner's own identity, not
+never mint the Operator tier: that is the workspace owner's own identity, not
 something a config record confers.
 
 ## Per-actor daily ceilings
@@ -99,16 +99,14 @@ A subscription status becomes a tier through one HTTP call:
 POST /v1/entitlement
 ```
 
-The caller says what the subscription status is; the kernel decides what that
-status entitles. There is one decider, not two, and the effect is an ordinary
-`actor_tier` assignment that the existing clamps enforce with no new code. The
-record it writes carries its own reason, so "why did my caps change" is
-answerable from the ledger.
+The caller says what the subscription status is; the workspace decides what that
+status entitles. The effect is an ordinary `actor_tier` assignment. The
+record it writes carries its own reason, so you can always see why your limits changed.
 
 The ceiling is the load-bearing part:
 
 - `active` and `trialing` map to **Paid**. Everything else, including
-  `past_due` and any status the kernel does not recognise, reads as **Trial**.
+  `past_due` and any status the workspace does not recognise, reads as **Trial**.
 - An entitlement moves an actor between **Trial and Paid and nothing else**. A
   billing signal can never mint Team or Operator, whatever it says: those are
   the operator's own assignments on their own instance, and a payment processor
@@ -126,7 +124,7 @@ at the Trial ceilings, a paid one at the Paid ceilings. That holds for every way
 message you send, an assistant stepping into a conversation, a scheduled trigger, a delegation. The
 plan is set when the workspace is created, and a workspace on your own machine has no plan ceiling.
 
-On a hosted workspace with a plan, the ceilings come from the release itself: writing a tier record
+On a hosted workspace with a plan, the ceilings come from the plan itself: writing a tier record
 or an entitlement through the records door is refused (`PLAN_LIMITS_NOT_WRITABLE`), and the
 entitlement door refuses a request that does not come from the hosting service
 (`ENTITLEMENT_UNSIGNED`). The Trial ceiling allows two runs at once, so a scheduled run

@@ -29,9 +29,9 @@ Every fold function starts with the same line:
 canonical_order(responses) = sort by (clock, id) ascending
 ```
 
-Every implementation calls `canonical_order` before it calls its own `combine`. This is load-bearing. The pre-implementation proof-of-concept ran 20 random permutations of the same response list through consensus and ensemble_weighted and confirmed identical output for every permutation.
+Every fold function sorts responses this way before combining them. This means the result never depends on the order in which responses arrived.
 
-You don't need to implement this yourself — the `FoldFunction` trait enforces it. But it's useful to know what it means in practice: **two responses that tie in canonical order tie for the rest of the pipeline** (tiebreak rules kick in there), and **inserting a new response between two existing ones only re-orders if the new response has a clock between them**.
+You don't need to do anything for this. It's useful to know what it means in practice: **two responses that tie in canonical order tie for the rest of the pipeline** (tiebreak rules kick in there), and **inserting a new response between two existing ones only re-orders if the new response has a clock between them**.
 
 ## Fold output
 

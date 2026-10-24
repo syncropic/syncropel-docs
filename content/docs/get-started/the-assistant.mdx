@@ -51,11 +51,8 @@ See [Plans and billing](/docs/get-started/pricing).
 
 ## For developers
 
-The chief is an ordinary assistant, defined by a [blueprint](/docs/concepts/blueprints) like any other, so you can read it, change it or replace it. A turn that needs tools runs through a governed [work loop](/docs/concepts/work-loop); to start one yourself and sit with it, use [`spl run`](/docs/guides/running-a-goal). Turn-by-turn escalation is on by default, and you can turn it off for a given assistant (see Under the hood below).
+The chief is an ordinary assistant, defined by a [blueprint](/docs/concepts/blueprints) like any other, so you can read it, change it or replace it. A turn that needs tools runs as a governed [work loop](/docs/concepts/work-loop); to start one yourself and sit with it, use [`spl run`](/docs/guides/running-a-goal). Turn-by-turn escalation is on by default, and you can turn it off for a given assistant (see Under the hood below).
 
-<Callout type="info">
-Workspaces before v0.216 had a separate built-in assistant called Scribe (and a sibling orientation agent, the Guide), configured with `spl config scribe`. Those are retired; old records stay readable as history.
-</Callout>
 
 ### Turning the assistant on when you self-host
 

@@ -7,13 +7,13 @@ description: Graduate from local-only to a hosted workspace. Export your local h
 
 You've been running `spl serve` on your laptop, accumulating records, threads, federation pairs, and trust observations. You want to graduate to a managed instance — same identity, same records, accessible from anywhere, no `--insecure-localhost` flags. This tutorial walks the round-trip migration: local export → hosted provision → hosted import → CLI repoint → verification.
 
-After this, you'll understand why hosted and self-hosted are the same thing: any Syncropel workspace can become any other. Neither is a lesser copy of the other. The migration mechanism is `spl export` / `spl import`, and round-trip identity preservation is a binding portability release-gate (see the [federation concept](/docs/concepts/federation)).
+After this, you'll understand why hosted and self-hosted are the same thing: any Syncropel workspace can become any other. Neither is a lesser copy of the other. The migration mechanism is `spl export` / `spl import`, and records keep their identity through the round trip (see the [federation concept](/docs/concepts/federation)).
 
 Allow ~30 minutes; most of it is provisioning + verification.
 
 ## Before you start
 
-- `spl 0.33.0` or later (`spl --version`)
+- `spl` installed (`spl --version`)
 - A local instance with some real-feeling state — at least a few threads, a few records, ideally one federation pair. If you're starting fresh, do [Your first thread](./first-thread) first to populate something to migrate.
 - A browser to sign up at `syncropel.com`.
 - $0 budget — hosted workspaces are free, up to three per account (see the [hosted plan](/docs/get-started/hosted)).
@@ -83,7 +83,7 @@ The ready screen surfaces:
 - A CLI access option that mints a device token (copy it if you work from a terminal)
 - The commands to "Connect the CLI"
 
-For provisioning failures (label collision, instance limit, boot timeout), see [hosted onboarding § when provisioning fails](/docs/get-started/hosted#when-provisioning-fails).
+For provisioning failures (label collision, instance limit, boot timeout), see [hosted onboarding § when provisioning fails](/docs/get-started/hosted#if-setup-doesnt-finish).
 
 ## 4. Connect your CLI to the hosted workspace
 
@@ -153,7 +153,7 @@ spl thread records <some_thread_id> | sha256sum
 
 Run this against both your local instance (`SPL_SERVE_URL=http://localhost:9100 spl thread records ...`) and your hosted (`SPL_SERVE_URL=https://myteam.syncropel.app spl thread records ...`). The hashes should match — records are content-addressed, so any divergence means something corrupted in transit.
 
-This round-trip-zero-divergence property is **release-gated**. If a Syncropel release breaks it, that release doesn't ship — it's a binding portability release-gate. It's not aspirational; it's CI-verified on every tag.
+Moving a workspace never changes your records. This is tested on every release.
 
 ## 7. Pair a second device (optional)
 
@@ -194,7 +194,7 @@ You exercised Syncropel's **portability primitive**:
 1. **The bundle is everything.** Every record, every thread, every federation pair — exported as a content-addressed signed archive, imported into a fresh instance, **structurally identical**. Same record IDs, same thread IDs, same federation pair IDs. Not a "best-effort migration" but a **bit-for-bit equivalence**.
 2. **Identity is portable.** The DID document + private key travel with the bundle. The hosted workspace signs records as your DID, not a new one. Federation pairs you had locally still see "you" on the hosted side — DID resolution refreshes the URL automatically.
 3. **The migration is reversible.** Hosted → local works the same way as local → hosted. Steward equivalence — covered in the [federation concept](/docs/concepts/federation) — is binding: any steward can become any other steward.
-4. **Round-trip is CI-gated.** This isn't an aspirational property. Every Syncropel release runs an export → import → diff suite that fails the release if any record diverges. You can rely on it.
+4. **Round-trip is tested.** Every release checks that an export followed by an import gives back exactly the same records. You can rely on it.
 5. **No lock-in is structural, not promised.** The "you can leave any time" claim is a mechanism (`spl export` works on any steward, hosted or self-hosted), not a marketing line. Your hosted workspace can always emit a bundle that imports cleanly into a self-hosted workspace you run yourself.
 
 This is what makes hosted Syncropel a strictly different deal from most SaaS: the data and the system that interpreted it are both portable. You're not paying for proprietary state; you're paying for someone else to run the same `spl` binary you have on your laptop, with the same APIs, the same records, the same exit ramp.

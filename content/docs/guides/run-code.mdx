@@ -40,15 +40,13 @@ Two facts make programs reliable rather than clever:
   more gets a truncated, `truncated: true` result, not a runtime that runs out
   of memory.
 
-Early on, a model that did not know tools hand back data wrote
-`result.records`, got a `TypeError`, and then answered from its own
-recollection of the rows: a confident wrong answer. The data field is the fix,
-and it is why the honest advice is that a program is for structured throughput,
-not for anything you cannot check against the records afterward.
+A program is for structured throughput, not for anything you cannot check
+against the records afterward. Read the data field of each tool answer, and
+check the result against the records.
 
 ## The runtime it runs on
 
-Programs run on the compute substrate: a WebAssembly-sandboxed JavaScript
+Programs run in a WebAssembly-sandboxed JavaScript
 runtime the instance installs once. Inspect what your instance runs on:
 
 ```bash
@@ -60,7 +58,7 @@ pinned:    StarlingMonkey 0.3.0 (ecef7726...)
 path:      /home/you/.syncro/runtimes/javascript.wasm
 installed: yes, and it matches the pin
 
-Programs run on the compute substrate.
+Programs run in the sandboxed runtime.
 
 offered:   yes (config topic run_code enabled)
 ```
@@ -118,7 +116,7 @@ spl tool show <tool_id>
   transport that is a separate process with no network and no view of the
   home directory.
 - Its tool calls are governed exactly as direct calls are: no tool the run
-  lacks, and every call still passes the kernel's per-call verdict.
+  lacks, and every call is still checked before it runs.
 - Each structured tool answer is capped at 256 KiB.
 - The program's compute is bounded by the run's own budget and turn ceiling,
   not by a separate machine limit, so a program cannot outspend the run that

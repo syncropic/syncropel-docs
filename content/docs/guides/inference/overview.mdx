@@ -68,9 +68,9 @@ score = 0.35·max(trust, 0.05)
       + 0.25·semantic_sim
 ```
 
-The scores are on [0, 1], the weights sum to 1.0, and all four signals are always-on. The `0.05` floor is deliberate — multiplicative scoring caused 71% of real responders to score exactly 0.0 in the pre-implementation poll, which made cold-start candidates invisible forever. Additive-with-floor degrades gracefully.
+The scores are on [0, 1], the weights sum to 1.0, and all four signals are always-on. The `0.05` floor is deliberate: it keeps a brand-new responder with no history visible instead of scoring it zero forever.
 
-The scorer is behind an `Arc<dyn RelevanceScorer>` trait. A future release will swap in a learned two-tower + cross-encoder without changing any query bodies. You configure weights and threshold via a `syncropel.config.relevance_scorer.v1` config record; see the [relevance section](/docs/guides/inference/query-anatomy#relevance) for details.
+You configure weights and threshold via a `syncropel.config.relevance_scorer.v1` config record; see the [relevance section](/docs/guides/inference/query-anatomy#relevance) for details.
 
 ## Fold vs orchestration — pure vs policy
 
@@ -102,6 +102,6 @@ Inference is declarative: you write what you want, the engine picks the particip
 - **[Query Anatomy](/docs/guides/inference/query-anatomy)** — every field of `infer.query.v1`.
 - **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 pure aggregators.
 - **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step flows.
-- **[`spl infer` CLI](/docs/reference/cli#infer)** — run queries from the shell.
+- **[`spl infer` CLI](/docs/reference/cli#inference--spl-infer)** — run queries from the shell.
 - **[Records](/docs/concepts/records)** — the 8-field envelope inference rides on.
 - **[Trust](/docs/concepts/trust)** — how trust feeds fold and relevance.

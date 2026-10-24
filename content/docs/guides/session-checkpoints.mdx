@@ -88,7 +88,7 @@ await client.emit({
 ## The boundary annotation — `--draft`
 
 You don't have to hand-write the checkpoint at all. With `--draft`, the
-daemon derives what happened from the substrate itself — what closed,
+workspace works out what happened from your records — what closed,
 what's still open, which decisions await you, what moved — and lands
 the annotation on your attention thread:
 
@@ -176,8 +176,7 @@ permanent. They are NOT garbage-collected. For long-running threads
 with many sessions, the tail grows unbounded.
 
 If you want to retain only the last N checkpoints per thread, emit a
-`core.erasure` record referencing older ones. An automatic retention
-policy for checkpoint records is planned.
+`core.erasure` record referencing older ones.
 
 ## Pairs with
 

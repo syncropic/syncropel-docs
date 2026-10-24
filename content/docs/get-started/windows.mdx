@@ -9,7 +9,7 @@ For boot-time autostart via the Service Control Manager, see [Windows Service](/
 
 ## Don't run `spl.exe` from a WSL shell
 
-`spl.exe` is a native Windows binary. Launching it from a WSL shell inherits a working directory under `\\wsl$\<distro>\...`, which is served by the 9P filesystem protocol. Windows SQLite does not handle 9P locking correctly, and you will see intermittent `database is locked` errors that clear after a reboot and return the next time.
+`spl.exe` is a native Windows binary. Launching it from a WSL shell inherits a working directory under `\\wsl$\<distro>\...`, which is served by the 9P filesystem protocol. Windows does not handle file locking correctly on that kind of path, and you will see intermittent `database is locked` errors that clear after a reboot and return the next time.
 
 Always run `spl.exe` from a native Windows terminal:
 
@@ -29,7 +29,7 @@ But this is not a supported path. The native shell is always better.
 
 ## Windows Defender
 
-Windows Defender can scan `hub.db` on every read or write, which slows down a busy instance. It also occasionally flags fresh release binaries as "unknown" while reputation data catches up, which triggers an interactive prompt on first run.
+Windows Defender can scan your records file (`hub.db`) on every read or write, which slows down a busy instance. It also occasionally flags fresh release binaries as "unknown" while reputation data catches up, which triggers an interactive prompt on first run.
 
 ### Optional: Defender exclusions
 
@@ -110,7 +110,7 @@ Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
   -Name LongPathsEnabled -Value 1 -Type DWord
 ```
 
-After reboot, long paths in `%USERPROFILE%` are handled correctly by both the `spl` binary and the SQLite store.
+After reboot, long paths in `%USERPROFILE%` are handled correctly by `spl`.
 
 If you can't enable long paths (for example, on a managed device you don't control), install `spl` and its data to a shorter path instead:
 

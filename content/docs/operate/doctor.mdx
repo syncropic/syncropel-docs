@@ -149,7 +149,7 @@ lost, every record is still served under its original name, and every read is
 correct. What would matter is the number growing because the canonicalizer
 moved again, and a count alone cannot say that: a store that imported older
 records also grows. So the row names the DATE of the newest drifted record
-(`The newest drifted record was written 2026-08-02 ... before the v0.223 write
+(`The newest drifted record was written 2026-08-02 ... before the write
 fix, so this is history`) and reads it against the release that fixed the
 write path; a date after it says `the canonicalizer moved again, or a pre-fix
 binary wrote to this store; report it`. The sweep stops at 250,000 records in
@@ -161,7 +161,7 @@ What the last successful boot cost, against what bounds this body. The daemon
 writes `boot-peak.json` beside the store after its boot folds complete, and
 this row reads that file with no daemon, so the body at its memory ceiling can
 still be diagnosed. Passes with `this boot peaked at 412 MB of a 1,024 MB cgroup
-limit (40%) (boot 2026-09-12 09:14 UTC, 31 s, 175,122 records, kernel 0.235.0)`.
+limit (40%) (boot 2026-09-12 09:14 UTC, 31 s, 175,122 records)`.
 Warns from 85% and fails from 95%, because a boot that just fit is the boot
 before the one that does not, and the remedy names what to do from where you
 stand: give the body more memory, or get the records out while it still starts
@@ -245,7 +245,7 @@ loudly when there is none:
   10s cadence, with 4 records pending: the durability window is wider than
   configured.` Records are waiting and not leaving. Read the log.
 
-Since v0.236 the sentence also carries the one number that answers "how far
+The sentence also carries the one number that answers "how far
 behind is the copy": the age of the OLDEST record not yet in the tree, in
 parentheses. `oldest unflushed record waited 4s` is that many seconds of work
 at risk right now; `oldest unflushed: none` is a measured nothing pending;
@@ -255,8 +255,7 @@ that record has waited six cadences even if the last flush was a second ago,
 because a fresh flush that left old records behind is the case the old rule
 missed. The same age is in the workspace read and on `/v1/health` as
 `writeback.oldest_unflushed_age_secs` (null, 0, or N), never computed as now
-minus the last flush, which is largest exactly when nothing is wrong. From
-v0.279, `/v1/health` serves the writeback detail (the epoch, the backlog, this
+minus the last flush, which is largest exactly when nothing is wrong. `/v1/health` serves the writeback detail (the epoch, the backlog, this
 age and the watermarks) to the owner, an admin, a member with coarse access,
 the provision key and the local socket. An anonymous `/health` carries only
 `writeback.attach` and `writeback.attach_fact`, the attach state and its code,
@@ -268,7 +267,7 @@ on a fast-growing body, and the row is what says when).
 
 ## tree drift
 
-Since v0.279.0 a boot census compares the off-machine tree with the store by name. `tree_drift` fails while the tree lacks records the store holds at or below the flush cursor. `tree_drift_unchecked` warns, with its reason, when the census can't run: a hosted workspace holds no storage credential of its own, and a namespace-scoped tree or an unreachable tree reads the same. `tree_drift_pending` shows in the notes while the census runs. An unbound workspace has no row. `spl repo drift <locator>` checks any of them by hand.
+A boot census compares the off-machine tree with the store by name. `tree_drift` fails while the tree lacks records the store holds at or below the flush cursor. `tree_drift_unchecked` warns, with its reason, when the census can't run: a hosted workspace holds no storage credential of its own, and a namespace-scoped tree or an unreachable tree reads the same. `tree_drift_pending` shows in the notes while the census runs. An unbound workspace has no row. `spl repo drift <locator>` checks any of them by hand.
 
 ## triggers
 

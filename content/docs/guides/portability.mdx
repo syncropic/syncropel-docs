@@ -26,7 +26,7 @@ What's **not** in the bundle:
 - **Plaintext secret values.** Secrets live in your secret backend (env vars, vault, OS keyring). The bundle has handle-references only. To complete the migration, bring up the same secret backend on the new workspace separately.
 - **Sign-in credentials**: by default the bundle leaves out the records that make a bearer token work, and a workspace that imports a bundle drops any such records it finds unless you tell it to keep them. Pass `--carry-tokens` on export, and accept them on import, only if you intend to preserve them across the migration.
 
-> **A copy exported before version 0.254 contains your working credentials.** Older exports carried those records even when tokens were not meant to travel, so an older copy on disk is a secret: store it as you would a password, and if one has left your machine, rotate the tokens of the workspace it came from with `spl token rotate`. `spl doctor` names any such copy it finds in the workspace's own folders.
+> **An export made with an older version of Syncropel may contain your working credentials.** Treat any older copy on disk as a secret: store it as you would a password, and if one has left your machine, rotate the tokens of the workspace it came from with `spl token rotate`. `spl doctor` names any such copy it finds in the workspace's own folders.
 - **Trust scores**: these rebuild automatically from the imported records (`KNOW`/`DO` outcomes replay through the trust math).
 
 ## Export
@@ -47,31 +47,28 @@ Useful flags:
 | `--uncompressed` | Plain `.tar` instead of `.tar.zst` (inspectable; larger) |
 | `--no-identity` | Don't include private key + DID document (then the bundle isn't importable) |
 | `--carry-tokens` | Keep service-account tokens valid across migration |
-| `--offline` | Read the store directly, with no daemon (below) |
+| `--offline` | Read the workspace files directly, with no running workspace (below) |
 
 ### When the workspace will not start
 
-`spl export` normally asks the running daemon for the bundle. A workspace
+`spl export` normally asks the running workspace for the bundle. A workspace
 that cannot boot (too little memory for its store, a corrupt runtime, a
 machine that will not come up) cannot answer, which is the state where the
-records are hardest to get out. `--offline` opens the store
-file directly, signs the bundle with the workspace's own keys from its home,
-and needs no daemon:
+records are hardest to get out. `--offline` opens the
+workspace files directly, signs the bundle with the workspace's own keys from its home,
+and needs no running workspace:
 
 ```bash
 spl export --offline --out /tmp/my-instance.tar.zst
 ```
 
-It refuses, and writes nothing, while a daemon owns the home: a PID file, the
-configured port answering, or a `spl-serve.service` unit that is active,
-because a second reader on a store a daemon is writing is the one thing this
-must never be, and "running" is not a boolean during boot (a large store takes
-up to a minute and a half between start and bind). Stop the daemon first, or
-export through it without `--offline`. A PID file left by a body the kernel
-killed at boot is the honest hard case: confirm nothing is running, remove
-`run/spl.pid` under the home, and export. The bundle is byte-for-byte the
-bundle the daemon door produces and imports the same way; it needs free space
-for one copy of the store.
+It refuses, and writes nothing, while the workspace is running: a PID file, the
+configured port answering, or an active `spl-serve.service` unit all count.
+A large workspace can take up to a minute and a half to start, so wait for it
+to finish starting. Stop the workspace first, or export without `--offline`.
+If a crash left a stale PID file, confirm nothing is running, remove
+`run/spl.pid` under the home, and export. The bundle is the same as a normal
+export and imports the same way. You need free space for one copy of the workspace.
 
 Inspect a bundle without unpacking:
 
@@ -154,10 +151,10 @@ The bundle format and import logic together guarantee a property the v1.0 vision
 
 - Same record IDs (records are content-addressed, so this is structural, not luck)
 - Same threads (threads are rebuilt from the records)
-- Same workspace pairings (state derives from `th_federation_pairs` records)
-- Same consent grants (state derives from `th_consent` records)
+- Same workspace pairings (rebuilt from the records)
+- Same consent grants (rebuilt from the records)
 
-This isn't aspirational: it's tested on every release as a CI gate. If round-trip ever produces a non-zero diff, the release is held until the divergence is fixed. "You can leave any time and take your records" has a mechanism, not just a promise.
+This isn't aspirational: every release is tested to confirm that an export and import gives back the same workspace. "You can leave any time and take your records" has a mechanism, not just a promise.
 
 ## Troubleshooting
 
@@ -167,7 +164,7 @@ This isn't aspirational: it's tested on every release as a CI gate. If round-tri
 
 **`signature verification failed`**: Bundle signature doesn't match the included identity. Either tampered or corrupted. Re-export from a trusted source.
 
-**`identity-family record failed verification on import: DID missing expected method prefix: <missing master_did>`** (before v0.235): The bundle holds a `core.identity.revoke.v1` naming `revoked_grant`, which is what retiring an assistant writes, and the importer held it to the identity family's countersignature that the grant it revokes never had; the whole bundle was refused, so a workspace that had ever retired an assistant could not be moved. Since v0.235 such a revoke is admitted as the grant it names is. Re-export and import on 0.235 or later.
+**`identity-family record failed verification on import: DID missing expected method prefix: <missing master_did>`**: The bundle was made by an older version of Syncropel from a workspace that had retired an assistant. Update Syncropel, then re-export and import again.
 
 **Reading the import summary.** `records_inspected` equals `records_inserted` plus `records_deduplicated` (the same id was already there) plus `records_skipped` (a record whose thread, actor and clock were already held under a different id, which a fresh home's own configuration seeds collide on) plus `records_failed`; `refusals_by_reason` names each. `identity_restored` says whether the bundle's identity was installed into the target home; when the bundle carried one and it was not, `identity_note` says so and names the paths that do bring an identity back (`spl backup --auto restore-keys`, `spl repo restore --identity-sidecar`). A restore of records without the identity boots as a different workspace.
 

@@ -5,7 +5,7 @@ description: How to add a phone or a colleague to a Syncropel workspace — issu
 
 ## What this is
 
-<Callout type="info" title="This flow is CLI-first today">
+<Callout type="info" title="This flow is CLI-first">
 Invites are issued and managed with `spl invite` (or the `/v1/invites/*` API). The invite **redemption** page — what the recipient opens — is a built-in browser page on your workspace. Studio's **+ add a connection** pane manages what a person holds (connections, keys, devices), and members with a mint grant make guest links from a thread; issuing invites in bulk is still the CLI. The steps below use the CLI.
 </Callout>
 
@@ -87,7 +87,7 @@ The audit row on Alice's side shows `holder_did = did:sync:user:bob`, `holder_pu
 - **An invite can only carry a role its maker holds.** An owner can name invite roles (for example "crew" or "guest list"), and a member can make an invite only for a role they hold themselves.
 - **An invite link sends guests only to your workspace's own web address**: the addresses your workspace has declared, or your own machine on a self-hosted workspace. Any other address is refused when the invite is made, and ignored when it's opened.
 - **A returning guest proves it's them.** Joining again as an existing guest needs that guest's own invite or their device's key.
-- **Revoking an invite ends its sign-ins** (from v0.271): every session started from the invite ends with it.
+- **Revoking an invite ends its sign-ins**: every session started from the invite ends with it.
 
 | Code | What it means |
 |---|---|
@@ -101,7 +101,7 @@ The audit row on Alice's side shows `holder_did = did:sync:user:bob`, `holder_pu
 
 - **Revoke one**: `spl invite revoke <invite_id>`. Idempotent — revoking again returns "already revoked" without erroring.
 - **Bulk revoke**: `spl invite bulk-revoke expired` / `spl invite bulk-revoke exhausted` sweeps every invite in that state in one call.
-- **See the trail**: `spl invite audit` folds `core.invite.event.v1` records from `th_audit_invites` — every redeem (with holder DID), every revoke (with revoker actor + reason), every refused redeem (with the refusal reason: `expired`, `revoked`, `holder_type_mismatch`, `bad_proof`, `freshness_violation`, etc.).
+- **See the trail**: `spl invite audit` lists the invite events recorded on `th_audit_invites` — every redeem (with holder DID), every revoke (with revoker actor + reason), every refused redeem (with the refusal reason: `expired`, `revoked`, `holder_type_mismatch`, `bad_proof`, `freshness_violation`, etc.).
 
 ## Renew your bearer
 

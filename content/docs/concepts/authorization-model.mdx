@@ -28,7 +28,7 @@ So the honest summary of a fresh instance: **scope, actor claim, and grant liven
 
 There is not one pipeline but two, and the asymmetry is stated rather than hidden:
 
-- The **control plane** — records, threads, folds, configuration, membership — evaluates deciders in one order.
+- The **control plane** — records, threads, configuration, membership — evaluates deciders in one order.
 - The **data plane** — files and blobs under `/v1/data/*` — reaches its handlers through a different router and evaluates in its own order.
 
 At the concept level, what matters is that *both* planes are covered by the live deciders, and that "it passed on one plane" implies nothing about the other. If you are auditing an instance, check both. The per-route scope requirements for each surface are in the [API reference](/docs/reference/api) and [Scopes & permissions](/docs/reference/scopes-and-permissions).

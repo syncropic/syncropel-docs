@@ -40,8 +40,8 @@ consent on a `code` namespace.
   live on the same machine; that's what this tutorial uses.
 - Identity initialized on each — `spl identity show` should report
   a DID; if not, `spl identity generate`.
-- `spl version` reports `0.27.2` or newer (when `code-review-pair`
-  template + `spl federation invite` both ship).
+- `spl` installed, with the `code-review-pair` template and
+  `spl federation invite` available (`spl version`).
 
 For convenience this tutorial gives each instance its own data
 directory and uses `--insecure-localhost` so they can pair without
@@ -241,9 +241,9 @@ The `code-review-pair` template ships with a three-pane view
 browser at each instance's Studio surface (the path depends on your
 deployment — typically `/local` against the local instance).
 
-The Inbox pane folds `code_review.request.v1` records. The In
-review pane folds `code_review.assignment.v1` (a record bob would
-emit when claiming a request). The Verdicts pane folds
+The Inbox pane shows `code_review.request.v1` records. The In
+review pane shows `code_review.assignment.v1` (a record bob would
+emit when claiming a request). The Verdicts pane shows
 `code_review.verdict.v1`.
 
 ## What you just demonstrated

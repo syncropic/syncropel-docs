@@ -26,7 +26,7 @@ did:key:z6Mk...              - a self-describing public-key identity
 did:web:alice.dev            - a domain-rooted identity
 ```
 
-The last segment (`alice`, `dev`, `reviewer`) is a human-readable label, the suffix is arbitrary. What matters is the full DID, because that's what every record carries in `record.actor` and what the fold keys on.
+The last segment (`alice`, `dev`, `reviewer`) is a human-readable label, the suffix is arbitrary. What matters is the full DID, because that's what every record carries in `record.actor` and what trust and routing key on.
 
 Three properties hold across all DIDs:
 
@@ -69,7 +69,7 @@ spl actor list
 spl actor show did:sync:agent:reviewer
 ```
 
-Registration writes a `LEARN` record to `th_actor_registry`. The engine folds that thread to build the live registry in memory, which is what `record.actor` resolution and the CEL `trust()` function consult. Unknown DIDs aren't rejected, they can still appear in `record.actor`, but they won't be found by name-based routing until registered.
+Registration writes a `LEARN` record to `th_actor_registry`. The current registry is built from that thread, and it is what `record.actor` resolution and the CEL `trust()` function consult. Unknown DIDs aren't rejected, they can still appear in `record.actor`, but they won't be found by name-based routing until registered.
 
 You usually only register every non-human actor you dispatch to. Users can register themselves through `spl init`, which sets up their identity; they don't need to re-register every fresh session.
 
@@ -209,7 +209,7 @@ A proposal may carry `claims` about the records it depends on:
 {"thread": "th_library", "clock": 12, "field": "body.labeled", "equals": false, "version": "<record id>"}
 ```
 
-The kernel re-derives each claim from the log **before** anybody is asked to
+Syncropel re-derives each claim from the log **before** anybody is asked to
 act on it. A claim that does not hold comes back to the actor as an error
 naming what the record actually says, so it corrects its own proposal rather
 than a person being handed something untrue. An optional `version` is the
@@ -219,7 +219,7 @@ rather than re-think.
 ## When the environment corrects an actor
 
 An actor is not left alone with its own reasoning. After every tool call the
-kernel may add an observation, which the actor sees on its next turn beside
+Syncropel may add an observation, which the actor sees on its next turn beside
 the tool's own result, never in place of it. An actor repeating the same call
 with identical arguments is told so; an actor circling a thread that keeps
 coming back empty is told that too; and a tool call from a reply that hit the

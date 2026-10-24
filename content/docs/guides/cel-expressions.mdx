@@ -143,7 +143,7 @@ current_namespace().startsWith("acme-corp/")   // scope to all descendants
 now()                                          // int: unix seconds
 ```
 
-`current_namespace()` was added alongside the [namespace hierarchy](/docs/reference/cli#namespaces-v0100). Returns the namespace ID the current evaluation is scoped to (defaults to `"default"` when unset). Use `.startsWith("parent/")` to match an entire subtree of the 5-level hierarchy. Per-record namespace is accessible via `record.body.namespace`.
+`current_namespace()` was added alongside the [namespace hierarchy](/docs/reference/cli#namespaces). Returns the namespace ID the current evaluation is scoped to (defaults to `"default"` when unset). Use `.startsWith("parent/")` to match an entire subtree of the 5-level hierarchy. Per-record namespace is accessible via `record.body.namespace`.
 
 ### `proposal_confidence` and `meta_trust` (decision-gate `aitl` context only)
 

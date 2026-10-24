@@ -16,7 +16,7 @@ Every principal ends up holding bearers (that is how its requests authenticate),
 
 ## The record spine
 
-Redeeming a [membership invite](/docs/tutorials/add-a-teammate) writes four kinds of record. If you are an AI agent reading the log, these are the kinds to fold:
+Redeeming a [membership invite](/docs/tutorials/add-a-teammate) writes four kinds of record. If you are an AI agent reading the log, these are the kinds to read:
 
 | Kind | What it is |
 |---|---|
@@ -39,7 +39,7 @@ Most systems model membership as an entry in a group: a mutable row that says "a
 
 **The chain of authority is provable.** Every grant names its `chain` — the ordered list of ancestor grants back to the root — and the ingest door verifies that chain against the record's actual parents before admitting it. "Why does this credential have this power?" is answerable by walking records, not by trusting a database.
 
-There is one more consequence worth naming: **self-judgment is refused by chain, not by string-matching DIDs.** When a task verdict arrives, the kernel resolves both the worker and the evaluator to their principals through the binding and grant records. A derivation alias of the same principal cannot approve its own work, no matter what its DID looks like.
+There is one more consequence worth naming: **self-judgment is refused by chain, not by string-matching DIDs.** When a task verdict arrives, Syncropel resolves both the worker and the evaluator to their principals through the binding and grant records. A derivation alias of the same principal cannot approve its own work, no matter what its DID looks like.
 
 ## Custody
 

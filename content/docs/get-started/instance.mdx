@@ -5,7 +5,7 @@ description: The three modes `spl serve` runs in (dev, secure local, and exposed
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
-`spl serve` is your Syncropel instance. It runs in the background, owns `~/.syncro/hub.db`, binds an HTTP port for the API, binds a Unix socket (Linux and macOS) for the local CLI, and runs the four engine loops (ingest, reconcile, tick, cron).
+`spl serve` is your Syncropel instance. It runs in the background, keeps your records in `~/.syncro/hub.db`, opens an HTTP port for the API, and opens a Unix socket (Linux and macOS) for the local command line.
 
 There are three ways to start it. Pick by situation.
 

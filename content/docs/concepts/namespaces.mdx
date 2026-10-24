@@ -109,7 +109,7 @@ Three concrete reasons the spec mandates this shape:
 
 **2. Tenancy without forking the engine.** The same instance serves multiple orgs without cross-contamination. An attacker who somehow obtains an ORG-level credential for `acme-corp` cannot inject records claiming `bigcorp` as their namespace, the registry doesn't have a `bigcorp` ancestor for them to pass through.
 
-**3. Policy composition is closed.** When (in a future release) namespaces also carry policy YAML, the resolved policy at any level is the *intersection* of every ancestor's policy. There is no way to add capability by going deeper. This makes audit feasible, you can answer "what could a job-42 dispatch ever do?" by looking at the chain of policies, no need to chase implicit grants.
+**3. Policy composition is closed.** If namespaces also carry a policy, the resolved policy at any level is the *intersection* of every ancestor's policy. There is no way to add capability by going deeper. This makes audit feasible, you can answer "what could a job-42 dispatch ever do?" by looking at the chain of policies, no need to chase implicit grants.
 
 ## When NOT to use namespaces
 

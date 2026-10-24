@@ -74,8 +74,8 @@ renders.
 A projection document carries **query bindings, not baked-in data**. The
 workspace record stays static and verifiable; the live records it
 displays are resolved when the surface renders. The same workspace, opened
-by two different people, shows each of them their own records folded the
-same way.
+by two different people, shows each of them their own records, presented
+the same way.
 
 ### `lifecycle`, where it is in its life
 
@@ -93,7 +93,7 @@ thread three ways without changing anything:
   note's formatted text. This is the default.
 - **Outline**: just the heading hierarchy, for jumping around a long
   document.
-- **Records**: the underlying records the document is folded from, shown
+- **Records**: the underlying records the document is built from, shown
   unreduced. The document is a view *of* these records; this lens shows
   the ground truth behind it.
 
@@ -140,7 +140,7 @@ What is deliberately **not** in a workspace body:
 
 Every instance keeps its workspaces on a single well-known thread, the
 **workspace catalog**. Installing a workspace emits its record there;
-listing your workspaces folds that thread.
+listing your workspaces reads that thread.
 
 Discovery is an ordinary query: ask your instance for records of kind
 `core.workspace.v1`. The catalog is not a separate service or a gatekept

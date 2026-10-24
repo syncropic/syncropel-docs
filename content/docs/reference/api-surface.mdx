@@ -9,8 +9,7 @@ of that API: every public door in one place, grouped by what a person does
 with it, and a short list of the prefixes that belong to the machinery and
 are not part of the public surface.
 
-It was read from the source of version 0.224.0. Where a door has a page of its
-own, the last column links to it; the [API reference](/docs/reference/api)
+Where a door has a page of its own, the last column links to it; the [API reference](/docs/reference/api)
 carries request and response shapes for many of them.
 
 ## How to read this page
@@ -409,7 +408,7 @@ Answering the same question twice returns the same thread. See
 | GET | `/v1/instance/bootstrap` | Everything a client needs to draw its first screen (**open**) | [API reference](/docs/reference/api#instance) |
 | POST | `/v1/instance/configure` | Apply a setup preset to a bare workspace | [First run](/docs/get-started/first-run) |
 | GET | `/v1/capabilities` | What this workspace can do, machine-readable (**open**) | [API reference](/docs/reference/api#capability-discovery) |
-| GET | `/.well-known/syncropel` | The same, for a workspace that has not signed in yet (**open**); since v0.236 it also carries `owner_actions`, the nine actions a control plane may forward on an owner's behalf, each naming a declared door and its scope | [API reference](/docs/reference/api#capability-discovery) |
+| GET | `/.well-known/syncropel` | The same, for a workspace that has not signed in yet (**open**); it also carries `owner_actions`, the nine actions a control plane may forward on an owner's behalf, each naming a declared door and its scope | [API reference](/docs/reference/api#capability-discovery) |
 | GET | `/openapi.json` | The OpenAPI document (**open**) | |
 | GET | `/docs/api` | A rendered view of it (**open**) | |
 | GET | `/v1/console/manifest` | Which commands the operator console may run | |

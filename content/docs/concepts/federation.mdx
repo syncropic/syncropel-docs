@@ -43,7 +43,7 @@ All three methods produce the same downstream primitive: a public key that verif
 
 ### Pairs, how instances subscribe to each other
 
-A **pair** is a record-bound persistent relationship between two instances. Pairs are first-class records on the reserved thread `th_federation_pairs`, they are not config, not session state, not ambient configuration. They survive snapshot and restore, they are auditable, and their state is fold-derived from the record log.
+A **pair** is a record-bound persistent relationship between two instances. Pairs are first-class records on the reserved thread `th_federation_pairs`, they are not config, not session state, not ambient configuration. They survive snapshot and restore, they are auditable, and their state is worked out from the record log.
 
 A pair carries:
 
@@ -82,9 +82,9 @@ A pair connects two stewards. By default, all consent-permitted threads sync. Wh
 
 Filters compose with consent: a record needs to clear consent (cross-namespace permission) AND match the pair's allowlist/rules to propagate.
 
-### Legacy sync-only pairs (pre-v0.24)
+### Legacy sync-only pairs
 
-Before the pair primitive landed, `pair` meant a unidirectional thread-scoped subscription configured via `spl fleet sync add` with explicit token plumbing. The CLI still supports it for backward compatibility, see [the legacy section in CLI reference](/docs/reference/cli#federation--pair-sync-legacy-spl-fleet-sync-surface), but new pairs should use `spl federation pair <peer-url>`.
+Before pairing, `pair` meant a unidirectional thread-scoped subscription configured via `spl fleet sync add` with explicit token plumbing. The CLI still supports it for backward compatibility, see [the legacy section in CLI reference](/docs/reference/cli#federation--pair-sync-legacy-spl-fleet-sync-surface), but new pairs should use `spl federation pair <peer-url>`.
 
 ### Consent, what's allowed to cross namespaces
 

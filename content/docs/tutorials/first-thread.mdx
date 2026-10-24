@@ -63,7 +63,7 @@ spl know "Migration complete, all services verified" --thread th_7f3a... --fulfi
 
 To fulfill a specific record rather than the thread's opening intent, name it:
 `--fulfills <record-id>`. Either way the KNOW carries `body.fulfills`, and the
-thread's state is a fold over its records: folds and status views read that
+thread's state comes from its records: the status views read that
 `fulfills` link to mark the thread's work done. The complete record chain, from
 intent through execution to the fulfilling observation, is preserved as an
 immutable history.

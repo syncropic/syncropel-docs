@@ -241,8 +241,8 @@ echo "Forward this to the recipient: $RECIPIENT_URL"
   at parse time. Use `th_foo` (or whatever the actual canonical
   thread ID is on your instance).
 - **Bare handle as peer** — `spl federation invite alice/code` is
-  rejected with a pointer to use a URL or existing `pair_id`. Handle
-  resolution depends on a directory service that isn't shipped yet.
+  rejected with a pointer to use a URL or existing `pair_id`. Handles
+  are not supported as peers.
 
 If a step fails partway through, earlier steps are NOT rolled back.
 The pair record is durable and recoverable; partial grant emits

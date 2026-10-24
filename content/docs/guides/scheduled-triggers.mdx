@@ -76,9 +76,9 @@ spl trigger resume <name>        # puts it back exactly as it was
 spl trigger remove <name>        # removes it for good
 ```
 
-`remove` writes a TOMBSTONE record rather than deleting anything: the ledger is
-append-only, so the removal is a fact on it like every other, and the original
-declaration stays as history. That has one consequence worth knowing before you
+`remove` writes a TOMBSTONE record rather than deleting anything: records are
+never overwritten, so the removal is added to the history and the original
+declaration stays there. That has one consequence worth knowing before you
 reach for it: **declaring the same name again brings the trigger back**, which
 is what latest-wins means on an append-only log.
 

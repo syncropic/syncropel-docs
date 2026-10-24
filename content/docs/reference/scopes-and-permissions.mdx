@@ -54,11 +54,11 @@ A child grant must be **narrower-or-equal** to every parent it cites — a broad
 - A parent with `max_fanout = f` honors only its first `f` children.
 - Every grant carries a required `expires_at`, applied against real time at query, with a capped maximum lifetime.
 
-There is no operation that grants a child more than its parent holds. Widening requires a new grant from an issuer that actually holds the wider authority. (One deliberate conservatism: where a capability carries a guard expression, a child substituting a *different* guard is refused outright rather than compared — deciding whether an arbitrary replacement guard is narrower is not decidable, so the kernel refuses instead of assuming.)
+There is no operation that grants a child more than its parent holds. Widening requires a new grant from an issuer that actually holds the wider authority. (One deliberate conservatism: where a capability carries a guard expression, a child substituting a *different* guard is refused outright rather than compared — deciding whether an arbitrary replacement guard is narrower is not decidable, so it is refused instead of assumed.)
 
 ### Chain
 
-Every grant names its `chain`: the ordered list of ancestor grant ids back to the root. The ingest door verifies the chain against the record's actual `parents` walk before admitting the grant — a grant claiming an ancestry its parents don't support is refused. Chains are capped at **64 hops**.
+Every grant names its `chain`: the ordered list of ancestor grant ids back to the root. The workspace checks the chain against the record's actual `parents` before accepting the grant — a grant claiming an ancestry its parents don't support is refused. Chains are capped at **64 hops**.
 
 The chain is what makes authority auditable ("walk the records") and what enforces refusal of self-judgment: worker and evaluator both resolve through their chains to principals, so a derivation alias cannot judge its own principal's work.
 

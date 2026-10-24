@@ -4,9 +4,9 @@ description: The owner's one read, GET /v1/self/workspace, and what each block o
 ---
 
 `GET /v1/self/workspace` is the one read a person's settings page makes. It is
-owner-only (the credential's admin bit) and it folds what the workspace is,
+owner-only (the credential's admin bit) and it reports what the workspace is,
 whether it can answer, what it has used and has left, who its assistants are,
-and, since v0.235 and v0.236, whether its copy will come back. This page is
+and whether its copy will come back. This page is
 the contract for the blocks under `workspace`; the assistant rows are on
 [Actor doors](/docs/reference/actor-doors).
 
@@ -27,7 +27,7 @@ prints `plan`.
 ## `usable`, `not_usable_reason`, `provider_degraded`
 
 `usable` is the conjunction the readiness report computes (configured, a
-provider is live, an assistant is present) and, since v0.236, the workspace's
+provider is live, an assistant is present) and the workspace's
 model is funded. `not_usable_reason` names the FIRST unmet condition, in the
 order a workspace clears them: `configuring`, `no_assistant`,
 `provider_starting`, `provider_unfunded`. The last is a fact from outside the
@@ -57,7 +57,7 @@ Whether the last successful backup covered the signing keys, which is what
 makes a restore the same workspace rather than a copy of its records:
 `identity_covered`, `last_covered_unix` (the last backup that did cover them,
 which may be older than `last_success_unix`), `identity_note` (prose), and
-since v0.236 `identity_reason`, a code a surface can route on: `sealed`,
+`identity_reason`, a code a surface can route on: `sealed`,
 `no_passphrase`, `passphrase_too_short`, `no_keys`, `unsupported`,
 `seal_failed`, or `not_yet_run` when no successful backup is on file. See
 [Backup and recovery](/docs/guides/backup-restore).
@@ -65,38 +65,33 @@ since v0.236 `identity_reason`, a code a surface can route on: `sealed`,
 ## `writeback`
 
 Present when the body holds the write lease on a repository; explicitly `null`
-when nothing replicates; absent only on a kernel older than the field. The
+when nothing replicates. The
 counters (`epoch`, `flushed_watermark`, `flushed_store_seq`,
 `open_tail_records`, `pending_last_tick`, `last_flush_unix`,
-`flush_interval_secs`, `mounted_repo`) and, since v0.236, the one honest
+`flush_interval_secs`, `mounted_repo`) and the one honest
 recovery-point number: `oldest_unflushed_age_secs`, the age of the OLDEST
 record not yet in the tree. Three states, which a surface must keep apart:
 `null` is not measured (no flush tick yet, or a store with no ingest clock),
 `0` is nothing pending, measured, and `N` is that many seconds of work at risk
 right now. It is never the time since the last flush, which is largest exactly
 when nothing is wrong. Beside it, `derived_records_last_refresh` and
-`derived_ceiling` say how many records the last derived-plane refresh folded
-against the ceiling it refuses at.
+`derived_ceiling` say how many records the last refresh of derived data
+processed, against the limit at which it refuses.
 
 ## `restore`
 
 The body's own record of having been restored from a published tree, or `null`,
-which a surface words as "not recorded" and never as "never restored" (a restore
-made before v0.236 wrote no marker, so absence is a fact about the
-instrumentation, not about history). When present: `record_id`, `restored_unix`,
+which a surface words as "not recorded" and never as "never restored" (an older restore may have left no marker, so absence says nothing about history). When present: `record_id`, `restored_unix`,
 `locator`, `repo`, `namespace`, `scope`, `watermark`, `epoch`,
 `restored_at_watermark` (the `--at` cut, when one was used), `flushed_store_seq`,
 the four record counts, `tail` (the open tail's verdict: `status`, `reason`,
 `records`, `not_taken`), `previous_body_anchor` (null when the home was fresh at
 the restore; a value means it was already a body), `spl_version`, and
-`restores_on_file`. A restore writes this record itself, with the daemon down,
-so a restore followed by a failure to start is recorded; it lands on a body
-thread, which a published tree never carries, so a restored body can never
-inherit its origin's restore history.
+`restores_on_file`. The restore writes this record itself, so a restore followed by a failure to start is still recorded. A restored workspace never inherits the restore history of the workspace it came from.
 
 ## `inference`
 
-`used_usd` from the daily usage fold; `remaining_usd` by who owns the truth: on
+`used_usd` is today's usage; `remaining_usd` by who owns the truth: on
 a free body the gateway's grant balance (the readiness report probes it once
 and this read reuses the answer), on a paid body the tier's cap minus today's
 use, and `source: uncapped` on an operator's own machine, which is a third fact

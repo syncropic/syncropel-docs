@@ -5,7 +5,7 @@ description: Permissions live in the protocol, not bolted on. Every act produces
 
 ## Overview
 
-Governance in Syncropel is built into the foundation, not bolted on at the application level. There is no separate access-control system, no separate audit log, no separate policy engine. Permission rules are records on a reserved thread, evaluated by the same expression engine that handles routing, triggers, status folds, the decision gate, and health checks. The thing that decides "can this happen?" is the same kind of thing that decides "what should happen next?".
+Governance in Syncropel is built into the foundation, not bolted on at the application level. There is no separate access-control system, no separate audit log, no separate policy engine. Permission rules are records on a reserved thread, evaluated by the same expression engine that handles routing, triggers, status views, the decision gate, and health checks. The thing that decides "can this happen?" is the same kind of thing that decides "what should happen next?".
 
 This shape is the point. A team that wants to change a permission edits a rule and emits a record; the instance reloads and the next request sees the new behaviour. No deploy, no migration, no second tool to learn. The cost of getting governance right is the cost of writing one good predicate.
 
@@ -36,7 +36,7 @@ You don't usually emit this JSON by hand, `spl config add-permission-rule` build
 
 The engine reloads its config the moment a new permission rule lands in the broadcast. The next request that comes in is evaluated against the new rule set. There is no instance restart, no config-file dance, no warm-up window. Syncropel keeps no state that isn't in the record log; reload is just a fresh recomputation.
 
-Permission rules sit in a family of seven other CEL-driven decision contexts, triggers, preconditions, routing, fold, health, the decision gate, and join. Each context has its own bindings. The Permission context exposes `record`, `resource` (the thing being requested, a string like `"record_write"` or `"task_approve"`), `current_actor()`, `trust()`, `task()`, `system`, `now()`, and three fleet-state functions discussed below. See the [CEL Expressions guide](/docs/guides/cel-expressions) for the full surface.
+Permission rules sit in a family of seven other CEL-driven decision contexts, triggers, preconditions, routing, status, health, the decision gate, and join. Each context has its own bindings. The Permission context exposes `record`, `resource` (the thing being requested, a string like `"record_write"` or `"task_approve"`), `current_actor()`, `trust()`, `task()`, `system`, `now()`, and three fleet-state functions discussed below. See the [CEL Expressions guide](/docs/guides/cel-expressions) for the full surface.
 
 ## Allow, deny, and what wins
 
@@ -68,13 +68,13 @@ This collapses what is usually two systems into one. There is no `audit_events` 
 
 **Completeness is structural.** Anything that didn't produce a record didn't happen. The system has no "side channel" through which state changes without records. Permission denials, decision-gate approvals, federation pulls, dispatch results, all of them are records.
 
-**Audit queries are folds.** "What did this actor ever do?" is `records.filter(r, r.actor == X)`. "Show me every denial in the last 24 hours" is a CEL trigger on KNOW records with `body.topic: "permission_denied"` plus a time filter. There is no audit-specific query language because there is no audit-specific store.
+**Audit queries are ordinary queries.** "What did this actor ever do?" is `records.filter(r, r.actor == X)`. "Show me every denial in the last 24 hours" is a CEL trigger on KNOW records with `body.topic: "permission_denied"` plus a time filter. There is no audit-specific query language because there is no audit-specific store.
 
 Concretely:
 
 - **`spl audit export`** dumps the audit-relevant slice of the record log to JSON or NDJSON, with category and time filters.
 - **`spl thread records <id>`** walks the records on any thread, useful when investigating a specific incident.
-- **`spl debug replay <thread>`** walks the records *with the fold's state-transition annotations*, useful when you need to know not just what happened, but what the system thought was happening at each step.
+- **`spl debug replay <thread>`** walks the records *with the status changes annotated*, useful when you need to know not just what happened, but what the system thought was happening at each step.
 
 ## How governance composes with the rest of Syncropel
 

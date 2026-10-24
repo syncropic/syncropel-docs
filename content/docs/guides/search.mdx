@@ -15,7 +15,7 @@ Three entry points:
 - **HTTP**: `POST /v1/records/search` with a JSON body
 - **SDK**: `client.search({ query })` (TypeScript) or `await client.search(query)` (Python)
 
-All three talk to the same embedding provider: configured once per workspace, used by every search. The **Ollama** provider (local, zero-cost) ships today; additional hosted providers land in later releases. If you just need text search and don't want to configure a provider, use [Find](./find): it works everywhere with zero setup.
+All three talk to the same embedding provider: configured once per workspace, used by every search. The **Ollama** provider (local, zero-cost) is the supported provider; hosted providers are not available yet. If you just need text search and don't want to configure a provider, use [Find](./find): it works everywhere with zero setup.
 
 ## Prerequisites: configure an embedding provider
 
@@ -221,16 +221,16 @@ Records get embeddings at **ingest time**, before the response to `POST /v1/reco
 
 1. Extracts text from `body` (currently: top-level string fields, concatenated).
 2. POSTs to the configured provider's embedding endpoint.
-3. Stores the returned vector in the sqlite-vec shadow table, keyed by record id.
+3. Stores the returned vector with the record.
 4. Returns the record (the embedding store is transparent to the caller).
 
 This means **every new record is searchable immediately**. There's no background indexer; there's no latency between ingest and searchability.
 
-Records that existed _before_ you configured a provider do **not** get back-filled automatically. To embed existing records, the easiest path today is re-ingest from a backup (see [Backup & recovery](/docs/guides/backup-restore)). A dedicated `spl embed backfill` command is planned for a future release.
+Records that existed _before_ you configured a provider do **not** get back-filled automatically. To embed existing records, the easiest path is to re-ingest from a backup (see [Backup & recovery](/docs/guides/backup-restore)).
 
 ## Providers
 
-One provider ships today:
+Supported provider:
 
 | Provider | Default model        | Runs where        | Cost   |
 | -------- | -------------------- | ----------------- | ------ |
@@ -242,7 +242,7 @@ One provider ships today:
 ollama pull nomic-embed-text
 ```
 
-Hosted provider kinds land in a subsequent release. The `spl config embedding-provider set` CLI will accept additional `<KIND>` values; the request/response shape for search stays identical.
+Hosted providers are not available yet.
 
 ## Limits & Failure Modes
 

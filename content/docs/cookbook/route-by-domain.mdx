@@ -46,7 +46,7 @@ spl task add "Rotate the TLS cert on api.example.com" \
   --domain ops
 ```
 
-Or let the rule route for you by omitting `--assign` — the routing cascade will pick up the domain-based rule when it hits step 3 (see [The Engine — routing cascade](/docs/concepts/engine#routing-cascade)).
+Or let the rule route for you by omitting `--assign` — the routing cascade will pick up the domain-based rule when it hits step 3 (see [The Engine — routing cascade](/docs/concepts/engine)).
 
 ## The trade-off
 
@@ -62,4 +62,4 @@ The `record.body.task == true` clause restricts matching to task INTENDs only. A
 
 - **[Routing rules guide](/docs/guides/routing-rules)** — the full rule authoring model.
 - **[CEL expressions](/docs/guides/cel-expressions)** — every binding available in the routing context.
-- **[The Engine — routing cascade](/docs/concepts/engine#routing-cascade)** — where routing rules fit in the 6-step match.
+- **[The Engine — routing cascade](/docs/concepts/engine)** — where routing rules fit in the 6-step match.

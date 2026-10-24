@@ -71,10 +71,10 @@ Status changes to `approved`. This creates a trust observation — evidence that
 If the work shipped in a release, say which one and the verdict is parented to that release's record:
 
 ```bash
-spl task approve TASK-0001 --domain code --grade 0.9 --in-release v0.197.0
+spl task approve TASK-0001 --domain code --grade 0.9 --in-release v1.2.0
 ```
 
-`--in-release` also works on `spl task done`. A version with no release record in the store refuses with exit code 2 and writes nothing. `--grade` (0 to 1) carries a quality judgment beside the verdict; a plain accept teaches the trust fold almost nothing.
+`--in-release` also works on `spl task done`. A version with no release record is refused with exit code 2 and nothing is written. `--grade` (0 to 1) carries a quality judgment beside the verdict; a plain accept adds very little to trust.
 
 ## See trust grow
 
