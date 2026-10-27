@@ -9,6 +9,25 @@ This page summarizes releases in plain language: what changed and why it matters
 
 ---
 
+## 0.280.0
+
+**A page never carries a password or a key, and moving an admin to a role takes their admin access away.**
+
+- **A page never carries a password or a key.** Publishing refuses any file that looks like it holds a password or a key, and nothing is published. What an assistant writes is checked the same way.
+- **Moving an admin to a role takes their admin access away.** Before, they kept full access. A move that can't take the old access away is refused, and nothing changes.
+- **Counts change as soon as someone is erased.** A count or a total no longer includes an erased person's rows for a few seconds after the erase.
+- **A workspace you run yourself no longer leaves private items out when it reads back its copy.** After going back to an older version by copying the workspace's files, and then upgrading again, it could leave some private items out with no warning. They were never lost from the copy. Now it stops, `spl doctor` says how many, and it tries again the next time it reads the copy.
+- **For the command line and the API.**
+  - A guest, a member, a limited key or a restricted admin is served positions (`sequence`, `clock`, `next_before`, `next_after`) as opaque strings, and the id of a record it can't open as a token. Send them back as given. Don't subtract or sort by them.
+  - Refusals: `422 SITE_FILE_CARRIES_CREDENTIAL`, `409 MEMBER_RENEWAL_CUSTODY_UNAVAILABLE`, `400 RECORD_CARRIES_CREDENTIAL` (now with words), and `422 APP_READS_INVALID` for a package kind that holds a secret or an endpoint.
+  - `GET /v1/self/workspace` gains `address`.
+- **Known limits.**
+  - On a workspace you run yourself in the foreground, rather than with `spl serve --daemon`, the erase receipt says the logs are cleared within a few days. They aren't. That workspace's output goes wherever you send it, and the workspace doesn't clear it.
+  - A list a guest or a member reads still shows whether a row refers to something they can't see.
+  - If the off-machine copy is in storage that keeps old versions of files, those versions still hold the erased person's identifier. `spl doctor` warns about it.
+
+---
+
 ## 0.279.0 "Only The Name You Chose"
 
 **Someone who hasn't chosen a name shows as "Unnamed member" or "A guest" instead of a code.**
