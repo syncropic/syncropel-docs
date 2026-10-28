@@ -3,7 +3,7 @@ title: Windows Service
 description: Run `spl serve` as a Windows Service so the instance starts at boot, survives logoff, and integrates with services.msc + the Event Log. Install, start, stop, uninstall, and troubleshooting.
 ---
 
-On Linux and macOS, `spl serve` already detaches from the
+On Linux and macOS, `spl serve --daemon` already detaches from the
 terminal, writes a PID file, and survives shell close — a quick
 `systemd` or `launchd` unit is enough for boot-time autostart.
 
@@ -12,7 +12,7 @@ Console applications launched from
 PowerShell or CMD are bound to the session that started them and are
 torn down when the user logs off. The native supervisor on Windows is
 the Service Control Manager (SCM) — the same thing that owns `lsass`,
-`spooler`, and every other background instance surfaced in
+`spooler`, and every other background service listed in
 `services.msc`.
 
 `spl serve` ships a Windows Service wrapper. Three
@@ -164,7 +164,7 @@ stop hangs past the 10-second wait.
 
 | Capability | Unix (`systemd` / `launchd`) | Windows Service |
 |---|---|---|
-| Detach from terminal | `spl serve` detaches itself | `--install-service`; Windows owns the process |
+| Detach from terminal | `spl serve --daemon` detaches itself | `--install-service`; Windows owns the process |
 | Start at boot | systemd unit / launchd plist | `--install-service` sets `AutoStart` |
 | Survive logoff | yes (via systemd) | yes (SCM session 0) |
 | Graceful shutdown | `SIGTERM` | Windows stop request, same clean shutdown |

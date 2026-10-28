@@ -11,20 +11,20 @@ your own assets, without republishing records.
 
 Use Tier 3 when you need:
 
-- Custom typography or fonts beyond the L0 default stack
+- Custom typography or fonts beyond the default font stack
 - A different accent color across both light and dark themes
 - Open Graph images, a favicon, or operator-supplied logos
 - Custom `<meta>` tags (Twitter cards, link tags) within the strict
   allowlist
 
-Tier 3 layers **on top of** Tier 2 (content overrides). The L0 floor is
-always preserved.
+Tier 3 layers **on top of** Tier 2 (content overrides). The identity
+card underneath is always preserved.
 
 ## The directory layout
 
 ```
 ~/.syncro/site/
-├── theme.css           # extra CSS, inlined after the L0 stylesheet
+├── theme.css           # extra CSS, inlined after the built-in stylesheet
 ├── head.html           # extra <head> elements (strict allowlist)
 └── assets/             # operator-supplied assets, served at /site/local/<name>
     ├── logo.png
@@ -37,7 +37,7 @@ Every entry is optional. Drop only what you need.
 
 ## `theme.css` — override visual variables
 
-The L0 identity card's typography, colors, and structural spacing all
+The identity card's typography, colors, and structural spacing all
 flow from CSS custom properties on `:root`. The page includes them
 before any `theme.css` content, so anything you put in `theme.css`
 takes precedence.

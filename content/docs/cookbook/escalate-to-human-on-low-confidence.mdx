@@ -112,7 +112,7 @@ Priya is notified (live in her browser if it's open, otherwise by webhook, Slack
 
 ## Why escalate instead of verify?
 
-`verify` runs **both** the translator and the checker every time. `escalate` only goes to tier 2 when tier 1 isn't confident enough. If 90% of your tickets are handled confidently at tier 1, `escalate` costs about one AI call most of the time and only reaches Priya for the hard 10%. `verify` would always use both.
+`verify` runs **both** the main model and the checker every time. `escalate` only goes to tier 2 when tier 1 isn't confident enough. If 90% of your tickets are handled confidently at tier 1, `escalate` costs about one AI call most of the time and only reaches Priya for the hard 10%. `verify` would always use both.
 
 ## The trade-off
 
@@ -143,6 +143,6 @@ The result is saved once her `DO` is added.
 
 ## See also
 
-- **[Orchestration Patterns — escalate](/docs/guides/inference/orchestration-patterns#pattern-escalate)** — full description, including how a person is brought in.
-- **[Translate with human verification](/docs/cookbook/translate-with-human-verification)** — the `verify` version, where a person settles a disagreement instead of covering for low confidence.
-- **[Dispatch observability](/docs/guides/dispatch-observability)** — how to follow a query through its `CALL`, `DO` and `LEARN` records.
+- **[Orchestration Patterns — escalate](/docs/guides/inference/orchestration-patterns#pattern-escalate)**: full description, including how a person is brought in.
+- **[Translate with human verification](/docs/cookbook/translate-with-human-verification)**: the `verify` version, where a person settles a disagreement instead of covering for low confidence.
+- **[Dispatch observability](/docs/guides/dispatch-observability)**: how to follow a query through its `CALL`, `DO` and `LEARN` records.

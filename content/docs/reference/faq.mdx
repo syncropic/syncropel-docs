@@ -7,31 +7,30 @@ Short answers with links to deeper docs. If a question isn't here and you think 
 
 ## Vocabulary
 
-### What's a steward? What's an instance?
+### What's an instance?
 
-They're the same thing. A **steward** is any running Syncropel instance: one on your laptop, a hosted one at `<label>.syncropel.app`, or a server you host yourself. Every steward has the same capabilities, wherever it runs. See the [glossary entry](/docs/reference/glossary) and the [federation pair guide](/docs/guides/federation-pair).
+An **instance** is any running copy of Syncropel: one on your laptop, a hosted one at `<label>.syncropel.app`, or a server you host yourself. Every instance has the same capabilities, wherever it runs. See the [glossary entry](/docs/reference/glossary) and the [federation pair guide](/docs/guides/federation-pair).
 
 ### What's a thread? How is it different from a record?
 
-A **record** is the atomic unit — one immutable, signed item with 8 fields. A **thread** is the coordination context that records share — every record carries a `thread` field; records on the same thread form a history you can read in order to see the current state. See [Records](/docs/concepts/records) and [Threads](/docs/concepts/threads).
+A **record** is the basic unit: one signed item with 8 fields that never changes once written. A **thread** is the piece of work that records belong to. Every record carries a `thread` field, and the records on one thread form a history you read in order to see the current state. See [Records](/docs/concepts/records) and [Threads](/docs/concepts/threads).
 
 ### What's a namespace? Is it the same as a tenant?
 
-A **namespace** is the unit of tenancy, governance, and federation — a 5-level hierarchy `DEFAULT → ORG → PROJECT → ENV → JOB`. Cross-namespace record sharing is consent-gated. On a hosted instance shared by several customers, each gets a namespace. On an instance with one operator, everything lives in `DEFAULT`. See [Namespaces](/docs/guides/namespaces).
+A **namespace** groups records for access control and sharing. Namespaces form a 5-level hierarchy: `DEFAULT → ORG → PROJECT → ENV → JOB`. Records cross from one namespace to another only with consent. On an instance shared by several customers, each gets a namespace. On an instance run by one person, everything lives in `DEFAULT`. See [Namespaces](/docs/guides/namespaces).
 
 ### What's the difference between an actor and a service account?
 
-An **actor** is anyone who emits records — a human (`did:sync:user:alice`), an AI agent (`did:sync:agent:dev`), a system component (`did:sync:system:engine`), or a service account (`did:sync:sa:cmv-adapter`). A **service account** is a specific kind of actor authenticated by a bearer token. Actors are *who*; service accounts are *how a non-human actor authenticates*. See [Actors](/docs/concepts/actors).
+An **actor** is anyone who writes records: a human (`did:sync:user:alice`), an AI agent (`did:sync:agent:dev`), a system component (`did:sync:system:engine`), or a service account (`did:sync:sa:cmv-adapter`). A **service account** is a specific kind of actor authenticated by a bearer token. Actors are *who*; service accounts are *how a non-human actor authenticates*. See [Actors](/docs/concepts/actors).
 
 ## Operations
 
 ### How do I switch between instances?
 
 There are three ways:
-1. **CLI**: change which instance `spl` talks to via `SPL_DAEMON_URL=https://<other>.syncropel.app spl <cmd>` or persistently in `~/.syncro/config.toml`.
-2. **Web UI**: profile picker in the status bar switches to a different paired instance.
-3. **Browser**: navigate to `<other>.syncropel.app` directly — you'll need a bearer paired for that origin.
-
+1. **CLI**: point `spl` at another instance with `SPL_DAEMON_URL=https://<other>.syncropel.app spl <cmd>`, or set it permanently in `~/.syncro/config.toml`.
+2. **Web UI**: the profile picker in the status bar switches to a different paired instance.
+3. **Browser**: go to `<other>.syncropel.app` directly. You need a bearer token paired for that address.
 
 ### Why am I getting `AUTH_REQUIRED` when I `curl` my instance?
 
@@ -40,7 +39,7 @@ Sign-in is required by default. Four possible causes:
 1. **No `Authorization` header.** Add `-H "Authorization: Bearer <token>"`. See [Service accounts and tokens](/docs/get-started/service-accounts).
 2. **Expired or revoked token.** Verify with `spl serve --status` and re-pair if needed.
 3. **Hitting `/v1/health`** (auth-protected, rich body) instead of `/health` (open, minimal liveness). For probes that don't have a token, use `/health` or `/.well-known/syncropel`.
-4. **Insecure-localhost instance on a non-loopback interface.** `--insecure-localhost` only binds 127.0.0.1; if you `curl` from another machine, it can't reach.
+4. **Calling an `--insecure-localhost` instance from another machine.** `--insecure-localhost` listens only on 127.0.0.1, so requests from other machines can't reach it.
 
 For a guided diagnostic, see [Troubleshooting connection](/docs/operate/troubleshooting-connection).
 
@@ -59,7 +58,7 @@ Resetting is rarely the right move. It is usually better to add more evidence th
 
 ### Why did my `spl task dispatch` fail with `E2BIG` (Argument list too long)?
 
-Briefs over about 7 KB were once passed on the command line, which can exceed the operating system's limit. Upgrade with `curl -sSf https://get.syncropic.com/spl | sh` and restart your instance.
+Older versions passed briefs over about 7 KB on the command line, which can exceed the operating system's limit. Upgrade with `curl -sSf https://get.syncropic.com/spl | sh` and restart your instance.
 
 If you still see this after upgrading, open an issue and include the output of `spl version`.
 
@@ -67,11 +66,11 @@ If you still see this after upgrading, open an issue and include the output of `
 
 ### Where does my data live in hosted mode?
 
-On your per-customer hosted instance, in its own record store on persistent storage. The operator manages snapshots; portability is via `spl export` (which you can run anytime against your hosted instance). See [Hosted instance signup](/docs/get-started/hosted).
+On your own hosted instance, in its own record store on persistent storage. We manage snapshots for you, and you can take a full copy with `spl export` at any time. See [Hosted instance signup](/docs/get-started/hosted).
 
 ### Can I federate hosted ↔ self-hosted?
 
-Yes — federation is instance-agnostic. `spl federation pair` works regardless of where each peer runs. You can have a laptop self-hosted instance paired with a hosted instance and a friend's self-hosted instance simultaneously. See [Federation pair](/docs/guides/federation-pair).
+Yes. `spl federation pair` works wherever each peer runs. You can have a laptop self-hosted instance paired with a hosted instance and a friend's self-hosted instance simultaneously. See [Federation pair](/docs/guides/federation-pair).
 
 ### Is there a free trial?
 
@@ -89,7 +88,7 @@ A lasting link between two workspaces, established by `spl federation pair add <
 
 ### Can I revoke a pair?
 
-Yes — `spl federation revoke <peer-did | pair-id>`. This cannot be undone. Re-establishment requires a fresh `spl federation pair` handshake. The revocation is saved as a record, so the history of who paired with whom is kept.
+Yes: `spl federation revoke <peer-did | pair-id>`. This cannot be undone. To connect again, run a fresh `spl federation pair` handshake. The revocation is saved as a record, so the history of who paired with whom is kept.
 
 ## Troubleshooting
 
@@ -99,7 +98,7 @@ Setting up the instance took longer than expected. It may already be running. Wa
 
 ### `spl federation pair` returns "manifest signature does not verify against advertised DID"
 
-The peer's `/.well-known/syncropel` manifest carries a signature that doesn't match the DID it claims. Possible causes: the peer runs an older version, a key change hasn't reached you, or someone is intercepting traffic (rare). On the peer, run `spl identity verify` to confirm local key matches resolved DID. See the [federation-pairing operator guide](/docs/operate/federation-pairing).
+The peer's `/.well-known/syncropel` manifest carries a signature that doesn't match the DID it claims. Possible causes: the peer runs an older version, a key change hasn't reached you, or someone is intercepting traffic (rare). On the peer, run `spl identity verify` to confirm its local key matches the DID it publishes. See the [federation pairing guide](/docs/operate/federation-pairing).
 
 ### Where do I find logs?
 
@@ -117,7 +116,7 @@ For dispatch debugging specifically, `spl task diagnose <id>` walks the records 
 
 If your question wasn't covered:
 
-- **[Glossary](/docs/reference/glossary)** — canonical definitions.
+- **[Glossary](/docs/reference/glossary)** — definitions of the terms used in these docs.
 - **[CLI reference](/docs/reference/cli)** — every `spl` verb.
 - **[Operator runbook](/docs/operate/runbook)** — running, recovering, and backing up an instance.
 - **[Open an issue](https://github.com/syncropic/syncropel-docs/issues)** — if the question deserves an answer here, we'd like to add it.

@@ -7,7 +7,7 @@ description: Pair two workspaces with one command, write a record on one, read i
 
 Two workspaces (**alice** and **bob**), paired with `spl federation pair add`, exchanging records over a single signed link. You'll write a record on alice, sync it to bob, and check it arrived, without setting up any URLs or tokens by hand.
 
-Federation in Syncropel is just **records on a reserved thread**, not a separate sign-in or transport system. The pair, its consent grants and its sync state are all records on `th_federation_pairs`.
+Federation in Syncropel is **records on a reserved thread**, not a separate sign-in or transport system. The pair, its consent grants and its sync state are all records on `th_federation_pairs`.
 
 Allow about 30 minutes, including one approval on bob's side.
 
@@ -27,14 +27,14 @@ folders and different ports so nothing collides with, or writes into, your
 real data.
 </Callout>
 
-Terminal A — alice on port 9201:
+Terminal A, alice on port 9201:
 
 ```bash
 SYNCROPEL_HOME="$HOME/.syncro-alice" \
   spl serve --port 9201 --insecure-localhost
 ```
 
-Terminal B — bob on port 9202:
+Terminal B, bob on port 9202:
 
 ```bash
 SYNCROPEL_HOME="$HOME/.syncro-bob" \
@@ -60,7 +60,7 @@ spl-bob status
 
 Both should report a green status with their DIDs shown in the `instance_did` field.
 
-## 2. Initiate the pair from alice
+## 2. Start the pair from alice
 
 ```bash
 spl-alice federation pair add http://127.0.0.1:9202
@@ -77,11 +77,11 @@ What you'll see, in order:
 → Awaiting peer approval...
 ```
 
-The CLI now polls bob's pair-status endpoint every 2 seconds for up to 60 seconds, waiting for someone on bob's side to approve.
+The CLI now checks bob's pair status every 2 seconds for up to 60 seconds, waiting for someone on bob's side to approve.
 
 ## 3. Approve on bob's side
 
-In a separate terminal (or back in terminal C), list bob's pending decisions
+In the third terminal, list bob's pending decisions
 (everything waiting for a person):
 
 ```bash
@@ -151,7 +151,7 @@ spl-bob federation list
 
 You should see alice's DID with state `active`. Both sides hold the relationship; this pair works in both directions (records can flow both ways, subject to consent).
 
-## 5. Emit a record on alice and sync to bob
+## 5. Write a record on alice and sync to bob
 
 ```bash
 spl-alice intend "Test the federation link" --thread th_fed_test
@@ -195,7 +195,7 @@ spl-alice sync th_fed_test from did:sync:instance:bob-fedb12...
 spl-alice thread records th_fed_test
 ```
 
-You'll now see two records on both sides — alice's INTEND and bob's KNOW — building a single thread that spans both workspaces.
+You'll now see two records on both sides, alice's INTEND and bob's KNOW, forming a single thread that spans both workspaces.
 
 ## 7. Inspect the pair lifecycle records
 
@@ -206,9 +206,9 @@ spl-alice thread records th_federation_pairs
 ```
 
 You'll see at least three records:
-- `pair_init.v1` — alice's handshake initiation
-- `pair.genesis.v1` (signed by bob) — the activation record
-- `pair_active.v1` (alice-local) — alice's confirmation
+- `pair_init.v1`: alice's request to pair
+- `pair.genesis.v1` (signed by bob): the record that activates the pair
+- `pair_active.v1` (on alice's side only): alice's confirmation
 
 The pair's current state comes from this thread. Pausing, resuming and revoking each add a record that changes it.
 
@@ -226,10 +226,10 @@ Pairing is the gate to everything else federation does, such as relaying while a
 
 ## Where to next
 
-- [Build a multi-user code review flow](./code-review-pair) — builds a complete two-person workflow on the pair you just created.
-- [Federation pair guide](/docs/guides/federation-pair) — pausing, resuming, revoking, thread filtering, auto-approval and token rotation.
-- [Federation concept](/docs/concepts/federation) — how pairing, sharing and consent fit together.
-- [Consent guide](/docs/guides/consent) — cross-namespace record sharing rules. Pairing connects two workspaces; consent decides what they share.
+- [Build a multi-user code review flow](./code-review-pair): a complete two-person workflow on the pair you just created.
+- [Federation pair guide](/docs/guides/federation-pair): pausing, resuming, revoking, thread filtering, auto-approval and token rotation.
+- [Federation concept](/docs/concepts/federation): how pairing, sharing and consent fit together.
+- [Consent guide](/docs/guides/consent): rules for sharing records across namespaces. Pairing connects two workspaces; consent decides what they share.
 
 ## Troubleshooting
 
@@ -237,6 +237,6 @@ Pairing is the gate to everything else federation does, such as relaying while a
 |---|---|---|
 | `peer served /.well-known/syncropel but no federation_manifest key` | The other workspace has no identity set up. | On the other workspace: `spl identity show`. If it reports `no identity`, run `spl identity generate`. Then re-try the pair from the initiating side. |
 | `pair_handshake_rejected: unauthenticated_initiator` | Secure connection failed. Either the peer's address doesn't serve a valid certificate, or you forgot `--insecure-localhost` on a local-only setup. | For local testing, make sure both workspaces started with `--insecure-localhost`. For real setups across machines, confirm both sides use TLS. The flag is for testing only and is refused on any host other than `127.0.0.1`. |
-| The approval times out (alice's CLI prints `still pending after 60s`) | Nobody approved on bob's side within 60 seconds. The pair is still in `establishing` state. | The original `pair_pending.v1` decision on bob's side stays valid until bob explicitly rejects it or it TTLs out. Re-run `spl federation pair add <url>` from alice — it starts a new attempt that can be approved. |
-| `unpaired_peer` on `spl sync` | You're syncing from a URL or DID that doesn't match any pair record on this side. | Run `spl federation list` to confirm what pairs exist on this side. If you expected one but it's missing, the pair was never completed (the handshake was interrupted) — re-run `spl federation pair`. |
+| The approval times out (alice's CLI prints `still pending after 60s`) | Nobody approved on bob's side within 60 seconds. The pair is still in `establishing` state. | The original `pair_pending.v1` decision on bob's side stays valid until bob rejects it or it expires. Re-run `spl federation pair add <url>` from alice to start a new attempt that can be approved. |
+| `unpaired_peer` on `spl sync` | You're syncing from a URL or DID that doesn't match any pair record on this side. | Run `spl federation list` to confirm what pairs exist on this side. If you expected one but it's missing, the pair was never completed (the handshake was interrupted). Re-run `spl federation pair add <url>`. |
 | Pair shows `degraded` state | The peer was unreachable for over 24 hours, or a sync call got a 401 (token expired or revoked). | Run `spl federation refresh <peer-did>` to check the peer again. If the peer is permanently gone, `spl federation revoke <peer-did>` cleanly closes out the pair. |

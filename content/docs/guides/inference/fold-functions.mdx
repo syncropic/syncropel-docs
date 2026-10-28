@@ -19,7 +19,7 @@ There are five fold functions. This guide covers each one, when to use it, and a
 | `best_of` | Highest-trust responder wins. | Named-expert routing, single-winner flows |
 | `waterfall_first` | First acceptable response wins. | Cost-minimising cascades (cheap → expensive) |
 | `ensemble_weighted` | Weighted aggregation with a custom signal. | Confidence-weighted, recency-weighted, custom-metric fusion |
-| `expression` | Full CEL escape hatch over the response list. | Domain-specific aggregation (median, regex, IQR filter…) |
+| `expression` | Your own CEL logic over the list of responses. | Domain-specific aggregation (median, regex, IQR filter…) |
 
 ## Order of responses
 
@@ -117,7 +117,7 @@ A and B give the same answer. Weight sum for `positive` = 0.8 + 0.7 = 1.5. Weigh
 
 The highest-trust responder wins, and its whole answer is kept. Ties are broken by `clock` and `id` (lowest first), then by the `tie_break` rule.
 
-**When to use:** one expert is right about this, you just don't know which one at dispatch time. Code review, medical suggestion, legal reasoning — domains where you'd rather hear the most-trusted voice than a mediocre consensus.
+**When to use:** one expert is right about this, but you don't know which one when you send the query. Code review, medical suggestion, legal reasoning — domains where you'd rather hear the most-trusted voice than a mediocre consensus.
 
 **Example — you have two code reviewers of known-different trust:**
 
@@ -166,7 +166,7 @@ Default weight expression: `response.trust`. Common overrides:
 
 Negative weights are treated as 0.
 
-**When to use:** you trust responders differently than their raw trust score suggests, and the difference is a deterministic function of per-response metadata.
+**When to use:** you trust responders differently than their raw trust score suggests, and you can compute the difference from each response's own details.
 
 ## Function: expression
 

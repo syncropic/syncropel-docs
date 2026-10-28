@@ -7,12 +7,12 @@ description: Use `spl task suggest` to see what to work on next, and `spl task t
 
 A backlog accumulates faster than you close it. Two commands turn that backlog into something you can act on:
 
-- **`spl task suggest`** answers "what should I work on next?" — a relevance-ranked shortlist drawn from your recent activity.
-- **`spl task triage`** answers "what can I close?" — stale open tasks that newer or completed work has probably superseded, presented as a list you review before closing.
+- **`spl task suggest`** answers "what should I work on next?" with a shortlist ranked by how relevant each task is to your recent activity.
+- **`spl task triage`** answers "what can I close?" with stale open tasks that newer or completed work has probably superseded, presented as a list you review before closing.
 
 Both always reflect your current backlog. Neither one *acts*: they show candidates and leave the decision to you.
 
-## `spl task suggest` — what to work on next
+## `spl task suggest`: what to work on next
 
 The suggester ranks open tasks by relevance. At its best it works by meaning: it learns what you've been working on lately and finds related tasks. If your backlog isn't set up for semantic search yet, it ranks by priority and recency instead.
 
@@ -59,9 +59,9 @@ Semantic suggestions are much sharper than the priority ranking because they mat
 spl embed --loop
 ```
 
-Once that finishes, `spl task suggest` ranks by semantic relevance to your trajectory and the `tip:` line disappears.
+Once that finishes, `spl task suggest` ranks by how closely each task's meaning matches your recent work, and the `tip:` line disappears.
 
-## `spl task triage` — find what to close
+## `spl task triage`: find what to close
 
 Over time, tasks get superseded: a newer task covers the same ground, or the work landed under a different item, but the old task is still sitting open. Triage finds those.
 
@@ -96,7 +96,7 @@ Triage never closes anything. It hands you a reviewable list; you decide with `s
 | Flag | What it does |
 |---|---|
 | `--stale-days <N>` | Only consider tasks older than N days as candidates. |
-| `-n, --limit <N>` | Max candidates to scan (default 30) — limits how much work the search does. |
+| `-n, --limit <N>` | Maximum candidates to scan (default 30); limits how much work the search does. |
 
 ```bash
 # Only triage tasks that have been sitting for over a month

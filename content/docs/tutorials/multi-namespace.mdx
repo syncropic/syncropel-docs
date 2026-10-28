@@ -1,6 +1,6 @@
 ---
 title: Your First Multi-Namespace Setup
-description: Walk through setting up two isolated environments under one ORG, writing records into each, and checking that a child namespace can only narrow its parent. About 15 minutes.
+description: Set up two isolated environments under one organization, write records into each and check that a child namespace can only narrow its parent. About 15 minutes.
 ---
 
 ## What you'll learn
@@ -8,15 +8,15 @@ description: Walk through setting up two isolated environments under one ORG, wr
 By the end of this tutorial you'll have:
 
 - Created an ORG-level namespace and two ENV-level children
-- Written records into each environment via the HTTP API
+- Written records into each environment through the HTTP API
 - Confirmed that records from one environment can't accidentally claim the other's namespace
 - Triggered the `403 NAMESPACE_REJECTED` error and recovered from it
-- Archived an environment and watched the cascade prevent new writes
+- Archived an environment and seen that new writes under it are blocked
 - Used `spl debug replay` to inspect records in a specific namespace
 
 You'll need: a running `spl serve` (the [Quickstart](/docs/start) covers this), and `curl`. About 15 minutes.
 
-If you skipped the [Namespaces concept](/docs/concepts/namespaces) page, read the first three sections first — they explain the reasoning this tutorial demonstrates.
+If you skipped the [Namespaces concept](/docs/concepts/namespaces) page, read its first three sections before you start. They explain the reasoning this tutorial demonstrates.
 
 ## Step 1: confirm your workspace is healthy
 
@@ -30,11 +30,11 @@ You should see 7 PASS checks. If `instance reachable` fails, run `spl serve` fir
 spl namespace list
 ```
 
-On a fresh install this shows just `default` (the implicit root). That's our starting point.
+On a fresh install this shows only `default` (the implicit root). That's the starting point.
 
 ## Step 2: create the ORG
 
-We'll set up a fictional company called "tutorial" with `staging` and `prod` environments under a `web` project.
+You'll set up a fictional company called "tutorial" with `staging` and `prod` environments under a `web` project.
 
 ```bash
 spl namespace create tutorial --description "Tutorial walkthrough tenant"
@@ -44,7 +44,7 @@ spl namespace create tutorial --description "Tutorial walkthrough tenant"
 ✓ namespace 'tutorial' → active
 ```
 
-Try creating a child without the project parent — you should get a clear refusal:
+Try creating a child without its project parent. You should get a clear refusal:
 
 ```bash
 spl namespace create tutorial/web/staging
@@ -58,7 +58,7 @@ error: parent namespace 'tutorial/web' does not exist or is not Active.
 
 The CLI checks the parent first, so it catches this before anything is saved.
 
-## Step 3: walk down the tree
+## Step 3: build the tree
 
 ```bash
 spl namespace create tutorial/web --description "Web project"
@@ -83,7 +83,7 @@ spl namespace list
   4 explicit + 1 implicit (default)
 ```
 
-Inspect the staging env to see its full ancestor chain:
+Inspect the staging environment to see its full chain of ancestors:
 
 ```bash
 spl namespace show tutorial/web/staging
@@ -175,7 +175,7 @@ curl -X POST http://localhost:9100/v1/records \
   }'
 ```
 
-You should get a 403 with a helpful error message:
+You should get a 403 with an error message that explains the fix:
 
 ```json
 {
@@ -186,11 +186,11 @@ You should get a 403 with a helpful error message:
 }
 ```
 
-The error tells you exactly what's wrong AND how to fix it. This is the [narrowing rule](/docs/concepts/namespaces#the-narrowing-rule) in action: Syncropel checked each ancestor, found `fake-corp` missing, and refused the write.
+The error tells you exactly what's wrong and how to fix it. This is the [narrowing rule](/docs/concepts/namespaces#the-narrowing-rule) in action: Syncropel checked each ancestor, found `fake-corp` missing, and refused the write.
 
-## Step 6: try cross-environment escalation
+## Step 6: try a namespace you didn't create
 
-Now try something more interesting. Write a record claiming `tutorial/web/staging/job-99` — a JOB-level namespace under your existing staging environment, but one you didn't explicitly create:
+Now try something more interesting. Write a record claiming `tutorial/web/staging/job-99`: a JOB-level namespace under your existing staging environment, but one you didn't create:
 
 ```bash
 curl -X POST http://localhost:9100/v1/records \
@@ -216,7 +216,7 @@ curl -X POST http://localhost:9100/v1/records \
 }
 ```
 
-This is important: **a parent namespace doesn't auto-grant access to its descendants**. Just because `tutorial/web/staging` is Active doesn't mean any child namespace under it is automatically allowed. Each namespace must be explicitly created. This makes namespaces a real boundary instead of a wildcard.
+This is important: **a parent namespace doesn't automatically grant access to its descendants**. Because `tutorial/web/staging` is Active doesn't mean any child namespace under it is allowed. Each namespace must be created explicitly. This makes namespaces a real boundary instead of a wildcard.
 
 To allow `job-99`, create it:
 
@@ -224,11 +224,11 @@ To allow `job-99`, create it:
 spl namespace create tutorial/web/staging/job-99
 ```
 
-Now retry the curl — it should succeed.
+Now retry the curl. It should succeed.
 
 ## Step 7: archive an environment
 
-Imagine staging is being decommissioned. Archive it:
+Imagine staging is being retired. Archive it:
 
 ```bash
 spl namespace archive tutorial/web/staging
@@ -259,7 +259,7 @@ curl -X POST http://localhost:9100/v1/records \
 }
 ```
 
-And the cascade catches the descendant too:
+The descendant is rejected too:
 
 ```bash
 curl -X POST http://localhost:9100/v1/records \
@@ -296,11 +296,11 @@ curl -X POST http://localhost:9100/v1/records \
   }'
 ```
 
-Success. Sibling environments are isolated — archiving staging doesn't touch prod.
+Success. Sibling environments are isolated: archiving staging doesn't touch prod.
 
 ## Step 8: re-activate by re-creating
 
-Decided you need staging back? Just re-create it:
+Need staging back? Re-create it:
 
 ```bash
 spl namespace create tutorial/web/staging --description "Revived"
@@ -354,7 +354,7 @@ spl namespace archive tutorial/web
 spl namespace archive tutorial
 ```
 
-Or for a hard cleanup (still preserves audit trail):
+Or, for a full cleanup (the audit trail is still kept):
 
 ```bash
 spl namespace delete tutorial/web/staging/job-99
@@ -368,12 +368,12 @@ The records you wrote during the tutorial (in `th_tutorial_staging`, `th_tutoria
 
 ## What you learned
 
-Going through this tutorial you've exercised:
+In this tutorial you've used:
 
 1. **Parent check.** A child needs an Active parent, which catches typos.
 2. **Explicit creation.** Descendants don't get access automatically.
 3. **Clear errors.** Every rejection names the failing ancestor and the command to fix it.
-4. **Cascade.** Archiving a parent stops writes to everything under it immediately.
+4. **Archiving reaches down.** Archiving a parent stops writes to everything under it immediately.
 5. **Isolation between siblings.** Archiving one environment doesn't touch the others.
 6. **Re-activation.** Re-creating a namespace brings it back, and the CLI tells you it is overriding.
 7. **Inspection.** `spl namespace show` shows the ancestors and `spl debug replay` shows the records.
@@ -382,7 +382,7 @@ For real setups, see the [Namespaces guide](/docs/guides/namespaces), which cove
 
 ## Next steps
 
-- **[Namespaces guide](/docs/guides/namespaces)** — a full setup, rules and recovery
-- **[Namespaces concept](/docs/concepts/namespaces)** — why namespaces work this way
-- **[Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now)** — `current_namespace()` for scoped permission rules
-- **[Debugging guide](/docs/guides/debugging)** — which tools to try first when something doesn't work
+- **[Namespaces guide](/docs/guides/namespaces)**: a full setup, rules and recovery
+- **[Namespaces concept](/docs/concepts/namespaces)**: why namespaces work this way
+- **[Expressions](/docs/guides/cel-expressions#current_actor-current_namespace-and-now)**: `current_namespace()` for scoped permission rules
+- **[Debugging guide](/docs/guides/debugging)**: which tools to try first when something doesn't work

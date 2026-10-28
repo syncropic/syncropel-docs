@@ -2,6 +2,19 @@
 
 All notable additions and revisions to docs.syncropel.com are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-10-28: Plainer words and corrected commands across the site
+
+- Every section was reread for plain language: unexplained terms are now
+  defined where they first appear or replaced with everyday words, and
+  sample names, tokens and hosts are neutral placeholders.
+- Corrected commands and flags against the CLI's own help: `spl stop` and
+  `spl serve --daemon` where a page meant a background workspace,
+  `spl share send`, `spl actor export/import`, reading a `.tar.zst` export
+  with `tar --zstd -tf`, what `spl export --no-identity` does, the default
+  for `spl session save --actor`, and `spl reset --including-backups`.
+- Fixed pages that contradicted themselves (counts that didn't match their
+  lists, a tutorial's record count, the query parts in the inference guide).
+
 ## 2026-08-29: Blueprints deploy actors, prompts are records
 
 - **[Blueprints](/docs/concepts/blueprints)**: a blueprint can declare an

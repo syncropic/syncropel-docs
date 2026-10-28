@@ -7,15 +7,14 @@ This page is for people running their own workspace or using the API. If you use
 
 ## What they are
 
-A trigger starts an actor on its own. Triggers come in
-two kinds:
+A trigger starts an actor on its own. Triggers come in two kinds:
 
 - **Record-matching**: fire when a new record matches a [CEL expression](/docs/guides/cel-expressions)
   (see [Routing rules](/docs/guides/routing-rules))
 - **Schedule-based** (this guide): fire on a cron schedule
 
-This guide is about schedules, such as "give me a daily summary
-at 9am". You don't need an external scheduler.
+This guide is about schedules, such as "give me a daily summary at 9am". You
+don't need an external scheduler.
 
 ## Prerequisites
 
@@ -60,8 +59,9 @@ the cost.
 ## Pause, resume, remove
 
 `spl trigger` is the verb group for a trigger's life after it exists.
-`list` and `show` show the triggers that are actually running. A trigger whose schedule, timezone or idempotency setting is
-invalid is not loaded and is marked `REFUSED` in the listing, so it is never mistaken for a working one.
+`list` and `show` show the triggers that are actually running. A trigger whose
+schedule, timezone or idempotency setting is invalid is not loaded and is marked
+`REFUSED` in the listing, so it is never mistaken for a working one.
 
 ```bash
 spl trigger list                 # the live set, with refusals marked
@@ -79,7 +79,7 @@ You can also remove a trigger that shows as `REFUSED`.
 
 ### Stale-task reminder
 
-Fire every 4 hours, poke any tasks that have been `in_progress` >48h:
+Every 4 hours, post a reminder for any task that has been `in_progress` for more than 48 hours:
 
 ```bash
 spl config add-trigger \
@@ -93,7 +93,7 @@ spl config add-trigger \
 
 ### Trust decay audit
 
-Each week, surface actors whose trust has dropped, for you to review:
+Each week, list the actors whose trust has dropped, for you to review:
 
 ```bash
 spl config add-trigger \
@@ -133,7 +133,7 @@ Schedules are UTC unless the trigger names a `timezone` (an IANA name such as `E
 
 ## Rate limiting
 
-`--cooldown <secs>` sets a minimum gap between a trigger's firings. Use it if a trigger fires twice by mistake, or if you want a guaranteed minimum gap.
+`--cooldown <secs>` sets a minimum gap between a trigger's firings. Use it to stop a trigger firing twice in quick succession by mistake.
 
 ## Actors that run unattended
 
@@ -158,8 +158,8 @@ awake. When a trigger falls due while the workspace sleeps, the missed run is ha
 time the workspace wakes, for example when you open it. The trigger's catch-up setting (`catchup`)
 decides what happens: skip the missed run, run only the most recent one, or run each one it missed.
 
-A sleeping hosted workspace does not wake itself when a trigger falls due. Do not rely on a schedule firing on time while
-nobody is using the workspace.
+A sleeping hosted workspace does not wake itself when a trigger falls due. Do
+not rely on a schedule firing on time while nobody is using the workspace.
 
 On the free plan, a trigger whose schedule fires more often than hourly is refused when you turn it
 on (`SCHEDULE_FINER_THAN_PLAN`).

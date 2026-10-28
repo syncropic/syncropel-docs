@@ -58,7 +58,7 @@ Agreement is measured by how similar the answers are. By default, structured ans
 
 **Saved progress:** after the primary and verifier respond, a record with `body.kind: "infer.orchestration.verify.state.v1"` and the agreement score is saved on the query thread. If the server stops partway, it resumes from there.
 
-**Cost:** usually 2 CALLs (primary + verifier). Only 3 when they disagree. Predictable.
+**Cost:** usually 2 CALLs (primary + verifier), and 3 only when they disagree.
 
 ## Pattern: waterfall
 
@@ -135,7 +135,7 @@ A person can reply in three ways:
 
 A person's availability (`availability.status`, `availability.hours`, `availability.typical_response_delay_s`, `availability.last_seen_at`) is used when ranking, so a query doesn't go to someone who is away. If `typical_response_delay_s > max_latency_secs × 0.5`, that person is skipped.
 
-**SLA defaults by responder kind:**
+**Default time limits by responder kind:**
 
 | Kind | Typical delay | Default `max_latency_secs` |
 |---|---|---|
@@ -195,9 +195,9 @@ These records hold enough to resume after a restart. Because progress is saved, 
 
 If you restore the query thread on another instance, the query carries on from where it stopped. A person who hasn't answered yet is still waited for.
 
-## Nested queries — the composition escape hatch
+## Nested queries: going beyond the six patterns
 
-A query's KNOW can be an `input.record_id` for another query. This is how you go beyond the 6 patterns.
+A query's KNOW record can be the `input.record_id` of another query. This is how you go beyond the six patterns.
 
 **Example** — "classify this document, then summarise only if the classification is 'research'":
 

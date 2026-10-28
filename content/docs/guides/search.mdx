@@ -34,7 +34,7 @@ The workspace picks this up straight away; no restart is needed. To check:
 spl config embedding-provider show
 ```
 
-When no provider is configured search requests return HTTP 503. Both SDKs report this separately (`disabled: true` on the result) so a UI can show a "set up Ollama" hint instead of an error.
+When no provider is configured, search requests return HTTP 503. Both SDKs report this separately (`disabled: true` on the result) so a UI can show a "set up Ollama" hint instead of an error.
 
 To turn search off without changing other settings:
 
@@ -113,7 +113,7 @@ else:
 ```
 
 - **`query`** (required): the text to search for. Used exactly as written.
-- **`k`**: top-K to return. Clamped to `[1, 100]`. Default `10`.
+- **`k`**: how many results to return. Clamped to `[1, 100]`. Default `10`.
 - **`thread`**: restrict to one thread ID.
 - **`actor`**: restrict to records emitted by a specific actor DID.
 - **`kind`**: restrict to records whose `body.kind` matches.
@@ -145,7 +145,7 @@ This means a narrow filter can return fewer than K results, or none, when the cl
 - **`k`**: echoes the requested K (after clamp).
 - **`hits`**: ordered list, closest first.
   - **`score`**: similarity from -1 to 1, though in practice 0 to 1. Higher is closer.
-  - **`record`**: the full Record, with `id`, `thread`, `actor`, `act`, `body`, `clock`, and all the rest.
+  - **`record`**: the full record, with `id`, `thread`, `actor`, `act`, `body`, `clock`, and all the rest.
 
 When search is not available (the workspace returns 503), the SDK returns:
 

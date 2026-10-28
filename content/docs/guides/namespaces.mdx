@@ -239,7 +239,7 @@ spl config add-permission-rule \
   --expression 'record.body.namespace == "acme-corp/payments/staging"'
 ```
 
-Higher priority means it's evaluated first. The `prod-requires-high-trust` rule wins for prod records; the staging rule catches everything for staging.
+Rules with a higher priority are checked first. The `prod-requires-high-trust` rule wins for prod records; the staging rule catches everything for staging.
 
 Now enable enforcement (with a check that stops you locking yourself out):
 
@@ -398,10 +398,10 @@ Run through this before you start gating real records on namespace existence:
 - [ ] `spl namespace list` shows the full tree
 - [ ] `spl namespace show <leaf>` walks each branch with all `✓` markers
 - [ ] At least one CEL permission rule covers your admin actor for `record_write`, `thread_read`, and `config_read` (so you can't lock yourself out of disabling enforcement later)
-- [ ] `spl config permissions-enable` succeeds without the pre-flight refusing
+- [ ] `spl config permissions-enable` succeeds without the lockout check refusing it
 - [ ] You've tested writing a record from each namespace that should be allowed
 - [ ] You've tested writing a record claiming a non-existent namespace (should return 403 NAMESPACE_REJECTED)
-- [ ] Operator runbook is bookmarked: see [`docs/operate/runbook`](/docs/operate/runbook) for recovery procedures
+- [ ] The [runbook](/docs/operate/runbook) is bookmarked for recovery procedures
 
 ## Limits
 

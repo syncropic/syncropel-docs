@@ -1,11 +1,11 @@
 ---
 title: From your laptop to a hosted workspace
-description: Graduate from local-only to a hosted workspace. Export your local workspace, sign up at syncropel.com, import it on the hosted side, point your CLI at it, and check that your identity carried over.
+description: Move from a local workspace to a hosted one. Export your local workspace, sign up at syncropel.com, import it on the hosted side, point your CLI at it and check that your identity carried over.
 ---
 
 ## What you'll build
 
-You've been running `spl serve` on your laptop, accumulating records, threads, federation pairs, and trust observations. You want to move to a hosted workspace with the same identity and records, reachable from anywhere, with no `--insecure-localhost` flags. This tutorial walks through the move: export locally, create a hosted workspace, import, point your CLI at it, and verify.
+You've been running `spl serve` on your laptop, building up records, threads, federation pairs and trust. You want to move to a hosted workspace with the same identity and records, reachable from anywhere, with no `--insecure-localhost` flags. This tutorial walks through the move: export locally, create a hosted workspace, import, point your CLI at it and verify.
 
 Hosted and self-hosted workspaces are the same thing: either can become the other, and neither is a lesser copy. You move with `spl export` and `spl import`, and records keep their identity through the move (see [Federation](/docs/concepts/federation)).
 
@@ -14,9 +14,9 @@ Allow about 30 minutes, most of it creating the workspace and verifying.
 ## Before you start
 
 - `spl` installed (`spl --version`)
-- A local workspace with some real content: a few threads and records, ideally one federation pair. If you're starting fresh, do [Your first thread](./first-thread) first to populate something to migrate.
+- A local workspace with some real content: a few threads and records, ideally one federation pair. If you're starting fresh, do [Working with threads](./first-thread) first so you have something to move.
 - A browser to sign up at `syncropel.com`.
-- $0 budget — hosted workspaces are free, up to three per account (see the [hosted plan](/docs/get-started/hosted)).
+- No budget: hosted workspaces are free, up to three per account (see the [hosted plan](/docs/get-started/hosted)).
 
 You can do this in one session, or rehearse it first. `spl import` is safe to run again.
 
@@ -56,22 +56,24 @@ Output:
 The bundle is a `tar.zst` archive containing:
 - Every record
 - Your identity (DID document and private key). Without it, the imported workspace can't sign new records as the same DID.
-- Federation pairs, consent grants and settings, everything that is "you"
+- Federation pairs, consent grants and settings: everything that is "you"
 - A signed manifest tying the bundle to your DID
 
 Inspect what's in there without unpacking:
 
 ```bash
-tar -tzf ~/migration.tar.zst | head
+tar --zstd -tf ~/migration.tar.zst | head
 ```
 
-You'll see `manifest.json`, `manifest.sig`, `identity/`, `records/<thread>/`, and so on. By default `spl export` does **not** include bearer tokens, so a stolen bundle can't be used to sign in. If you need tokens to keep working, pass `--carry-tokens`, but consider creating fresh tokens on the new workspace instead.
+You'll see `manifest.json`, `manifest.sig`, `identity/`, `records/<thread>/` and so on.
 
-For a deeper read on bundle contents, see [Portability](/docs/guides/portability).
+Because the bundle carries your private key, treat it as a secret: whoever holds it can act as your workspace. By default `spl export` does **not** include bearer tokens, so a stolen bundle can't be used to sign in to your workspace. If you need tokens to keep working, pass `--carry-tokens`, but consider creating fresh tokens on the new workspace instead.
+
+For more on what a bundle contains, see [Portability](/docs/guides/portability).
 
 ## 3. Provision a hosted workspace
 
-Open a browser and go to `https://syncropel.com/signup`. Pick a label (this becomes your subdomain — e.g., `myteam.syncropel.app`; hosted customer workspaces live at `*.syncropel.app`) and confirm the plan tier.
+Open a browser and go to `https://syncropel.com/signup`. Pick a label, which becomes your subdomain (for example `myteam.syncropel.app`; hosted workspaces live at `*.syncropel.app`), and confirm the plan.
 
 What happens:
 1. Your label is reserved.
@@ -80,22 +82,22 @@ What happens:
 
 The ready screen shows:
 - Your hosted URL (`<label>.syncropel.app`)
-- A CLI access option that mints a device token (copy it if you work from a terminal)
+- A CLI access option that creates a device token (copy it if you work from a terminal)
 - The commands to "Connect the CLI"
 
-For setup failures (label already taken, workspace limit, timeout), see [hosted onboarding § when provisioning fails](/docs/get-started/hosted#if-setup-doesnt-finish).
+For setup failures (label already taken, workspace limit, timeout), see [Hosted onboarding: if setup doesn't finish](/docs/get-started/hosted#if-setup-doesnt-finish).
 
 ## 4. Connect your CLI to the hosted workspace
 
-The ready screen gives you the commands; here they are with placeholders:
+The ready screen gives you the commands. Here they are with placeholders:
 
 ```bash
 export SPL_SERVE_URL=https://myteam.syncropel.app
-spl token save <your-bootstrap-token>
+spl token save <your-device-token>
 spl status
 ```
 
-`spl status` should report the hosted workspace's DID and a green health check. Your CLI now talks to the hosted workspace by default for this shell. To make it permanent across shells:
+`spl status` should report the hosted workspace's DID and a green health check. Your CLI now talks to the hosted workspace for the rest of this shell session. To make it permanent across shells:
 
 ```bash
 echo 'export SPL_SERVE_URL=https://myteam.syncropel.app' >> ~/.bashrc   # or ~/.zshrc
@@ -105,7 +107,7 @@ Or save the URL in your shell profile (`spl config path` shows where your settin
 
 ## 5. Import the bundle into the hosted workspace
 
-The hosted workspace is new (no records), so `spl import` will accept the bundle without `--force-overwrite`:
+The hosted workspace is new (no records), so `spl import` accepts the bundle without `--force-overwrite`:
 
 ```bash
 spl import ~/migration.tar.zst
@@ -151,19 +153,19 @@ To check that nothing changed, compare the records:
 spl thread records <some_thread_id> | sha256sum
 ```
 
-Run this against both your local workspace (`SPL_SERVE_URL=http://localhost:9100 spl thread records ...`) and your hosted (`SPL_SERVE_URL=https://myteam.syncropel.app spl thread records ...`). The record IDs should match. Each ID comes from the record's content, so a difference means something changed in transit.
+Run this against both your local workspace (`SPL_SERVE_URL=http://localhost:9100 spl thread records ...`) and your hosted one (`SPL_SERVE_URL=https://myteam.syncropel.app spl thread records ...`). The record IDs should match. Each ID comes from the record's content, so a difference means something changed in transit.
 
 Moving a workspace does not change your records.
 
 ## 7. Pair a second device (optional)
 
-While your hosted workspace is fresh, this is a good moment to add a second device — your phone, a second laptop, the office machine. From the **hosted** side:
+While your hosted workspace is fresh, this is a good moment to add a second device, such as your phone, a second laptop or an office machine. From the **hosted** side:
 
 ```bash
 spl pair --device "iPhone" --url https://myteam.syncropel.app --scopes records:write
 ```
 
-This creates a one-time code and prints a link and QR code. Open the link on the second device's Syncropel app (or paste the code into the app's "pair device" prompt). The two devices are now both authenticated against the same hosted workspace, with their own bearer tokens (revocable independently).
+This creates a one-time code and prints a link and QR code. Open the link on the second device's Syncropel app (or paste the code into the app's "pair device" prompt). Both devices are now signed in to the same hosted workspace, each with its own token that you can revoke separately.
 
 For the full device pairing model, see [pairing a second device](/docs/get-started/pairing).
 
@@ -194,22 +196,22 @@ To go back to a local workspace, run `spl serve` for a fresh one and `spl import
 3. **The move is reversible.** Hosted to local works the same way as local to hosted.
 4. **You can always leave.** `spl export` works on any workspace, hosted or self-hosted, and the bundle imports into a workspace you run yourself.
 
-Hosted Syncropel is different from most services because your data and the system that reads it are both portable. You pay for someone else to run the same `spl` you run on your laptop, with the same APIs, the same records and the same way out.
+Hosted Syncropel differs from most services because your data and the system that reads it are both portable. You pay for someone else to run the same `spl` you run on your laptop, with the same APIs, the same records and the same way out.
 
 ## Where to next
 
-- [Hosted onboarding](/docs/get-started/hosted) — the canonical signup flow with provisioning details and failure modes.
-- [Portability guide](/docs/guides/portability) — bundle anatomy, `--dry-run`, `--force-overwrite`, identity-only exports, what's *not* in the bundle (plaintext secrets, default-revoked tokens).
-- [Backup and restore](/docs/guides/backup-restore) — take a snapshot before an import so you can revert if it goes wrong.
-- [Actor portability](/docs/operate/actor-portability) — moving one actor, not a whole workspace, to another workspace.
-- [Concepts: Federation](/docs/concepts/federation) — how workspaces connect to each other.
+- [Hosted onboarding](/docs/get-started/hosted): the full signup flow, including what to do when setup fails.
+- [Portability guide](/docs/guides/portability): what a bundle contains, `--dry-run`, `--force-overwrite`, identity-only exports and what is *not* in the bundle (secret values, and tokens unless you ask for them).
+- [Backup and restore](/docs/guides/backup-restore): take a snapshot before an import so you can go back if it goes wrong.
+- [Actor portability](/docs/operate/actor-portability): moving one actor, not a whole workspace, to another workspace.
+- [Concepts: Federation](/docs/concepts/federation): how workspaces connect to each other.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `spl import` reports `import refused: local store has N records; pass --force-overwrite to import anyway` | The hosted workspace already has records (someone or something started using it before the import). | Check `spl thread list` on the hosted side. If those records are throwaway (first-run banner ack, etc.), it's safe to pass `--force-overwrite`. If unexpected, investigate before clobbering. |
-| `bundle malformed: signature verification failed` | The bundle was changed, damaged in transit, or made by an incompatible version. | Re-export from the source. If the issue persists, check `spl version` on both sides — very different versions may not be compatible. |
+| `spl import` reports `import refused: local store has N records; pass --force-overwrite to import anyway` | The hosted workspace already has records (someone or something started using it before the import). | Check `spl thread list` on the hosted side. If those records are throwaway (for example a first-run banner acknowledgement), it's safe to pass `--force-overwrite`. If they're unexpected, find out where they came from before overwriting. |
+| `bundle malformed: signature verification failed` | The bundle was changed, damaged in transit, or made by an incompatible version. | Re-export from the source. If the issue persists, check `spl version` on both sides: very different versions may not be compatible. |
 | Federation pair shows stale URL after import | Expected: the pair was set up with the local address. | The address updates on the first sync. If the peer can't be reached at the old address and its DID can't be found, run `spl federation refresh <peer-did>` manually. |
-| `spl status` after token save returns `401` | The device token has expired or was revoked. | Open your workspace in Studio and mint a fresh device token from Settings → Connections, then `spl token save` it. |
-| Hosted DID doesn't match local DID after import | The bundle was exported with `--no-identity`, so the hosted workspace created its own new DID. | Re-export with identity included (the default): `spl export --out ~/migration.tar.zst`. The `--no-identity` flag is only for bundles you want to inspect, not import. |
+| `spl status` after token save returns `401` | The device token has expired or was revoked. | Open your workspace in the Studio and create a fresh device token from Settings → Connections, then `spl token save` it. |
+| Hosted DID doesn't match local DID after import | The bundle was exported with `--no-identity`, so the hosted workspace created its own new DID. | Re-export with identity included (the default): `spl export --out ~/migration.tar.zst`. Use `--no-identity` only when you want the new workspace to get a new DID. |

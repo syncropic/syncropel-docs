@@ -30,7 +30,7 @@ When `auth.required = true` (the default), every `/v1/*` endpoint requires a bea
 Authorization: Bearer spl_<env>_<sa_id>_<secret>
 ```
 
-Tokens are minted against service accounts with a closed scope list. The middleware validates the token, checks the requested endpoint's required scope, and verifies the claimed actor DID (`X-Syncropel-Actor`) is in the SA's allowed-actors list.
+Tokens are minted against service accounts with a closed scope list. The server checks the token, checks that it carries the scope the endpoint requires, and verifies that the claimed actor DID (`X-Syncropel-Actor`) is in the SA's allowed-actors list.
 
 The `spl` CLI resolves bearer tokens in this precedence: `--token <value>` flag first, then the `SPL_TOKEN` environment variable, then `~/.syncro/token`. HTTP callers pass the token directly in the `Authorization` header.
 
@@ -39,7 +39,7 @@ Exempt routes (unauthenticated even when auth is enforced):
 - `GET /health`
 - `POST /v1/bootstrap/service-account` (one-shot per namespace)
 - `GET /.well-known/syncropel`
-- `POST /v1/recredential` (the proof in the body is the credential; constant-shape refusal, rate limited; see [Self](#self))
+- `POST /v1/recredential` (the proof in the body is the credential; every refusal looks the same; rate limited; see [Self](#self))
 
 For the full model — scopes, token format, rotation, federation composition — see the [Authentication & Service Accounts guide](/docs/operate/keyring). Endpoints for managing service accounts and tokens are documented in the [Service accounts](#service-accounts) section below.
 
@@ -182,7 +182,7 @@ Response:
 }
 ```
 
-The `plan` block is only present when `explain=true`. Results are always tenant-filtered — records outside the caller's namespace never appear.
+The `plan` block is only present when `explain=true`. Results are always filtered to the caller's namespace — records outside it never appear.
 
 Error codes:
 
@@ -243,7 +243,7 @@ Response:
 }
 ```
 
-Results are tenant-filtered *after* scoring — a record outside the caller's namespace never reaches the response, regardless of score.
+Results are filtered to the caller's namespace *after* scoring — a record outside it never reaches the response, regardless of score.
 
 Error codes:
 
@@ -439,8 +439,8 @@ curl -X POST http://localhost:9100/v1/dispatch \
 | GET | `/v1/work/loop/{thread}` | Loop status for the given thread. |
 | POST | `/v1/work/loop/{thread}/cancel` | Cancel a running loop. Emits a `core.work.loop_cancel.v1` `DO` record; the cancel reaches the running loop. |
 | GET | `/v1/work/loop/{thread}/stream` | SSE live progress for the given loop thread. Alias for the thread-watch handler — the loop thread itself is the filter. |
-| GET | `/v1/work/compensation/review` | Per-actor compensation review (operator tier only). Returns total compensations + breakdown by seam + breakdown by violated assumption + anomaly score vs. fleet median. |
-| GET | `/v1/work/compensation/review/top` | Top anomalous actors by compensation rate (operator tier only). |
+| GET | `/v1/work/compensation/review` | Per-actor review of corrected runs (`operator` tier only). Returns the total number of corrections, a breakdown by where in the run they happened and by the assumption that was broken, and an anomaly score compared with the median across actors. |
+| GET | `/v1/work/compensation/review/top` | The actors corrected most often, by rate (`operator` tier only). |
 
 ### Start a loop
 
@@ -551,7 +551,7 @@ your own sentence, never on an id.
 curl http://localhost:9100/v1/engine/expression_cache/stats
 ```
 
-Returns a JSON object with `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `avg_compile_micros`, `size`, `capacity`. Healthy steady-state: hit rate > 99%, avg compile < 100μs, size much less than capacity (1024 default). `spl doctor` consumes this endpoint as one of its 7 checks.
+Returns a JSON object with `hits`, `misses`, `compile_errors`, `hit_rate_pct`, `avg_compile_micros`, `size`, `capacity`. Healthy steady-state: hit rate > 99%, avg compile < 100μs, size much less than capacity (1024 default). `spl doctor` uses this endpoint as one of its 7 checks.
 
 ## Audit
 
@@ -568,7 +568,7 @@ There is no server-side `/v1/audit/export` endpoint. Use `spl audit export` (sco
 
 For SIEM integration recipes (cron rotation, Splunk/Elastic/Loki pipelines, etc.) see the [SIEM Integration guide](/docs/guides/siem-integration).
 
-### Permission denials are NOT in audit export today
+### Permission denials are not in the audit export
 
 Permission denials at the HTTP layer are written as warnings to the instance log (`~/.syncro/logs/spl.log`), not as records. Find them with `grep "PERMISSION DENIED"`. They do NOT appear in `spl audit export` output, so check both the instance log and the audit export for security events.
 
@@ -647,7 +647,7 @@ The unauthenticated surface, served at the [Well-Known URI](https://datatracker.
 | Key | Audience | Purpose |
 |---|---|---|
 | `capabilities_manifest` | Prospective client | Same shape as `/v1/capabilities` — a peer can feature-detect before authenticating |
-| `federation_manifest` | Prospective federation peer | Ed25519-signed; describes what this instance offers the federation mesh |
+| `federation_manifest` | Prospective federation peer | Ed25519-signed; describes what this instance offers federation peers |
 
 ```bash
 curl -s http://localhost:9100/.well-known/syncropel | jq 'keys'
@@ -717,7 +717,7 @@ Key fields:
 | `advertises.kinds` | `body.kind` values the instance answers federation queries about. A peer advertising `music.catalog.track` commits to serving sync requests for that kind per its consent policy |
 | `advertises.refs` | IDs of the REFERENCE content this instance holds |
 | `advertises.namespaces` | Namespace handles whose records are federation-eligible (willingness, not grant) |
-| `consent_policy.default_posture` | `"open"`, `"pair-then-ask"`, `"invite-only"`, or `"closed"`. Informative hint for pre-handshake self-filtering |
+| `consent_policy.default_posture` | `"open"`, `"pair-then-ask"`, `"invite-only"`, or `"closed"`. A hint that lets a peer decide whether to attempt pairing |
 | `capabilities_ref` / `responders_ref` | Pointers back into the same envelope; clients follow them to fetch the sibling manifests |
 | `signature.expires_at` | Forces periodic re-signing (default TTL 7 days). Expired signatures should be rejected |
 
@@ -749,7 +749,7 @@ The endpoints behind [Keeping your access](/docs/guides/keeping-your-access). Al
 | Method | Path | Description |
 |---|---|---|
 | GET | `/v1/self` | Who this credential is: label, standing, `bindings` (`{recovery_code, passkey, account}` as booleans) and `proof_kinds_accepted` |
-| POST | `/v1/self/bindings` | Bind a proof to the caller's own principal. Body `{"kind": "recovery_code"}` answers `{code_id, principal, kind, secret}`; the secret is 26 Crockford base32 characters, shown once, stored only as a hash. A second binding of the same kind is a rotation and needs `rotation_proof` (the current code); without it the door answers `409 ROTATION_REQUIRES_PROOF`. `{"kind": "account", "material": {"subject"}}` binds a hosted-account subject once the instance declares a verifier. |
+| POST | `/v1/self/bindings` | Bind a proof to the caller's own principal. Body `{"kind": "recovery_code"}` answers `{code_id, principal, kind, secret}`; the secret is 26 Crockford base32 characters, shown once, stored only as a hash. A second binding of the same kind is a rotation and needs `rotation_proof` (the current code); without it the endpoint answers `409 ROTATION_REQUIRES_PROOF`. `{"kind": "account", "material": {"subject"}}` binds a hosted-account subject once the instance declares a verifier. |
 | GET | `/v1/self/bindings` | The caller's live bindings: `{data: [{id, kind, created_at}]}`, never the material |
 | DELETE | `/v1/self/bindings/{id}` | Remove one of the caller's own bindings |
 | GET | `/v1/self/credentials` | Every live bearer that opens this instance as the caller: `{data: [{bearer_id, sa_id, expires_at, last_used_at, via, current}]}` |
@@ -758,7 +758,7 @@ The endpoints behind [Keeping your access](/docs/guides/keeping-your-access). Al
 
 ### Re-credential
 
-For a passkey, first `POST /v1/recredential/challenge` with `{principal, kind: "passkey"}` (no bearer): it answers `{challenge, rp_id, expires_at}` in the same shape for every principal string, `409 PASSKEY_NOT_ACCEPTED` when the instance declares no relying party, and `503 LEASE_HELD_ELSEWHERE` on a follower; then the assertion goes in `evidence` as `{credential_id, client_data_json, authenticator_data, signature, user_handle?}`.
+For a passkey, first `POST /v1/recredential/challenge` with `{principal, kind: "passkey"}` (no bearer): it answers `{challenge, rp_id, expires_at}` in the same shape for every principal string, `409 PASSKEY_NOT_ACCEPTED` when the instance declares no relying party, and `503 LEASE_HELD_ELSEWHERE` when this copy of the workspace is not the one currently accepting writes; then the assertion goes in `evidence` as `{credential_id, client_data_json, authenticator_data, signature, user_handle?}`.
 
 ```bash
 curl -X POST https://alice.syncropel.app/v1/recredential \
@@ -766,7 +766,7 @@ curl -X POST https://alice.syncropel.app/v1/recredential \
   -d '{"principal": "did:sync:user:guest:aa72…", "proof": {"kind": "recovery_code", "evidence": "KRMRWPEERZRHMSWAH8Y91V9S7K"}}'
 ```
 
-No bearer: the proof is the credential. On success: `{token, principal, expires_at, label, sa_id, scopes, rebind_required}`. The new bearer is parented to the principal's **existing** live grant; nothing is renewed, revoked, or cascaded, so the person's other devices keep working. A recovery code is single-use: `rebind_required: true` tells the client to bind a fresh one at `POST /v1/self/bindings` with the new bearer. `account` and `passkey` proofs are reusable and answer `rebind_required: false`. A passkey whose sign count goes backwards is refused constant-shape.
+No bearer: the proof is the credential. On success: `{token, principal, expires_at, label, sa_id, scopes, rebind_required}`. The new bearer is parented to the principal's **existing** live grant; nothing is renewed, revoked, or cascaded, so the person's other devices keep working. A recovery code is single-use: `rebind_required: true` tells the client to bind a fresh one at `POST /v1/self/bindings` with the new bearer. `account` and `passkey` proofs are reusable and answer `rebind_required: false`. A passkey whose sign count goes backwards gets the same refusal as any other failed proof.
 
 Refusals always look the same. `401 RECREDENTIAL_REFUSED` is the one answer for a principal that does not exist, has no binding, or presented a wrong proof; only after a proof verifies can `409 NO_LIVE_GRANT` say that nothing here is granted to that principal any more. `429 RATE_LIMITED` (requests are rate limited per supplied principal string and per address) is returned before the proof is checked. Show the message as is and add no explanation of your own.
 
@@ -801,7 +801,7 @@ Returns `404` when no chrome has been published — a renderer falls back to its
 
 The aggregate a renderer calls on load. Returns the published chrome, the instance metadata, and the caller's identity together, so the frame draws without a waterfall of requests.
 
-This endpoint is **auth-invariant** — it needs no token. An anonymous caller gets the public surface; a caller presenting a valid token additionally sees their resolved scopes in the `identity` block.
+This endpoint is **open** — it needs no token. An anonymous caller gets the public surface; a caller presenting a valid token additionally sees their resolved scopes in the `identity` block.
 
 ```json
 {
@@ -863,7 +863,7 @@ Pair state is persistent across instance restart — the registry is rebuilt fro
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/v1/sync/health` | Aggregate mesh health — pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency, top slowest + error-prone pairs, active drift alerts |
+| GET | `/v1/sync/health` | Overall federation health — pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency, top slowest + error-prone pairs, active drift alerts |
 | GET | `/v1/sync/pairs/{id}/stats` | Per-pair detail — rolling rate, latency histogram, error count last hour, poll interval state, cumulative counters |
 
 Aggregate response shape (elided):
@@ -1036,7 +1036,7 @@ Response (`200`):
 
 ## Pair-share-invite
 
-The surface for adding either a new device of yours (guest holder) or a federated colleague (federated holder). Operator-facing guide: [Pair, share, invite](../guides/pair-share-invite). SDK surface: `client.invites.*` in the [TypeScript SDK guide](../guides/typescript-sdk#invites).
+The surface for adding either a new device of yours (guest holder) or a federated colleague (federated holder). Guide: [Pair, share, invite](../guides/pair-share-invite). SDK surface: `client.invites.*` in the [TypeScript SDK guide](../guides/typescript-sdk#invites).
 
 | Method | Path | Scope | Description |
 |---|---|---|---|
@@ -1159,7 +1159,7 @@ curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
   }'
 ```
 
-`member_label` follows the label grammar (lowercase `[a-z0-9][a-z0-9-]*`, max 63 chars) and becomes `did:sync:user:<label>`. `custody` must be `"custodial"` today — `"device"` returns `501 Not Implemented`. Redemption writes the identity spine (genesis + binding + `core.identity.grant.v1` + custodian-signed `core.identity.acceptance.v1`), then mints a service account + bearer parented to the grant; the response carries the bearer, the member DID, scopes, and both expiries (bearer + grant). An unpinned invite redeemed against an existing label returns `409 MEMBER_LABEL_TAKEN`.
+`member_label` follows the label grammar (lowercase `[a-z0-9][a-z0-9-]*`, max 63 chars) and becomes `did:sync:user:<label>`. `custody` must be `"custodial"`; `"device"` returns `501 Not Implemented`. Redemption writes the identity records (genesis + binding + `core.identity.grant.v1` + custodian-signed `core.identity.acceptance.v1`), then mints a service account + bearer parented to the grant; the response carries the bearer, the member DID, scopes, and both expiries (bearer + grant). An unpinned invite redeemed against an existing label returns `409 MEMBER_LABEL_TAKEN`.
 
 ### Bulk revoke
 
@@ -1185,7 +1185,7 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 
 | Code | Name | Meaning |
 |---|---|---|
-| `401` | `AUTH_REQUIRED` | Admin route called without a bearer (master `auth.required` switch is bypassed for admin routes) |
+| `401` | `AUTH_REQUIRED` | Admin route called without a bearer (admin routes need a bearer even when `auth.required` is off) |
 | `403` | `SCOPE_FORBIDDEN` | Bearer present but lacks `admin` scope |
 | `403` | `CONSENT_DENIED` | Bearer scope OK but the consent grant for this thread/namespace is absent (defense-in-depth) |
 | `404` | `INVITE_NOT_FOUND` | Invite id doesn't exist or was never created |
@@ -1199,7 +1199,7 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 | `403` | `ROTATE_NOT_SELF` | Rotation attempted by a bearer different from the path's `token_id` |
 | `409` | `MEMBER_LABEL_TAKEN` | Membership redeem against a label that already belongs to a member, from an invite not pinned to that label (the takeover guard) |
 | `501` | — | Membership redeem with `custody: "device"` — custodial custody is the only implemented mode |
-| `401` | `RECREDENTIAL_REFUSED` | The one constant-shape refusal of `POST /v1/recredential`: unknown principal, no binding, or wrong proof, indistinguishably |
+| `401` | `RECREDENTIAL_REFUSED` | The single refusal of `POST /v1/recredential`: an unknown principal, a missing binding and a wrong proof all look the same |
 | `409` | `NO_LIVE_GRANT` | A proof verified, but nothing is granted to that principal any more; no bearer that reads nothing is minted |
 | `409` | `ROTATION_REQUIRES_PROOF` | A binding of that kind already exists; rotating it needs the current proof |
 | `429` | `RATE_LIMITED` | Re-credential attempts are rate-limited for that principal string or address |
@@ -1208,13 +1208,13 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 
 ## Members
 
-The membership roster + offboarding surface. Concept: [Principals & grants](../concepts/principals-and-grants). Operator walkthrough: [Add a teammate](../tutorials/add-a-teammate).
+The membership roster + offboarding surface. Concept: [Principals & grants](../concepts/principals-and-grants). Walkthrough: [Add a teammate](../tutorials/add-a-teammate).
 
 | Method | Path | Scope | Description |
 |---|---|---|---|
 | GET | `/v1/members` | `records:read` | Roster of invite-minted principals. Self-scoping: admin sees all rows; any other caller sees only their own |
 | POST | `/v1/members/adopt` | `admin` | Adopt an existing actor as a principal; with `sa_id`, adopt an existing service account's holder and re-parent the credential to a membership grant (bearer-preserving) |
-| DELETE | `/v1/members/{label}` | `records:write` | Revoke a membership: the grant is revoked and every credential parented to it (bearers, agent sub-grants) dies with it. Bilateral — the caller must be an admin or the member themselves. Idempotent |
+| DELETE | `/v1/members/{label}` | `records:write` | Revoke a membership: the grant is revoked and every credential parented to it (bearers, agent sub-grants) stops working with it. The caller must be an admin or the member themselves. Safe to repeat |
 
 ### List members
 
@@ -1252,7 +1252,7 @@ curl -X POST http://localhost:9100/v1/members/adopt \
   -d '{"label": "mora", "sa_id": "sa_1f8e2c9a"}'
 ```
 
-Without `sa_id`: binds an existing local actor (whose signing seed this instance already holds) as a principal — after which that actor's signed task verdicts verify when they are written. With `sa_id`: mints a custodial principal for the service account's holder and re-parents the credential without breaking the bearer. Optional `ttl_seconds` sets the grant lifetime (default 180 days). Idempotent on an existing principal (`already_principal: true`).
+Without `sa_id`: binds an existing local actor (whose signing key this instance already holds) as a principal — after which that actor's signed task verdicts verify when they are written. With `sa_id`: mints a custodial principal for the service account's holder and re-parents the credential without breaking the bearer. Optional `ttl_seconds` sets the grant lifetime (default 180 days). Idempotent on an existing principal (`already_principal: true`).
 
 ### Revoke a membership
 
@@ -1263,18 +1263,18 @@ curl -X DELETE http://localhost:9100/v1/members/mora \
   -d '{"note": "contract ended"}'
 ```
 
-The JSON body is optional; `note` is signed into the revocation record. The response reports `grant_id`, `credentials_revoked`, `sub_grants_invalidated`, and `scope` — honestly `"local"`: cross-instance credentials are outside this ledger's reach. The revoked member's bearer answers `401 GRANT_REVOKED` on its next request; the event lands as `member_revoked` on the invite audit feed (`GET /v1/invites/audit`).
+The JSON body is optional; `note` is signed into the revocation record. The response reports `grant_id`, `credentials_revoked`, `sub_grants_invalidated`, and `scope`, which is always `"local"`: credentials issued by other instances are not affected. The revoked member's bearer answers `401 GRANT_REVOKED` on its next request; the event lands as `member_revoked` on the invite audit feed (`GET /v1/invites/audit`).
 
 ## Ledgers
 
-A ledger is a read face you declare beside your data: rows are acts of the kinds you name on a thread, joined to their responses through record parentage; columns are expressions over each row; verbs are the acts a viewer may take on a row. The declaration is a configuration record; the rows are always read live from the thread.
+A ledger is a table view you declare over your data: rows are acts of the kinds you name on a thread, joined to their responses through record parentage; columns are expressions over each row; verbs are the acts a viewer may take on a row. The declaration is a configuration record; the rows are always read live from the thread.
 
-- `GET /v1/threads/{thread}/ledgers` lists the ledgers declared on this instance with the row count this viewer is admitted to see, and says `capped` when a ceiling bit.
-- `GET /v1/threads/{thread}/ledgers/{id}` serves a page of evaluated rows (cells, groups, and the `may:` list of verbs this caller's write authority admits), the declared stats computed only over what this viewer was served, and a `next_before` cursor; `?before=<clock>` continues older, `?limit=` bounds the page.
+- `GET /v1/threads/{thread}/ledgers` lists the ledgers declared on this instance with the row count this viewer is admitted to see, and says `capped` when a limit cut the count short.
+- `GET /v1/threads/{thread}/ledgers/{id}` serves a page of evaluated rows (cells, groups, and the `may:` list of verbs this caller is allowed to take), the declared stats computed only over what this viewer was served, and a `next_before` cursor; `?before=<clock>` continues older, `?limit=` bounds the page.
 - `GET /v1/threads/{thread}/ledgers/{id}/encoding` returns the compact text form an assistant is handed, with the same per-row `may:` list, so it can never propose an act its holder cannot take.
 
-Rows pass the viewer's disclosure resolution before anything is computed over them, so a count or a stat never reveals the existence of a record the viewer cannot read. A declaration whose expressions do not compile, or that names an undeclared record kind, is refused when configuration loads and says so in the log; it never loads as something quieter.
+Rows are filtered to what the viewer may read before anything is computed over them, so a count or a stat never reveals the existence of a record the viewer cannot read. A declaration whose expressions do not compile, or that names an undeclared record kind, is refused when configuration loads and says so in the log; it never loads in a silently reduced form.
 
 ## CORS
 
-All `/v1/*` + `/.well-known/*` + `/directory/*` endpoints include CORS headers (`tower-http::CorsLayer` with permissive defaults). The instance at `localhost:9100` is reachable from web UI origins without proxy configuration.
+All `/v1/*` + `/.well-known/*` + `/directory/*` endpoints include CORS headers, with permissive defaults. The instance at `localhost:9100` is reachable from web UI origins without proxy configuration.

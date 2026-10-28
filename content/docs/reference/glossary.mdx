@@ -3,13 +3,14 @@ title: Glossary
 description: Plain-language definitions of the terms used across Syncropel.
 ---
 
-## A
 
-**Actor**
-Any participant that creates records — a person, an AI agent, a service account, or a system component. Identified by a DID. See [Actors](/docs/concepts/actors).
+## A
 
 **Act Type**
 One of 8 types that classify what a record represents: `INTEND`, `DO`, `KNOW`, `LEARN` (coordination) and `GET`, `PUT`, `CALL`, `MAP` (effects). See [Records](/docs/concepts/records).
+
+**Actor**
+Any participant that creates records — a person, an AI agent, a service account, or a system component. Identified by a DID. See [Actors](/docs/concepts/actors).
 
 **Adapter**
 The connection between Syncropel and something that does work for it. A command-line adapter runs a program on your machine (an agent such as Claude Code, Codex CLI, or OpenCode, plus `bash` and your own programs). A web adapter calls an AI provider such as Anthropic or OpenAI over HTTP. Once an actor is linked to an adapter, work sent to that actor goes through it.
@@ -54,25 +55,19 @@ The instance in a fleet that tracks which instances are running and hands out wo
 **Correction**
 A `KNOW` record with `body.topic: "correction"` that points to an earlier record that was wrong. Readers use the later record's content. The wrong record stays in history.
 
-**Scheduled maintenance**
-Work your workspace does on a schedule in the background: lowering old trust scores, promoting reliable patterns, saving snapshots, and writing cost reports. See [The Engine](/docs/concepts/engine#running-scheduled-work).
-
 **Crystallization**
 When a pattern has proven reliable enough to run automatically. It must meet four tests: trust of at least 0.90, at least 100 observations, a real saving from reusing it, and success from more than one source. See [Patterns](/docs/concepts/patterns#when-a-pattern-becomes-permanent).
-
-**Drift alert**
-A warning that an actor's success rate has changed meaningfully. See current alerts at `GET /v1/governance/cusum-alerts`.
 
 ## D
 
 **Decision gate**
 How your workspace asks someone to decide before it goes on. The request can come from the assistant, a paused task, a `spl decompose` plan, or a paired workspace. If the assistant is at least 0.90 confident, the change applies by itself. At 0.60 or above, it asks a person. Below that, it is logged and dropped. See requests with `spl decisions list` (they also appear under NEEDS in `spl resume`) and answer them with `spl decisions approve`, `reject`, `choose`, `provide`, or `ack`. You can pick an option, provide a value, or acknowledge. See [Your first decision gate](/docs/tutorials/your-first-decision).
 
-**DID (Decentralized Identifier)**
-An actor's permanent identity. Three kinds work: `did:key`, `did:web`, and `did:sync`. Names inside your workspace look like `did:sync:user:…`, `did:sync:agent:…`, and `did:sync:system:…`.
-
 **Dial**
 A continuous value in `[0, 1]` that maps trust and pattern match strength to cost zones. Zones: REPLAY (0.00–0.33), ADAPT (0.33–0.50), EXPLORE (0.50–0.67), CREATE (0.67–1.00). See [Trust — the dial](/docs/concepts/trust).
+
+**DID (Decentralized Identifier)**
+An actor's permanent identity. Three kinds work: `did:key`, `did:web`, and `did:sync`. Names inside your workspace look like `did:sync:user:…`, `did:sync:agent:…`, and `did:sync:system:…`.
 
 **Dispatch**
 Sending work to an actor to carry out. `spl task dispatch` starts a thread for the work, records the request, and hands it to the actor through its adapter. See [Routing rules](/docs/guides/routing-rules).
@@ -80,13 +75,16 @@ Sending work to an actor to carry out. `spl task dispatch` starts a thread for t
 **Domain**
 A kind of work, such as `code`, `ops`, `data`, `research`, `shell`, `api`, `spec`, `agent`, `meta`, `browser`, or `workflow`. Trust is tracked per domain, so an actor can be trusted for one and not another. You choose the domain when you create a record; the list is not fixed.
 
+**Drift alert**
+A warning that an actor's success rate has changed meaningfully. See current alerts at `GET /v1/governance/cusum-alerts`.
+
 ## E
 
 **Engine**
 The part of your workspace that does the background work. It stores each new record and announces it, sends work to the right actor, updates trust and watches for stalled work, and runs scheduled maintenance. You rarely deal with it directly. See [The Engine](/docs/concepts/engine).
 
 **Evaluation Gate**
-The requirement that completed work be reviewed by an independent evaluator (a different DID than the completer) before trust evidence is created. Structurally enforced — self-verdicts produce no trust. See [Trust — independence](/docs/concepts/trust).
+The rule that completed work must be reviewed by an independent evaluator (a different DID from the one that did the work) before it counts as trust evidence. The workspace enforces this: judging your own work earns no trust. See [Trust — independence](/docs/concepts/trust).
 
 **Event Trigger**
 A setting that starts an actor when a matching record appears or at a scheduled time. It has a cooldown and loop protection so it cannot fire endlessly. See [Scheduled triggers](/docs/guides/scheduled-triggers).
@@ -100,37 +98,31 @@ Something that does a kind of work, named for what it does rather than what it i
 Splitting one piece of work into several sub-tasks. The parent request lists the sub-tasks (`body.subtasks`) and a rule for when it is done (`body.join`). Each sub-task goes to a worker instance, and the parent closes when the rule is met.
 
 **Federation**
-How two or more Syncropel instances share records while keeping trust boundaries intact. Pull-based, signed, consent-filtered. See [Federation](/docs/concepts/federation).
+How two or more Syncropel instances share records while keeping trust boundaries intact. Each side pulls what it needs, records are signed, and only consented records cross. See [Federation](/docs/concepts/federation).
 
 **Fleet**
 Two or more `spl` instances working together. One is the coordinator and the others are workers. Any instance can take either role.
 
-**Freeze and stop switches**
-The list of active freeze and emergency-stop switches. It is checked on every write to decide whether a record is allowed.
-
 **Fold**
 Working out the current state of a thread by reading its records in order. Task status, trust, and settings all come from this, so there is no separate place where state can drift out of date.
 
-**Status Rule**
-A CEL expression, saved as a settings record, that changes how a task or thread status is worked out. Use it for status changes specific to your workspace. See [CEL — fold_rule context](/docs/guides/cel-expressions).
+**Freeze and stop switches**
+The list of active freeze and emergency-stop switches. It is checked on every write to decide whether a record is allowed.
 
 ## G
 
 **Governance**
-The union of namespaces, permission rules, CEL policies, consent grants, kill switch, and audit export. Syncropel's mechanism for enforcing "who can do what where". See [Namespaces](/docs/concepts/namespaces) and [SIEM integration](/docs/guides/siem-integration).
+How Syncropel controls who can do what, and where: namespaces, permission rules, CEL policies, consent grants, the kill switch, and audit export. See [Namespaces](/docs/concepts/namespaces) and [SIEM integration](/docs/guides/siem-integration).
 
 ## H
 
 **Hash Levels (L0 / L1 / L2 / L3)**
-Four hash-signature levels of a record, each throwing away more detail. L0 is exact content. L1 is structural (`dial + in + op + out + p`). L2 is flow (`in + out + p`). L3 is intent (`in + out`). L0 never crosses a namespace without consent; L1–L3 can. Containment: `L0 ⟹ L1 ⟹ L2 ⟹ L3`. See [Patterns](/docs/concepts/patterns).
+Four fingerprints of a record, each keeping less detail than the one before. L0 covers the exact content. L1 keeps the structure of the work, L2 keeps only how inputs became outputs, and L3 keeps only the intent. Two records that match at one level also match at every less detailed level. L0 never crosses a namespace without consent; L1–L3 can. See [Patterns](/docs/concepts/patterns).
 
 **Heartbeat**
 A regular check-in from each running instance (every 15 seconds by default) with its address, version, uptime, active work, and health. The coordinator uses the latest check-in to show each instance as live, stale, or archived.
 
 ## I
-
-**Receiving records**
-When a record arrives, your workspace checks it, saves it, and announces it right away. It never waits for follow-on work to finish.
 
 **Instance**
 A single `spl serve` instance with its own `SYNCROPEL_HOME`, record database, port, and identity. An instance may run standalone or as a coordinator/worker in a fleet.
@@ -157,7 +149,7 @@ A reversible freeze with three levels. **Soft** blocks new INTEND/DO/CALL record
 ## L
 
 **LEARN**
-One of 4 coordination act types. Records an insight or persistent decision — a configuration change, a lesson learned, a new rule. Config records (routing rules, triggers, CEL policies, auth toggle) are LEARN records on `th_engine_config`.
+One of 4 coordination act types. Records an insight or a lasting decision: a configuration change, a lesson learned, a new rule. Config records (routing rules, triggers, CEL policies, auth toggle) are LEARN records on `th_engine_config`.
 
 **Logical Clock**
 See **Clock**.
@@ -173,9 +165,6 @@ What an actor remembers between sessions: preferences, corrections, project stat
 **Meta-Trust**
 The trust score of Syncropel's assistant itself, kept apart from any one domain. It rises when its proposals are accepted and falls when they are rejected.
 
-**Narrowing rule**
-A child namespace can never have more permissions than its parent. A record in a child namespace is refused if any parent is missing or not active. See [Namespaces — narrowing](/docs/concepts/namespaces#the-narrowing-rule).
-
 ## N
 
 **Namespace**
@@ -183,6 +172,9 @@ A scope that groups records by organization, project, environment, or job. Every
 
 **Namespace Registry**
 The list of namespaces you have declared. It updates as soon as you add one.
+
+**Narrowing rule**
+A child namespace can never have more permissions than its parent. A record in a child namespace is refused if any parent is missing or not active. See [Namespaces — narrowing](/docs/concepts/namespaces#the-narrowing-rule).
 
 ## P
 
@@ -206,31 +198,40 @@ An adapter that calls an AI provider over HTTP (Anthropic, OpenAI, Google, Mistr
 
 ## R
 
-**Routing**
-When a record arrives, your workspace picks the actor to handle it and sends the work there, or marks the record as handled. Up to 4 pieces of work run at once by default.
+**Receiving records**
+When a record arrives, your workspace checks it, saves it, and announces it right away. It never waits for follow-on work to finish.
 
 **Record**
 The basic unit: an immutable item with 8 fields whose ID is computed from its content. Records are never edited or deleted. See [Records](/docs/concepts/records).
 
-**System Threads**
-Built-in threads that hold your workspace's own data. You will see these names in settings and API responses: `th_engine_config` (workspace settings), `th_actor_registry` (actors), `th_namespace_registry` (namespaces), `th_instance_registry` (running instances), `th_fleet_control` (freeze and stop switches), and `th_consent` (permission to share across namespaces).
+**Routing**
+When a record arrives, your workspace picks the actor to handle it and sends the work there, or marks the record as handled. Up to 4 pieces of work run at once by default.
 
 **Routing Rule**
 A CEL condition, saved as a settings record with `body.topic: "routing_rule"`, that sends matching records to an actor. Rules are checked in priority order and the first match wins. See [Routing rules](/docs/guides/routing-rules).
 
 ## S
 
+**Scheduled maintenance**
+Work your workspace does on a schedule in the background: lowering old trust scores, promoting reliable patterns, saving snapshots, and writing cost reports. See [The Engine](/docs/concepts/engine#running-scheduled-work).
+
 **Service Account (SA)**
 An account for a program rather than a person, with a DID of the form `did:sync:system:sa_…`. Create one with `spl service-account create`. It signs in with a bearer token and is limited to the namespaces and permissions you give it. See [Keyring](/docs/operate/keyring).
-
-**SSE (Server-Sent Events)**
-A way for the server to stream updates to you over one HTTP connection. Syncropel uses it for streamed model replies (`/v1/proxy/messages` with `stream=true`) and for MCP (`/v1/mcp/sse`).
 
 **Snapshot**
 A `.snap.jsonl` file holding a thread's records and a checklist that detects tampering. Use it for backup, moving a workspace, or starting a fleet. Restoring it twice does not create duplicates. See [Backup and restore](/docs/guides/backup-restore).
 
+**SSE (Server-Sent Events)**
+A way for the server to stream updates to you over one HTTP connection. Syncropel uses it for streamed model replies (`/v1/proxy/messages` with `stream=true`) and for MCP (`/v1/mcp/sse`).
+
+**Status Rule**
+A CEL expression, saved as a settings record, that changes how a task or thread status is worked out. Use it for status changes specific to your workspace. See [CEL — fold_rule context](/docs/guides/cel-expressions).
+
 **Substrate**
 The shared, append-only record of everything that happens, which every actor reads from and writes to. An actor's DID stays the same; what powers it (the AI model, adapter, or tool) can change.
+
+**System Threads**
+Built-in threads that hold your workspace's own data. You will see these names in settings and API responses: `th_engine_config` (workspace settings), `th_actor_registry` (actors), `th_namespace_registry` (namespaces), `th_instance_registry` (running instances), `th_fleet_control` (freeze and stop switches), and `th_consent` (permission to share across namespaces).
 
 ## T
 
@@ -240,11 +241,11 @@ A thread whose first `INTEND` record has `body.task = true` and an alias, assign
 **Thread**
 A sequence of records sharing a thread ID. Represents a workflow, task, conversation, or any coordinated activity. See [Threads](/docs/concepts/threads).
 
-**Trust updates**
-Once a minute by default, your workspace updates trust scores, checks for drift, and flags stalled work.
-
 **Trust**
 A score built from evidence such as approved work and reviewed outcomes. It is tracked per `(actor, domain, judged_by)`, uses the 95% Wilson lower bound, and decays with a 90-day half-life. See [Trust](/docs/concepts/trust).
+
+**Trust updates**
+Once a minute by default, your workspace updates trust scores, checks for drift, and flags stalled work.
 
 ## W
 

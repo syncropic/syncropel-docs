@@ -7,7 +7,7 @@ description: The one thing Syncropel writes. Every intent, action, observation a
 
 A record is a single fact that never changes after it is written. Syncropel writes nothing else. Task status, trust scores, routing rules, configuration, the output of a CI job and a comment on a design doc are all records.
 
-**The record log is the source of truth, and everything else is worked out from it.** Trust scores, proven patterns and workspace state are not stored separately. They are calculated from the records, the way a bank balance is calculated from a list of transactions. This is what makes your workspace auditable and consistent across paired workspaces. The [State is a fold](#state-is-a-fold) section below explains more.
+**The record log is the source of truth, and everything else is worked out from it.** Trust scores, proven patterns and workspace state are not stored separately. They are calculated from the records, the way a bank balance is calculated from a list of transactions. This is what makes your workspace auditable and consistent across paired workspaces. The [State is worked out from records](#state-is-worked-out-from-records) section below explains more.
 
 A record is never changed once it lands. Corrections, cancellations and status changes are new records that point at the old ones.
 
@@ -83,9 +83,9 @@ You cannot backdate a record. If someone disagrees with an earlier observation, 
 
 Every change happened when it happened, signed by whoever made it, and nothing later can alter that history.
 
-## State is a fold
+## State is worked out from records
 
-There is no second database. Everything you see, such as task status, trust scores, routing rules and namespaces, is worked out by reading the records:
+There is no second database. Everything you see, such as task status, trust scores, routing rules and namespaces, is worked out by reading a thread's records in order and applying each one in turn (a *fold*):
 
 ```
 current_state = fold(records_on_thread)

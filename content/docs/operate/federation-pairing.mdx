@@ -11,14 +11,14 @@ If you only run `spl serve` on one machine, skip this page. If you run two and t
 
 ## When to pair
 
-A pair is the right primitive when:
+A pair is the right tool when:
 
 - **You have two laptops** and want one set of threads visible from both, with edits flowing in either direction.
-- **You're bridging a hosted instance and a local one** — say, `<label>.syncropel.app` for the agent stack and a laptop instance for capture-and-emit.
+- **You're bridging a hosted instance and a local one** — say, `<label>.syncropel.app` for your agents and a laptop instance for capturing work.
 - **You're sharing a workspace across collaborators** — each collaborator has their own instance, their own identity, their own trust ledger; pairs let consented threads cross the boundary.
-- **You're running a fleet** of mostly-identical instances behind the same operator and want intra-fleet sync without re-running the discovery dance every time.
+- **You're running a fleet** of mostly-identical instances behind the same operator and want them to sync without repeating discovery each time.
 
-A pair is **not** the right primitive for:
+A pair is **not** the right tool for:
 
 - Multi-tenancy in one instance (use namespaces — see `spl namespace --help`).
 - Backup or migration (use `spl thread snapshot` / `restore`).
@@ -42,7 +42,7 @@ Before either instance runs `spl federation pair`:
 3. **Each side has a token with the `admin` scope** (you'll be writing pair records and minting federation-scoped SAs).
 4. **The pair_endpoint is reachable.** Port-forward, tunnel, or DNS — whatever it takes for `curl` from one instance's host to the other's `pair_endpoint`.
 
-## 2. Pair lifecycle
+## Pair lifecycle
 
 ### Create a pair
 
@@ -133,7 +133,7 @@ spl federation grant did:sync:instance:bob \
   --hash-level L1
 ```
 
-Sharing exact (L0) records across namespaces still requires consent from both sides. The default hash level for grants is L1 (structural); raise it to L0 (exact) only when you genuinely intend to share exact copies of records.
+A grant shares records at a hash level. The default is `L1` (structural: the shape of the work, not its exact content). `L0` shares exact copies of records and still requires consent from both sides; raise a grant to `L0` only when you mean to share exact copies.
 
 ### Sync mode
 
@@ -146,7 +146,7 @@ spl federation set-poll-interval <pair_id> 30s   # only for polling mode
 
 `continuous` opens an SSE subscription to the peer; latency drops from minutes to seconds, at the cost of an open TCP connection. `on-demand` is the third option — sync only when explicitly requested via `spl sync <pair_id>`. Use it for archival peers that don't need real-time updates.
 
-## 3. Debugging pair issues
+## Debugging pair issues
 
 The four failure modes that account for most pair problems, in roughly the order they happen:
 
@@ -177,7 +177,7 @@ Causes:
 peer rejected handshake: 401 Unauthorized
 ```
 
-The handshake is authenticated by the manifest signature, not by a bearer — but the responder's pair handler still runs the standard auth middleware. Check on Bob's side: `auth.required = true` is fine, but the `/v1/federation/pair` route must be reachable without a pre-existing bearer (the handshake is the bearer-mint event). In the canonical config this Just Works; if you've layered a custom permission rule on top, audit it:
+The handshake is authenticated by the manifest signature, not by a bearer — but the responder's pair handler still runs the standard auth middleware. Check on Bob's side: `auth.required = true` is fine, but the `/v1/federation/pair` route must be reachable without a pre-existing bearer (the handshake is the bearer-mint event). With the default configuration this works; if you've added a custom permission rule, check it:
 
 ```bash
 spl config list-permission-rules | grep federation
@@ -221,7 +221,7 @@ spl federation pair add https://bob.example/
 
 Re-pairing is cheap. The new pair starts from the peer's current position. You don't get the missed records back unless you also restore from snapshots, but you get a clean slate.
 
-## 4. Reading a pair's health
+## Reading a pair's health
 
 There is no bundled load generator for pairs. What your instance does give you is a live view of every sync pair it is running: the pair's lifecycle state, how many records it has pulled, how long each poll takes, how far behind it is, and whether its delivery latency has drifted. Three surfaces expose it, from coarsest to finest.
 
@@ -234,9 +234,9 @@ spl federation show <peer_did>
 
 `list` prints one row per pair with its state (`not_paired`, `establishing`, `active`, `paused`, `degraded`, `revoked`). `show` adds the last clock the pair reached, when it last changed state, and the reason for the last transition. This tells you what the pair is, not how fast it is moving.
 
-### The sync health doors
+### The sync health endpoints
 
-Your instance keeps sync metrics per pair over a rolling one-hour window. They reset when the instance restarts, and they are meant to be scraped, not archived. Both doors need a bearer carrying the `federation:manage` scope.
+Your instance keeps sync metrics per pair over a rolling one-hour window. They reset when the instance restarts, and they are meant to be scraped, not archived. Both endpoints need a bearer carrying the `federation:manage` scope.
 
 ```bash
 # Every pair the daemon is syncing, in one report.
@@ -274,7 +274,7 @@ The bearer-gated `GET /v1/health` carries a one-glance summary of the same data 
 
 If a pair looks wrong, the lifecycle section above is the recovery path: `spl federation refresh` to re-read the peer, `pause` and `resume` to restart the loop from its saved cursor, and `revoke` plus a fresh `pair` when the divergence is not repairable.
 
-## 5. Capacity planning
+## Capacity planning
 
 Per pair, in continuous mode:
 

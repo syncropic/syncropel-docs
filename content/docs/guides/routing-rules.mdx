@@ -41,7 +41,7 @@ All specified criteria must match (AND logic). Unspecified criteria are wildcard
 Syncropel checks in this order:
 
 1. **Explicit target**: if the record has a `body.to` field, it goes there and no rules are checked.
-2. **Pattern match**: if a proven pattern matches, it is used (cheapest).
+2. **Pattern match**: if a pattern that has worked reliably before matches, it is used (the cheapest option).
 3. **Routing rules**: your configured rules; the first match wins.
 4. **Trust**: the actor with the highest trust in the relevant domain.
 5. **Default**: a routing decision is proposed for you to approve.

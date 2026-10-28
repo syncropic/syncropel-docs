@@ -5,11 +5,10 @@ description: Save a summary of where an agent got to, so its next session picks 
 
 ## Why checkpoints exist
 
-Agents that run for hours or days burn context quickly. Session
-checkpoints give an agent a lasting hand-off point: a single record
-summarizing progress, learnings and next steps. The next session
-reads the latest checkpoint and carries on, without going back over every
-earlier turn.
+Agents that run for hours or days fill their context window quickly. A
+session checkpoint gives an agent a lasting hand-off point: a single record
+summarizing progress, learnings and next steps. The next session reads the
+latest checkpoint and carries on, without going back over every earlier turn.
 
 ## Anatomy of a checkpoint
 
@@ -33,7 +32,7 @@ A checkpoint is a LEARN record on the session thread with
 The `session_id` can be anything: the short alias your task tracker
 assigns, a UUID, or the thread ID itself.
 
-## Creating a checkpoint — CLI
+## Creating a checkpoint from the CLI
 
 ```bash
 spl session save \
@@ -47,13 +46,13 @@ spl session save \
 
 Flags:
 
-- `--thread` — session thread id. Required.
-- `--summary` — one-paragraph progress summary.
-- `--learnings` — repeat for each learning (at least 1).
-- `--next-steps` — what the next session should pick up first.
-- `--actor` — agent DID. Defaults to `SPL_ACTOR` env var.
+- `--thread`: the session thread to checkpoint. Defaults to your latest active task thread.
+- `--summary`: a one-paragraph progress summary.
+- `--learnings`: repeat for each learning (at least 1).
+- `--next-steps`: what the next session should pick up first.
+- `--actor`: the agent's DID. Defaults to the identity in your configuration.
 
-## Creating a checkpoint — SDK
+## Creating a checkpoint from an SDK
 
 ### Python
 
@@ -85,9 +84,9 @@ await client.emit({
 });
 ```
 
-## The boundary annotation — `--draft`
+## Let the workspace draft it: `--draft`
 
-You don't have to hand-write the checkpoint at all. With `--draft`, the
+You don't have to write the checkpoint by hand. With `--draft`, the
 workspace works out what happened from your records (what closed,
 what's still open, which decisions await you, what moved) and saves
 it to your attention thread:
@@ -97,14 +96,15 @@ spl session save --draft --summary "One human line on top of the drafted summary
 ```
 
 `--summary`, `--learnings`, and `--next-steps` are added to the draft rather
-than replacing it; the one hand-written summary line is usually the only
-part worth authoring by hand. `--reason` records *why* the session stopped (`explicit_end`, `context_window_limit`, `timeout`, …) so a
-later reader knows whether the session ended cleanly.
+than replacing it; the one summary line is usually the only part worth
+writing by hand. `--reason` records *why* the session stopped
+(`explicit_end`, `context_window_limit`, `timeout`, …) so a later reader knows
+whether the session ended cleanly.
 
-Run this before an agent's context fills up, a laptop lid closes, or a shift ends. It takes one command
-and makes coming back easy.
+Run this before an agent's context fills up, a laptop lid closes, or a shift
+ends. It takes one command and makes coming back easy.
 
-## `spl resume` — where was I, what changed, what needs me
+## `spl resume`: where was I, what changed, what needs me
 
 The other half of `--draft`. On a fresh session:
 
@@ -142,7 +142,7 @@ In code, query the records on the thread, keep those with
 last one:
 
 ```ts
-const records = await client.query_thread({ thread: threadId });
+const records = await client.queryThread({ thread: threadId });
 const checkpoints = records
   .filter(r => r.body?.kind === "agent.session.checkpoint")
   .sort((a, b) => a.clock - b.clock);
@@ -155,14 +155,14 @@ const latest = checkpoints[checkpoints.length - 1];
 
 The dev agent (`did:sync:agent:dev`) prompt template expects a
 checkpoint at the end of every session. See
-[Agent integration](/docs/guides/agent-integration) for the contract. Humans reviewing an agent's work read the checkpoints as the
-first signal of progress.
+[Agent integration](/docs/guides/agent-integration) for the details. People
+reviewing an agent's work read its checkpoints first to see progress.
 
 ## When NOT to use checkpoints
 
 - **Single-turn tasks**: nothing to resume, so a checkpoint is wasted
 - **Throwaway exploration**: nothing worth keeping
-- **Fine-grained progress tracking** — use KNOW records per step, not
+- **Fine-grained progress tracking**: use KNOW records per step, not
   checkpoints per step. Checkpoints are summaries, not step logs.
 
 ## Retention and cleanup
@@ -176,6 +176,6 @@ If you want to retain only the last N checkpoints per thread, emit a
 
 ## Pairs with
 
-- **[Agent integration](/docs/guides/agent-integration)** — full
+- **[Agent integration](/docs/guides/agent-integration)**: the full
   protocol for the dev agent + other roles
-- **[Python SDK](/docs/guides/python-sdk)** / **[TypeScript SDK](/docs/guides/typescript-sdk)** — full `emit()` and `query_thread()` reference
+- **[Python SDK](/docs/guides/python-sdk)** / **[TypeScript SDK](/docs/guides/typescript-sdk)**: the full `emit()` and thread-query reference

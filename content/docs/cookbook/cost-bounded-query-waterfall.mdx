@@ -99,7 +99,7 @@ Haiku returned confidence 0.94, which passes the 0.85 acceptance threshold, so i
 
 When Haiku returns `confidence: 0.68`:
 
-1. Stage 1's answer arrives. With one answer, `best_of` just takes it.
+1. Stage 1's answer arrives. With only one answer, `best_of` takes it.
 2. The acceptance condition is checked: `0.68 >= 0.85` is false.
 3. A record notes that stage 1 failed.
 4. Stage 2 (Sonnet) is asked. It returns `confidence: 0.89`.
@@ -138,6 +138,6 @@ You'll see:
 
 ## See also
 
-- **[Orchestration Patterns — waterfall](/docs/guides/inference/orchestration-patterns#pattern-waterfall)** — full description.
-- **[Query Anatomy — SideEffects](/docs/guides/inference/query-anatomy#side-effects)** — all the cost and time-limit fields.
-- **[Summarize with consensus](/docs/cookbook/summarize-research-paper-consensus)** — asking all models at once, when you want reliability more than low cost.
+- **[Orchestration Patterns — waterfall](/docs/guides/inference/orchestration-patterns#pattern-waterfall)**: full description.
+- **[Query Anatomy — SideEffects](/docs/guides/inference/query-anatomy#side-effects)**: all the cost and time-limit fields.
+- **[Summarize with consensus](/docs/cookbook/summarize-research-paper-consensus)**: asking all models at once, when you want reliability more than low cost.

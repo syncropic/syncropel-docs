@@ -1,6 +1,6 @@
 ---
 title: Your First Fan-Out
-description: A five-minute walkthrough. Start three local workspaces, split a trivial task between two workers, watch it finish, check the speedup and shut down. No real work and no model costs.
+description: A five-minute walkthrough. Start three local workspaces, split a small task between two workers, watch it finish, check the speedup and shut down. No model costs.
 ---
 
 ## What you'll see
@@ -15,7 +15,7 @@ Total time: **under 5 minutes**. No API keys are needed (we use echo mode, which
 spl fleet start --workers 2
 ```
 
-You'll see convergence output like:
+Once all three are up, you'll see output like:
 
 ```text
 fleet converged
@@ -46,7 +46,7 @@ Output:
   alias:  FIRST-001
 ```
 
-Grab the worker DIDs from `spl fleet list` — you'll paste them into the next command.
+Copy the worker DIDs from `spl fleet list`. You'll paste them into the next command.
 
 ## Step 3 — Fan out to both workers
 
@@ -118,7 +118,7 @@ Fan-out speedup report: th_abc123...
                        thread via `--vs-serial <thread>`.
 ```
 
-In echo mode every subtask takes ~1 second, so the ratio is trivial. In a real fan-out with non-trivial subtasks, this is where you see whether parallelism is buying you anything.
+In echo mode every subtask takes about 1 second, so the ratio tells you little. In a real fan-out with real subtasks, this is where you see whether running in parallel saves time.
 
 ## Step 6 — Tear down
 
@@ -139,4 +139,4 @@ You used the four building blocks of fleets:
 
 ## Next steps
 
-- **[Runbook — fleet section](/docs/operate/runbook)** — operating a live fleet.
+- **[Runbook, fleet section](/docs/operate/runbook)**: operating a live fleet.

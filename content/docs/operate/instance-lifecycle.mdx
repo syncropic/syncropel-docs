@@ -5,7 +5,7 @@ description: Provision an instance, get past the first-run auth chicken-and-egg,
 
 ## Audience
 
-This page is for the operator standing up an `spl serve` instance for real work — laptop, server, container, or a Syncropic-hosted instance. It covers the lifecycle from `spl init` to teardown .
+This page is for the operator standing up an `spl serve` instance for real work — laptop, server, container, or a Syncropic-hosted instance. It covers the lifecycle from `spl init` to teardown.
 
 If something is broken right now, jump to [Recovery](/docs/operate/runbook#recovery-from-corruption-or-data-loss) on the runbook page. The lifecycle below assumes you're starting clean.
 
@@ -28,10 +28,10 @@ Start the instance as a foreground process the first time so you can see what it
 spl serve
 ```
 
-You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it as an instance:
+You should see a startup banner naming the bind address, the SQLite path, and the backup destination. `Ctrl-C` to stop. Once you're satisfied, run it in the background:
 
 ```bash
-spl serve
+spl serve --daemon
 spl status
 ```
 
@@ -71,12 +71,12 @@ Sign in at syncropel.com and provision. The instance is bootstrapped for you and
 
 ## 3. Auth posture for production
 
-Once bootstrapped, treat `auth.required = true` as load-bearing. It is the default and every shipping route enforces it (including the federation surface). Specifics live in [Authentication & Service Accounts](/docs/operate/keyring); the operational rules are:
+Once bootstrapped, treat `auth.required = true` as load-bearing. It is the default and every route enforces it (including the federation surface). Specifics live in [Authentication & Service Accounts](/docs/operate/keyring); the operational rules are:
 
 - One service account per tool/agent/integration. Closed scope per SA — `records:read,records:write` for an emitter, `admin` only when minting tokens or setting policy.
 - Tokens carry a snapshot of the SA's scopes at issuance time. Live-edit the SA's scopes for new tokens; revoke + re-mint the existing token only when scopes shrink.
 - Save the token once via `spl token save <bearer>`; the CLI auto-injects it for every subsequent invocation.
-- Permission CEL is enforced fail-closed. Before turning on a permission rule, run `spl config permissions-enable` — its preflight refuses unless allow-rules cover `record_write`, `thread_read`, and `config_read` for the instance's own actor. Skipping the preflight is how operators lock themselves out.
+- Permission rules (written as CEL expressions) fail closed: a request no rule allows is denied. Before turning on a permission rule, run `spl config permissions-enable` — its preflight refuses unless allow-rules cover `record_write`, `thread_read`, and `config_read` for the instance's own actor. Skipping the preflight is how operators lock themselves out.
 
 If the instance is ever exposed beyond loopback, stand up a CORS allowlist before the first cross-origin browser hit:
 
@@ -202,7 +202,7 @@ spl drain status   # waits until in-flight = 0
 spl stop
 ```
 
-This sends `SIGTERM`. The instance finishes pending writes, closes the socket, and removes its PID file. If `--stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).
+This sends `SIGTERM`. The instance finishes pending writes, closes the socket, and removes its PID file. If `spl stop` reports "not running" but the port is still bound, see the [orphan-recovery section on the runbook](/docs/operate/runbook).
 
 ### Reclaim space (optional)
 

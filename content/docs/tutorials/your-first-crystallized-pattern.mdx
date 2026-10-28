@@ -1,5 +1,5 @@
 ---
-title: Your first crystallized pattern
+title: Your first pattern
 description: Do the same kind of work three times, see Syncropel recognize the pattern, watch your trust score grow, and see how the next similar piece of work is handled.
 ---
 
@@ -42,7 +42,7 @@ spl do "Read file and count newlines" --thread $THREAD3
 spl know "src/main.rs has 142 lines" --thread $THREAD3 --fulfills
 ```
 
-Each `--fulfills` on the closing KNOW marks the thread as successfully closed. That is what makes Syncropel record the pattern.
+The `--fulfills` on each closing KNOW marks the thread as successfully closed. That is what makes Syncropel record the pattern.
 
 ## 2. Look at the pattern signatures
 
@@ -64,7 +64,7 @@ Thread:  th_count_lines_a  (closed, fulfilled)
     L3: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3
 ```
 
-Now compare to thread 2:
+Now compare it with thread 2:
 
 ```bash
 spl thread show $THREAD2
@@ -86,7 +86,7 @@ curl -s -H "Authorization: Bearer $(cat ~/.syncro/token)" \
 
 You should see one entry whose `hash_l1` matches all three threads, with `observation_count: 3`. Each successful `--fulfills` adds one observation.
 
-## 4. Watch the trust score evolve
+## 4. Watch the trust score grow
 
 Each closed thread is also evidence about your trust in an area of work (`general` if you didn't pass `--domain`). Look at your trust:
 
@@ -101,13 +101,13 @@ did:sync:user:you       general          3       3    0.439
 
 Three out of three successes. A small number of results is never fully trusted, so 3 out of 3 scores about 0.44, not 1.0. The score climbs as more work is reviewed.
 
-Trust is one of the conditions for a pattern to become [permanent](/docs/concepts/patterns#when-a-pattern-becomes-permanent). The others are many more observations, a genuine regularity, and more than one source.
+Trust is one of the conditions for a pattern to become [permanent](/docs/concepts/patterns#when-a-pattern-becomes-permanent). The others are many more observations, a real regularity in the work and more than one source.
 
 This tutorial covers the early stage only. Three observations from one member don't make a pattern permanent. But the pattern is already on record, and the next similar piece of work can match it. See [Patterns](/docs/concepts/patterns) for when a pattern is reused.
 
 ## 5. Add a fourth thread and watch for a match
 
-Emit one more line-count thread:
+Start one more line-count thread:
 
 ```bash
 THREAD4=th_count_lines_d
@@ -144,18 +144,18 @@ Each entry is a LEARN record describing one rule. The records are the routing ta
 
 ## Where to next
 
-- [Patterns concept](/docs/concepts/patterns) — how patterns are matched, reused, made permanent and shared.
-- [Trust concept](/docs/concepts/trust) — how trust is earned, how it fades, and why it decides which patterns become permanent.
-- [Engine concept](/docs/concepts/engine) — what keeps your workspace running, including routing and scheduled work.
-- [Your first federation pair](./your-first-federation-pair) — permanent patterns can be shared with paired workspaces, with consent.
-- [Cookbook: Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval) — combining trust and the decision gate so high-trust members' work is approved automatically.
+- [Patterns concept](/docs/concepts/patterns): how patterns are matched, reused, made permanent and shared.
+- [Trust concept](/docs/concepts/trust): how trust is earned, how it fades and why it decides which patterns become permanent.
+- [Engine concept](/docs/concepts/engine): what keeps your workspace running, including routing and scheduled work.
+- [Your first federation pair](./your-first-federation-pair): permanent patterns can be shared with paired workspaces, with consent.
+- [Cookbook: Trust-gated auto-approval](/docs/cookbook/trust-gated-auto-approval): combining trust and the decision gate so high-trust members' work is approved automatically.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Hash signatures don't appear in `spl thread show` | The thread isn't closed. A pattern is recorded only when a closing KNOW carries `--fulfills` against a prior INTEND. | Re-emit the closing KNOW with `--fulfills` (or `--fulfills <intend_record_id>` if you want to be explicit). Without it, the thread stays open and no pattern is recorded. |
-| Threads 1 and 2 match at L0 but not L1 | The bodies are probably identical. L0 matches only on identical content. | This is fine, just less interesting. Vary the INTEND text between threads (different filename, different parameter) to demonstrate the L0 vs L1 split. |
+| Threads 1 and 2 also match at L0 | The bodies are identical. L0 matches only on identical content. | This is fine, just less interesting. Vary the INTEND text between threads (different filename, different parameter) to see L0 differ while L1 still matches. |
 | Pattern observation count stuck at 1 | Each thread closed but they differ at every level (different body kinds, actors or acts). | Verify all three threads use the same act sequence (INTEND → DO → KNOW), the same actor, and structurally similar body shapes. Use `spl thread show <id>` to compare the signatures side by side. |
-| Trust score flat at 0.0 after `--fulfills` | The closing KNOW didn't include a `--domain` — observations land in `general` and your `spl trust` view may be filtered. | Run `spl trust` with no flags to see all domains. Or pass `--domain code` (or whatever fits) to `spl know` to attribute observations to a specific domain. |
+| Trust score flat at 0.0 after `--fulfills` | The closing KNOW didn't include a `--domain`, so observations land in `general`, and your `spl trust` view may be filtered. | Run `spl trust` with no flags to see all domains. Or pass `--domain code` (or whatever fits) to `spl know` to attribute observations to a specific domain. |
 | Fourth record didn't auto-route | No routing rule covers the pattern's L1 signature yet. Patterns make routing possible; rules make it happen. | Either approve a routing proposal (per [the decision-gate tutorial](./your-first-decision)) or hand-author a rule with `spl config add-rule`. Patterns and rules are separate: patterns are matched, rules route. |

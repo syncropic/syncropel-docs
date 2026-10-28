@@ -1,17 +1,17 @@
 ---
 title: Your First React Component Consumer
-description: 30-minute walk from create-next-app to a Syncropel-driven task inbox UI. Wires @syncropel/sdk, @syncropel/react, and polling into a small Next.js app you can extend.
+description: In 30 minutes, go from create-next-app to a task inbox driven by Syncropel. Wires @syncropel/sdk, @syncropel/react and polling into a small Next.js app you can extend.
 ---
 
 <Callout type="info">
-This tutorial assumes you've completed [Your First SDK Integration](/docs/tutorials/first-sdk-integration) and have `spl` running locally with a token. The React palette has no provider and no required CSS framework — it works with any React 18+ app.
+This tutorial assumes you've completed [Your First SDK Integration](/docs/tutorials/first-sdk-integration) and have `spl` running locally with a token. The React components need no provider and no CSS framework, and work with any React 18+ app.
 </Callout>
 
 ## What you'll build
 
-A Next.js page that renders a live task inbox: every record on a thread shows up as a `Card` from `@syncropel/react`, a button at the top emits a new task, and the list refreshes every few seconds via polling. The UI uses only the published palette — no custom styling beyond the design tokens.
+A Next.js page that renders a live task inbox: every record on a thread shows up as a `Card` from `@syncropel/react`, a button at the top adds a new task, and the list refreshes every few seconds by polling. The UI uses only the published components, with no custom styling beyond the design tokens.
 
-When you're done you'll have the skeleton every Syncropel-aware web product starts from.
+When you're done you'll have a skeleton you can build any Syncropel web app from.
 
 Total time: **about 30 minutes**.
 
@@ -23,7 +23,7 @@ cd my-inbox
 npm install @syncropel/sdk @syncropel/react
 ```
 
-Open `app/layout.tsx` and add the React palette stylesheet at the top:
+Open `app/layout.tsx` and add the component stylesheet at the top:
 
 ```typescript
 import "@syncropel/react/styles.css";
@@ -46,7 +46,7 @@ export default function RootLayout({
 }
 ```
 
-The stylesheet ships design tokens at `:root` and component styles. There is **no** `<ThemeProvider>` wrapper — palette atoms read CSS variables directly.
+The stylesheet contains design tokens at `:root` and the component styles. There is **no** `<ThemeProvider>` wrapper: the components read CSS variables directly.
 
 ## Section B — Wire the SDK as a server route (5 minutes)
 
@@ -246,7 +246,7 @@ Reload `http://localhost:3000`. You should see:
 - An empty state if the thread has no records yet
 - A card per record once you add one, with a coloured chip per `act` type
 
-Add a few entries; they appear immediately because the polling interval refreshes every three seconds.
+Add a few entries. They appear right away, and the list also refreshes every three seconds.
 
 ## Section D — Theme tokens (5 minutes)
 
@@ -278,7 +278,7 @@ export default function RootLayout({
 }
 ```
 
-Reload — buttons, chips, and card outlines pick up the indigo accent. The component DOM is unchanged; only the variables are different. This is the one place to customize the look.
+Reload: buttons, chips and card outlines pick up the indigo accent. The component DOM is unchanged; only the variables are different. This is the one place to customize the look.
 
 For the full token reference, see [Theming via CSS variables](/docs/guides/react-components#theming-via-css-variables) in the React Components guide.
 
@@ -286,21 +286,21 @@ For the full token reference, see [Theming via CSS variables](/docs/guides/react
 
 The skeleton you built has everything you need to start:
 
-- Server-side access to your workspace via an API route (token never reaches the browser)
+- Server-side access to your workspace through an API route (the token never reaches the browser)
 - A polled query that drives a `useState`-backed list
-- A POST handler that emits new records via the SDK
-- Palette-only UI rendering — no custom CSS framework, no provider
-- Theme overrides via four CSS variables
+- A POST handler that writes new records through the SDK
+- UI built only from the published components, with no CSS framework and no provider
+- Theme overrides through four CSS variables
 
 Common next steps:
 
 | Goal | Where to start |
 |---|---|
 | Show a filtered slice (only `INTEND` records, only mine) | Pass `client.query({ kind, actor })` instead of `queryThread` |
-| Render server-derived layouts instead of streaming records | [Projections (SRP) guide](/docs/guides/projections) |
+| Render layouts defined on the server instead of listing records | [Projections guide](/docs/guides/projections) |
 | Replace polling with a live feed | The SDK has no live streaming; polling every 1 to 3 seconds is the recommended approach |
 | Multi-thread inbox | Use `client.query({ actor: "did:example:..." })` to pull across threads |
-| Optimistic UI on Add | After `POST /api/inbox`, don't wait for `refresh()` — push the new record into local state first |
+| Optimistic UI on Add | After `POST /api/inbox`, don't wait for `refresh()`: push the new record into local state first |
 
 ## What you have now
 
@@ -308,14 +308,14 @@ A Next.js page that:
 
 - ✅ Loads `@syncropel/react` design tokens at the app root
 - ✅ Reads the bearer token server-side and proxies to your workspace
-- ✅ Renders records as `Card` + `Chip` from the palette
+- ✅ Renders records as `Card` and `Chip` components
 - ✅ Polls for live updates every three seconds
 - ✅ Emits new INTEND records on user action
 - ✅ Themes via CSS variable overrides
 
 ## What's next
 
-- **Embed your UI in another app** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) shows how to package the same flow as a host-embeddable extension.
-- **Deeper component reference** — [React Components guide](/docs/guides/react-components) has the full 21-atom palette with prop tables.
-- **Render server-defined UI** — [Projections guide](/docs/guides/projections) explains the document format and how `@syncropel/react` shows it.
-- **Authenticate from the browser directly** — [Authentication & Service Accounts](/docs/operate/keyring) covers per-user tokens and scope-limited service accounts for multi-tenant apps.
+- **Embed your UI in another app**: [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) shows how to package the same flow as an extension a host can embed.
+- **Deeper component reference**: the [React Components guide](/docs/guides/react-components) lists all 21 components with prop tables.
+- **Render server-defined UI**: the [Projections guide](/docs/guides/projections) explains the document format and how `@syncropel/react` shows it.
+- **Authenticate from the browser directly**: [Authentication & Service Accounts](/docs/operate/keyring) covers per-user tokens and scope-limited service accounts for multi-tenant apps.

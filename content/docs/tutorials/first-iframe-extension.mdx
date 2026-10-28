@@ -1,17 +1,17 @@
 ---
 title: Your First Iframe Extension
-description: 30-minute walk from npm create vite to a working iframe extension that handshakes with a host, emits records, and renders live updates. Builds against @syncropel/extensions and a tiny reference host.
+description: In 30 minutes, go from npm create vite to a working iframe extension that connects to a host, writes records and shows live updates. Built with @syncropel/extensions and a small reference host.
 ---
 
 <Callout type="info">
-This tutorial assumes you've completed [Your First SDK Integration](/docs/tutorials/first-sdk-integration). It uses the [reference iframe host snippet](/docs/reference/iframe-host-snippet) as the outer page so you can run end-to-end without setting up a full workspace product.
+This tutorial assumes you've completed [Your First SDK Integration](/docs/tutorials/first-sdk-integration). It uses the [reference iframe host snippet](/docs/reference/iframe-host-snippet) as the outer page, so you can run it end to end without a full host app.
 </Callout>
 
 ## What you'll build
 
-A small Vite + TypeScript app that runs **inside an iframe**, completes the host handshake, lets the user click a button to emit a record back through the host, and renders any record updates the host pushes.
+A small Vite + TypeScript app that runs **inside an iframe**, completes the handshake with its host, lets the user click a button to write a record through the host, and shows any record updates the host sends.
 
-The end result is what every Syncropel-aware embeddable surface looks like — Notion-style page widgets, IDE side panels, in-app inspectors, dashboards. Same protocol, same SDK, same security envelope.
+Every embeddable Syncropel surface has this shape: page widgets, IDE side panels, in-app inspectors, dashboards. Same protocol, same SDK, same security model.
 
 Total time: **about 30 minutes**, split into five short sections.
 
@@ -102,7 +102,7 @@ Start the dev server:
 npm run dev
 ```
 
-Vite serves it at `http://localhost:5173`. Open the URL in a browser — the page renders, but `status` reads `connecting…` forever and the button stays disabled. That's expected: there is no host yet.
+Vite serves it at `http://localhost:5173`. Open the URL in a browser. The page renders, but `status` reads `connecting…` forever and the button stays disabled. That's expected: there is no host yet.
 
 ## Section B — The handshake (5 minutes)
 
@@ -115,20 +115,20 @@ The Syncropel host-to-extension protocol is a small four-message exchange:
 | host → ext | `action.result` | Host's reply confirming the final capability grant. |
 | host → ext | `context.update` / `records.update` / `goodbye` | Lifecycle events thereafter. |
 
-**Origin checks happen on both sides.** The host validates the iframe origin against an allowlist before sending `hello`. The extension captures the host's window + origin from the first inbound message and posts back to that origin only. The SDK handles both halves of the validation; you don't write the checks yourself.
+**Origin checks happen on both sides.** The host validates the iframe origin against an allowlist before sending `hello`. The extension records the host's window and origin from the first message it receives and posts back to that origin only. The SDK handles both halves of the validation; you don't write the checks yourself.
 
 Whether the iframe is sandboxed with `allow-same-origin` depends on the host, so the SDK posts replies to any origin and lets the host match them to the right window. This is the standard `postMessage` pattern for iframes; see [the host snippet](/docs/reference/iframe-host-snippet) for the matching outer-page code.
 
 ## Section C — Wire up the reference host (10 minutes)
 
-For a working end-to-end demo we need a host page. Copy [the reference host snippet](/docs/reference/iframe-host-snippet) into `host.html` next to your `package.json`:
+For a working end-to-end demo you need a host page. Copy [the reference host snippet](/docs/reference/iframe-host-snippet) into `host.html` next to your `package.json`:
 
 ```bash
 # from inside my-ext/
 cp /path/to/iframe-host-snippet.html host.html  # or paste from the docs page
 ```
 
-Edit two things in `host.html`:
+Edit three things in `host.html`:
 
 1. Set the `EXT_URL` constant near the top to your Vite dev server URL:
 
@@ -158,7 +158,7 @@ ready as did:example:my-app in default (granted: records.emit, records.query, re
 
 The button is now enabled.
 
-## Section D — Emit + verify (5 minutes)
+## Section D — Write and verify (5 minutes)
 
 Click **Emit a record** a couple of times. Each click shows a confirmation in the status line:
 
@@ -172,7 +172,7 @@ In a separate terminal, watch the records flow into the instance:
 spl thread records <th-from-host> -o json | jq '.data[] | {clock, act, body}'
 ```
 
-Replace `<th-from-host>` with the thread the host snippet selected when it bootstrapped (the snippet logs it on the host page).
+Replace `<th-from-host>` with the thread the host snippet selected when it started (the snippet logs it on the host page).
 
 You should see:
 
@@ -180,11 +180,11 @@ You should see:
 { "clock": ..., "act": "DO", "body": { "description": "User clicked the button at 2026-04-21T...", "kind": "core.action", ... } }
 ```
 
-The DID on the records is `did:example:my-app` — the actor the host named in the `hello` message, **not** the extension itself. Extensions never act as themselves; they act as the host's signed-in user. The host's permissions decide what records the user may write, and the extension gets only that for the session.
+The DID on the records is `did:example:my-app`, the actor the host named in the `hello` message, **not** the extension itself. Extensions never act as themselves; they act as the host's signed-in user. The host's permissions decide what records the user may write, and the extension gets only that for the session.
 
 ## Section E — Subscribe to live updates (5 minutes)
 
-So far the extension only emits. Let's make it react to live record changes too.
+So far the extension only writes. Now make it react to live record changes too.
 
 In `src/main.ts`, after the `createAdapter` call, add:
 
@@ -207,15 +207,15 @@ window.addEventListener("DOMContentLoaded", async () => {
 });
 ```
 
-Reload the iframe — every time you click the button, the new record appears at the top of the **Live records** list because the `onRecords` callback fires from the subscription.
+Reload the iframe. Every time you click the button, the new record appears at the top of the **Live records** list because the `onRecords` callback fires from the subscription.
 
-Open another terminal and emit a record manually with the SDK or CLI:
+Open another terminal and write a record by hand with the SDK or CLI:
 
 ```bash
 spl do "manual emit" --thread <same-th>
 ```
 
-It shows up in the iframe within a second. The extension is now a live participant in the thread, not just an emitter.
+It shows up in the iframe within a second. The extension now takes part in the thread live, instead of only writing to it.
 
 When the user navigates away, clean up:
 
@@ -233,7 +233,7 @@ A working iframe extension that:
 - ✅ Completes the host handshake via `@syncropel/extensions`
 - ✅ Renders inside any host that implements the matching protocol
 - ✅ Requests capabilities the host's policy can grant or deny
-- ✅ Emits records as the host's authenticated actor
+- ✅ Writes records as the host's signed-in actor
 - ✅ Subscribes to live record updates and renders them
 - ✅ Reports its content height for proper iframe sizing
 - ✅ Cleans up subscriptions on unload
@@ -242,8 +242,8 @@ Every published extension has this same shape, whether it is a one-button demo o
 
 ## What's next
 
-- **Ship it** — [Extension publishing playbook](/docs/operate/extension-publishing) covers naming, hosting, capability declarations, and security expectations.
-- **Embed it in your own product** — [The reference iframe host snippet](/docs/reference/iframe-host-snippet) is ~200 lines of vanilla JS you can drop into any web app.
-- **Deeper SDK reference** — [Extensions SDK guide](/docs/guides/extensions) has the full capability table, message envelopes, and the validator behavior.
-- **Build a richer UI** — [React Components](/docs/guides/react-components) ships a 21-component palette you can use inside the extension.
-- **Render server-derived UI** — [Projections (SRP)](/docs/guides/projections) lets the host hand the extension a declarative UI document instead of streaming raw records.
+- **Ship it**: the [Extension publishing playbook](/docs/operate/extension-publishing) covers naming, hosting, capability declarations and security expectations.
+- **Embed it in your own product**: [the reference iframe host snippet](/docs/reference/iframe-host-snippet) is about 200 lines of plain JavaScript you can drop into any web app.
+- **Deeper SDK reference**: the [Extensions SDK guide](/docs/guides/extensions) has the full capability table, message formats and how messages are validated.
+- **Build a richer UI**: [React Components](/docs/guides/react-components) has 21 components you can use inside the extension.
+- **Render UI defined on the server**: [Projections](/docs/guides/projections) lets the host hand the extension a UI document instead of raw records.

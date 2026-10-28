@@ -62,7 +62,7 @@ evaluation history below meaningful.
 | `422 GRANT_REFUSED` | The permission derived for the member failed validation. |
 
 The `403` limits apply to a limited member (a caller whose credential
-has a write limit). The workspace's operator has no such limit and may define
+has a write limit). The workspace owner has no such limit and may define
 freely; runs are still held to the plan level when they start.
 
 ### Retire a member
@@ -75,20 +75,20 @@ so it can never run without its limits. Answers
 | Code | When |
 |---|---|
 | `404 NO_SUCH_ACTOR` | No definition exists for `{did}`. |
-| `403 RETIRE_FORBIDDEN` | Only the person who defined it, or an operator, may retire it. |
+| `403 RETIRE_FORBIDDEN` | Only the person who defined it, or the workspace owner, may retire it. |
 
 A retired member can no longer be run as (see `RUN_ACTOR_NOT_COVERED` below).
 
 ### Shape a member
 
 `PATCH /v1/actors/{did}/definition` changes part of a definition without
-rewriting the rest. Only the workspace owner can call it (the credential must have admin rights). A member proposes a definition instead and never edits the chief. The
+rewriting the rest. Only the workspace owner can call it (the credential must have admin rights). A member proposes a definition instead and never edits the chief (the workspace's main assistant). The
 body is partial and every field is optional; a field the endpoint does not know
 is refused, never dropped:
 
 | Field | What it does |
 |---|---|
-| `display_name` | Renames the member (the same rules as the naming rules: never a person's name). |
+| `display_name` | Renames the member (the naming rules apply: never a person's name). |
 | `model` | One of the priced models listed under `models[]` in the workspace read. Any other id is refused by name. |
 | `prompt` | The member's words, as text. They are saved as a `core.actor.prompt.v1` record and the definition points to it, so every earlier wording stays in history. |
 | `tools` | `{add: [...], remove: [...]}`. Adding a tool already held is a no-op; removing one not held is refused. |
@@ -165,7 +165,7 @@ the same checks as defining a member, and refused with the same codes followed b
 
 | Code | When |
 |---|---|
-| `403 RUN_ACTOR_NOT_COVERED` | You may run as yourself, as a member you defined, or as anyone if you are the operator. Anything else, including a member you retired, is refused. |
+| `403 RUN_ACTOR_NOT_COVERED` | You may run as yourself, as a member you defined, or as anyone if you are the workspace owner. Anything else, including a member you retired, is refused. |
 | `422 INVALID_DEFINITION` | `definition` is not a `work_loop` object. |
 | `422 WORK_PROMPT_UNRESOLVED` | The member's prompt reference does not resolve to a record. |
 | `400 REPO_UNKNOWN` | `repo` names a repository the workspace has not declared. |

@@ -69,8 +69,8 @@ the event downstream (the record `id`, all 8 fields, and so on).
 - Relative: `1h`, `24h`, `7d`, `30d`
 - Absolute RFC3339: `--since 2026-04-01T00:00:00Z`
 
-No time filter → full record log. Be careful on long-running prod
-instances — the output can be large.
+No time filter → full record log. Be careful on long-running
+instances: the output can be large.
 
 ## Retention patterns
 
@@ -122,8 +122,8 @@ spl audit export --since 24h --categories decision \
 
 ## Operational notes
 
-- The command runs against the instance over the Unix socket (prod) or
-  `SPL_SERVE_URL` (dev). No SQL-level access required.
+- The command reaches the instance over its local Unix socket, or at
+  `SPL_SERVE_URL` when that is set. It needs no direct database access.
 - JSON Lines are newline-delimited; if your SIEM expects JSON arrays,
   wrap with `jq -s`.
 - Record IDs are stable across federation, so the same audit event has the

@@ -33,7 +33,7 @@ and the local command line works straight away. Use
 `--insecure-localhost` when you want the **HTTP** API open without
 tokens: quick local scripts, trying things with curl, throwaway workspaces.
 
-**Never run this on a host you didn't boot yourself.** `--insecure-localhost` is for your own laptop, not for anything shared.
+**Use it only on your own computer.** `--insecure-localhost` is never for a shared machine or server.
 
 ## Secure local mode: `spl serve`
 
@@ -53,7 +53,7 @@ What it does:
   account. A missing account never stops the workspace from starting.
 - Takes a startup backup of `hub.db` to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak`: in a folder named after this workspace's identity (see [Operator runbook](/docs/operate/runbook) for how to keep backups).
 
-Nothing outside your computer can reach it. To make it reachable from elsewhere, see [Exposing your instance securely](/docs/get-started/exposing).
+Nothing outside your computer can reach it. To make it reachable from elsewhere, see [Exposing your workspace securely](/docs/get-started/exposing).
 
 ## Exposed mode: `--host 0.0.0.0`
 
@@ -65,7 +65,7 @@ Listens on every network connection on the machine. Use this when the workspace 
 
 **Being reachable and requiring sign-in are separate choices.** `--host 0.0.0.0` with sign-in turned off (`auth.required = false`) is dangerous. Sign-in is on by default. `spl doctor` warns you if a reachable workspace has sign-in off.
 
-Read [Exposing the instance securely](/docs/get-started/exposing) before using this flag. For almost every case there is a safer option (Tailscale or a reverse proxy).
+Read [Exposing your workspace securely](/docs/get-started/exposing) before using this flag. For almost every case there is a safer option (Tailscale or a reverse proxy).
 
 ## Start, stop and check
 
@@ -73,7 +73,7 @@ Read [Exposing the instance securely](/docs/get-started/exposing) before using t
 
 ```bash
 spl start          # background (alias for `spl serve --daemon`)
-spl serve          # foreground: canonical for systemd / Docker / supervisors
+spl serve          # foreground: use this under systemd, Docker or another supervisor
 ```
 
 `spl start` is the command `spl init` recommends for everyday use; it accepts the same flags as `spl serve` (`--port`, `--memory`,
@@ -171,6 +171,6 @@ See [First run](/docs/get-started/first-run) and [Service accounts](/docs/get-st
 
 - [Service accounts and tokens](/docs/get-started/service-accounts): give a browser, phone, AI client or other computer its own key
 - [Keeping your instance running](/docs/operate/persist-instance): start `spl serve` automatically at login
-- [Exposing your instance securely](/docs/get-started/exposing): reach it from other machines
+- [Exposing your workspace securely](/docs/get-started/exposing): reach it from other machines
 - [Operator runbook](/docs/operate/runbook): day-to-day running, upgrades, recovery
 - [`spl doctor`](/docs/operate/doctor): quick checks when something is wrong

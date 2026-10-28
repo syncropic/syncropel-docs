@@ -5,7 +5,7 @@ description: Create, track and complete tasks with success criteria. Every outco
 
 ## Overview
 
-A task is a thread with a goal and a lifecycle. Each task carries a goal, optional success criteria, and a lifecycle that tracks progress from creation through completion to review. The outcomes feed trust scores and pattern formation.
+A task is a thread with a goal, optional success criteria, and a lifecycle that tracks progress from creation through completion to review. Task outcomes feed trust scores and help your workspace learn which ways of working succeed.
 
 ## Creating Tasks
 
@@ -20,7 +20,7 @@ Options:
 | Flag | Description |
 |---|---|
 | `--priority` | `critical`, `high`, `medium`, or `low` |
-| `--label` | Categorization tags (repeatable) |
+| `--label` | Labels for grouping tasks (repeatable) |
 | `--assign` | Actor to assign: `@dev`, `@reviewer` |
 | `--alias` | Human-readable alias: `TASK-0001` |
 
@@ -92,10 +92,10 @@ spl task cancel TASK-0001 --reason "Superseded by new approach"
 spl task reopen TASK-0001 --reason "New approach available"
 ```
 
-`--reason` is required for blocks, deferrals, and rejections. For
-cancel it's optional and defaults to `"removed by user"` —
-matching the quick-remove behavior on the web. The cancellation is
-still recorded with full provenance; only the prompt is relaxed.
+`--reason` is required for blocks, deferrals and rejections. For a
+cancel it's optional and defaults to `"removed by user"`, matching the quick
+remove in the web app. The cancellation is still recorded in full, with who
+cancelled it and when.
 
 ## Sub-Tasks
 

@@ -13,7 +13,7 @@ Open any thread you can read. Under **what this is**, members and guests see
 **keep this access**. Press **make a key** and Studio shows one line, once:
 
 ```
-KRMRW-PEERZ-RHMSW-AH8Y9-1V9S7-K@btw.syncropel.com/<who you are there>
+KRMRW-PEERZ-RHMSW-AH8Y9-1V9S7-K@team.example.com/<who you are there>
 ```
 
 Three parts, left to right: the key (26 letters and digits, grouped in fives so
@@ -36,7 +36,7 @@ The key you pasted is spent by using it. Before you land, Studio shows you a
 Typing is forgiving: case does not matter, spaces and hyphens are ignored, and
 a photographed `O` or `I` is read as `0` or `1`.
 
-## Turn the key
+## Replace the key
 
 On a thread where you already kept a key, **keep this access** says so and
 offers **make a new one**. It asks for the current key first (paste the bare
@@ -57,7 +57,7 @@ Under **+ add a connection**, while you are reading a place, two lists appear:
 
 ## What the workspace refuses
 
-Every wrong attempt gets the same refusal in the same time, whether the person named does not exist, has no key, or the key was typed wrong. Studio shows that refusal as is and does not say which it was. Attempts are limited: three in a burst, then one every five seconds, per person named and per network address.
+Every wrong attempt gets the same refusal in the same time, whether the person named does not exist, has no key, or the key was typed wrong. Studio shows that refusal as is and does not say which it was. Attempts are rate-limited, both per person named and per network address.
 
 ## Two more ways back, where the workspace accepts them
 
@@ -71,7 +71,7 @@ under **+ add a connection**, **shared with you** lists the places your
 account knows, and **open as you** re-opens one without a line to paste. The
 account is a way to find the key, not the key itself. The workspace sees a scrambled identifier, not who you are to the account provider.
 
-Hosted workspaces accept it. A self-hosted workspace accepts it only if the person running it has set up account verification ([operators](/docs/operate/account-verifier)). Signing out on a shared device
+Hosted workspaces accept it. A self-hosted workspace accepts it only if the person running it has set up account verification ([setup guide](/docs/operate/account-verifier)). Signing out on a shared device
 clears what that device held and leaves your account's list untouched.
 
 ### Use a passkey
@@ -85,7 +85,7 @@ code is never sent, and the passkey signs the workspace's challenge.
 
 A passkey is the safest key here. It still opens only one place, and a passkey made on one kind of phone may not travel to every laptop, so keep a key as well; Studio says so when a passkey is the only key you hold.
 
-## For operators
+## For people running a workspace
 
-Nothing to configure for the key; every workspace accepts it. The endpoints behind this page are in the
+There is nothing to configure for the key: every workspace accepts it. The endpoints behind this page are in the
 [API reference](/docs/reference/api#self).

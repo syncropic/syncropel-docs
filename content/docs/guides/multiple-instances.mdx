@@ -5,8 +5,8 @@ description: Give a project, an experiment, or another person their own isolated
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
-One machine can run several Syncropel instances side by side. Each one is a
-complete, isolated world: its own records, its own identity, its own
+One machine can run several Syncropel instances side by side. Each one is
+complete and isolated: its own records, its own identity, its own
 configuration, its own backups. Nothing is shared unless you explicitly
 [federate](/docs/tutorials/your-first-federation-pair) them.
 
@@ -17,7 +17,7 @@ Reach for a second instance when:
   records mixed into your everyday instance;
 - you want a **scratch instance** to experiment against without any risk to
   real data;
-- **someone else** on the machine needs their own world.
+- **someone else** on the machine needs their own instance.
 
 ## The one rule: the home directory *is* the instance
 
@@ -30,8 +30,8 @@ the record store, the Unix socket, the token, the logs:
 ```
 
 The `SYNCROPEL_HOME` environment variable selects which one a command
-targets. **Every command you aim at a non-default instance needs the home
-pinned**: that discipline is the whole game:
+targets. **Every command you aim at a non-default instance needs this variable
+set.** Getting this right is what keeps the instances apart:
 
 ```bash
 export SYNCROPEL_HOME=$HOME/.syncro-project
@@ -107,10 +107,10 @@ list tasks on your default instance: it isn't there.
 ## Gotchas
 
 - **Never point two running instances at one home.** One home directory =
-  one instance. Two processes on the same home is the one setup this
-  guide's isolation promises don't cover.
+  one instance. Two processes on the same home break the isolation this
+  guide describes.
 - **The default shell targets the default instance.** If a command's output
-  looks like the wrong world, check `echo $SYNCROPEL_HOME` first.
+  looks like it came from the wrong instance, check `echo $SYNCROPEL_HOME` first.
 - **Ports don't follow the config file across restarts you run by hand**:
   make `--port` part of how you always start the instance (a shell alias,
   or a service definition per
@@ -123,4 +123,4 @@ list tasks on your default instance: it isn't there.
 - [First run](/docs/get-started/first-run): what `spl init` creates inside a home
 - [Starting your instance](/docs/get-started/instance): modes, ports, lifecycle
 - [Your first federation pair](/docs/tutorials/your-first-federation-pair): make two instances *talk*, deliberately
-- [Backup & restore](/docs/guides/backup-restore): per-instance backup discipline
+- [Backup & restore](/docs/guides/backup-restore): backing up each instance

@@ -3,13 +3,12 @@ title: Keeping Your Instance Running
 description: Make `spl serve` start automatically at login, restart after crashes, and survive reboots — systemd user unit on Linux, launchd plist on macOS, Windows Service on Windows.
 ---
 
-`spl serve` detaches from your terminal and runs in the
+`spl serve --daemon` detaches from your terminal and runs in the
 background, but it doesn't survive a reboot or laptop sleep on its
 own. To keep your instance running across sessions you need a
 supervisor — the per-OS pattern is below.
 
-The wedge use case (a single user on their own laptop) wants two
-properties:
+A single user on their own laptop usually wants two things:
 
 1. **Auto-start at login** — open laptop, instance is already there.
 2. **Auto-restart on crash** — survive an unexpected exit without

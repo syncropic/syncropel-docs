@@ -52,7 +52,7 @@ spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.app --scopes
 
 `spl pair` prints a link, a QR code, and plain text: use whichever fits. For the command line on the same machine, the simplest path is to copy the printed key and run `spl token save <new-token>`. If the laptop is ever lost, you can switch off just that key.
 
-`--scopes admin` gives the key full control of the workspace: it can read and change everything, including creating and switching off other keys. Without it, a key named like this one can read and add records but cannot manage keys or settings.
+`--scopes admin` gives the key full control of the workspace: it can read and change everything, including creating and switching off other keys. Without `--scopes`, the key's access depends on the device name: a name starting with `browser-` gets full control, and any other name can read and add records but cannot manage keys or settings.
 
 See [Service accounts and tokens](/docs/get-started/service-accounts) for the longer version, including narrowing what a key can do and replacing keys.
 

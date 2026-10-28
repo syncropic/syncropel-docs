@@ -9,7 +9,7 @@ description: "Use Syncropel from Python: add records, query threads, and keep yo
 pip install syncropel
 ```
 
-Python 3.10+. Single runtime dependency (`httpx`).
+Requires Python 3.10 or later. One runtime dependency (`httpx`).
 
 ## Hello, Syncropel
 
@@ -40,12 +40,12 @@ One call validates the `body.kind` grammar, builds the record, retries on tempor
 
 ## What you get
 
-- **Async client** — `emit`, `query`, `query_thread`, `intend`, `fulfill`, plus reserved-kind helpers
-- **Sync helper** — `emit_sync()` for scripts and CLIs without an event loop
+- **Async client**: `emit`, `query`, `query_thread`, `intend`, `fulfill`, plus reserved-kind helpers
+- **Sync helper**: `emit_sync()` for scripts and CLIs without an event loop
 - **Kind checking**: `body.kind` is validated before any network call
 - **Shared references**: built-in constructors that let records from different apps point at the same thing (music tracks, code files, incidents, calendar events, and more)
 - **No crashes on network errors**: every emit returns a result; network errors never raise
-- **Identity-aware** — records are signed with the configured DID
+- **Identity-aware**: records carry the configured DID
 - **Test helper**: `MockKernel` in `syncropel.testing` lets you write tests without running a workspace
 
 ## Core API
@@ -54,8 +54,8 @@ One call validates the `body.kind` grammar, builds the record, retries on tempor
 
 | Method | Purpose |
 |---|---|
-| `emit(act, kind, body, thread, refs=, parents=, data_type=, clock=)` | Primary emit. Validates, envelopes, retries. Returns `EmitResult`. Never raises on transport failures. |
-| `emit_sync(...)` | Synchronous variant. Persistent `httpx.Client` across calls reuses one connection for bulk emits. |
+| `emit(act, kind, body, thread, refs=, parents=, data_type=, clock=)` | Primary emit. Validates, builds the record, retries. Returns `EmitResult`. Never raises on transport failures. |
+| `emit_sync(...)` | Synchronous variant. Reuses one `httpx.Client` connection across calls, so bulk emits are faster. |
 | `intend(goal, thread=, ...)` | Open a thread with an `INTEND` record. Generates a random thread ID if none supplied. |
 | `fulfill(thread, summary, fulfills=, ...)` | Close a thread with a `KNOW` record. `fulfills` accepts one record ID or a list. |
 | `query_thread(thread, limit=100, since=None)` | All records in a thread. Returns `[]` on a network error. |
@@ -63,7 +63,7 @@ One call validates the `body.kind` grammar, builds the record, retries on tempor
 | `health()` | Checks the server's health. Returns `{}` on failure. |
 | `close()` | Release the underlying HTTP client. |
 
-**Constructor kwargs:** `endpoint` (required), `identity` (required), `timeout=30.0`, `max_retries=2`, `backoff_ms=250.0`, `on_emit=None`, `api_key=None` (bearer token for authenticated instances), `transport=None` (custom `httpx` transport for tests).
+**Constructor kwargs:** `endpoint` (required), `identity` (required), `timeout=30.0`, `max_retries=2`, `backoff_ms=250.0`, `on_emit=None`, `api_key=None` (bearer token for workspaces that require sign-in), `transport=None` (custom `httpx` transport for tests).
 
 ### Identity
 
@@ -116,7 +116,7 @@ Ref.social_person(email="alice@example.com")   # → @social.person
 
 There are eleven categories. See the full list with `help(Ref)`.
 
-## Authenticating to a remote instance
+## Authenticating to a remote workspace
 
 When the workspace requires sign-in, pass the token via `api_key`:
 
@@ -158,7 +158,7 @@ client.close()
 
 `emit_sync()` reuses one connection across calls, so bulk emits are faster.
 
-## Inference — `client.infer()`
+## Inference: `client.infer()`
 
 `client.infer()` sends an inference request and, by default, waits for the answer. The full query anatomy lives in the [Inference guide](/docs/guides/inference/query-anatomy); this section covers the SDK.
 
@@ -183,7 +183,7 @@ print(f"Trust: {result.trust_summary['mean']:.2f}")
 print(f"Cost: ${result.cost_actual_usd:.4f}")
 ```
 
-The request dict has the same fields as the query. See [Query Anatomy](/docs/guides/inference/query-anatomy) for every field.
+The request dict has the same fields as the query. `fold` sets how the answers from several responders are combined into one. See [Query Anatomy](/docs/guides/inference/query-anatomy) for every field.
 
 ### Fire-and-forget
 
@@ -262,7 +262,7 @@ def test_my_adapter():
 
 ## What's next
 
-- [Records concept](/docs/concepts/records) — what a record contains
-- [Threads concept](/docs/concepts/threads) — how records group into workflows
-- [Authentication & Service Accounts](/docs/operate/keyring) — securing the workspace your Python code talks to
-- [Agent integration guide](/docs/guides/agent-integration) — use the SDK inside an AI agent
+- [Records concept](/docs/concepts/records): what a record contains
+- [Threads concept](/docs/concepts/threads): how records group into workflows
+- [Authentication & Service Accounts](/docs/operate/keyring): securing the workspace your Python code talks to
+- [Agent integration guide](/docs/guides/agent-integration): use the SDK inside an AI agent

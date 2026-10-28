@@ -5,18 +5,19 @@ description: Let a member run write a small JavaScript program that calls its gr
 
 ## What it is
 
-`run_code` is a tool a run can be granted. Instead of making one
-tool call per step, the run writes a short JavaScript program that calls its
-other granted tools, and your workspace runs it. The program's tool calls follow the same rules as direct calls: the program cannot reach a tool the run was not granted.
+`run_code` is a tool a run can be granted. Instead of making one tool call per
+step, the run writes a short JavaScript program that calls its other granted
+tools, and your workspace runs it. The program's tool calls follow the same rules as direct calls: the program cannot reach a tool the run was not granted.
 
 The point is speed on repetitive work. When a task means "read sixty records,
 count the ones that match, and report the total", the usual way is sixty
 separate tool calls. The program does it in one call and hands back a number.
 
-A run can use `run_code` only when it has been given it. The member's definition has to list `run_code` in its tools, and the
-workspace has to have the tool switched on (see [When it is offered](#when-it-is-offered)).
+A run can use `run_code` only when it has been given it: the member's
+definition has to list `run_code` in its tools, and the workspace has to have
+the tool switched on (see [When it is offered](#when-it-is-offered)).
 
-## When a model reaches for it, vs discrete calls
+## When a model uses it instead of separate calls
 
 A model uses `run_code` when the work is a loop over many items, and separate
 calls when the work is a handful of distinct steps. For example, a task
@@ -27,15 +28,15 @@ you don't.
 Two facts keep programs reliable:
 
 - **A program receives data, not prose.** A tool answer carries a `data`
-  field beside the text. `run_code` hands the program that JSON, so a program reads `records[i].body` instead of parsing a
-  paragraph. `query_thread` gives
+  field beside the text. `run_code` hands the program that JSON, so a program
+  reads `records[i].body` instead of parsing a paragraph. `query_thread` gives
   `{thread, total, shown, truncated, records: [...]}`, `read_record` gives one
   such record, `search_records` gives `{total, records}`.
 - **Each of those answers is limited to 256 KiB.** A program that asks for
   more gets a shortened result marked `truncated: true`.
 
-Use a program for bulk work you can check afterward. Read the `data` field of each tool answer, and
-check the result against the records.
+Use a program for bulk work you can check afterward: read the `data` field of
+each tool answer, and check the result against the records.
 
 ## The runtime it runs on
 
@@ -90,8 +91,9 @@ granted. To see them without making a call:
 spl tool list
 ```
 
-Each row shows whether the tool's credential works and whether the tool has been switched off after repeated failures, so you can tell a tool that cannot run right now from one that is
-simply not set up. For one tool in full:
+Each row shows whether the tool's credential works and whether the tool has
+been switched off after repeated failures, so you can tell a tool that cannot
+run right now from one that is simply not set up. For one tool in full:
 
 ```bash
 spl tool show <tool_id>
@@ -105,8 +107,8 @@ spl tool show <tool_id>
 - Its tool calls follow the same rules as direct calls: no tool the run
   lacks, and every call is checked before it runs.
 - Each structured tool answer is capped at 256 KiB.
-- A program uses the run's own budget and turn limit, so it cannot outspend the run that
-  wrote it.
+- A program uses the run's own budget and turn limit, so it cannot outspend
+  the run that wrote it.
 
 ## See also
 

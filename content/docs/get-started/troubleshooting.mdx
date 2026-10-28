@@ -5,7 +5,7 @@ description: Fixes for the problems people most often hit when installing and st
 
 Use this page when something that should work isn't working. Each section names a symptom, says what is going on, and gives the command to fix it.
 
-For a healthy-machine audit, prefer [`spl doctor`](/docs/operate/doctor): it runs seven checks and tells you which one is failing.
+For a full check of your setup, run [`spl doctor`](/docs/operate/doctor) first: it runs a series of checks and tells you which one fails.
 
 ## "Failed to start spl serve" after install
 
@@ -42,7 +42,7 @@ On Linux and macOS this is not an error: the command line connects through a loc
 
 - **On Windows**: the local socket isn't used on Windows. Create a token with [`spl pair --device local-windows --url http://127.0.0.1:9100 --scopes admin`](/docs/get-started/pairing) and save the printed token.
 - **You turned off the local socket** (`[auth] unix_socket = false` in `config.toml`). Every command then needs a token; see [Service accounts](/docs/get-started/service-accounts).
-- **You're on an older version**: upgrade with `curl get.syncropic.com/spl | sh`.
+- **You're on an older version**: upgrade with `curl -sSf https://get.syncropic.com/spl | sh`.
 
 The older way (`--insecure-localhost`, then `spl service-account create --bootstrap`, then `spl token save`) still works, but you don't need it on a first run.
 
@@ -65,7 +65,7 @@ If it is a leftover `spl`, see "Stale PID file" below. If it is a different prog
 
 The records file is locked. There are two common causes.
 
-### A zombie `spl.exe` still holds the file (Windows)
+### A leftover `spl.exe` still holds the file (Windows)
 
 ```powershell
 Get-Process spl
@@ -87,7 +87,7 @@ Fix: run `spl` from a native Windows terminal (PowerShell or Windows Terminal), 
 
 ### Linux equivalent
 
-Rare but possible. Check for orphan processes:
+Rare but possible. Check for leftover processes:
 
 ```bash
 pgrep -af "spl serve"
@@ -161,7 +161,7 @@ kill <pid>                        # ask it to stop
 # if it doesn't exit within ~10 seconds:
 kill -9 <pid>                     # force it to stop
 rm ~/.syncro/run/spl.pid          # remove the leftover file
-spl serve                # start fresh
+spl serve                         # start fresh
 ```
 
 ```powershell
@@ -193,7 +193,7 @@ spl service-account create --bootstrap \
   --actors did:sync:user:$(whoami) \
   --scopes admin \
   --with-token
-spl token save spl_prod_sa_...
+spl token save <token>
 spl stop
 spl serve
 ```
@@ -222,7 +222,7 @@ These apply to a workspace created at syncropel.com.
 
 - **A connection error right after a quiet period.** The workspace was asleep and is waking up. This usually takes a couple of seconds; try again.
 - **A `401` after reconnecting a machine.** This computer's key is no longer accepted. Connect it again and save the new key with `spl token save <token>`; see [Connect the command line](/docs/get-started/connect-the-command-line).
-- **Storage full on the free plan.** A free workspace has 1 GB of storage; a storage-full error means it has reached that limit. See [Pricing](/docs/get-started/pricing) for what each plan includes.
+- **Storage full on the free plan.** A free workspace has 1 GB of storage; a storage-full error means it has reached that limit. See [Plans and billing](/docs/get-started/pricing) for what each plan includes.
 
 ## Still stuck
 

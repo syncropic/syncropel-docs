@@ -74,7 +74,7 @@ try {
 | a hash string | Write only if the file's current hash matches. |
 | `null` | Create only: fails if the path already exists. |
 
-On a conflict the write throws `SyncropelDataError` with `isConflict === true`, `expectedHash` (what you expected), and `currentHash` (the file's real hash) — everything you need to drive a reload-or-overwrite prompt.
+On a conflict the write throws `SyncropelDataError` with `isConflict === true`, `expectedHash` (what you expected), and `currentHash` (the file's real hash) — everything you need to offer a reload-or-overwrite prompt.
 
 ## Reading
 
@@ -102,7 +102,7 @@ await client.data.mv("/files/notes.md", "/files/reports/notes.md");
 await client.data.rm("/files/reports", { recursive: true });
 ```
 
-`stat` returns `provenance` — who created the file and when (see [Provenance](#provenance-made-by-you) below). It's `null` for files with no recorded author.
+`stat` returns `provenance`: who created the file and when (see [Provenance](#provenance-made-by-you) below). It's `null` for files with no recorded author.
 
 ## Publishing durable artifacts
 
@@ -159,7 +159,7 @@ try {
 }
 ```
 
-Reads (`read`, `list`, `stat`, …) throw the same `SyncropelDataError` on a real error — a missing file or a permission denial surfaces, it doesn't quietly return nothing.
+Reads (`read`, `list`, `stat`, …) throw the same `SyncropelDataError` on a real error, so a missing file or a permission denial is reported instead of quietly returning nothing.
 
 ## Types
 
@@ -167,5 +167,5 @@ Reads (`read`, `list`, `stat`, …) throw the same `SyncropelDataError` on a rea
 
 ## What's next
 
-- [TypeScript SDK](/docs/guides/typescript-sdk) — records, threads, and the rest of the client.
-- [Files](/docs/concepts/files) — how files work in Syncropel.
+- [TypeScript SDK](/docs/guides/typescript-sdk): records, threads, and the rest of the client.
+- [Files](/docs/concepts/files): how files work in Syncropel.

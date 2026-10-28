@@ -67,7 +67,7 @@ Written **every time** the agent process ends. It records how the process ended.
 }
 ```
 
-**Why it matters**: the agent may finish and exit with code 0, or it may be killed mid-task (signal 9 means it ran out of memory). This record shows which. If it is missing, the dispatch itself crashed. File a ticket.
+**Why it matters**: the agent may finish and exit with code 0, or it may be killed mid-task (signal 9 usually means the machine ran out of memory). This record shows which. If it is missing, the dispatch itself crashed: report it as a bug.
 
 ### `syncropel.dispatch.complete.v1`
 
@@ -149,7 +149,7 @@ Dispatch steps
 Recovery: no action needed — dispatch completed normally.
 ```
 
-Or when a dispatch went sideways:
+Or when a dispatch failed:
 
 ```
 Task: TASK-0042 — your task title here

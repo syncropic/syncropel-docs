@@ -77,7 +77,7 @@ curl -s https://<your-instance>/health | jq .proof_kinds_accepted
 # ["recovery_code","account","passkey"]   and a relying party too
 ```
 
-The doors a client uses are documented under [Self](/docs/reference/api#self):
+The endpoints a client uses are documented under [Self](/docs/reference/api#self):
 binding an account subject is `POST /v1/self/bindings` with `kind: account`,
 and coming back is `POST /v1/recredential` with `kind: account` and the
 verifier's assertion as `evidence`.

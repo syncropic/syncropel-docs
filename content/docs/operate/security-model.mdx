@@ -110,7 +110,7 @@ This audit thread does NOT prevent the export from happening — auth scope (`Ad
 | Threat | Protected? | By |
 |---|---|---|
 | Casual file enumeration on multi-user host | ✓ | 0600 file permissions |
-| Instance-user-only attacker (no root) | ✓ | 0600 file permissions |
+| Another local user without root | ✓ | 0600 file permissions |
 | Network-only attacker (over HTTP) | ✓ | Bearer-token auth (on by default) |
 | Use of a leaked bearer token | ✓ | Revoke the token; tokens are checked against a stored hash |
 | Host root / instance-user compromise | ✗ | (mitigation: host hardening, full-disk encryption) |
@@ -137,5 +137,5 @@ Host tools (`bash` and the file tools) are available on the operator's own machi
 
 - [Authentication & Service Accounts](./keyring.mdx) — bearer-token model + scope hierarchy
 - [Operator runbook — backup discipline](./runbook.mdx#backup-discipline) — what's backed up + restore procedure
-- [Actor portability](./actor-portability.mdx) — `spl export` / `spl import` mechanics
+- [Actor portability](./actor-portability.mdx) — `spl actor export` / `spl actor import` mechanics
 - [`spl doctor`](./doctor.mdx) — automated permission audit

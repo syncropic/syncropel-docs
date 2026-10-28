@@ -85,8 +85,8 @@ spl config impersonation-strict-enable
 ```
 
 `strict_actor_header` has no command of its own. Turn it on by writing a
-`strict_actor_header` config record (a `LEARN` on `th_engine_config` with
-`enabled: true`). Both take effect on the next request, with no restart.
+`strict_actor_header` configuration record (a `LEARN` record on the
+`th_engine_config` thread, with `enabled: true`). Both take effect on the next request, with no restart.
 
 - **`strict_actor_header`** rejects requests that claim an identity in a header without a matching token.
 - **`strict_impersonation_enforcement`** stops admin tokens from acting as any actor, unless you list the allowed actors.

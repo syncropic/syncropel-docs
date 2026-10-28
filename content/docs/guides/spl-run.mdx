@@ -3,10 +3,10 @@ title: Running work with spl run
 description: Start a run as yourself, watch it work in your terminal, answer any question it asks, and read the outcome (with its diff when it changed a repository). How a run is limited, and how to stop one.
 ---
 
-You give `spl run` a goal, it starts a run as
-you, and then it stays with the run: every turn prints as it happens, a
-question the run needs answered is put to you right there, and when the run ends
-the outcome prints, with the diff if the run changed a repository.
+You give `spl run` a goal, it starts a run as you, and then it stays with the
+run: every turn prints as it happens, a question the run needs answered is put
+to you right there, and when the run ends the outcome prints, with the diff if
+the run changed a repository.
 
 ```bash
 spl run "Record one note saying the walkthrough works, then stop."
@@ -65,8 +65,9 @@ answer>
 
 Type an option's id or its label (a question that wants a free-text value
 shows a hint in parentheses; a question that only needs a nod takes any
-answer). Your answer is sent like any other decision, `answered: approve (the run resumes)` is printed, and the run picks up where it paused,
-with its repository checkout restored if it has one.
+answer). Your answer is sent like any other decision, `answered: approve (the
+run resumes)` is printed, and the run picks up where it paused, with its
+repository checkout restored if it has one.
 
 If `spl run` cannot take an answer, because it is not attached to a terminal
 and you gave it no `--answer`, it exits with code 3 and names the question:
@@ -99,8 +100,9 @@ diff --git a/README b/README
 claimed. `blocked` means it could not, and the next line, `needs:`, says what
 would unblock it: `more turns`, `more budget (usd)`, a named tool, or a passing
 check (see [Giving the run a repository](#giving-the-run-a-repository)).
-`needs_you` is the paused state above. `surprised` and `rejected` mean the work was not what the goal asked for or that the run declined
-it; the summary line explains.
+`needs_you` is the paused state above. `surprised` means the work was not what
+the goal asked for, and `rejected` means the run declined it; the summary line
+explains.
 
 When the run produced an artifact, `spl run` names it, and when that artifact
 is a diff, prints it. `--no-diff` skips the diff.
@@ -200,9 +202,9 @@ A run ends on its own when it reports done, when it runs out of turns, budget
 or time (then `stopped_short`), or when it pauses on a question nobody answers
 (then `waiting_on_you`, until someone does).
 
-To stop a run outright, call `POST /v1/runs/{thread}/events` with body `{"type": "stop"}`. The run's state
-reads `stopped`, and its record says a person stopped it rather than
-that it crashed. There is no `spl` command for this; a run started from a task
+To stop a run outright, call `POST /v1/runs/{thread}/events` with the body
+`{"type": "stop"}`. The run's state reads `stopped`, and its record says a
+person stopped it rather than that it crashed. There is no `spl` command for this; a run started from a task
 with `spl task dispatch` can be stopped with `spl task interrupt <alias>`.
 
 The same endpoint takes `{"type": "message", "text": "..."}` to steer a running

@@ -5,7 +5,7 @@ description: Grant, list, and revoke consent for cross-namespace record sharing 
 
 ## Who this is for
 
-You're running federation (see the [federation guide](./federation)) and you need to share records between two different namespaces — say, your default namespace and a partner team's namespace. By default, cross-namespace sharing is blocked. Consent grants open specific source → target paths.
+You're running federation (see the [federation guide](./federation)) and you need to share records between two different namespaces — for example, your default namespace and a partner team's namespace. By default, cross-namespace sharing is blocked. Consent grants open specific source → target paths.
 
 If all your federation is inside one namespace, skip this guide. Same-namespace sync always passes unchanged.
 
@@ -65,7 +65,7 @@ The target receives records but bodies are replaced with `{"redacted": true}`. T
 spl consent grant --to-namespace audit-archive --hash-levels L2,L3
 ```
 
-More restrictive than metadata-only.
+More restrictive than shape only.
 
 ## List active grants
 
@@ -110,7 +110,7 @@ This check runs on every pull. A new or revoked grant takes effect on the next s
 
 - **Not retroactive.** Revoking a grant doesn't remove records already delivered.
 - **Not protection from a dishonest source.** The check runs on the sending instance, so you have to trust that instance. To limit who can reach a workspace at all, use namespace access control.
-- **Not per-record.** Grants are namespace-pair scoped, not record-scoped. If you need per-record gating, combine consent with [CEL rules](/docs/guides/cel-expressions).
+- **Not per-record.** A grant applies to a pair of namespaces, not to single records. If you need per-record gating, combine consent with [CEL rules](/docs/guides/cel-expressions).
 
 ## What's next
 

@@ -7,7 +7,7 @@ description: Every field of an infer.query.v1 query, with types and defaults, an
 
 An `infer.query.v1` body is checked against a published JSON Schema. This page covers every field. For the schema itself, see the [schema reference](/docs/reference/infer-query-schema).
 
-Every query has three required parts: `input` (what to answer), `responders` (who may answer), `fold` (how answers combine). The `answer_shape`, which describes the result you expect, is also required. Everything else is optional with sensible defaults.
+Every query has four required parts: `input` (what to answer), `responders` (who may answer), `answer_shape` (what the result must look like) and `fold` (how answers combine). Everything else is optional and has a default.
 
 ## Minimal query
 
@@ -54,7 +54,7 @@ or a reference to an existing record by id:
 { "record_id": "3fa8...e2c1" }
 ```
 
-or a reference to an entity by canonical ref (any of the 11 `Ref.*` shapes — see [body.kind grammar](/docs/guides/body-kind-manifest)):
+or a reference to an entity by canonical ref (any of the 11 `Ref.*` shapes; see the [schema reference](/docs/reference/infer-query-schema)):
 
 ```json
 { "ref": { "kind": "@music.track", "id": "spotify:track:4iV5W9uYEdYUVa79Axb7Rh" } }
@@ -74,7 +74,7 @@ Checks the **combined** result, not individual responses. Responders can return 
 }
 ```
 
-- `kind` (required) — a body.kind. See [body.kind manifest](/docs/guides/body-kind-manifest) for the grammar.
+- `kind` (required) — the `body.kind` of the result, such as `core.translation.v1`.
 - `required_fields` (optional) — dot-paths that must be present (not null) in the result.
 - `schema_ref` (optional) — URI of a full JSON Schema. If present, the result is validated against it.
 
@@ -114,7 +114,7 @@ All fields are optional. Within one entry, a responder must meet every field you
 | `any` | Any responder that meets the other fields |
 | (via `expression`) | Any condition you write in CEL |
 
-**Worked example — two-class predicate:**
+**Worked example — two kinds of responder:**
 
 ```json
 "responders": [
@@ -194,7 +194,7 @@ Cost and safety limits. Namespace-level defaults apply if unset (see [namespaces
 | `reversible` | bool | `true` | Whether responses modify state that can be rolled back |
 | `idempotent` | bool | `true` | Whether re-running produces the same side effects |
 | `max_cost_usd` | number | namespace cap | Cumulative CALL cost ceiling; exceeded → `cost_budget_exceeded` error |
-| `max_latency_secs` | integer | 300 | Await ceiling; exceeded → `latency_timeout` error |
+| `max_latency_secs` | integer | 300 | Longest time to wait for answers; exceeded → `latency_timeout` error |
 | `obligation_resolution` | enum | `last_writer_wins` | How to resolve modifier conflicts (fulfills/cancels/awaits) |
 
 Obligation resolution values:
@@ -248,7 +248,7 @@ If `replay_if` matches, the dial is set to 0.1 (strongly favour proven answers).
 
 ## Metadata
 
-Opaque string-to-string map you own. Use it for trace IDs, customer IDs, feature flags — whatever you need to correlate queries across your own systems. Syncropel doesn't use it; it just copies it onto the answer.
+A map of strings to strings that you own. Use it for trace IDs, customer IDs, feature flags — whatever you need to correlate queries across your own systems. Syncropel doesn't use it; it just copies it onto the answer.
 
 ```json
 { "metadata": { "trace_id": "trace_abc123", "customer_id": "cust_42" } }
@@ -267,7 +267,7 @@ Opaque string-to-string map you own. Use it for trace IDs, customer IDs, feature
 }
 ```
 
-One responder, `best_of` (trivially picks the only candidate), 5 cent / 30s ceiling.
+One responder, `best_of` (which simply picks the only answer), and a limit of 5 cents and 30 seconds.
 
 ## Worked example — consensus ensemble
 

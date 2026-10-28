@@ -3,9 +3,8 @@ import { ArrowRight } from 'lucide-react';
 import { RunTabs } from './RunTabs';
 import { SurfaceTabs } from './SurfaceTabs';
 
-// Sections organized by visitor intent, not docs taxonomy.
-// Every entry in the KEEP set (per syncropel-research/docs/web-summit-trim
-// v2 plan §T) lives in exactly one bucket below.
+// Sections organized by visitor intent, not docs taxonomy; each page
+// appears in exactly one bucket below.
 
 const useIt = [
   { title: 'Create your workspace', href: '/docs/get-started/hosted', desc: 'Sign up at syncropel.com and start a minute or two later' },

@@ -38,9 +38,8 @@ spl federation invite https://bob.example.com \
     --grant-thread th_review_inbox
 ```
 
-This pairs with `bob.example.com`,
-grant cross-namespace consent on `code`, and allow the thread
-`th_review_inbox` on the pair. Output:
+This pairs with `bob.example.com`, grants cross-namespace consent on
+`code`, and allows the thread `th_review_inbox` on the pair. Output:
 
 ```
 Invited did:sync:instance:bob-fedb12...
@@ -88,7 +87,7 @@ spl federation invite https://bob.example.com \
     --grant-namespace research
 ```
 
-For richer namespace mapping (say, your local `code` mapped to bob's
+For richer namespace mapping (for example, your local `code` mapped to Bob's
 `engineering`), use the discrete `spl federation grant` form
 directly.
 
@@ -217,6 +216,6 @@ If a step fails partway through, earlier steps are NOT undone. The pair stays in
 - [Federation pairing](./federation-pair) — what `invite` builds on.
 - [Consent management](./consent) — what hash levels mean and how
   sharing is decided when grants overlap.
-- [Async federation](./async-federation) — how sync works once a pair is established.
+- [Async federation](./async-federation) — deliver records through a relay when the peer is offline.
 - [`code-review-pair` walkthrough](../tutorials/code-review-pair) —
   worked example of the full two-person flow.

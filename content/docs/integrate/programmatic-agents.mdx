@@ -1,49 +1,49 @@
 ---
-title: Programmatic Agents — agents that write code
-description: Connect Syncropel to agents that do their work by writing and running code. Many operations take one round trip to the model. Works with any model that can run code and any sandboxed harness.
+title: Programmatic agents, agents that write code
+description: Connect Syncropel to agents that do their work by writing and running code. Many operations take one round trip to the model. Works with any model that can run code, in any sandbox.
 ---
 
 ## What this is
 
-The pattern where an AI agent accomplishes a task by **writing a short program** using a typed SDK, and running that program in a sandbox. The program does the work — multiple emits, queries, transformations. Only the final result flows back to the agent's context.
+In this pattern an AI agent gets a task done by **writing a short program** with a typed SDK and running it in a sandbox. The program does the work: several writes, queries and transformations. Only the final result goes back into the agent's context.
 
-It contrasts with **Traditional MCP**, where the agent calls each tool one at a time and each result flows through the model:
+Compare it with **traditional MCP**, where the agent calls each tool one at a time and each result passes through the model:
 
-- **Traditional MCP**: 10 tool calls = 10 context round-trips = 10× token cost
-- **Programmatic**: 10 SDK calls inside one sandbox run = 1 context round-trip = 1× token cost
+- **Traditional MCP**: 10 tool calls = 10 round-trips through the model's context = 10× token cost
+- **Programmatic**: 10 SDK calls inside one sandbox run = 1 round-trip = 1× token cost
 
 Several teams have written about this approach. [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) reports 98.7% token savings for multi-step workflows, and [Cloudflare](https://blog.cloudflare.com/code-mode-mcp/) reduced a 2,500-endpoint API to 2 sandboxed code tools. The idea is the same: a typed SDK, code execution, and many operations per model turn.
 
 ## Why the SDKs fit
 
-You don't need anything extra. The Syncropel SDKs (`@syncropel/sdk` on npm, `syncropel` on PyPI) are typed code APIs with stable behavior that fail gracefully on network errors.
+You don't need anything extra. The Syncropel SDKs (`@syncropel/sdk` on npm, `syncropel` on PyPI) are typed APIs with stable behavior, and they handle network errors without crashing your program.
 
 The main calls are `emit`, `query`, `queryThread`, `intend` and `fulfill`, plus 11 `Ref.*` helpers for canonical references.
 
-When an agent runs code, you just give it the SDK. It writes TypeScript, the sandbox runs it, and the SDK handles talking to Syncropel.
+When an agent runs code, you give it the SDK. It writes TypeScript, the sandbox runs it, and the SDK handles talking to Syncropel.
 
 ## Prerequisites
 
-You need an agent harness that supports code execution. Examples:
+You need an agent setup that can run code. Examples:
 
 - **Anthropic Claude with `code_execution`** (via the API's built-in code tool)
 - **OpenAI** with code interpreter (supports Python; use the `syncropel` PyPI package)
 - **Edge runtimes** that can make HTTP requests
 - **Custom Python/Node sandbox** you control (Docker, Firecracker, gvisor)
-- Any other harness that can run code. The SDK is plain HTTP and JSON.
+- Anything else that can run code. The SDK is plain HTTP and JSON.
 
 And a Syncropel workspace reachable from the sandbox's network:
 
 - Local: `http://localhost:9100` if the sandbox runs on the same machine
 - Remote: `https://your-host.example.com:9100` with a bearer token
 
-## Quickstart — Python with a code-execution-capable LLM
+## Quickstart — Python with a model that runs code
 
-A common combination: a code-execution-capable LLM with the `syncropel` PyPI package. This example uses Anthropic's API. It works the same way for any other provider with a code-execution tool; only the call to the model changes.
+A common combination: a model with code execution and the `syncropel` PyPI package. This example uses Anthropic's API. It works the same way for any other provider with a code-execution tool; only the call to the model changes.
 
 ### 1. Install in your agent's Python sandbox
 
-Typically handled via the sandbox's package manager or a pre-warmed environment:
+Usually through the sandbox's package manager or a prepared environment:
 
 ```bash
 pip install syncropel anthropic
@@ -51,7 +51,7 @@ pip install syncropel anthropic
 
 ### 2. The agent writes this (or you give it a starter template)
 
-The Python SDK is async; wrap the work in an `async` function and `asyncio.run` it, or use `emit_sync` for synchronous harnesses. Every record needs a `body.kind` — the SDK validates it before the network call so bad kinds fail fast.
+The Python SDK is async: wrap the work in an `async` function and `asyncio.run` it, or use `emit_sync` in synchronous code. Every record needs a `body.kind`. The SDK checks it before the network call, so a bad kind fails right away.
 
 ```python
 import asyncio
@@ -83,7 +83,7 @@ async def main():
                 thread=thread,
             )
 
-        # Observe + crystallize
+        # Record the finding and the lesson learned
         await client.emit(
             act="KNOW",
             kind="bug.investigation.finding",
@@ -97,16 +97,16 @@ async def main():
             thread=thread,
         )
 
-        # Query back + return summary — one line of context-visible output
+        # Read back and print a summary: the only output the model sees
         records = await client.query_thread(thread=thread)
         print(f"Bug #342 investigation complete — {len(records)} records in thread {thread}")
 
 asyncio.run(main())
 ```
 
-The agent's context sees one line of output instead of 5-7 tool calls worth of chatter. For fully synchronous harnesses (most code-interpreter sandboxes, scripts), swap every `await client.emit(...)` for `client.emit_sync(...)` — same signature, no event loop required.
+The agent's context gets one line of output instead of 5 to 7 tool calls' worth of back-and-forth. In fully synchronous code (most code-interpreter sandboxes, scripts), replace every `await client.emit(...)` with `client.emit_sync(...)`: same signature, no event loop needed.
 
-### 3. The agent returns the summary + reasoning
+### 3. The agent returns the summary and its reasoning
 
 ```
 I investigated bug #342 and found the root cause: the auth module's
@@ -115,7 +115,7 @@ I applied a mutex around the refresh path, wrote a failing test first,
 verified it passes, and recorded 8 records in thread bug-342.
 ```
 
-Efficient, auditable, and the user can `spl thread records bug-342` to see exactly what the agent did.
+It is efficient and auditable: the user can run `spl thread records bug-342` to see exactly what the agent did.
 
 ## Quickstart — TypeScript, edge runtime
 
@@ -150,7 +150,7 @@ export default {
       thread: threadId,
     });
 
-    // Business logic — not Syncropel's concern
+    // Your own logic; Syncropel isn't involved here
     const result = await processWebhook(request);
 
     // Record the outcome
@@ -172,13 +172,13 @@ async function processWebhook(request: Request) {
 }
 ```
 
-Deploy with your edge runtime's CLI. Every webhook handled emits 3 records. Zero LLM context round-trips per webhook.
+Deploy with your edge runtime's CLI. Each webhook writes 2 records, with no model calls at all.
 
 ## Design patterns
 
 ### Pattern: long-running agent with session checkpoints
 
-For agents that run for hours or days, use session checkpoints to persist progress:
+For agents that run for hours or days, use session checkpoints to save progress:
 
 ```python
 # Save at end of each work session
@@ -194,7 +194,7 @@ result = await client.emit(
 )
 ```
 
-The next session resumes by reading the latest checkpoint on the thread. No context-window-of-history required.
+The next session picks up by reading the latest checkpoint on the thread, without carrying the whole history in its context.
 
 ### Pattern: fan-out with independent review
 
@@ -204,16 +204,16 @@ When the agent delegates subtasks to other agents, open a parent thread then one
 # Parent agent creates subtasks
 for worker in ["agent-a", "agent-b", "agent-c"]:
     child = await client.intend(goal=f"Review module X for {worker}")
-    # Each worker reads child.thread_id, does the work,
-    # and emits records on that thread. The parent collects
-    # them via query_thread for the join decision.
+    # Each worker reads child.thread, does the work,
+    # and writes records on that thread. The parent collects
+    # them with query_thread to decide when all are done.
 ```
 
 This uses Syncropel's [fan-out](/docs/tutorials/first-fanout).
 
 ### Pattern: trust-aware behavior
 
-The SDK doesn't expose trust reads directly; go through the HTTP API via your agent's `fetch`:
+The SDK doesn't read trust directly; use the HTTP API instead:
 
 ```python
 import httpx
@@ -225,7 +225,7 @@ r = httpx.get(
 scores = r.json()["data"]
 mine = [s for s in scores if s["actor"] == my_did and s["domain"] == "code"]
 if not mine or mine[0]["effective_trust"] < 0.5:
-    # Low confidence — emit an INTEND with body.awaits = "actor_decision"
+    # Low trust: write an INTEND with body.awaits = "actor_decision"
     # so a human reviews before proceeding
     pass
 ```
@@ -237,7 +237,7 @@ The SDK **keeps going** on network errors. Every emit returns an `EmitResult`:
 ```python
 result = await client.emit(...)
 if not result.success:
-    # Transport error — log locally, retry later, but don't crash
+    # Network error: log locally, retry later, but don't crash
     print(f"Syncropel unreachable: {result.error}")
 ```
 
@@ -264,19 +264,19 @@ For cloud agents, store the token in your platform's secret manager:
 - **AWS Lambda**: AWS Secrets Manager
 - **Anthropic API**: encrypted user metadata
 
-See [Authentication & Service Accounts](/docs/operate/keyring) for how to mint a scoped token.
+See [Authentication & Service Accounts](/docs/operate/keyring) for how to create a scoped token.
 
 ## When this pattern is the wrong choice
 
-- **You want a record of what the agent did without writing code** → [Pattern 1 (MCP)](/docs/integrate/ai-clients#pattern-1--traditional-mcp-stdio) — simpler setup
-- **You don't control the agent's runtime (consumer AI client)** → Pattern 1 or 2
-- **You want the agent to see tool results in-context** (e.g., "what did the query return?") → Traditional MCP lets the agent reason over each result; the programmatic pattern is better when the code handles results itself
-- **You only emit 1-2 records per session** → the programmatic pattern's overhead isn't worth it
+- **You want a record of what the agent did without writing code** → [Pattern 1 (MCP)](/docs/integrate/ai-clients#pattern-1--traditional-mcp-stdio), which is simpler to set up
+- **You don't control the agent's runtime (an off-the-shelf AI client)** → Pattern 1 or 2
+- **You want the agent to see each tool result** (for example, "what did the query return?") → traditional MCP lets the agent reason over each result; the programmatic pattern is better when the code handles results itself
+- **You only write 1 or 2 records per session** → the extra setup isn't worth it
 
 ## Further reading
 
 - [Anthropic's MCP code-execution article](https://www.anthropic.com/engineering/code-execution-with-mcp)
 - [Cloudflare's writeup of the pattern](https://blog.cloudflare.com/code-mode-mcp/)
-- [TypeScript SDK reference](/docs/guides/typescript-sdk) — all exports and contracts
-- [Python SDK reference](/docs/guides/python-sdk) — the Python equivalent
-- [Canonical refs guide](/docs/guides/typescript-sdk#canonical-references-ref) — cross-publisher correlation
+- [TypeScript SDK reference](/docs/guides/typescript-sdk): every export and how it behaves
+- [Python SDK reference](/docs/guides/python-sdk): the Python equivalent
+- [Canonical refs guide](/docs/guides/typescript-sdk#canonical-references-ref): linking records across publishers

@@ -9,7 +9,7 @@ description: Enable bearer-token authentication, create service accounts, pair d
 
 ## TL;DR
 
-- On a **fresh install**: bootstrap your first service account, save the token, and every `spl` command Just Works. Five-step [Quick-start](#3-quick-start-enabling-auth-on-a-remote-host) below.
+- On a **fresh install**: bootstrap your first service account, save the token, and every `spl` command works. Five-step [Quick-start](#3-quick-start-enabling-auth-on-a-remote-host) below.
 - On a **shared or remote host** (cloud VM, private network, reverse proxy, tunnel): default-secure protects you. Nothing additional to do beyond the bootstrap above.
 - **Escape hatch for local dev**: `spl serve --insecure-localhost` forces 127.0.0.1 bind and disables auth. Never use this in production.
 
@@ -23,7 +23,7 @@ Bearer-token authentication protects every HTTP request, so your instance is saf
 - **Federation sync + discovery endpoints** require the `federation:manage` scope.
 - **A privileged bootstrap endpoint** lets operators create the first SA on a fresh install without needing an existing token.
 - **`spl pair` + QR rendering** makes phone pairing a one-command flow.
-- **The CLI auto-injects tokens** — reads from `--token` flag, `SPL_TOKEN` env, or `~/.syncro/token` file, so `spl task list` / `spl intend` / everything else Just Works once you've saved a token.
+- **The CLI auto-injects tokens** — reads from `--token` flag, `SPL_TOKEN` env, or `~/.syncro/token` file, so `spl task list`, `spl intend` and every other command work once you've saved a token.
 
 ## 2. The scope model
 
@@ -65,7 +65,7 @@ echo 'export SPL_TOKEN="spl_prod_sa_XXXXXXXXXXXXXXXX_YYYYYYYYYYYYYYYYYYYYYYYYYYY
 
 ### 3.2 Enable enforcement
 
-Add a `core.engine_config` LEARN record that sets `auth.required` to true. It is a records-door write, as described in [Store bounds](/docs/operate/store-bounds): `actor` is your own member id and `clock` is one more than your highest clock on that thread.
+Add a `core.engine_config` LEARN record that sets `auth.required` to true. Write it through the records API, as described in [Store bounds](/docs/operate/store-bounds): `actor` is your own member id and `clock` is one more than your highest clock on that thread.
 
 ```bash
 curl -X POST http://127.0.0.1:9100/v1/records \

@@ -26,7 +26,7 @@ The transport is decided per run, at start, by the tier of the principal the run
 Both keys are one config record on `th_engine_config`, live for the next run to start. There is no restart, so you can turn the sandbox off with one write if it causes a problem.
 
 ```bash
-# The operator's own runs, sandboxed too (records-door writes, as in Store bounds: set actor and clock)
+# The operator's own runs, sandboxed too (written through the records API, as in Store bounds: set actor and clock)
 curl -X POST http://127.0.0.1:9100/v1/records \
   -H "Authorization: Bearer $SPL_TOKEN" -H 'content-type: application/json' \
   -d '{"thread":"th_engine_config","actor":"<your member id>","act":"LEARN","clock":<next clock>,
@@ -135,7 +135,7 @@ A sandboxed run has no network, sees only an empty read-only home directory with
 
 ## Verify it on your instance
 
-Start one small run through the work loop door as a non-operator, or as the operator with `work_loop_transport` set to `sandboxed`, and watch it finish. The goal records a note and stops.
+Start one small run through the work loop endpoint (`POST /v1/work/loop`) as a non-operator, or as the operator with `work_loop_transport` set to `sandboxed`, and watch it finish. The goal records a note and stops.
 
 ```bash
 curl -s -X POST -H "Authorization: Bearer $ADMIN" -H 'content-type: application/json' \
@@ -169,5 +169,5 @@ Host tools (`bash` and the filesystem set) run on the operator's own machine onl
 
 ## See also
 
-- [Security model](./security-model) for protection domains and the credential ordering
+- [Security model](./security-model) for the threat model and what a run cannot do
 - [Operator runbook](./runbook) for the upgrade sequence

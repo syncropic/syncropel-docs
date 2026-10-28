@@ -51,7 +51,7 @@ See [Plans and billing](/docs/get-started/pricing).
 
 ## For developers
 
-The chief is defined by a [blueprint](/docs/concepts/blueprints), like any other assistant, so you can read it, change it or replace it. When a message needs real work, the chief does it as a [work loop](/docs/concepts/work-loop). To start one yourself and watch it, use [`spl run`](/docs/guides/running-a-goal). 
+The chief is defined by a [blueprint](/docs/concepts/blueprints), like any other assistant, so you can read it, change it or replace it. When a message needs real work, the chief does it as a [work loop](/docs/concepts/work-loop). To start one yourself and watch it, use [`spl run`](/docs/guides/running-a-goal).
 
 
 ### Turning the assistant on when you self-host
@@ -66,7 +66,7 @@ spl init --preset recommended    # presets: recommended | blank
 spl blueprint install <path-to-blueprint> --accept-plan <hash>
 ```
 
-Every preset except `blank` installs the chief. If you initialized bare and the
+Every preset except `blank` installs the chief. If you set up without a preset and the
 assistant seems silent, this is why, and nothing is broken: install the chief
 with the `spl blueprint install` command above.
 
@@ -76,8 +76,8 @@ A workspace on your own computer has no AI model until you give it a key (`spl c
 
 If you send a message and nothing comes back, work through this in order:
 
-1. **You initialized bare and never installed the chief.** The most common
-   cause on a self-host. Run `spl blueprint install <path-to-blueprint> --accept-plan <hash>`, or
+1. **You set up without a preset and never installed the chief.** This is the most common
+   cause on a workspace you run yourself. Run `spl blueprint install <path-to-blueprint> --accept-plan <hash>`, or
    re-init with `--preset recommended`.
 2. **No AI model is set up, or it is rejecting requests.** An expired key
    or a used-up quota means no reply. Run `spl doctor`: it reports

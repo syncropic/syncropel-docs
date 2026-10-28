@@ -1,31 +1,30 @@
 ---
 title: Portability
-description: Move records, threads, and workspace pairings between Syncropel workspaces. Export from one workspace, import into another, with zero data loss.
+description: Move records, threads and workspace pairings between Syncropel workspaces. Export from one workspace and import into another without losing data.
 ---
 
 ## What this is
 
 `spl export` produces a signed bundle of one workspace's data. `spl import` loads that bundle into another workspace. After an export and import, every record, thread, workspace pairing and consent grant is present on the new side, unchanged.
 
-This is why hosted and self-hosted are equivalent: you can move a workspace between hosts, between operators, or between hosted and self-hosted, without losing data or relationships.
+This is why hosted and self-hosted workspaces are equivalent: you can move a workspace between machines, between hosting providers, or between hosted and self-hosted, without losing data or relationships.
 
 ## What's portable
 
 Everything that's part of your workspace:
 
 - **Records**: every record on every thread. Importing the same bundle again changes nothing.
-- **Threads**: rebuilt from the records on import
-- **Workspace pairings**: the persistent relationships established via `spl federation pair`. Addresses refresh on first contact after the move; you don't need to re-pair.
-- **Consent grants**: cross-namespace permissions via the `th_consent` thread
-- **Identity**: the workspace's identity can travel in the bundle (optional, see below). An import does not install it, though. The imported workspace keeps its own identity until you bring the original back with `spl backup --auto restore-keys` or an identity sidecar
-- **Service accounts and adapters**: your configured accounts and adapters
-- **Settings**: routing rules, summary rules, decision policies, permission rules
+- **Threads**: rebuilt from the records on import.
+- **Workspace pairings**: the lasting relationships you set up with `spl federation pair`. Addresses refresh on first contact after the move; you don't need to re-pair.
+- **Consent grants**: cross-namespace permissions, kept on the `th_consent` thread.
+- **Identity**: the workspace's identity can travel in the bundle (optional, see below). An import does not install it, though. The imported workspace keeps its own identity until you bring the original back with `spl backup --auto restore-keys` or an identity sidecar file.
+- **Service accounts and adapters**: your configured accounts and adapters.
+- **Settings**: routing rules, summary rules, decision policies and permission rules.
 
 What's **not** in the bundle:
 
-- **Plaintext secret values.** Secrets live in your secret backend (env vars, vault, OS keyring). The bundle has handle-references only. To complete the migration, bring up the same secret backend on the new workspace separately.
+- **Plaintext secret values.** Secrets live in your secret backend (env vars, vault, OS keyring). The bundle holds only references to them. To complete the migration, bring up the same secret backend on the new workspace separately.
 - **Sign-in credentials**: by default the bundle leaves out the records that make a bearer token work, and a workspace that imports a bundle drops any such records it finds unless you tell it to keep them. Pass `--carry-tokens` on export, and accept them on import, only if you intend to preserve them across the migration.
-
 - **Trust scores**: these are rebuilt automatically from the imported records.
 
 > **An export made with an older version of Syncropel may contain your working credentials.** Treat any older copy on disk as a secret: store it as you would a password, and if one has left your machine, rotate the tokens of the workspace it came from with `spl token rotate`. `spl doctor` names any such copy it finds in the workspace's own folders.
@@ -46,33 +45,36 @@ Useful flags:
 |---|---|
 | `--out PATH` | Bundle output path (required) |
 | `--uncompressed` | Plain `.tar` instead of `.tar.zst` (inspectable; larger) |
-| `--no-identity` | Don't include private key + DID document (then the bundle isn't importable) |
+| `--no-identity` | Leave out the private key and DID document. The bundle still imports; the importing workspace creates a new identity instead of adopting this one |
 | `--carry-tokens` | Keep service-account tokens valid across migration |
 | `--offline` | Read the workspace files directly, with no running workspace (below) |
 
 ### When the workspace will not start
 
 `spl export` normally asks the running workspace for the bundle. A workspace
-that cannot boot (too little memory, damaged files, a
-machine that will not come up) cannot answer, which is when the
-records are hardest to get out. `--offline` reads the
-workspace files directly, signs the bundle with the workspace's own keys, and needs no running workspace:
+that cannot start (too little memory, damaged files, a machine that will not
+come up) cannot answer, and that is when your records are hardest to get out.
+`--offline` reads the workspace files directly, signs the bundle with the
+workspace's own keys, and needs no running workspace:
 
 ```bash
 spl export --offline --out /tmp/my-instance.tar.zst
 ```
 
-It refuses, and writes nothing, while the workspace is running. A PID file, an answering port, or an active `spl-serve.service` unit all count as running.
-A large workspace can take up to a minute and a half to start, so wait for it
-to finish starting. Stop the workspace first, or export without `--offline`.
-If a crash left a stale PID file, confirm nothing is running, remove
-`run/spl.pid` in the workspace's home folder, and export. The bundle is the same as a normal
-export and imports the same way. You need free space for one copy of the workspace.
+It refuses, and writes nothing, while the workspace is running. A PID file, an
+answering port, or an active `spl-serve.service` unit all count as running, and
+so does a workspace that is still starting (a large one can take up to a minute
+and a half). Stop the workspace first, or export without `--offline`. If a crash
+left a stale PID file, confirm nothing is running, remove `run/spl.pid` in the
+workspace's home folder, and export.
+
+The bundle is the same as a normal export and imports the same way. You need
+free space for one copy of the workspace.
 
 Inspect a bundle without unpacking:
 
 ```bash
-tar -tzf /tmp/my-instance.tar.zst | head
+tar --zstd -tf /tmp/my-instance.tar.zst | head
 # manifest.json
 # manifest.sig
 # identity/did_document.json
@@ -89,13 +91,13 @@ The `manifest.json` carries:
 
 ## Import
 
-Importing into a fresh instance:
+Importing into a fresh workspace:
 
 ```bash
 spl import /tmp/my-instance.tar.zst
 ```
 
-Importing into an existing instance (force overwrite: see safety below):
+Importing into a workspace that already holds records (see the safety section below):
 
 ```bash
 spl import /tmp/my-instance.tar.zst --force-overwrite
@@ -105,13 +107,13 @@ Useful flags:
 
 | Flag | What it does |
 |---|---|
-| `--dry-run` | Read-only verification. Reports counts without ingesting. |
-| `--force-overwrite` | Allow import into a non-empty store. |
+| `--dry-run` | Checks the bundle and reports counts without importing anything. |
+| `--force-overwrite` | Allow importing into a workspace that already holds records. |
 | `-o json` | Machine-readable output. |
 
 ## Safety: refusing to clobber
 
-By default `spl import` refuses to import into a non-empty store. This prevents accidentally overwriting work on a populated workspace with a snapshot from somewhere else.
+By default `spl import` refuses to import into a workspace that already holds records. This stops you from accidentally overwriting work with a snapshot from somewhere else.
 
 To override:
 
@@ -121,8 +123,8 @@ spl import bundle.tar.zst --force-overwrite
 
 Use this flag deliberately. Importing the same bundle twice never creates duplicates, so the usual flow is:
 
-1. Import once on a fresh instance (no `--force-overwrite` needed)
-2. Re-import later if you need to verify it (nothing new is added: `records_inserted: 0`, `records_deduplicated: 100`)
+1. Import once into a fresh workspace (no `--force-overwrite` needed).
+2. Re-import later if you want to check it. Nothing new is added (`records_inserted: 0`, `records_deduplicated: 100`).
 
 ## Migrating between workspaces
 

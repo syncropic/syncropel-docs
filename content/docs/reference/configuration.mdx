@@ -101,7 +101,7 @@ spl config model claude-sonnet-4-20250514
 
 ### Authentication
 
-Bearer-token authentication for `spl serve` is governed by two config surfaces:
+These settings control bearer-token sign-in for `spl serve`:
 
 **1. Sign-in switch.** Turn this on to require a token for every request. It is a settings record (a `LEARN` record on the `th_engine_config` thread, which holds workspace settings). There is no `spl config` command for it, so you send the record yourself:
 
@@ -134,7 +134,7 @@ There is no `spl config` command for this, so you write the record to the `th_en
 |---|---|---|---|
 | `topic` | string | — | Must be `"actor_tier"` |
 | `actor` | string | — | The actor DID the assignment applies to |
-| `tier` | string | — | `"paid"` or `"team"`. An assignment never grants operator rights; higher values are treated as `team`. An empty or missing `tier` removes the assignment. |
+| `tier` | string | — | `"paid"` or `"team"`. An assignment never grants owner rights; higher values are treated as `team`. An empty or missing `tier` removes the assignment. |
 
 The latest record for each actor wins. The new level applies the next time actors are reloaded, which happens when the server starts and whenever you change an actor's definition. If you only write this record, restart the server to apply it. If the actor also has a level from its invite, the higher one is used.
 
@@ -172,7 +172,7 @@ After enabling a provider, backfill existing records with `spl embed --loop` (or
 
 ### Async-federation relay
 
-Configure one or more store-and-forward relays for [async federation](/docs/guides/async-federation) — used when peers aren't reliably online at the same time. Each entry binds a relay URL to either a specific peer DID or the catch-all sentinel `"all"`. An entry with `enabled: false` is kept but ignored, so you can switch it off without losing the URL.
+Configure one or more store-and-forward relays for [async federation](/docs/guides/async-federation) — used when peers aren't reliably online at the same time. Each entry links a relay URL to either a specific peer DID or the catch-all value `"all"`. An entry with `enabled: false` is kept but ignored, so you can switch it off without losing the URL.
 
 Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation--pair-lifecycle-canonical)). Each command that changes settings saves a settings record:
 
@@ -184,14 +184,14 @@ spl config relay set https://relay.syncropel.com --for-pair all
 |---|---|---|---|
 | `topic` | string | — | Must be `"federation.relay"` |
 | `url` | string | — | Relay base URL (no trailing slash required) |
-| `for_pair` | string | — | Peer DID this relay is for, or the sentinel `"all"` as the catch-all |
+| `for_pair` | string | — | Peer DID this relay is for, or `"all"` as the catch-all |
 | `enabled` | bool | `true` | When `false`, the entry is preserved but skipped at lookup time |
 
 When sending, a relay set for that exact peer wins; otherwise the `"all"` relay is used. Restart `spl serve` after adding a new relay URL so that it starts receiving through it.
 
 ### Responder overrides
 
-Responder details are filled in automatically from your connected adapters and actors, then merged with your overrides. Overrides let you curate the responders advertised on `/v1/capabilities` and `/.well-known/syncropel` — set a cost model, pin a trust floor, hide a responder from the list, or add a responder that has no automatic entry.
+Responder details are filled in automatically from your connected adapters and actors, then merged with your overrides. Overrides let you choose the responders advertised on `/v1/capabilities` and `/.well-known/syncropel` — set a cost model, pin a trust floor, hide a responder from the list, or add a responder that has no automatic entry.
 
 Managed via `spl config responders-add|responders-list|responders-remove` (see the [CLI reference](/docs/reference/cli#authentication)). Each command that changes an override saves a settings record with `topic: "responder_override"`:
 
@@ -214,7 +214,7 @@ The record has these fields:
 | `trust_floor` | object \| null | Free-form trust-floor object (e.g. `{"code": 0.75}`) |
 | `cost_model` | object \| null | Free-form cost-model object (e.g. `{"per_query_usd": 0.04}`) |
 | `availability` | object \| null | Free-form availability object (e.g. `{"timezone": "PST"}`) |
-| `metadata` | object \| null | Free-form metadata. Non-normative |
+| `metadata` | object \| null | Free-form metadata for your own use. The server does not interpret it |
 | `remove` | bool | When `true`, hide this responder from the list even if an automatic entry exists |
 
 An override for an existing DID replaces that entry's fields. An override for an unknown DID adds a new responder.

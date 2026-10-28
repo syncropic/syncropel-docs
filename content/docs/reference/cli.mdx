@@ -7,9 +7,9 @@ import { Callout } from 'fumadocs-ui/components/callout';
 
 <Callout type="info" title="Command renamed: `spl agent-loop` → `spl work-loop`">
 
-The `spl agent-loop` command was renamed to **`spl work-loop`** —
-behaviour unchanged, only the name shifted to reflect that any actor
-(human, AI, or system) can drive the same goal-structured loop.
+The `spl agent-loop` command is now **`spl work-loop`**. It behaves the
+same; the new name reflects that any actor (human, AI, or system) can
+drive the same goal-structured loop.
 
 The old name returns "unknown subcommand"; scripts calling
 `spl agent-loop` need a one-line update.
@@ -29,12 +29,12 @@ All commands support:
 ## Server
 
 ```bash
-# Short verbs (canonical for operator interactive use)
+# Short verbs (for interactive use)
 spl serve            # start the instance in the background
 spl stop             # stop the running instance
 spl restart          # stop + start
 
-# Full form (canonical for systemd, Docker, K8s, managed cloud platforms, and other process supervisors)
+# Full form (for systemd, Docker, Kubernetes, managed cloud platforms, and other process supervisors)
 spl serve [--port 9100] [--memory] [--echo] [--store sqlite:///path]
 spl serve --daemon
 spl serve --stop
@@ -78,7 +78,7 @@ spl serve --uninstall-service [--service-name <name>]
 | `--install-service` | Register `spl serve` with the Windows Service Control Manager. Must be run from an elevated shell. Idempotent: if a service with this name already points at the current binary, succeeds without changes |
 | `--uninstall-service` | Remove the SCM registration. Stops the service first if running. Safe on a host that does not have the service installed |
 | `--service-name <name>` | Override the default service name (`SyncropelInstance`). Useful on multi-instance hosts |
-| `--service` | Internal — invoked by the SCM when the service starts. Operators should not pass this directly |
+| `--service` | Internal: the SCM passes this when the service starts. Don't pass it yourself |
 
 On Linux and macOS these flags return a clear error and point at systemd / launchd. See the [operator runbook](/docs/operate/runbook) for the systemd unit template.
 
@@ -123,8 +123,8 @@ spl learn "insight" [--thread ID] [--fulfills [RECORD_ID]]
 ```
 
 Omitting `--thread` mints a fresh thread (a `th_` + SHA-256 id, printed on the
-record). `--fulfills` closes a thread (frozen foundation F13): bare, it
-resolves and fulfills the thread's opening INTEND; with an explicit
+record). `--fulfills` closes a thread. With no value, it
+fulfills the thread's opening INTEND; with an explicit
 `--fulfills <record-id>`, it fulfills that record. Either way the record
 carries `body.fulfills`, which task status and the pattern index read to mark work
 done.
@@ -322,7 +322,7 @@ spl workspace unsubscribe <workspace-ref> [--reason <text>]
 | `workspace subscribe <ref>` | Record your subscription to a workspace by its content hash, optionally pinning a publisher and version. Namespace-local unless `--federated` |
 | `workspace unsubscribe <ref>` | Re-emit the subscription as inactive (records are immutable; no delete) |
 
-Workspaces are walked in [Build your first workspace](/docs/tutorials/first-workspace).
+Workspaces are covered step by step in [Build your first workspace](/docs/tutorials/first-workspace).
 
 ## Chrome
 
@@ -347,8 +347,8 @@ spl chrome archive
 | `chrome publish` | Promote the current draft to `lifecycle: published` — the live chrome that `GET /v1/instance/shell` serves and renderers draw |
 | `chrome archive` | Archive the published record. Renderers fall back to the bundled default chrome |
 
-The command is named `chrome`, not `shell`, to keep it clear of the
-"shell = terminal" reflex; the record it writes is `core.instance.shell.v1`.
+The command is named `chrome`, not `shell`, so it isn't mistaken for a
+terminal; the record it writes is `core.instance.shell.v1`.
 
 ## Share
 
@@ -374,7 +374,7 @@ the seven-field record envelope catches any mutation.
 
 ## Secrets
 
-Operator-facing surface for managing credential handles. Syncropel stores the handle + audit metadata; the value lives in your OS keychain (or the backend you reference). See [Secrets concepts](../concepts/secrets) for the four-layer enforcement design.
+Manage credential handles. Syncropel stores the handle and its audit metadata; the value lives in your OS keychain (or the backend you reference). See [Secrets concepts](../concepts/secrets) for how secrets are protected.
 
 ```bash
 spl secret set <handle>          # interactive — TTY echo disabled, or piped stdin
@@ -388,16 +388,16 @@ spl secret delete <handle>       # tombstone descriptor + audit record
 | Command | Description |
 |---|---|
 | `secret set <handle>` | Reads value from a TTY (`tcsetattr` echo disabled) or piped stdin. Never accepts a `--value` flag. Writes a `core.credential.v1` descriptor + sets the value at the configured backend |
-| `secret get <handle>` | Returns the descriptor metadata. Audit record emitted before the response returns (record-before-result invariant) |
+| `secret get <handle>` | Returns the descriptor metadata. The audit record is written before the response returns |
 | `secret get <handle> --reveal` | Prints the value to stdout. Audit record marks `outcome: allowed` with `purpose: revealed_to_operator` |
 | `secret list` | Lists every credential descriptor visible to the caller. Backend resolution is lazy — listing does not unlock values |
 | `secret promote <ENV_VAR>` | Reads the named environment variable, prompts confirmation, writes the value to the OS keychain, emits the descriptor + a `secret.access.v1` audit record |
 | `secret delete <handle>` | Marks the descriptor `lifecycle: erased` and removes the value from the backend. The descriptor record stays in the audit log |
 
-Backend URI schemes shipped today:
+Supported backend URI schemes:
 
 - `keychain://syncropel/<handle>` — platform-native (macOS Keychain, Linux Secret Service, Windows DPAPI/Credential Manager)
-- `env://VAR_NAME` — read-only env-var resolver (compiles + tests on every platform)
+- `env://VAR_NAME` — reads an environment variable (read-only; works on every platform)
 
 Other schemes (`1password://`, `vault://`, `kms://`) are not supported.
 
@@ -470,7 +470,7 @@ The instance applies manifests at config-reload time: each declared field become
 
 ### Embedding provider
 
-Configure the provider used for [semantic search](/docs/guides/search). Writes an `embedding_provider` LEARN record on `th_engine_config`; the instance rebuilds its embedder on broadcast — no restart. The `ollama` provider ships today; hosted adapters land in a subsequent release.
+Configure the provider used for [semantic search](/docs/guides/search). Writes an `embedding_provider` LEARN record on `th_engine_config`; the change applies without a restart. Only the `ollama` provider is supported.
 
 ```bash
 # Enable semantic search against a local Ollama (nomic-embed-text is the default model).
@@ -519,7 +519,7 @@ spl config relay push --peer did:sync:peer:alice --thread th_abc123...
 
 ### Responder manifest overrides
 
-Curate the responder list surfaced on `/v1/capabilities` and `/.well-known/syncropel`. The list is filled in automatically from your actors and adapters. These commands let you add your own entries, override automatic values, or hide specific DIDs.
+Choose the responders listed on `/v1/capabilities` and `/.well-known/syncropel`. The list is filled in automatically from your actors and adapters. These commands let you add your own entries, override automatic values, or hide specific DIDs.
 
 <Callout type="info">
 Responder details are saved and shown on discovery endpoints so peers can read them, but your instance does not use them for its own routing decisions. Set them if you coordinate discovery across peers; otherwise you can skip this.
@@ -540,9 +540,9 @@ spl config responders-remove --did <did>
 | `--trust-floor <json>` | `add` | JSON trust-floor object, e.g. `{"code": 0.75}` |
 | `--cost-model <json>` | `add` | JSON cost-model object, e.g. `{"per_query_usd": 0.04}` |
 | `--availability <json>` | `add` | JSON availability object, e.g. `{"timezone": "PST"}` |
-| `--metadata <json>` | `add` | Free-form, non-normative JSON object |
+| `--metadata <json>` | `add` | Free-form JSON object; the server does not interpret it |
 
-`responders-add` overrides matched auto-populated entries; unmatched DIDs are appended as operator-authored. `responders-remove` tombstones a DID so it is suppressed from the manifest even if an auto-populated entry exists.
+`responders-add` overrides matching automatic entries; DIDs with no automatic entry are added as your own entries. `responders-remove` marks a DID as removed so it is suppressed from the manifest even if an auto-populated entry exists.
 
 ```bash
 # Advertise a custom responder with an explicit cost model
@@ -639,7 +639,7 @@ spl infer --query-file query.json --wait
 
 ## Work loop — `spl work-loop`
 
-Run a records-native work loop with workspace tools. The loop emits records onto its thread as it works (`core.work.turn.v1`, `core.work.tool_call.v1`, etc.); the engine decides terminal success in `--verify` mode. See the [Work loop concept page](/docs/concepts/work-loop) for the full primitive.
+Run a records-native work loop with workspace tools. The loop emits records onto its thread as it works (`core.work.turn.v1`, `core.work.tool_call.v1`, etc.); in `--verify` mode, the workspace, not the loop, decides whether it succeeded. See the [Work loop concept page](/docs/concepts/work-loop) for details.
 
 ```bash
 spl work-loop "<goal>" \
@@ -676,7 +676,7 @@ spl work-loop "Find every record tagged 'beta' and emit consent grants" \
 
 ## Review a work loop — `spl work-loop-review`
 
-Record an external verdict on a completed work loop. This is how a loop's outcome is judged: an actor with standing accepts or rejects what the loop produced, and that verdict counts toward the loop actor's [trust](/docs/concepts/trust). A loop's own self-reported outcome never earns it trust — only this external verdict does, and it must come from a different actor than the one that ran the loop. See the [work loop concept page](/docs/concepts/work-loop#the-cognitive-loop-read-do-be-judged).
+Record an external verdict on a completed work loop. This is how a loop's outcome is judged: an actor with standing accepts or rejects what the loop produced, and that verdict counts toward the loop actor's [trust](/docs/concepts/trust). A loop's own self-reported outcome never earns it trust — only this external verdict does, and it must come from a different actor than the one that ran the loop. See the [work loop concept page](/docs/concepts/work-loop#read-do-be-judged).
 
 ```bash
 spl work-loop-review <THREAD> \
@@ -748,7 +748,7 @@ spl completion bash|zsh|fish|powershell|elvish   # Shell completion script
 
 **`spl audit export`** emits one JSON object per line for security-relevant records (system actor writes, decision-gate decisions, dispatch outcomes, governance events). `--since` accepts relative durations (`24h`, `7d`), ISO 8601 timestamps, or unix seconds. You can load the output directly into Splunk, Elastic, Loki, or Datadog.
 
-**`spl completion`** generates shell completion scripts via `clap_complete`. Pipe to the shell's completion directory:
+**`spl completion`** generates shell completion scripts. Write the output to your shell's completion directory:
 
 ```bash
 spl completion bash > ~/.local/share/bash-completion/completions/spl
@@ -762,7 +762,7 @@ spl completion fish > ~/.config/fish/completions/spl.fish
 This section covers multi-instance deployments.
 </Callout>
 
-Multi-instance coordination primitives (instance registry + kill switch) and the task fan-out + barrier. See [Your first fan-out](/docs/tutorials/first-fanout) for a walkthrough and [Operator Runbook: Fleet Operations](/docs/operate/runbook#multi-instance-fleet-operations) for day-2 procedures.
+Commands for running several instances together (the instance registry and kill switch) and for splitting a task across them (fan-out and join). See [Your first fan-out](/docs/tutorials/first-fanout) for a walkthrough and [Runbook: Fleet Operations](/docs/operate/runbook#multi-instance-fleet-operations) for ongoing operations.
 
 ### Fleet lifecycle
 
@@ -771,7 +771,7 @@ spl fleet start [--workers N]        # Boot coordinator + N worker instances
 spl fleet stop [--workers | --all]   # Stop workers only, or everything
 ```
 
-`spl fleet start --workers 2` boots two worker instances on auto-assigned `SYNCROPEL_HOME` paths (`~/.syncro-worker-{a,b}`) and auto-assigned ports (9201, 9202), with the current `~/.syncro` prod instance acting as coordinator. Each worker inherits `SPL_FLEET_COORDINATOR_URL` pointing at the coordinator and begins emitting heartbeats within ~15 seconds.
+`spl fleet start --workers 2` boots two worker instances on auto-assigned `SYNCROPEL_HOME` paths (`~/.syncro-worker-{a,b}`) and auto-assigned ports (9201, 9202), with your main `~/.syncro` instance acting as coordinator. Each worker inherits `SPL_FLEET_COORDINATOR_URL` pointing at the coordinator and begins emitting heartbeats within ~15 seconds.
 
 Worker state roots are persistent across fleet restarts. Next `spl fleet start --workers 2` reuses them. To start fresh, delete `~/.syncro-worker-*` before booting.
 
@@ -855,8 +855,6 @@ Fan-out descriptors set `target` to one of:
 - **`specific:<full-did>`** — exact DID match
 - **`least-loaded-worker`** — live worker with lowest `active_dispatches`, tie-break on longest uptime
 - **`round-robin`** — deterministic pick based on `hash(parent_id + descriptor_index) mod live_worker_count`
-
-Custom strategies (e.g. trust-weighted selection).
 
 ## Federation — Pair Lifecycle (canonical)
 
@@ -967,11 +965,11 @@ spl discover --peer-url https://alice.dev --capability code
 spl discover --peer-url https://alice.dev --kind music.catalog.track --strict --json
 ```
 
-Direct-peer fetch with did:key verification is supported today. Directory aggregation and did:web / did:sync resolution arrive in a follow-up release.
+`spl discover` fetches directly from the peer and verifies did:key signatures. It does not query directories or resolve did:web / did:sync identifiers.
 
 ### Identity — publish a did:web document
 
-Generate a W3C-conformant DID document for operators who control a domain. Upload the resulting file to `https://<domain>/.well-known/did.json` via your existing web hosting.
+Generate a W3C-conformant DID document if you control a domain. Upload the resulting file to `https://<domain>/.well-known/did.json` via your existing web hosting.
 
 ```bash
 spl identity publish-did-web --domain alice.dev [--output did.json]
@@ -998,13 +996,13 @@ Source namespace is `default` unless written directly. Without L0 in `--hash-lev
 spl config permissions-unlock [--force]    # Unlock from permission lockout
 ```
 
-`permissions-unlock` writes a `permissions_enabled=false` LEARN record directly to the SQLite store, bypassing the HTTP middleware that would otherwise deny the disable (the classic lockout trap). Refuses to run while the instance is up unless `--force` is passed — you still need to restart the instance for the change to take effect. Only sqlite stores are supported.
+`permissions-unlock` writes a `permissions_enabled=false` LEARN record directly to the local SQLite store. Use it when your own permission rules refuse the change that would turn them off (a lockout). Refuses to run while the instance is up unless `--force` is passed — you still need to restart the instance for the change to take effect. Only sqlite stores are supported.
 
-See [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the pre-flight check that prevents the trap from firing in the first place.
+See [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the check that prevents a lockout in the first place.
 
 ## Authentication
 
-Service accounts, bearer tokens, and device pairing. See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full story — when to use each, security model, federation composition.
+Service accounts, bearer tokens, and device pairing. See the [Authentication & Service Accounts guide](/docs/operate/keyring) for when to use each, the security model, and how they work with federation.
 
 ### Service accounts
 
@@ -1087,7 +1085,7 @@ spl token rotate sa_abc123def456ghi7
 # Revoke just the lost-phone token
 spl token revoke --sa sa_abc123def456ghi7 --token-id 7a2936eccf...
 
-# Nuke the whole service account
+# Revoke the whole service account
 spl service-account revoke sa_abc123def456ghi7 --reason "laptop stolen"
 ```
 
@@ -1144,12 +1142,12 @@ spl member revoke <label> [--reason "<text>"] [--json]
 | Command | Description |
 |---|---|
 | `list` | The membership roster. Admin sees all rows; any other caller sees only their own |
-| `adopt` | Adopt an existing actor as a principal. Without `--sa`: binds a label whose signing seed this instance already holds (the operator, a paired device) — after this, that actor's signed task verdicts verify. With `--sa <sa_id>`: mints a custodial principal for the service account's holder and re-parents the credential to a membership grant without breaking the bearer |
-| `revoke` | Offboarding as one revocation: the membership grant is revoked and every credential parented to it (bearers, agent sub-grants) dies with it — the bearer 401s on its next request. Bilateral (a member may revoke their own); idempotent; local-ledger scope |
+| `adopt` | Adopt an existing actor as a principal. Without `--sa`: binds a label whose signing key this instance already holds (the instance owner, a paired device) — after this, that actor's signed task verdicts verify. With `--sa <sa_id>`: mints a custodial principal for the service account's holder and re-parents the credential to a membership grant without breaking the bearer |
+| `revoke` | Offboarding as one revocation: the membership grant is revoked and every credential parented to it (bearers, agent sub-grants) stops working with it; the bearer is refused with `401` on its next request. A member may revoke their own membership. Safe to repeat. Applies to this instance only |
 
 ```bash
-# Adopt the operator so their verdicts verify
-spl member adopt dpwanjala
+# Adopt the owner so their verdicts verify
+spl member adopt alice
 
 # Re-home an agent's existing service account under a member
 spl member adopt mora --sa sa_1f8e2c9a

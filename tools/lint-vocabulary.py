@@ -187,8 +187,6 @@ PATH_WHITELIST = [
     "**/01-glossary.md",
     "14-reference/01-glossary.md",
     "09-content/07-glossary.md",
-    # Pages removed from the site, kept for the record and never served.
-    "internal-removed/**",
     # Docs site: built artefacts.
     "out/**",
     "**/out/**",

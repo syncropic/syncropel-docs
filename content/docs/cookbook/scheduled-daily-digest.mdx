@@ -44,12 +44,12 @@ Each later `KNOW` from the agent lands on that thread, building a dated log of d
 
 **Scheduled triggers run on one workspace.** If you run several workspaces together, the trigger runs on the one that holds the `th_engine_config` thread (usually the coordinating one). If that workspace is offline at 09:00, the digest is skipped and not made up later.
 
-**The goal text is the entire brief the agent sees.** Rich briefs produce better digests. The goal above asks for a specific thread (`th_daily_digest`) and a specific body topic (`daily_digest`), which means you can find the digest records later with a rule (for example to send them to a notification webhook, or to alert when one is missing). A vague goal ("summarise yesterday") works but gives less consistent output.
+**The goal text is all the agent sees.** A detailed goal produces a better digest. The goal above asks for a specific thread (`th_daily_digest`) and a specific body topic (`daily_digest`), which means you can find the digest records later with a rule (for example to send them to a notification webhook, or to alert when one is missing). A vague goal ("summarise yesterday") works but gives less consistent output.
 
 **The budget limits each run.** 0.50 USD is enough for a focused digest of about 50 closed tasks. Raise it for a bigger team; lower it to keep digests short. If a run goes over 600 seconds or over budget, it is stopped with `TIMEOUT`; the next day's run is unaffected.
 
 ## See also
 
-- **[Scheduled triggers guide](/docs/guides/scheduled-triggers)** — schedule syntax, combining schedules with matching rules, and checking history.
-- **[CEL expressions](/docs/guides/cel-expressions)** — if you want the trigger to also run when certain records appear, instead of or as well as on a schedule.
+- **[Scheduled triggers guide](/docs/guides/scheduled-triggers)**: schedule syntax, combining schedules with matching rules, and checking history.
+- **[CEL expressions](/docs/guides/cel-expressions)**: if you want the trigger to also run when certain records appear, instead of or as well as on a schedule.
 - **[The Engine: scheduled work](/docs/concepts/engine#running-scheduled-work)**: what else runs on a schedule.

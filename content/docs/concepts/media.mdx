@@ -35,11 +35,11 @@ Only audio and video (`stream-transport`) play. The other modalities (`render`, 
 
 ## Playing it for you and for a stranger
 
-For the owner, a medium plays inside your library like any other content. A public link can also make a crate *play* for someone with no account, using:
+For the owner, a medium plays inside your library like any other content. A public link can also make a medium *play* for someone with no account, using:
 
 `GET /v1/public/medium/resolve?thread=&ref=&kind=`
 
-This needs no login, but it is gated by a public consent grant. The requested `ref` must be referenced by a record on the granted thread, so a grant over one crate can't be used to reach other files. It returns the descriptor, a short-lived read token and a read URL. The player streams the bytes in ranges and asks again when the token expires. Revoking the grant ends every outstanding token at once.
+This needs no login, but it is gated by a public consent grant. The requested `ref` must be referenced by a record on the granted thread, so a grant over one thread can't be used to reach other files. It returns the descriptor, a short-lived read token and a read URL. The player streams the bytes in ranges and asks again when the token expires. Revoking the grant ends every outstanding token at once.
 
 This is what makes a shared link *play* rather than just describe. The read token exists because media players can't send an `Authorization` header. It is a credential, not a record.
 

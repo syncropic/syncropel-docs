@@ -23,7 +23,7 @@ Evaluate an expression against your workspace's current state:
 spl expr eval 'system.uptime_secs > 3600' --context health_check
 ```
 
-Both commands report compile errors at the exact character position so you can fix syntax before shipping.
+Both commands report compile errors at the exact character position, so you can fix the syntax before you use the expression.
 
 ## The eight contexts
 
@@ -32,13 +32,13 @@ Each place you use an expression has its own context, which decides which names 
 | Context | Used For | Primary Bindings |
 |---|---|---|
 | `trigger` | Event triggers matching incoming records | `record`, `records`, `system`, `task()`, `trust()`, `thread()`, `now()`, `current_actor()` |
-| `routing` | Routing rules | `record`, `thread()`, `system`, `trust()`, `task()`, `now()`, `current_actor()`, `fanout_status()` ** |
+| `routing` | Routing rules | `record`, `thread()`, `system`, `trust()`, `task()`, `now()`, `current_actor()`, `fanout_status()` |
 | `precondition` | Task readiness gating | `records`, `tasks`, `task()`, `trust()`, `thread()`, `now()`, `system`, `current_actor()` |
 | `fold_rule` | Working out a task's status | `records` (the task thread), `task`, `thread()`, `now()`, `current_actor()` |
-| `health_check` | `spl health check` predicates | `system`, `tasks`, `trust()`, `now()`, `current_actor()`, `fleet_instances_live()` ** |
+| `health_check` | `spl health check` predicates | `system`, `tasks`, `trust()`, `now()`, `current_actor()`, `fleet_instances_live()` |
 | `aitl` | Deciding what to do with an AI proposal | `record`, `proposal_confidence`, `meta_trust`, `system`, `now()`, `current_actor()` |
-| `permission` | Allowing or denying requests | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()`, `fleet_frozen_namespaces()` / `fleet_emergency_active()` ** |
-| `join` ** | Fan-out: when is the parent intent satisfied? | `children`, `parent`, `now()` |
+| `permission` | Allowing or denying requests | `record`, `current_actor()`, `resource`, `trust()`, `task()`, `system`, `now()`, `fleet_frozen_namespaces()` / `fleet_emergency_active()` |
+| `join` | Fan-out: when is the parent intent satisfied? | `children`, `parent`, `now()` |
 
 ## Standard Library Reference
 
@@ -59,7 +59,7 @@ record.parents      // list<string>: parent record IDs
 
 ### `records`
 
-A list of records (available in the `trigger`, `precondition` and `fold_rule` contexts). Use CEL's built-in macros:
+A list of records (available in the `trigger`, `precondition` and `fold_rule` contexts; `fold_rule` is the context for rules that work out a task's status from its records). Use CEL's built-in macros:
 
 ```
 records.exists(r, r.act == "KNOW" && r.body.topic == "feature_enabled")
@@ -221,10 +221,10 @@ c.wall_time_secs     // int: elapsed wall-clock seconds
 c.summary            // string: from the child's KNOW body
 ```
 
-Custom join predicates can combine these for nuanced barriers:
+Custom join conditions can combine these:
 
 ```text
-// All succeed AND total cost is under budget AND no single child went wild
+// All succeed AND total cost is under budget AND no single child cost too much
 children.all(c, c.verdict == "accept") &&
 children.map(c, c.cost_usd).reduce(acc, x, acc + x, 0.0) < 10.00 &&
 children.all(c, c.cost_usd < 5.00)
@@ -351,7 +351,7 @@ Permission rules are **off by default**. Turn them on explicitly:
 # 1. Author an admin allow rule FIRST. It must cover EVERY resource
 #    `spl config permissions-disable` touches (otherwise you'll lock
 #    yourself out and need permissions-unlock to recover):
-#      * record_write — POST /v1/records (the disable LEARN itself)
+#      * record_write — POST /v1/records (the record that turns enforcement off)
 #      * thread_read  — GET /v1/threads/.../state (read last_clock first)
 #      * config_read  — GET /v1/config/* (so you can list rules)
 spl config add-permission-rule \
@@ -367,7 +367,7 @@ spl config add-permission-rule \
   --priority 100 \
   --expression 'current_actor().startsWith("did:sync:user:") && (resource == "thread_read" || resource == "record_read")'
 
-# 3. Finally, enable enforcement. A pre-flight runs first
+# 3. Finally, enable enforcement. A safety check runs first
 #    and refuses if your admin rule doesn't cover all three resources
 #    above — preventing the lockout trap before it happens.
 spl config permissions-enable

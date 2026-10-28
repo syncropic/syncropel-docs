@@ -72,7 +72,7 @@ path is a member's id, the one `spl actor list` prints.
 | DELETE | `/v1/namespaces/{id}` | Archive a space | [Spaces](/docs/guides/namespaces) |
 | POST | `/v1/erasure` | Erase content that must be forgotten | |
 | GET | `/v1/telemetry` | Read the workspace's own log and console output | |
-| GET | `/v1/substrate/layer-stats` | How quickly queries were answered over a window (`?window=1h`, `6h`, `24h` or `7d`), for operators | |
+| GET | `/v1/substrate/layer-stats` | How quickly queries were answered over a window (`?window=1h`, `6h`, `24h` or `7d`) | |
 
 ## Threads and runs
 
@@ -112,8 +112,8 @@ path is a member's id, the one `spl actor list` prints.
 | GET | `/v1/work/loop/{thread}` | A run's status | [API reference](/docs/reference/api#work-loops) |
 | POST | `/v1/work/loop/{thread}/cancel` | Cancel a run | [API reference](/docs/reference/api#work-loops) |
 | GET | `/v1/work/loop/{thread}/stream` | The same live stream as `/v1/runs/{thread}/events` | [API reference](/docs/reference/api#work-loops) |
-| GET | `/v1/work/compensation/review` | How often a member's runs had to be corrected (operator only) | [API reference](/docs/reference/api#work-loops) |
-| GET | `/v1/work/compensation/review/top` | The members corrected most often (operator only) | [API reference](/docs/reference/api#work-loops) |
+| GET | `/v1/work/compensation/review` | How often a member's runs had to be corrected (`operator` tier only) | [API reference](/docs/reference/api#work-loops) |
+| GET | `/v1/work/compensation/review/top` | The members corrected most often (`operator` tier only) | [API reference](/docs/reference/api#work-loops) |
 | POST | `/v1/decompose` | Ask for a goal to be broken into steps before it runs | |
 | POST | `/v1/dispatch` | Hand a task to a member's adapter | [AI clients](/docs/integrate/ai-clients) |
 | GET | `/v1/dispatch` | List dispatches by state | |
@@ -128,7 +128,7 @@ path is a member's id, the one `spl actor list` prints.
 
 ## Your call
 
-The lane of things waiting on a person. A **decision** needs an answer; a
+Everything waiting on a person. A **decision** needs an answer; a
 **heads-up** needs only a nod.
 
 | Method | Path | What it is for | Documented |
@@ -297,7 +297,7 @@ Answering the same question twice returns the same thread. See
 | POST | `/v1/directory/recommendations/dismiss` | Never suggest one again | |
 | POST | `/v1/directory/block` | Block a listing, or unblock it | |
 | POST | `/v1/directory/report` | Report a listing for abuse | |
-| POST | `/v1/directory/delist` | Remove a listing (operator moderation) | |
+| POST | `/v1/directory/delist` | Remove a listing (directory moderation) | |
 | POST | `/v1/repo/declare` | Declare a repository for this workspace at `<label>/<name>` (owner) | [Publishing a repository](/docs/operate/publish-repository) |
 | POST | `/v1/repo/publish` | Publish this workspace as a repository; takes the write lease first, and binds a workspace that has no repository yet | [Publishing a repository](/docs/operate/publish-repository) |
 | POST | `/v1/repo/bind` | Bind an empty published tree as this workspace's write-back target (owner) | [Publishing a repository](/docs/operate/publish-repository) |
@@ -411,7 +411,7 @@ Answering the same question twice returns the same thread. See
 | GET | `/.well-known/syncropel` | The same, for a workspace that has not signed in yet (**open**); it also carries `owner_actions`, the nine actions a control plane may forward on an owner's behalf, each naming a declared endpoint and its scope | [API reference](/docs/reference/api#capability-discovery) |
 | GET | `/openapi.json` | The OpenAPI document (**open**) | |
 | GET | `/docs/api` | A rendered view of it (**open**) | |
-| GET | `/v1/console/manifest` | Which commands the operator console may run | |
+| GET | `/v1/console/manifest` | Which commands the admin console may run | |
 | POST | `/v1/corpus/promote` | Promote graded runs into the training corpus (a deliberate act, never automatic) | |
 | POST | `/v1/corpus/backfill` | Capture runs that finished before the corpus existed | |
 | POST | `/v1/proxy/messages` | Talk to a member through a messages-style API | [API reference](/docs/reference/api#proxy) |
@@ -435,7 +435,6 @@ between releases without notice.
 - `/directory/` and `/v1/directory/publish`, `/v1/directory/self-delist`: the
   identity directory service and the endpoints other workspaces and the
   provisioning service push into.
-- `/v1/admin/provisioning-worker-restore`: the provisioning service's own endpoint.
 - `/v1/patterns/`: cross-workspace pattern evaluation.
 - The relay, which carries messages between workspaces that cannot reach each
   other directly, is a separate service with its own endpoints; see
@@ -447,8 +446,8 @@ Endpoints are added, and fields are added to existing answers, in ordinary
 releases without notice; a client that ignores fields it does not know keeps
 working. A **breaking change** is an endpoint renamed or removed, a field whose
 meaning changes, or a call that used to succeed and now refuses. Breaking
-changes are called out in the [release notes](/docs/reference/release-notes)
-and in the source changelog, with the migration; a removed path answers `404`
+changes are called out in the [release notes](/docs/reference/release-notes),
+with the migration; a removed path answers `404`
 from the release that removes it, the way the older `/v1/agent/*` paths did
 when they became `/v1/work/*`. The capability manifest at `GET /v1/capabilities`
 carries a `manifest_version` that changes only when the manifest's own shape

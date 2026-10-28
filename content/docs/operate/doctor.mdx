@@ -257,7 +257,7 @@ interval, even if the last copy was a second ago.
 The same age is in `/v1/health` as `writeback.oldest_unflushed_age_secs` (null,
 0, or a number of seconds). `/v1/health` shows the full detail (the backlog,
 this age and the progress markers) to the owner, an admin, a member with coarse
-access, the provision key and the local socket. An anonymous `/health` carries
+access, the hosting service's provisioning credential and the local socket. An anonymous `/health` carries
 only `writeback.attach` and `writeback.attach_fact`, the attach state and its
 code, so read the detail with the owner's credential or through the local
 socket.

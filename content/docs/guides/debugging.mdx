@@ -158,7 +158,7 @@ Right away you can see:
 - It has 5 KNOW records vs 2 — the extra ones are usually verdicts.
 - Its status is `approved`; the other is `review`.
 
-The structural delta points at the missing piece without you having to read both record streams in full. Once you have the hypothesis, drop back to `spl debug replay` on each side to confirm.
+The differences point at the missing piece without you having to read both threads in full. Once you have a likely cause, go back to `spl debug replay` on each side to confirm.
 
 ## Step 5: `spl audit export` — what security-relevant events fired recently?
 
@@ -185,7 +185,7 @@ Permission denials on HTTP requests are written to the server log, not to the au
 
 ## Step 6: read the instance log
 
-If steps 1-5 didn't surface the issue, drop to the structured log:
+If steps 1-5 didn't find the issue, read the structured log:
 
 ```bash
 tail -f ~/.syncro/logs/spl.log
@@ -277,7 +277,7 @@ A few things still require reading the log:
 - **Dispatch details.** When a dispatch fails you see the failure on the task thread, but not timings, retries or tool calls. Find those in the server log.
 - **Slow rules.** `spl doctor` shows expression cache statistics, but per-rule timings are only in the log.
 
-The tools above cover the everyday investigation surface.
+For everything else, the tools above are enough.
 
 ## Reference
 

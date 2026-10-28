@@ -26,20 +26,20 @@ If none of these holds, the normal thread is the audit trail.
 | `th_audit_consent` | `core.consent_state_change.v1` | One LEARN record per grant or revoke; mirrors `th_consent` |
 | `th_audit_federation_pairs` | `syncropel.federation.pair_state_change.v1` | LEARN per pair lifecycle transition; mirrors `th_federation_pairs` |
 | `th_audit_impersonation` | `core.impersonation.event.v1` | LEARN per impersonation entry/exit; no separate operational thread |
-| `th_audit_graph_traversal_<namespace>` | `graph.consent_check.v1` (denials), related kinds | Per-namespace; sovereignty boundary; emits on peer-side denial |
+| `th_audit_graph_traversal_<namespace>` | `graph.consent_check.v1` (denials), related kinds | One thread per namespace; written when a peer's request is denied |
 | `th_secret_audit` | `secret.access.v1`, `secret.rotation.v1`, `secret.value_invalidated.v1` | DO synchronous BEFORE return; every read/write/list/delete |
 | `th_audit_portability` | `core.portability.event.v1` | LEARN per export/import; per-actor and instance scope |
 | `th_audit_snapshots` | `core.snapshot.event.v1` | LEARN per snapshot create / restore; security-sensitive instance-level op |
 | `th_audit_tokens` | `core.token_lifecycle_event.v1` | LEARN per token mint / revoke + SA create / delete / rotate; mirrors `api_tokens_thread(<ns>)` / `service_accounts_thread(<ns>)` |
-| `th_audit_provisioning` | `core.provisioning.requested.v1`, `core.provisioning.completed.v1` | LEARN at provisioning request + completion; lives on the platform instance |
-| `th_audit_subscriptions` | `core.subscription.*` (12-member family) | LEARN at every subscription lifecycle event (created, payment, cancellation, etc.); lives on the platform instance |
+| `th_audit_provisioning` | `core.provisioning.requested.v1`, `core.provisioning.completed.v1` | LEARN at provisioning request + completion; kept on the hosting service's own instance, not on yours |
+| `th_audit_subscriptions` | `core.subscription.*` (12-member family) | LEARN at every subscription lifecycle event (created, payment, cancellation, etc.); kept on the hosting service's own instance, not on yours |
 | `th_audit_api_usage` | `core.api.usage.v1`, `core.api.error.v1`, etc. | LEARN per managed inference call; cost + token + tier tracking |
 
 There are eleven audit-thread families.
 
 ## Areas that use their normal thread
 
-| Domain | Operational thread | Forensic fold |
+| Domain | Operational thread | Audit records |
 |---|---|---|
 | Sync pair | `th_sync_control` | LEARN with `topic: pair_state` (lifecycle transitions) + `topic: pair_removed` (terminal) |
 | Namespaces | `th_namespace_registry` | LEARN with `topic: namespace_entry` (create / archive / unarchive / delete) |

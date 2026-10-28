@@ -87,7 +87,7 @@ Checks the final combined answer (not each response).
 
 ## ResponderPredicate
 
-An OR-of-classes predicate. Each entry adds AND constraints within its class.
+Says which responders may answer. A responder qualifies if it matches any entry in the list, and it must meet every condition within that entry.
 
 ```json
 {
@@ -124,6 +124,8 @@ An OR-of-classes predicate. Each entry adds AND constraints within its class.
 | `expression` | string (CEL) | Arbitrary predicate over candidate metadata |
 
 ## Fold
+
+How the responses are combined into one answer.
 
 ```json
 {
@@ -238,7 +240,7 @@ Per-pattern fields:
 
 ## Dial
 
-Scalar form:
+How much the query may reuse known answers (near 0) versus work out a fresh answer (near 1). Scalar form:
 
 ```json
 { "dial": 0.3 }

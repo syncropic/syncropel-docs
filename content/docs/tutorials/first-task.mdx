@@ -1,6 +1,6 @@
 ---
 title: Your First Task
-description: Create a task with success criteria, complete it, and see trust evidence accumulate.
+description: Create a task, complete it, have it reviewed and watch trust build up.
 ---
 
 ## What you'll learn
@@ -17,7 +17,7 @@ spl task add "Add input validation to the signup form" \
 
 The output shows a thread ID and an alias (like `TASK-0001`) that you can use as a shorthand.
 
-A task can be born with its relations, and they are saved as real links rather than prose:
+A task can be created with its relations already set. They are saved as real links, not as text:
 
 ```bash
 spl task add "Validate the phone field too" --alias TASK-0002 \
@@ -38,7 +38,7 @@ ID           STATUS   PRI    GOAL                                    ASSIGN
 TASK-0001     inbox    high   Add input validation to the signup...   —
 ```
 
-The task starts in `inbox` status — it exists but nobody has started working on it.
+The task starts in `inbox` status: it exists, but nobody has started on it.
 
 ## Start working
 
@@ -56,7 +56,7 @@ When the work is done, mark it complete with a summary:
 spl task done TASK-0001 --summary "Added email format and password length validation" --domain code
 ```
 
-Status changes to `review` — the task is claimed complete but hasn't been independently verified yet.
+Status changes to `review`: the task is marked complete but nobody else has checked it yet.
 
 ## Review and approve
 
@@ -68,13 +68,13 @@ spl task approve TASK-0001 --domain code --notes "Validation logic verified, tes
 
 Status changes to `approved`. This creates a trust observation — evidence that the work was completed successfully in the `code` domain.
 
-If the work shipped in a release, say which one and the verdict is parented to that release's record:
+If the work shipped in a release, name the release and the verdict is linked to that release's record:
 
 ```bash
 spl task approve TASK-0001 --domain code --grade 0.9 --in-release v1.2.0
 ```
 
-`--in-release` also works on `spl task done`. A version with no release record is refused with exit code 2 and nothing is written. `--grade` (0 to 1) carries a quality judgment beside the verdict; a plain accept adds very little to trust.
+`--in-release` also works on `spl task done`. A version with no release record is refused with exit code 2 and nothing is written. `--grade` (0 to 1) adds a quality judgment to the verdict. A plain approval without a grade adds very little to trust.
 
 ## See trust grow
 
@@ -87,7 +87,7 @@ ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
 did:sync:user:you       code            1       1   0.246
 ```
 
-Each approved task adds evidence. Over time, trust scores reflect real track records, not opinions or permissions.
+Each approved task adds evidence. Over time, trust scores reflect a real track record, not opinions or permissions.
 
 ## What's next
 

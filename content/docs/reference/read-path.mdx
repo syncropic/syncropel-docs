@@ -7,12 +7,12 @@ Every read has a time limit and can be cancelled. This page describes what you s
 
 ## Read refusals
 
-All three answer with a JSON body carrying `code`, and the `X-Syncropel-Refusal` header. A refusal that can succeed later also carries `Retry-After` and `Cache-Control: no-store`.
+Each answers with a JSON body carrying `code`, and the `X-Syncropel-Refusal` header. A refusal that can succeed later also carries `Retry-After` and `Cache-Control: no-store`.
 
 | Status | Code | When | What to do |
 |---|---|---|---|
 | `503` | `READ_BUDGET_EXCEEDED` | A read ran past its time limit (interactive reads: 3 s; exports and background work have their own limits; every limit is doubled for 60 s after the server starts), or the client went away. The body is `{code, budget_ms, door, retry_after_secs}`. `/health` never answers it. | Wait `Retry-After` seconds and retry. Narrow the request (a `body.kind` filter, a thread scope, a smaller `limit`) if it keeps happening. |
-| `429` | `READ_IN_FLIGHT` | One scanning read per person runs at a time. A second one from the same person waits its turn (up to 3 s, in arrival order) and then runs. You get this answer only when the wait runs out or 16 reads are already waiting. The owner is never refused. `Retry-After` is the time left for the first read. | Send one scanning read at a time per person, and retry after `Retry-After`. |
+| `429` | `READ_IN_FLIGHT` | One scanning read per person runs at a time. A second one from the same person waits its turn (up to 3 s, in arrival order) and then runs. You get this answer only when the wait runs out or too many reads are already waiting. The owner is never refused. `Retry-After` is the time left for the first read. | Send one scanning read at a time per person, and retry after `Retry-After`. |
 | `409` | `READ_STOPPED_BY_ERASE` | An export began, then an erase happened before it finished. None of its output is served. | Run the export again. |
 
 Known limit: the first read after the server starts can take longer than 3 s, so a client that sends several reads at once may see the later ones refused. Later reads answer normally.
@@ -44,7 +44,7 @@ A page cursor (`next_cursor`, sent back as `cursor`) is opaque. Send it back unc
 - A cursor is tied to what you are allowed to read. Other people's activity doesn't affect it. A change to your own access ends it.
 - An edited, hand-built or mismatched cursor answers `400 CURSOR_INVALID`. So does a cursor from before a server upgrade. Start again from the first page.
 - The cursor carries the total, so later pages don't count again. After an erase the total is recounted.
-- Ledger row cursors (`before=<clock>`) are a different kind of cursor and work as before.
+- Ledger row cursors (`before=<clock>`) are a different kind of cursor, and these rules don't apply to them.
 
 Person-facing words for `CURSOR_INVALID`: "This list changed since that page. Start again from the top."
 
@@ -56,7 +56,7 @@ A filter, sort, group, aggregate, distinct-values call or text search on a field
 { "code": "QUERY_FIELD_NOT_READABLE", "field": "body.title" }
 ```
 
-The status is `400`. The answer depends on the field and who you are, never on the data, so it is the same whether or not matching records exist. It applies to `POST /v1/records/query` (plain, aggregation, and standing queries), MCP `find`, reductions, ledger pages (`filter`, `sort`, `q`, a chosen view) and values, ledger stats, a run's `read_thread` filter, and app reads. On aggregates it replaces `403 REDUCTION_FIELD_WITHHELD`.
+The status is `400`. The answer depends on the field and who you are, never on the data, so it is the same whether or not matching records exist. It applies to `POST /v1/records/query` (plain, aggregation, and standing queries), MCP `find`, reductions, ledger pages (`filter`, `sort`, `q`, a chosen view) and values, ledger stats, a run's `read_thread` filter, and app reads. On aggregates this code is used instead of `403 REDUCTION_FIELD_WITHHELD`.
 
 Who can filter on what:
 

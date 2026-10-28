@@ -17,9 +17,9 @@ When an actor works on a thread again, it sees the latest memory for each name,
 with who wrote it. It does not have to go looking for what it learned last
 time.
 
-## The CLI surface: spl memory
+## Manage memories with spl memory
 
-`spl memory` is the human surface for reading and writing memories.
+`spl memory` is how you read and write memories yourself.
 
 List an actor's memories:
 
@@ -41,7 +41,7 @@ description:
 ```bash
 spl memory add project-context \
   --type project \
-  --description "This instance dogfoods spl task for its own work tracking; th_tasks is the task thread." \
+  --description "This instance tracks its own work with spl task; th_tasks is the task thread." \
   --confidence 0.9 \
   --tag onboarding
 ```

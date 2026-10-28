@@ -30,7 +30,7 @@ The default install location can be overridden:
 INSTALL_DIR=/usr/local/bin curl -sSf https://get.syncropic.com/spl | sh
 ```
 
-`/usr/local/bin` requires `sudo`: the user-scope default does not.
+`/usr/local/bin` needs `sudo`; the default location does not.
 
 ## Windows (PowerShell)
 
@@ -126,7 +126,7 @@ If `spl version` reports `command not found` on Linux, your shell has not picked
 rm ~/.local/bin/spl
 ```
 
-Then remove the `~/.local/bin` PATH line from your shell rc if you added `spl` as the reason for it being there. Your `~/.syncro/` data directory is untouched: delete it separately if you want a full wipe (see [Reset and uninstall](/docs/get-started/reset-uninstall)).
+Then remove the `~/.local/bin` PATH line from your shell rc file if it was added only for `spl`. Your `~/.syncro/` data directory is untouched: delete it separately if you want a full wipe (see [Reset and uninstall](/docs/get-started/reset-uninstall)).
 
 ### Windows
 

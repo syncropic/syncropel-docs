@@ -3,7 +3,7 @@ title: Sharing a thread for bug repro
 description: spl share bundles a thread (with consent) into a single command a recipient can replay against their own instance. Signature-verified and time-bounded.
 ---
 
-`spl share <thread>` is the canonical "send me your repro" workflow.
+`spl share send <thread>` is the standard "send me your repro" workflow.
 It bundles every record in a thread (and optionally its causal
 ancestors) into a portable file, emits a `core.consent.v1` record
 authorizing a specific recipient to read those records, and prints a
@@ -71,7 +71,7 @@ spl share send th_a48c... --to did:sync:dev:alice --include-deps
 `--include-deps` walks the parent and ref graph recursively and
 includes every reachable record. Use this when the bug repro spans
 multiple threads (e.g. a workspace's manifest in one thread, the
-records that exposed the fold bug in another).
+records that triggered the display bug in another).
 
 Use `--depth N` to limit how far it follows chains.
 
@@ -160,4 +160,4 @@ forked thread first (emit corrections, archive the originals), then
 - [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) — installing and managing a workspace, not one-off sharing
 - [Installing & managing workspaces](/docs/operate/workspace/lifecycle) — install, update, archive
 - [Authoring a workspace](/docs/operate/workspace/authoring) — write a workspace document
-- [Backup & recovery](/docs/guides/backup-restore) — the durable-snapshot primitive
+- [Backup & recovery](/docs/guides/backup-restore) — durable snapshots of a whole instance

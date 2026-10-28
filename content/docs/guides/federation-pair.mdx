@@ -42,7 +42,7 @@ That's it. The output looks like this:
 → Initiating handshake (nonce: 8f4a...)
 → Awaiting peer approval...
 
-[on bob's side, an operator runs `spl decisions approve <id>`]
+[on bob's side, an admin runs `spl decisions approve <id>`]
 
 ✓ Pair confirmed
   pair_id:       fed_<sha256-of-both-DIDs>
@@ -55,7 +55,7 @@ That's it. The output looks like this:
                  spl sync th_workspace from did:sync:instance:bob-fedb12...
 ```
 
-The default posture is **manual approval on both sides**. The owner of bob's instance sees the pending request with `spl decisions list` and approves it with `spl decisions approve <id>`. Once approved, bob creates the account and token, and alice's command picks them up.
+The default is **manual approval on both sides**. The owner of bob's instance sees the pending request with `spl decisions list` and approves it with `spl decisions approve <id>`. Once approved, bob creates the account and token, and alice's command picks them up.
 
 For trusted environments where you want auto-approve (for example, several instances under one owner), see [Auto-approval via CEL](#auto-approval-via-cel) below.
 
@@ -69,7 +69,7 @@ When alice runs `spl federation pair add <peer-url>` and bob requires manual app
 4. Alice's next check receives `state: "active"` along with the token. Bob forgets the token once it has been collected, and keeps it for 5 minutes at most.
 5. Alice's command saves the pair and the peer's credential locally, and confirms with bob.
 
-If the 60 seconds pass without approval (the owner is away, say), alice's command prints a hint and exits successfully:
+If the 60 seconds pass without approval (for example, the owner is away), alice's command prints a hint and exits successfully:
 
 ```
 ! still pending after 60s; re-run `spl federation pair add` once the peer operator approves

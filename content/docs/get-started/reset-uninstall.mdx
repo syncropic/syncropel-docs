@@ -15,14 +15,14 @@ Automatic backups under `~/.local/share/syncropel/backups/instance-<did-tail>/` 
 `spl reset` wipes `~/.syncro/` back to a fresh state. It refuses to run while the workspace is running, shows what it will remove, asks you to confirm, and saves a dated backup of `hub.db` before deleting anything.
 
 ```bash
-spl stop                                # stop the workspace first
+spl stop                                        # stop the workspace first
 systemctl --user stop spl-serve.service         # if you use a systemd unit (reset will refuse otherwise)
 spl reset                                       # shows what it will remove, asks y/N, backs up hub.db, then wipes
 spl init                                        # create a new identity and settings (no --force needed)
-spl serve                              # start fresh
+spl serve                                       # start fresh
 ```
 
-`spl reset` deletes **everything inside `~/.syncro/`**, then `~/.syncro/` itself, except anything you keep with a `--keep-*` flag. That includes files that build up over time, such as `vfs.db*`, `agent/`, `content/`, `serve.log` and old backup files.
+`spl reset` deletes **everything inside `~/.syncro/`**, then `~/.syncro/` itself, except anything you keep with a `--keep-*` flag. That includes files that build up over time, such as `vfs.db*`, `agent/`, `content/` and `serve.log`. The `backups/` folder inside `~/.syncro/` is kept unless you add `--including-backups`, which also deletes it (and the copy this reset makes there).
 
 What `spl reset` **never** deletes:
 
@@ -103,21 +103,21 @@ spl init       # create your identity and settings
 spl serve      # start the workspace
 # Verify
 spl status   # workspace is healthy
-spl doctor   # all green
+spl doctor   # every check passes
 ```
 
 `spl task add "..."`, `spl thread list`, `spl status` and every other command work straight away, with no service account or token. The command line connects through a local socket at `~/.syncro/run/spl.sock` that only your user can use.
 
 You only need a service account to give limited access to something else: a browser, a phone, an AI client, another computer, or another workspace you sync with. See [Service accounts and tokens](/docs/get-started/service-accounts).
 
-On older versions that don't use the local socket, you need the older steps (`--insecure-localhost`, `service-account create --bootstrap`, `token save`, then restart). Upgrading (`curl get.syncropic.com/spl | sh`) avoids them.
+Older versions of `spl` don't use the local socket and need the longer steps (`--insecure-localhost`, `service-account create --bootstrap`, `token save`, then restart). Upgrading (`curl -sSf https://get.syncropic.com/spl | sh`) avoids them.
 
 ## Full uninstall
 
 ### Linux
 
 ```bash
-spl stop                                   # stop the workspace
+spl stop                                           # stop the workspace
 rm ~/.local/bin/spl                                # remove the program
 rm -rf ~/.syncro                                   # remove your data
 rm -rf ~/.local/share/syncropel                    # remove backups
@@ -218,7 +218,7 @@ Restore:
 
 ```bash
 spl stop
-cp ~/.local/share/syncropel/backups/instance-<tail>/hub.db.bak ~/.syncro/hub.db
+cp ~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak ~/.syncro/hub.db
 spl serve
 ```
 

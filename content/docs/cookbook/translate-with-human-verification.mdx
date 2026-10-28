@@ -5,7 +5,7 @@ description: One AI model translates, a second checks it, and a person steps in 
 
 ## Problem
 
-You need reliable English to Spanish translations for text your users see. One AI model usually gets it right but sometimes mishandles idioms, tone or formality. You have a trusted reviewer (Alice, a native Spanish speaker), but asking her to review every translation doesn't scale. You want her only when the AI models disagree.
+You need reliable English to Spanish translations for text your users see. One AI model usually gets it right but sometimes mishandles idioms, tone or formality. You have a trusted reviewer (Alice, a native Spanish speaker), but she can't review every translation. You want her only when the AI models disagree.
 
 ## Recipe
 
@@ -63,7 +63,7 @@ By default the two answers must be 85% similar in structure (`agreement_threshol
 }
 ```
 
-Post that via `spl infer --query-file`:
+Send it with `spl infer --query-file`:
 
 ```bash
 spl infer --query-file query.json --wait
@@ -83,6 +83,6 @@ Then run the infer command above. If Alice doesn't respond, the query ends with 
 
 ## See also
 
-- **[Orchestration Patterns — verify](/docs/guides/inference/orchestration-patterns#pattern-verify)** — how it works, step by step.
-- **[Fold Functions — best_of](/docs/guides/inference/fold-functions#function-best_of)** — why `best_of` fits here.
-- **[Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence)** — a variation where the person is the fallback, not the tiebreaker.
+- **[Orchestration Patterns — verify](/docs/guides/inference/orchestration-patterns#pattern-verify)**: how it works, step by step.
+- **[Fold Functions — best_of](/docs/guides/inference/fold-functions#function-best_of)**: why `best_of` fits here.
+- **[Escalate to human on low confidence](/docs/cookbook/escalate-to-human-on-low-confidence)**: a variation where the person is the fallback, not the tiebreaker.

@@ -5,7 +5,7 @@ description: Write a record that has no routing rule yet, see Syncropel propose 
 
 ## What you'll learn
 
-In about 30 minutes, you'll use the **decision gate**, which lets your workspace learn. You'll write a record that Syncropel doesn't yet know how to route, see it raise a **decision request** for your approval, approve it, and check that the next similar record routes without any new reasoning.
+In about 30 minutes, you'll use the **decision gate**, the way your workspace learns new rules with your approval. You'll write a record that Syncropel doesn't yet know how to route, see it raise a **decision request** for your approval, approve it, and check that the next similar record routes without any new reasoning.
 
 Syncropel never silently changes routing or permissions. It proposes, you decide, and your decision is saved as a record that is reused later.
 
@@ -16,11 +16,11 @@ A proposal is a `core.work.decision_request.v1` record, and you answer it with `
 ## Before you start
 
 - `spl` installed (`spl --version`)
-- A running workspace — either local (`spl serve`) or hosted (`<label>.syncropel.app`).
+- A running workspace, either local (`spl serve`) or hosted (`<label>.syncropel.app`).
 - `spl status` returns `healthy`.
 - A model provider key configured (`spl config set-key anthropic <key>`), because Syncropel needs a model to reason about new routing. On a hosted workspace the key is already set up.
 
-If you've never emitted a record before, do [Your first thread](./first-thread) first. This tutorial assumes you can read `spl thread records <id>` output.
+If you've never written a record before, do [Working with threads](./first-thread) first. This tutorial assumes you can read `spl thread records <id>` output.
 
 ## 1. Confirm proposals are enabled
 
@@ -39,9 +39,9 @@ spl config model claude-sonnet-4-6
 
 The change applies right away, with no restart.
 
-## 2. Emit a record with no matching routing rule
+## 2. Write a record with no matching routing rule
 
-Pick a body kind the workspace hasn't seen. The simplest is a fresh thread with a do-something intent:
+Pick a kind of work the workspace hasn't seen. The simplest is a new thread with an INTEND that asks for something:
 
 ```bash
 spl intend "Translate the README.md to French" --thread th_fr_translate
@@ -78,13 +78,13 @@ You'll see something like:
 1 pending
 ```
 
-The request includes the matching expression Syncropel suggests, the recommended target actor, and a confidence score. The full body is visible with:
+The request includes the matching expression Syncropel suggests, the recommended target actor and a confidence score. To see the full body:
 
 ```bash
 spl decisions list --json | jq '.[0]'
 ```
 
-Until you act, no rule exists and no future record will route differently. The pending decision also shows up in `spl resume` under **NEEDS**. The decision gate is the one place for everything waiting on you.
+Until you act, no rule exists and no future record will route differently. The pending decision also shows up in `spl resume` under **NEEDS**. The decision gate is the one place where everything waiting on you collects.
 
 ## 4. Approve the proposal
 
@@ -116,14 +116,14 @@ You should see `routing_translator_v1` in the list.
 <Callout type="info">
 **Three ways to answer a decision.** Not every decision is yes or no. A `core.work.decision_request.v1` asks for one of three kinds of answer, and the CLI has a command for each:
 
-- **CHOOSE** — pick from declared options. `spl decisions choose <id> <option-id>`; `approve` / `reject` are sugar for the common two-option case.
-- **PROVIDE** — supply an open value. `spl decisions provide <id> --value <json-or-string>`.
-- **ACKNOWLEDGE** — a plain "seen it". `spl decisions ack <id>`.
+- **CHOOSE**: pick from the listed options. `spl decisions choose <id> <option-id>`; `approve` and `reject` are shortcuts for the common two-option case.
+- **PROVIDE**: supply a value of your own. `spl decisions provide <id> --value <json-or-string>`.
+- **ACKNOWLEDGE**: a plain "seen it". `spl decisions ack <id>`.
 
-It is the same gate and audit trail whoever is asking: Syncropel itself, a paused work loop, a `spl decompose` plan or a paired workspace.
+It is the same gate and audit trail whoever asks: Syncropel itself, a paused work loop, a `spl decompose` plan or a paired workspace.
 </Callout>
 
-## 5. Emit a similar record and watch it route automatically
+## 5. Write a similar record and watch it route automatically
 
 ```bash
 spl intend "Translate the CONTRIBUTING.md to Spanish" --thread th_es_translate
@@ -137,11 +137,11 @@ spl thread records th_es_translate
 
 You should see two records back-to-back: your INTEND, and a follow-on DO from Syncropel with `body.dispatch_handled: true`, showing the route was used.
 
-Compare to step 2's thread, which has only your bare INTEND with no follow-on — that is the difference between reasoning every time and reusing a learned rule.
+Compare it with step 2's thread, which has only your INTEND with no follow-on. That is the difference between reasoning every time and reusing a learned rule.
 
 ## 6. Inspect the audit trail
 
-The proposal, your answer, and the rule application are all records. The decision request opened on its own thread; the answer fulfills it; the rule application lands on `th_engine_config`. Export the security-relevant slice — `spl audit export` emits one JSON record per line — and filter it:
+The proposal, your answer and the applied rule are all records. The decision request opened on its own thread, the answer fulfills it, and the rule lands on `th_engine_config`. Export the security-relevant records (`spl audit export` writes one JSON record per line) and filter them:
 
 ```bash
 spl audit export --since 1h | jq 'select(.body.kind | test("decision|routing_rule"))'
@@ -151,7 +151,7 @@ Every decision is a record, so the trail is complete (see [Governance](/docs/con
 
 ## What just happened
 
-You exercised Syncropel's **decision-record loop**:
+You used Syncropel's **decision loop**:
 
 1. **No match is useful.** When routing finds no match, Syncropel doesn't fall back to a default. It raises a `core.work.decision_request.v1` and waits.
 2. **Your answer is a record.** It is a DO that fulfills the request, and it stays on record through export, import and audit.
@@ -162,11 +162,11 @@ Syncropel proposes, you decide, and your decision becomes a lasting record.
 
 ## Where to next
 
-- [Your first crystallized pattern](./your-first-crystallized-pattern) — what happens as the same kind of work repeats and becomes a pattern.
-- [Patterns concept](/docs/concepts/patterns) — how patterns are matched, reused and made permanent.
-- [Engine concept](/docs/concepts/engine) — what keeps your workspace running, including how proposals are raised.
-- [Governance concept](/docs/concepts/governance) — how permissions, decisions and audit all work through records.
-- [Expressions guide](/docs/guides/cel-expressions) — write your own routing rules instead of waiting for a proposal.
+- [Your first pattern](./your-first-crystallized-pattern): what happens as the same kind of work repeats and becomes a pattern.
+- [Patterns concept](/docs/concepts/patterns): how patterns are matched, reused and made permanent.
+- [Engine concept](/docs/concepts/engine): what keeps your workspace running, including how proposals are raised.
+- [Governance concept](/docs/concepts/governance): how permissions, decisions and audit all work through records.
+- [Expressions guide](/docs/guides/cel-expressions): write your own routing rules instead of waiting for a proposal.
 
 ## Troubleshooting
 
@@ -174,6 +174,6 @@ Syncropel proposes, you decide, and your decision becomes a lasting record.
 |---|---|---|
 | `spl decisions list` always returns empty | Proposals are disabled, so nothing was proposed. | Confirm `spl config show` reports a model and provider key. Enable with `spl config set-key <provider> <key>` and `spl config model <name>`. |
 | A decision stays pending forever | You're reading from a paired workspace, not the one where the record was written. Decisions belong to the workspace that raised them. | Run `spl decisions list` against the workspace where the original record was written. Check `spl actor list` to confirm which DID is the active actor. |
-| `spl decisions approve` returns `403 forbidden` | Default-secure auth on a hosted workspace — answering a decision emits a record, and the bearer token lacks write scope. | Mint a service account with write scope: `spl service-account create --name "Decider" --scopes records:write --with-token`, then `spl token save <token>`. |
+| `spl decisions approve` returns `403 forbidden` | Answering a decision writes a record, and your token lacks write scope. Hosted workspaces require auth by default. | Create a service account with write scope: `spl service-account create --name "Decider" --scopes records:write --with-token`, then `spl token save <token>`. |
 | Approved rule didn't fire on the next similar record | The proposed rule is too narrow and matches only the exact first record. | Inspect with `spl config list-rules`, find the rule, and broaden its `match` expression. |
-| `spl audit` shows no decision records after approving | The approve command ran against a different namespace from the one you're reading. | Pass `--namespace <ns>` to match the namespace the original record was emitted into. |
+| `spl audit` shows no decision records after approving | The approve command ran against a different namespace from the one you're reading. | Pass `--namespace <ns>` to match the namespace the original record was written into. |

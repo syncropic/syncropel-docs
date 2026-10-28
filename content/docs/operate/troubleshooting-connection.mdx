@@ -1,9 +1,9 @@
 ---
 title: Troubleshooting connection issues
-description: The 10 connection-state failure modes the syncropel.com workspace can hit, with remediation per state and a common-error-code reference.
+description: The ten connection states Studio at syncropel.com can show when it talks to an instance, the fix for each, and a reference of common error codes.
 ---
 
-When the Studio workspace can't reach an instance, the connection is in
+When Studio can't reach an instance, the connection is in
 exactly one of ten states. Every state has a clear sign on screen and a
 short fix. This page maps each state to its symptom and remedy so
 you can resolve issues without opening DevTools.
@@ -15,7 +15,7 @@ visit [`/diagnose`](https://syncropel.com/diagnose). The
 page shows:
 
 - Current connection state + active credential
-- Recent API errors ring buffer (last 20 in this session)
+- Recent API errors (the last 20 in this session)
 - Browser feature checklist (IndexedDB, Web Crypto, Service Worker)
 - Reset-pairing button (forgets the credential, redirects to re-pair)
 - A copy-paste JSON snapshot for support tickets
@@ -73,7 +73,7 @@ with `spl pair --device browser-<name>` and click the printed URL.
 ### 4. Limited (scope insufficient) — partial_access
 
 **Symptom**: Banner is amber and says "Limited (scope insufficient)".
-Some panels render; others show an inline `ApiErrorPanel` saying the
+Some panels render; others show an inline error panel saying the
 token is missing a specific scope.
 
 **Why**: `/v1/health` succeeds + the credential is valid, but two or
@@ -81,7 +81,7 @@ more API endpoints have returned `403 SCOPE_FORBIDDEN` in the
 last 60 seconds. The token is real but doesn't have the scopes this
 view needs.
 
-**Fix**: Re-pair with broader scopes. The `ApiErrorPanel` shows the
+**Fix**: Re-pair with broader scopes. The error panel shows the
 exact command to copy:
 
 ```bash
@@ -92,8 +92,8 @@ Or scope it more narrowly to the resources you actually need.
 
 ### 5. Browser blocked (PNA / CORS)
 
-**Symptom**: Banner says "Browser blocked". Dashboard renders the
-`BrowserBlocksLocal` panel with a link to the pre-flight diagnostic.
+**Symptom**: Banner says "Browser blocked". The dashboard shows a
+panel explaining the block, with a link to the pre-flight diagnostic.
 
 **Why**: Chrome's Private Network Access policy blocks `https://syncropel.com`
 from fetching `http://127.0.0.1` without an explicit ACK from the
@@ -104,8 +104,8 @@ manually in `chrome://settings/content/insecureprivatenetwork`.
 
 ### 6. Multiple instances reachable
 
-**Symptom**: Banner says "Connecting…" and the `InstanceChooser` card
-appears with a list of detected instances.
+**Symptom**: Banner says "Connecting…" and a card appears listing
+the instances it found.
 
 **Why**: Two or more addresses answered `/health` (this machine, your LAN, or a URL you entered). You have to pick one.
 
@@ -113,9 +113,8 @@ appears with a list of detected instances.
 
 ### 7. Mobile cold start
 
-**Symptom**: On a phone (no instance-capable host on this device),
-banner shows the `MobileLocalWelcome` cards (QR pair + URL paste +
-browse).
+**Symptom**: On a phone, the page shows welcome cards (pair by QR,
+paste a URL, or browse).
 
 **Why**: Phones cannot run a Syncropel instance. The page offers pairing options instead.
 
@@ -150,7 +149,7 @@ generic unreachable panel.
 
 **Fix**: Open `/diagnose` → "Recent API errors" to see the
 underlying `code` + `message` from the instance. Most often it's
-either a stale instance (`upgrade spl serve`), a missing CORS allow
+either an outdated instance (upgrade it), a missing CORS allow
 entry (`spl config auth-set-cors-origins ...`), or a network glitch.
 
 ## Common error codes (HTTP 4xx)

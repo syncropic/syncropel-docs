@@ -92,7 +92,7 @@ Direct discovery works when you already know a URL. The **public directory** is 
 
 It is a phone book, not a gatekeeper:
 
-- **Opt-in.** An instance is invisible until its operator turns discovery on. Off by default.
+- **Opt-in.** An instance is invisible until its owner turns discovery on. Off by default.
 - **Minimal.** A listing carries a **handle** and a few **topics** — never your records, threads, or content.
 - **Self-attested.** Each listing is signed by its instance and checked before it is indexed. The directory cannot forge or change a listing.
 - **Not authoritative.** The directory is a convenience. You can still reach and verify any instance directly by URL, whether or not it is listed.
@@ -187,7 +187,7 @@ Discovering and reading a peer is read-only. To record an ongoing relationship �
 
 - **`peer served /.well-known/syncropel but no federation_manifest key`** — the peer has no identity configured. Run `spl init` or `spl identity generate` on it.
 - **`signature verification failed`** — the manifest was altered in transit, or the peer's identity belongs to a different key than the one that signed. Fetch again. If it keeps failing, the peer's identity is set up wrongly.
-- **`manifest expired`** — the peer's manifest has expired. Ask its operator to restart it.
+- **`manifest expired`** — the peer's manifest has expired. Ask its owner to restart it.
 - **A directory result won't load its public work** — the owner may have made the thread private again, or set it to *structure only*. A `404` on a public read looks the same as "no such thread".
 
 ## Next steps
@@ -195,4 +195,4 @@ Discovering and reading a peer is read-only. To record an ongoing relationship �
 - [**Federation pairing**](./federation) — once you've found a peer, pair to sync records two-way.
 - [**Consent**](./consent) — the grant model behind public threads and cross-namespace sharing.
 - [**Async federation**](./async-federation) — deliver records to peers that are offline through a relay.
-- [**Capability manifest**](../reference/api) — the sibling manifest at `/.well-known/syncropel`, covering non-federation API surfaces.
+- [**Capability manifest**](../reference/api) — the sibling manifest at `/.well-known/syncropel`, covering the rest of the API.

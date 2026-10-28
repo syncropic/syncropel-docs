@@ -1,20 +1,20 @@
 ---
 title: Build your first workspace
-description: Look at the workspace that comes with your instance, then write, install, update and archive one of your own. A workspace is a JSON file.
+description: Look at the workspace that comes with your instance, then write, install, publish and archive one of your own. A workspace is a JSON file.
 ---
 
 By the end of this tutorial you will have inspected the workspace that
 came with your instance, written your own `core.workspace.v1` document,
-installed it, updated it, and archived it. A workspace is a single JSON
-file and installing one is a single command — there is no build step.
+installed it, published it and archived it. A workspace is a single JSON
+file, and installing one is a single command. There is no build step.
 
 Allow about 10 minutes.
 
 ## Prerequisites
 
-- `spl serve` running locally — see the [Quickstart](/docs/start)
-  if not yet.
-- Identity initialized via `spl init` — see
+- `spl serve` running locally. See the [Quickstart](/docs/start)
+  if it isn't yet.
+- An identity set up with `spl init`. See
   [First run](/docs/get-started/first-run).
 - `spl` installed (`spl version`).
 
@@ -39,8 +39,8 @@ spl workspace show tasks
 ```
 
 You will see a `core.workspace.v1` record: a `meta` block, a
-`capabilities` block, a `regions` map, and a `lifecycle` field. This is
-the entire workspace — there is nothing else to it. Read the
+`capabilities` block, a `regions` map and a `lifecycle` field. That is
+the entire workspace. Read the
 [Workspaces concept](/docs/concepts/workspaces) for what each part does.
 
 ## 2. Write your own
@@ -70,12 +70,12 @@ Create `my-workspace.json`:
 }
 ```
 
-This is a complete, valid workspace. The `regions` are empty for now —
+This is a complete, valid workspace. The `regions` are empty for now:
 each region's `root` is where the actual UI goes. Filling a region with
-tables, forms, and text is the job of a **projection document**, covered
+tables, forms and text is the job of a **projection document**, covered
 in [Projections](/docs/guides/projections) and
-[Authoring a workspace](/docs/operate/workspace/authoring). For this
-tutorial we are walking the workspace envelope itself.
+[Authoring a workspace](/docs/operate/workspace/authoring). This
+tutorial covers only the workspace document itself.
 
 Note `capabilities`: an empty `emit` and `navigate: "none"` make this a
 read-only surface. A workspace can only do what its `capabilities` block
@@ -93,9 +93,9 @@ spl workspace install ./my-workspace.json
 ```
 
 `install` checked the document, then saved it as a record in
-your workspace catalog. If the file were malformed (a
+your workspace catalog. If the file is malformed (a
 missing `meta.slug`, or a region that is not a `{ srp, root }` pair), the
-install would be refused and nothing would be saved.
+install is refused and nothing is saved.
 
 Confirm it landed:
 
@@ -116,7 +116,7 @@ spl workspace update my-workspace ./my-workspace.json
 ```
 
 Now `spl workspace list` shows it. `update` added a new record. Records never change, so the draft version still exists; the
-catalog just shows the latest record for each slug.
+catalog shows the latest record for each slug.
 
 ## 5. Archive it
 
@@ -134,15 +134,15 @@ with `lifecycle` set to `published` again.
 ## What you did
 
 You inspected the starter workspace, wrote a `core.workspace.v1`
-document, and moved it through its whole lifecycle — draft, published,
-archived — using only records. No rebuild, plugin or restart.
+document, and moved it through its whole lifecycle (draft, published,
+archived) using only records. No rebuild, plugin or restart.
 
 ## Next steps
 
-- [Authoring a workspace](/docs/operate/workspace/authoring) — fill the
+- [Authoring a workspace](/docs/operate/workspace/authoring): fill the
   `regions` with real UI.
-- [Projections](/docs/guides/projections) — the document format the
+- [Projections](/docs/guides/projections): the document format the
   regions are written in.
-- [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle) —
-  the full command surface.
-- [Workspaces](/docs/concepts/workspaces) — the concept in depth.
+- [Installing &amp; managing workspaces](/docs/operate/workspace/lifecycle):
+  every workspace command.
+- [Workspaces](/docs/concepts/workspaces): the concept in depth.

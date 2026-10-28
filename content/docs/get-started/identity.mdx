@@ -11,9 +11,9 @@ This page explains how your identity stays the same across devices, and how to b
 
 When you sign in (on the web at syncropel.com or by connecting `spl` on a machine you maintain), you get the same identity every time. Signing in on a brand-new device gives you back the *same* identity, with the *same* content, automatically. There's no per-device setup and nothing to copy between machines for everyday use.
 
-**Lost a device? Just sign in again.** Your content is owned by your sign-in identity, not by any machine. A stolen laptop or a reinstalled phone costs you nothing: sign in on the next device and everything you own is there. You don't need a recovery phrase for this. Everyday continuity rides entirely on being able to sign in.
+**Lost a device? Just sign in again.** Your content is owned by your sign-in identity, not by any machine. A stolen laptop or a reinstalled phone costs you nothing: sign in on the next device and everything you own is there. You don't need a recovery phrase for this. Day to day, all you need is to be able to sign in.
 
-That is the story for a workspace **you own**. For a place somebody else let you into (a night, a project, a teammate's workspace), your way back on a new device is a key you keep yourself: see [Keeping your access](/docs/guides/keeping-your-access). The recovery phrase on this page protects the identity of whoever runs a workspace; a kept key re-opens one workspace for one person. They are different things and both are real.
+That is the story for a workspace **you own**. For a workspace somebody else let you into (a project, a teammate's workspace), your way back on a new device is a key you keep yourself: see [Keeping your access](/docs/guides/keeping-your-access). The recovery phrase on this page protects the identity of whoever runs a workspace; a kept key re-opens one workspace for one person. They are different things, and you may need both.
 
 You can see your current identity any time:
 
@@ -29,7 +29,7 @@ You can have more than one way to sign in (for example an email address and a Go
 
 ## Your recovery phrase
 
-Everyday access rides on signing in. But your identity also has a **recovery phrase**: 24 ordinary words that are your identity at its root. With it, you can rebuild your identity on any device, without any sign-in provider.
+Everyday access depends on signing in. But your identity also has a **recovery phrase**: 24 ordinary words that are your identity at its root. With it, you can rebuild your identity on any device, without any sign-in provider.
 
 <Callout type="info">
 The recovery phrase is available on workspaces that use **master identity mode**. On a machine you look after yourself, turn it on with `spl init --master` (or set `SPL_IDENTITY_MODE=master` before `spl init`). On a workspace without it, the commands below tell you they aren't available. Your everyday sign-in continuity (above) is unaffected.
@@ -81,4 +81,4 @@ The same phrase always rebuilds the same identity, on any device.
 2. Store them somewhere you'll still have in a year, not just on the device you're using now.
 3. Optionally split them into shares (`--shamir`) and keep the pieces in different places.
 
-That's it. With your recovery phrase saved, your identity (and everything you build on Syncropel) is genuinely yours, on every device, for good.
+With your recovery phrase saved, you can always get your identity, and everything it owns, back.

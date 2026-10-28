@@ -1,22 +1,22 @@
 ---
 title: Your first MCP integration
-description: Connect Claude Code (or any MCP-compatible AI client) to your workspace, use a tool from the client, and watch the records appear in Studio.
+description: Connect Claude Code (or any MCP-compatible AI client) to your workspace, use a tool from the client and watch the records appear in the Studio.
 ---
 
 ## What you'll build
 
-In about 30 minutes, you'll connect an AI client — Claude Code is the canonical example, but any [MCP](https://modelcontextprotocol.io/) client works the same way — to your local Syncropel workspace. You'll use a tool from the client, watch a record appear in your workspace, and inspect it with `spl thread list`.
+In about 30 minutes, you'll connect an AI client to your local Syncropel workspace. This page uses Claude Code, but any [MCP](https://modelcontextprotocol.io/) client works the same way. You'll use a tool from the client, watch a record appear in your workspace, and inspect it with `spl thread list`.
 
 Every action an AI client takes is recorded on a thread, signed by the actor that did it. You get a complete audit trail with no separate logging.
 
 ## Before you start
 
 - `spl` installed (`spl --version`; install with `curl get.syncropic.com/spl | sh`)
-- A workspace running locally with `spl serve`. Hosted workspaces also work but the bearer token must reach the MCP client (covered below).
-- An MCP-compatible AI client. This tutorial walks Claude Code in detail; the same pattern applies to Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI, Claude Desktop, Codex, etc.
+- A workspace running locally with `spl serve`. Hosted workspaces also work, but the MCP client needs your token (covered below).
+- An MCP-compatible AI client. This tutorial covers Claude Code in detail; the same steps apply to Cursor, Cline, Zed, Kiro, OpenCode, Gemini CLI, Claude Desktop, Codex and others.
 - The `claude` binary on your PATH if you're using Claude Code (`claude --version`).
 
-For all nine clients and the config paths on each system, see [AI Clients — three integration patterns](/docs/integrate/ai-clients).
+For all nine clients and their config paths on each system, see [AI clients: three integration patterns](/docs/integrate/ai-clients).
 
 ## 1. Confirm MCP works
 
@@ -28,17 +28,17 @@ spl mcp serve --help
 
 You should see help output for the MCP server. It talks to the client over stdio, so the AI client starts it itself and you don't run it by hand.
 
-You can sanity-check the server by piping a list-tools call yourself:
+You can check the server by sending it a list-tools call yourself:
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | spl mcp serve | head -c 500
 ```
 
-You should see a JSON response listing tools — `intend`, `do`, `know`, `learn`, `thread_list`, `thread_show`, etc. If the call hangs, the workspace isn't running — start it with `spl serve` and retry.
+You should see a JSON response listing tools such as `intend`, `do`, `know`, `learn`, `thread_list` and `thread_show`. If the call hangs, the workspace isn't running: start it with `spl serve` and try again.
 
 ## 2. Configure Claude Code
 
-Claude Code owns its own MCP registry via its `mcp` subcommand. The simplest path is the bundled setup helper:
+Claude Code keeps its own list of MCP servers, managed with its `mcp` subcommand. The simplest way to add Syncropel is the built-in setup helper:
 
 ```bash
 spl mcp setup-claude-code
@@ -53,15 +53,15 @@ Output:
   scope:   user
 ```
 
-This runs `claude mcp add syncropel -- spl mcp serve` for you. You can verify Claude Code now knows about it:
+This runs `claude mcp add syncropel -- spl mcp serve` for you. Check that Claude Code now knows about it:
 
 ```bash
 claude mcp list
 ```
 
-You should see `syncropel` in the list with status `running` (or it'll spin up on first use).
+You should see `syncropel` in the list with status `running` (or it starts on first use).
 
-For other clients — Cursor, Cline, Zed, etc. — the corresponding setup verbs are `spl mcp setup-cursor`, `spl mcp setup-cline`, `spl mcp setup-zed`, and so on. Each one writes to that client's own config location and is safe to run again.
+For other clients such as Cursor, Cline and Zed, the matching setup commands are `spl mcp setup-cursor`, `spl mcp setup-cline`, `spl mcp setup-zed`, and so on. Each one writes to that client's own config location and is safe to run again.
 
 ## 3. Open Claude Code and discover the tools
 
@@ -71,25 +71,25 @@ Start a Claude Code session in a workspace directory (any directory works for th
 cd /tmp && claude
 ```
 
-Inside Claude Code, type `/mcp` to see registered servers and their tools. You should see `syncropel` in the list with the available tools (`intend`, `do`, `know`, `learn`, plus thread + record helpers).
+Inside Claude Code, type `/mcp` to see registered servers and their tools. You should see `syncropel` with its tools (`intend`, `do`, `know`, `learn`, plus thread and record helpers).
 
-If `/mcp` shows `syncropel` but with `disabled` or `error`, jump to the Troubleshooting section — the most common cause is the workspace not running on the expected port.
+If `/mcp` shows `syncropel` with `disabled` or `error`, see [Troubleshooting](#troubleshooting). The most common cause is that the workspace isn't running on the expected port.
 
-## 4. Invoke a tool from Claude Code
+## 4. Use a tool from Claude Code
 
-Ask Claude Code to record an intent, then to read the thread back. A natural prompt:
+Ask Claude Code to record an intent, then to read the thread back. For example:
 
 ```
 Use the syncropel MCP server to record this intent: "Try out the MCP integration".
 Then list my recent threads and show me the one that was just created.
 ```
 
-Claude Code will (in order):
+Claude Code will, in order:
 1. Call `mcp__syncropel__intend` with the body.
 2. Call `mcp__syncropel__thread_list`.
 3. Call `mcp__syncropel__thread_show` on the new thread id.
 
-After the model finishes, you'll see in Claude Code's UI which tools fired and what they returned. Each call **ran against your local workspace**, was signed by an actor DID, and is now part of your record log.
+When the model finishes, Claude Code shows which tools it called and what they returned. Each call **ran against your local workspace**, was signed by an actor DID, and is now part of your record log.
 
 ## 5. Verify the records arrived
 
@@ -110,11 +110,11 @@ ACTOR                              ACT       BODY (excerpt)
 did:sync:agent:claude-code         INTEND    Try out the MCP integration
 ```
 
-The actor DID is the one Claude Code authenticated as — by default `did:sync:agent:claude-code`, but this is configurable via `claude mcp add ... --env SYNCROPEL_ACTOR=did:sync:agent:my-team-claude` if you run several clients under different identities.
+The actor DID is the identity Claude Code signed in as. It defaults to `did:sync:agent:claude-code`. If you run several clients under different identities, set it with `claude mcp add ... --env SYNCROPEL_ACTOR=did:sync:agent:my-team-claude`.
 
 ## 6. Watch records appear in Studio in real time
 
-Open Syncropel Studio at [`syncropel.com`](https://syncropel.com) (connected to your local workspace) — or pair it explicitly with `syncropel.com/connect?url=http://127.0.0.1:9100` — or for a hosted workspace, `syncropel.com/connect?url=https://<label>.syncropel.app`. The thread appears at the top of the thread list within about a second of the MCP call. You can see the whole path: the tool call, the record and the screen.
+Open the Studio at [`syncropel.com`](https://syncropel.com), connected to your local workspace. To connect it explicitly, use `syncropel.com/connect?url=http://127.0.0.1:9100`, or for a hosted workspace `syncropel.com/connect?url=https://<label>.syncropel.app`. The thread appears at the top of the thread list within about a second of the MCP call. You can see the whole path: the tool call, the record and the screen.
 
 You can also subscribe from the CLI:
 
@@ -128,7 +128,7 @@ Now go back to Claude Code and prompt:
 Record an observation that the integration is working: KNOW "MCP integration verified, records flowing".
 ```
 
-The new record streams into your terminal in real time as Claude Code executes the tool call.
+The new record appears in your terminal as soon as Claude Code makes the tool call.
 
 ## 7. Inspect the actor's trust and audit trail
 
@@ -140,7 +140,7 @@ spl actor show did:sync:agent:claude-code
 
 You'll see the actor's record history, the threads it takes part in, and trust scores per area of work as reviewers approve or reject its work.
 
-For an audit-grade view of every MCP call:
+To see every MCP call in the audit trail:
 
 ```bash
 spl thread records th_audit_records --json | jq '.[] | select(.body.actor | startswith("did:sync:agent:claude"))'
@@ -162,11 +162,11 @@ An AI client doesn't need to know what Syncropel is. It just sees a few well-sha
 
 ## Where to next
 
-- [AI Clients — three integration patterns](/docs/integrate/ai-clients) — the full nine-client setup matrix with per-OS config paths and edge cases (Zed gotcha, OpenCode top-level key, Cline globalStorage path).
-- [Programmatic agents](/docs/integrate/programmatic-agents) — for agents that write code: the `@syncropel/sdk` (npm) and `syncropel` (PyPI) clients give a typed surface to the same record log.
-- [Records concept](/docs/concepts/records) — what everything is built from. Every MCP call produces one.
-- [Governance concept](/docs/concepts/governance) — how audit, permissions and decisions all work through records.
-- [Service accounts and tokens](/docs/get-started/service-accounts) — when you want a long-lived non-human bearer for an agent (instead of reusing your personal device token).
+- [AI clients: three integration patterns](/docs/integrate/ai-clients): setup for all nine clients, with config paths per operating system and known quirks (Zed, the OpenCode top-level key, the Cline globalStorage path).
+- [Programmatic agents](/docs/integrate/programmatic-agents): for agents you write in code, the `@syncropel/sdk` (npm) and `syncropel` (PyPI) clients give typed access to the same record log.
+- [Records concept](/docs/concepts/records): what everything is built from. Every MCP call produces one.
+- [Governance concept](/docs/concepts/governance): how audit, permissions and decisions all work through records.
+- [Service accounts and tokens](/docs/get-started/service-accounts): when you want a long-lived token for an agent instead of reusing your personal device token.
 
 ## Troubleshooting
 
@@ -174,6 +174,6 @@ An AI client doesn't need to know what Syncropel is. It just sees a few well-sha
 |---|---|---|
 | `/mcp` in Claude Code shows `syncropel` with `error` or `disabled` | The workspace isn't running, or `spl` isn't on the PATH that Claude Code uses (common on macOS). | Confirm `spl status` works in a fresh shell. If it does but Claude Code still can't find it, pass an absolute path: `claude mcp remove syncropel && claude mcp add syncropel -- /usr/local/bin/spl mcp serve`. |
 | Tools list is empty | The workspace is on a non-default port and the MCP server is using the wrong URL. | Pass an explicit URL via env: `claude mcp add syncropel --env SPL_SERVE_URL=http://127.0.0.1:9200 -- spl mcp serve`. |
-| MCP calls return `401 unauthorized` | Sign-in is required (the default) and no bearer token is set for the MCP server. | Mint a service-account token: `spl service-account create --name "claude-code" --scopes records:write --with-token`, save the token: `spl token save <token>`, then re-launch Claude Code so the subprocess re-reads `~/.syncro/token`. |
+| MCP calls return `401 unauthorized` | Sign-in is required (the default) and no token is set for the MCP server. | Create a service-account token: `spl service-account create --name "claude-code" --scopes records:write --with-token`, save the token: `spl token save <token>`, then re-launch Claude Code so the subprocess re-reads `~/.syncro/token`. |
 | MCP calls succeed but records don't appear in Studio | The browser is connected to a different workspace URL than the one MCP wrote to. | Open `/settings/connections` (or the workspace switcher in the header) and check the active URL matches the workspace Claude Code wrote to. Switch if not. |
 | CORS errors in browser console after MCP calls landed records | The web app's address isn't in your workspace's list of allowed origins. | Add it: `spl config auth-set-cors-origins http://localhost:3000` (or whichever address the app runs on). |

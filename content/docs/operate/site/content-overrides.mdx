@@ -1,18 +1,18 @@
 ---
 title: Content overrides (Tier 2)
-description: Author a core.site.v1 record to override the L0 identity card's content slots — name, mission, links, Connect button. The spl site commands manage it; the record is portable.
+description: Author a core.site.v1 record to override the identity card's content slots — name, mission, links, Connect button. The spl site commands manage it; the record is portable.
 ---
 
 Tier 2 is the record-driven layer of [the instance site](/docs/operate/site).
-You author a `core.site.v1` record on the `th_site` thread and the instance applies its `content` slots on top of the L0 default. The
+You author a `core.site.v1` record on the `th_site` thread and the instance applies its `content` slots on top of the built-in default. The
 `spl site` commands manage it; the record is the
-same one a fleet seed script or a backup restore would write.
+same one a provisioning script or a backup restore would write.
 
 ## The shape
 
 A site record carries the operator's DID as `owner`, a lifecycle flag,
 and an optional `content` object. Slots are optional — leave a slot
-absent to keep the L0 default for that field.
+absent to keep the built-in default for that field.
 
 ```json
 {
@@ -41,10 +41,10 @@ absent to keep the L0 default for that field.
 
 ### `content` slots
 
-Every field is optional. Any slot you leave out keeps the L0 default, so you can set just the name and
+Every field is optional. Any slot you leave out keeps the built-in default, so you can set just the name and
 leave everything else as is.
 
-| Slot | Type | What it overrides | L0 default |
+| Slot | Type | What it overrides | Default |
 | --- | --- | --- | --- |
 | `name` | string ≤ 128 | The large serif heading + `<title>` | "A Syncropel Instance" |
 | `kind_label` | string ≤ 64 | The small mono uppercase label under the name | "Syncropel Instance" |
@@ -90,7 +90,7 @@ spl site init
 
 Creates an empty `core.site.v1` draft record on `th_site` for your
 operator DID. Fails if a draft already exists — pass `--force` to
-overwrite. A draft is invisible to `GET /`; the L0 default keeps
+overwrite. A draft is invisible to `GET /`; the built-in default keeps
 serving until you publish.
 
 ### Inspect what you have
@@ -112,7 +112,7 @@ spl site set --did-display true
 ```
 
 `set` is a patch — flags you don't pass leave the corresponding slot
-unchanged. To clear a slot and fall back to the L0 default, use
+unchanged. To clear a slot and fall back to the built-in default, use
 `--unset`:
 
 ```bash
@@ -123,7 +123,7 @@ spl site set --unset name kind_label   # clear several at once
 ### Manage the links grid
 
 ```bash
-# Append a link (max 6 total replace the L0 defaults)
+# Append a link (up to 6 in total; they replace the default links)
 spl site link add --label "Status" --href "/health" --indicator live
 spl site link add --label "GitHub" --href "https://github.com/acme" --external
 spl site link add --label "Team notes" --href "/w/handbook"
@@ -131,7 +131,7 @@ spl site link add --label "Team notes" --href "/w/handbook"
 # Remove the Nth link (0-indexed)
 spl site link remove 2
 
-# Clear all overrides — fall back to the L0 default 6 links
+# Clear all overrides — fall back to the 6 default links
 spl site link clear
 ```
 
@@ -182,7 +182,7 @@ spl site archive
 ```
 
 Archives the current published record. After archival the instance
-falls back to the L0 default. To return to
+falls back to the built-in default. To return to
 the published content, publish a new draft.
 
 ## What the history looks like

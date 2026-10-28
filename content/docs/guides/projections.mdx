@@ -125,7 +125,7 @@ type InlineNode =
   | { kind: "strike"; children: InlineNode[] };
 ```
 
-Block-level markdown (headings, lists, tables) is not in the subset — use dedicated SRP nodes (`heading`, `column` with item children, `grid`) for those.
+Block-level markdown (headings, lists, tables) is not in the subset. Use dedicated SRP nodes (`heading`, `column` with item children, `grid`) for those.
 
 ## Exported types
 
@@ -154,7 +154,7 @@ import type {
 } from "@syncropel/projections";
 ```
 
-These are the same tokens consumed by `@syncropel/react` — your type-checked `props` in `@syncropel/projections` automatically match what the React components accept.
+These are the same tokens `@syncropel/react` uses, so props you type-check with `@syncropel/projections` match what the React components accept.
 
 ## Using alongside the record SDK
 

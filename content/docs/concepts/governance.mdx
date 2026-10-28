@@ -54,7 +54,7 @@ A service touching a custom op    →  no match        →  DENY (fail-closed)
 
 **A high-priority deny beats every lower-priority allow.** You can add allow rules at lower priorities without widening access past a deny, and a deliberate deny ("agents can't delete records, ever") cannot be undone by an allow rule below it.
 
-When permissions are enabled but you've added no rules, every gated request returns `403`. This is intentional, until you've expressed what's allowed, nothing is. Most operators bootstrap with two or three broad allow rules covering normal traffic, then layer denies for the things that need to never happen. See the [keyring guide](/docs/operate/keyring) for the typical bootstrap.
+When permissions are enabled but you've added no rules, every gated request returns `403`. This is intentional: until you've said what's allowed, nothing is. Most workspaces start with two or three broad allow rules covering normal traffic, then add deny rules for the things that must never happen. See the [keyring guide](/docs/operate/keyring) for the typical bootstrap.
 
 A note on broken rules: if a permission rule's expression is invalid or fails when checked, it is skipped (with a warning in the log) rather than treated as allow or deny. A bad rule does not silently flip enforcement in either direction.
 

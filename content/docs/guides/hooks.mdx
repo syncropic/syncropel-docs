@@ -54,7 +54,7 @@ Syncropel includes two built-in hooks (a repeat guard and an absence guard). A `
 
 ### When it takes effect
 
-- **Normal runs** pick up a new hook straight away. A hook you save mid-run speaks on that run's next tool call.
+- **Normal runs** pick up a new hook straight away. A hook you save mid-run is shown after that run's next tool call.
 - **Sandboxed runs** get their hooks when they start. A hook saved after a sandboxed run has started reaches it the next time it starts.
 
 `max_fires_per_run` counts within one run. A resumed run starts counting again.
@@ -101,4 +101,4 @@ usually call `spl session hook` by hand. The related session-state verbs
 - [Routing rules](/docs/guides/routing-rules): the other settings records kept on
   `th_engine_config`.
 - [Session checkpoints](/docs/guides/session-checkpoints): the rest of the
-  `spl session` surface.
+  `spl session` commands.

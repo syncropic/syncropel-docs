@@ -9,9 +9,9 @@ You run a workspace. A teammate, call her Mora, needs to work on it. In this tut
 
 1. Issue a **membership invite** and send her the link.
 2. Watch her redeem it in the browser and appear on the roster.
-3. See her work under her own principal, including signed task verdicts.
+3. See her work under her own identity, including signed task verdicts.
 4. Renew her membership when the grant expires.
-5. Revoke it, and verify her access stops on her very next request.
+5. Revoke it, and check that her access stops on her very next request.
 
 This is different from [pairing a device](/docs/guides/pair-share-invite): a plain invite creates a credential, while a membership invite creates a **member** with their own identity, a membership grant and a credential tied to that grant. The concept page is [Principals & grants](/docs/concepts/principals-and-grants); this page is the walkthrough.
 
@@ -33,17 +33,17 @@ spl invite create --member --preset contributor
 What the flags mean:
 
 - `--member` makes this a membership invite. Accepting it creates an identity, a membership grant and a credential tied to that grant, not just a bearer token.
-- `--preset contributor` sets the membership grant's scopes (`records:read` + `records:write`). `reader` and `admin` are the other presets; `--scopes` overrides a preset with explicit wire strings.
-- The invite *link* expires in 24 hours by default (`--ttl` to change). The membership *grant* it will mint lasts 180 days by default (`--grant-ttl`, anywhere from 1 hour to 10 years). These are two different lifetimes: one for the unused link, one for the membership itself.
+- `--preset contributor` sets the membership grant's scopes (`records:read` + `records:write`). `reader` and `admin` are the other presets; `--scopes` replaces a preset with the scopes you list.
+- The invite *link* expires in 24 hours by default (`--ttl` to change). The membership *grant* it creates lasts 180 days by default (`--grant-ttl`, anywhere from 1 hour to 10 years). These are two different lifetimes: one for the unused link, one for the membership itself.
 
-Send Mora the link over whatever channel you trust. Anyone holding the link before it expires can use it, so treat it like a key, not like a webpage.
+Send Mora the link over a channel you trust. Anyone holding the link before it expires can use it, so treat it like a key.
 
 ## 2. Your teammate accepts it
 
-Mora opens the link. The invite page shows who issued it, what scopes it grants, and asks her to:
+Mora opens the link. The invite page shows who issued it and what scopes it grants, and asks her to:
 
-- **Choose a member name**: lowercase letters, digits, and hyphens, up to 63 characters (`mora`, `mora-k`). It becomes her DID on your workspace: `did:sync:user:mora`.
-- **Accept custodial custody**: the page states plainly that your workspace will hold her signing key and sign on her behalf. This is the only way to join; [Joining a workspace](/docs/get-started/joining-an-instance) covers what it means from her side.
+- **Choose a member name**: lowercase letters, digits and hyphens, up to 63 characters (`mora`, `mora-k`). It becomes her DID on your workspace: `did:sync:user:mora`.
+- **Accept custodial keys**: the page states plainly that your workspace will hold her signing key and sign on her behalf. This is the only way to join; [Joining a workspace](/docs/get-started/joining-an-instance) covers what it means from her side.
 
 She confirms. Behind the button, the browser calls `POST /v1/invites/inv_9f2c41d0b8a7/redeem` with her `member_label` and `custody: "custodial"`. Your workspace creates her identity, links her name to it, records the membership grant and your acceptance, then creates a service account and bearer token tied to the grant. The page shows her the token once.
 
@@ -69,14 +69,14 @@ spl invite audit
 2026-08-14T09:14:02Z     redeemed         inv_9f2c41d0b8a7
 ```
 
-Note the visibility rule: **you see every row because you are an admin.** When Mora runs `spl member list` against your workspace, she sees only her own row. The grant graph at `GET /v1/folds/grant` scopes the same way: admin sees everything, everyone else sees only grants where they are the issuer or the audience.
+Note the visibility rule: **you see every row because you are an admin.** When Mora runs `spl member list` against your workspace, she sees only her own row. The grant list at `GET /v1/folds/grant` works the same way: an admin sees everything, everyone else sees only grants where they are the issuer or the audience.
 
 ## 4. Your teammate works
 
-On her machine, Mora saves the bearer so the CLI injects it automatically:
+On her machine, Mora saves the token so the CLI sends it automatically:
 
 ```bash
-spl token save spl_prod_sa_XXXXXXXX_YYYYYYYYYYYY
+spl token save <her-token>
 spl task list          # now authenticated as did:sync:user:mora
 ```
 
@@ -86,9 +86,9 @@ From here she works like anyone else, with one difference that matters: when she
 spl task approve TASK-0041 --grade 0.75
 ```
 
-The verdict record names her as the evaluator, carries her signature, and the workspace checks it against her key. A verdict with a wrong signature is refused. She also cannot approve her own work under another name, because both sides are traced back to the member behind them.
+The verdict record names her as the reviewer and carries her signature, which the workspace checks against her key. A verdict with a wrong signature is refused. She also cannot approve her own work under another name, because both sides are traced back to the member behind them.
 
-Her bearer has its own expiry (30 days by default) and can be rotated ahead of time. The membership grant lasts longer; the bearer is a renewable credential under it.
+Her token has its own expiry (30 days by default) and can be rotated ahead of time. The membership grant lasts longer; the token is a renewable credential under it.
 
 ## 5. Renew when the grant expires
 
@@ -98,15 +98,15 @@ Six months later the membership grant expires. Mora's next request gets:
 401 GRANT_EXPIRED
 ```
 
-Renewal is for an **expired** grant. While her grant is live she never needs you to get back in: on any thread, **keep this access** makes her a key, and pasting it into Studio on a new device re-credentials her under the same grant (see [Keeping your access](/docs/guides/keeping-your-access)). To renew, issue a fresh invite **pinned to her name**. Only an admin can do this:
+Renewal is for an **expired** grant. While her grant is live she never needs you to get back in: on any thread, **keep this access** makes her a key, and pasting it into the Studio on a new device signs her in again under the same grant (see [Keeping your access](/docs/guides/keeping-your-access)). To renew, issue a fresh invite **pinned to her name**. Only an admin can do this:
 
 ```bash
 spl invite create --member --label mora
 ```
 
-She accepts the new link exactly as before. Because the invite is pinned to her name, it becomes a **renewal**: the same member (same DID, same history, same trust) gets a fresh grant and bearer, and the old grant is revoked with reason `membership-renewed`.
+She accepts the new link exactly as before. Because the invite is pinned to her name, it becomes a **renewal**: the same member (same DID, same history, same trust) gets a fresh grant and token, and the old grant is revoked with reason `membership-renewed`.
 
-Pinning also stops takeovers: an *unpinned* membership invite can never claim an existing name. If someone uses a generic invite and types `mora`, they get `409 MEMBER_LABEL_TAKEN`. Holding an invite link is not enough to become an existing member.
+Pinning also prevents takeovers: an *unpinned* membership invite can never claim an existing name. If someone uses a generic invite and types `mora`, they get `409 MEMBER_LABEL_TAKEN`. Holding an invite link is not enough to become an existing member.
 
 ## 6. Offboard
 
@@ -120,7 +120,7 @@ spl member revoke mora --reason "contract ended"
 ✓ Membership revoked: did:sync:user:mora (grant 7a29c4e1f0b3) — 1 credential(s) killed, 0 sub-grant(s) invalidated; scope: local
 ```
 
-One command ends everything: revoking the grant revokes **every credential tied to it**, including her bearer and any agent grants she had issued under her membership. Her bearer fails on its very next request:
+One command ends everything: revoking the grant revokes **every credential tied to it**, including her token and any agent grants she issued under her membership. Her token fails on its very next request:
 
 ```text
 401 GRANT_REVOKED
@@ -128,8 +128,8 @@ One command ends everything: revoking the grant revokes **every credential tied 
 
 Three notes on that output:
 
-- **Bilateral.** Mora can revoke her own membership too, because leaving is not something only the owner can do.
-- **Idempotent.** Revoking an already-revoked member reports success without erroring.
+- **Either side can end it.** Mora can revoke her own membership too: leaving is not something only the owner can do.
+- **Safe to repeat.** Revoking an already-revoked member reports success, not an error.
 - **`scope: local`.** The revocation applies to *this* workspace only. Credentials that live on other workspaces are not affected.
 
 The event lands as `member_revoked` on the same audit feed (`spl invite audit`).
@@ -141,7 +141,7 @@ Everything above is a handful of records, so you can check each step against the
 | Step | Record(s) |
 |---|---|
 | Invite issued | `core.invite.v1` on `th_invites`, carrying a `membership` envelope |
-| Redemption | `core.identity.created.v1` (genesis) + `core.identity.binding.v1` (`did:sync:user:mora` → her master DID) + `core.identity.grant.v1` (scopes, `expires_at`, caveats, chain) + `core.identity.acceptance.v1` (custodian-signed), then a service account and bearer tied to the grant |
+| Redemption | `core.identity.created.v1` (her new identity) + `core.identity.binding.v1` (links `did:sync:user:mora` to that identity) + `core.identity.grant.v1` (scopes, `expires_at` and limits) + `core.identity.acceptance.v1` (signed by your workspace on her behalf), then a service account and token tied to the grant |
 | Her approvals | Signed verdicts naming her as reviewer, checked when saved |
 | Renewal | A fresh grant + acceptance; a `core.identity.revoke.v1` closing the old grant (reason `membership-renewed`) |
 | Offboarding | One `core.identity.revoke.v1` naming the grant. Her credentials are revoked along with it |

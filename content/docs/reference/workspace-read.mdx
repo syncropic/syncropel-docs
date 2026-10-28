@@ -19,7 +19,7 @@ One rule holds everywhere on this read: **`null` means not known, never zero.** 
 
 ## `usable`, `not_usable_reason`, `provider_degraded`
 
-`usable` is true when the workspace is set up, an AI provider is running, an assistant exists, and the model has funding. `not_usable_reason` names the first thing that is missing, in the order they usually clear: `configuring`, `no_assistant`, `provider_starting`, `provider_unfunded`. The last one comes from outside the workspace: on a free workspace the shared allowance is used up, and nothing can answer until the operator adds funds. You can't fix that from inside the workspace.
+`usable` is true when the workspace is set up, an AI provider is running, an assistant exists, and the model has funding. `not_usable_reason` names the first thing that is missing, in the order they usually clear: `configuring`, `no_assistant`, `provider_starting`, `provider_unfunded`. The last one comes from outside the workspace: on a free workspace the shared allowance is used up, and nothing can answer until the allowance is topped up. You can't fix that from inside the workspace.
 
 `provider_degraded` is a warning beside `usable`, not a refusal. The workspace can still answer, but its last answer failed at the model. When the newest provider error mentions credit, balance, billing, quota or an authorization problem, and no later run has succeeded, it carries the error's words (at most 240 characters). It clears when a later run succeeds. A timeout does not set it.
 

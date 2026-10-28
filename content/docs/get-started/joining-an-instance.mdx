@@ -33,7 +33,7 @@ The workspace creates and holds your signing key, and signs on your behalf. In p
 - **Membership works both ways.** Both you and the workspace sign off when it starts, and either side can end it: they can remove you, and **you can end your own membership at any time**. You are not locked in.
 - **Everything is on the record.** Your joining, what you were allowed to do, your reviews, and any ending of your membership are all saved as records you can inspect.
 
-If that tradeoff is unacceptable for your situation, don't accept the invite: joining someone's workspace means trusting whoever runs it.
+If that tradeoff doesn't work for you, don't accept the invite: joining someone's workspace means trusting whoever runs it.
 
 ## Where your token goes
 
@@ -42,7 +42,7 @@ After you confirm, the page shows you a token **once**. Your tools use it to sig
 For the CLI:
 
 ```bash
-spl token save spl_prod_sa_XXXXXXXX_YYYYYYYYYYYY
+spl token save <token>
 ```
 
 That writes `~/.syncro/token` (readable only by you), and every `spl` command for the workspace sends it automatically. For an SDK or HTTP, send it in the `Authorization: Bearer` header. See [Service accounts and tokens](/docs/get-started/service-accounts) for the order `spl` looks for a token (`--token` flag, `SPL_TOKEN` environment variable, saved file).
@@ -54,7 +54,7 @@ Your token is tied to your membership. That has two effects:
 1. **The token expires sooner than your membership** (30 days by default) and can be renewed without touching your membership. Your membership lasts longer (180 days by default).
 2. **When your membership ends (it expires, you end it, or they do), every token under it stops working.** Your next request gets `401 GRANT_EXPIRED` or `401 GRANT_REVOKED`. A token never outlives the membership.
 
-A new device is not the end of your access either: open any thread, press **keep this access**, and the key it shows re-opens the place as you from any browser (see [Keeping your access](/docs/guides/keeping-your-access)). An expired membership is not the end of your identity: an admin sends a renewal invite for your name, you accept it, and you are the same member (same identity, same history) with a new membership and token.
+A new device is not the end of your access either: open any thread, press **keep this access**, and the key it shows re-opens the workspace as you from any browser (see [Keeping your access](/docs/guides/keeping-your-access)). An expired membership is not the end of your identity: an admin sends a renewal invite for your name, you accept it, and you are the same member (same identity, same history) with a new membership and token.
 
 ## Your row on the roster
 

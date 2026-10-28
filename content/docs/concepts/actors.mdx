@@ -76,12 +76,12 @@ Register each non-human actor you hand work to. People are set up by `spl init` 
 Trust shows how reliable an actor has been. Every completed task that passes review adds success evidence; every rejection adds failure evidence. Syncropel tracks it per actor and area of work (domain):
 
 ```
-                          ACTOR                   DOMAIN    SUCCESS   TOTAL   TRUST
-did:sync:user:alice     code            12      14   0.438
-did:sync:user:alice     ops              3       3   0.097
-did:sync:agent:dev      code             8       9   0.473
-did:sync:agent:dev      ops              1       4   0.012
-did:sync:agent:reviewer research         0       0   0.000
+ACTOR                    DOMAIN    SUCCESS  TOTAL  TRUST
+did:sync:user:alice      code           12     14  0.438
+did:sync:user:alice      ops             3      3  0.097
+did:sync:agent:dev       code            8      9  0.473
+did:sync:agent:dev       ops             1      4  0.012
+did:sync:agent:reviewer  research        0      0  0.000
 ```
 
 Trust starts at zero. With few observations, the score stays conservative. With many observations, it converges to the empirical success rate. See [Trust](/docs/concepts/trust) for how recent results outweigh old ones, why self-evaluation doesn't count, and how the score shapes what a member may do on its own.
@@ -111,7 +111,7 @@ For command-line work on your own workspace, no proof is needed: the actor comes
 
 - **Bearer tokens**: minted per service account via `spl service-account create`. Used by the SDKs, the CLI, paired workspaces and webhooks. Revocable per-token via `spl service-account revoke`.
 - **Signed records for federation**: every record pulled from a paired workspace carries its author's signature, which is checked when the record arrives.
-- **Keychain-held private keys**: for operators running their own `did:key` or `did:web` identity. The key lives in `~/.syncro/secrets/`; the workspace signs on the actor's behalf.
+- **Keychain-held private keys**: if you run your own `did:key` or `did:web` identity. The key lives in `~/.syncro/secrets/`; the workspace signs on the actor's behalf.
 
 See the [security model](/docs/operate/security-model) for sign-in, your first service account, tokens, pairing and recovery.
 

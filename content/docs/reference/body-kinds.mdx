@@ -25,11 +25,12 @@ This page documents the kinds most worth knowing by hand. The **complete, machin
 
 ## The conversational Faculty family
 
-Conversational replies are actor-agnostic: the beat shape lives in the
-kind, and *which* assistant produced it lives in the record's `actor` —
-so a new Faculty can hold conversations without any new kinds.
+Conversational replies work the same for every assistant: the kind says
+which step of the conversation a record is, and the record's `actor` says
+*which* assistant produced it. A new Faculty can hold conversations without
+any new kinds.
 
-| Kind | Beat |
+| Kind | Step |
 |---|---|
 | `core.faculty.call.v1` | The outbound model call for a conversational turn. |
 | `core.faculty.response.v1` | The reply — content, `stop_reason`, `model_used`, `usage` (all four token dimensions), `cost_usd`, and a `context` block (below). |
@@ -229,17 +230,16 @@ Every run of a work loop (`spl work-loop`, `POST /v1/work/loop`, or a chat assis
 
 ### Chat-actor delegation
 
-When a Scribe or Guide chat assistant receives a message that opens with `@agent <goal>`, it delegates to a real loop running under the **user**'s identity (not the chat assistant's), and reports back when the loop ends.
+When a chat assistant receives a message that opens with `@agent <goal>`, it hands the goal to a real loop running under the **user**'s identity (not the chat assistant's), and reports back when the loop ends.
 
-- **`core.work.delegation.v1`** — Scribe's record that it handed a goal to a work loop. `body.parent_loop_id` references the spawned loop.
-- **`core.work.delegation.v1`** — same shape, for the Guide actor.
+- **`core.work.delegation.v1`** — the assistant's record that it handed a goal to a work loop. `body.parent_loop_id` references the loop it started.
 - **`core.actor.usage.v1`** — daily per-actor aggregate (loop count, input/output tokens, cost). Used by the cost-preview endpoint to show "you've used $X.YZ of your $Z.WW daily cap."
 
-For the complete work-loop family (including artifact, note, coercion, and the scribe/guide call/response/error kinds) see [the body-kinds manifest](/docs/guides/body-kind-manifest).
+For the complete work-loop family (including artifact, note, coercion, and the older chat call/response/error kinds) see [the body-kinds manifest](/docs/guides/body-kind-manifest).
 
 ## Other built-in kinds
 
-The other kinds. Full details are on their own pages.
+Full details for these are on their own pages.
 
 - **`core.workspace.v1`** + **`core.workspace_view.v1`** — a workspace (an interactive screen saved as a record) and the view state remembered per thread and actor. See [Workspaces](/docs/concepts/workspaces).
 - **`core.instance.shell.v1`** — an instance's Studio frame (the navigation rail, side panels, and footer around every screen), saved as a record. Resolved at `GET /v1/instance/shell` and in the `GET /v1/instance/bootstrap` aggregate. See [Instance chrome](/docs/concepts/instance-chrome).
@@ -248,12 +248,12 @@ The other kinds. Full details are on their own pages.
 - **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`** — CEL-based settings records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).
 - **`core.subscription.v1`** — live-update (Server-Sent Events) subscriptions.
 - **`core.invite.v1`** — pair-share-invite envelope on `th_invites`. Fields: `invite_id`, `issuer_did`, `issuer_key_fp`, `scope_target` (`instance` / `thread:<id>` / `namespace:<ns>`), `scopes[]`, `ttl_seconds`, `max_uses`, `accept_holder_types[]` (`guest` / `federated` / `*`), `device_label?`, `notes?`, `signature`. See [Pair, share, invite](/docs/guides/pair-share-invite) and the [API reference — pair, share, invite](/docs/reference/api#pair-share-invite).
-- **`core.invite.event.v1`** — invite lifecycle events on `th_audit_invites` mirror. Discriminated by `event_kind`: `redeemed` (carries `holder_type`, `holder_did?`, `holder_pubkey?`, `bearer_token_id?`, `bearer_sa_id?`), `revoked` (carries `revoker_actor`, `revoker_reason?`), `exhausted` (auto-emitted when `uses_remaining` reaches 0), `refused` (carries `refusal_reason`: `expired` / `revoked` / `holder_type_mismatch` / `bad_proof` / `freshness_violation` / `key_unknown` / `consent_denied`).
-- **`core.invite_template.v1`** — operator's saved invite shapes on `th_invite_templates`. Fields: `template_id`, `label`, `ttl_seconds`, `max_uses`, `scopes[]`, `accept_holder_types[]`, `notes?`. Surfaces in the `spl invite templates` picker.
+- **`core.invite.event.v1`** — invite lifecycle events, mirrored on `th_audit_invites`. Discriminated by `event_kind`: `redeemed` (carries `holder_type`, `holder_did?`, `holder_pubkey?`, `bearer_token_id?`, `bearer_sa_id?`), `revoked` (carries `revoker_actor`, `revoker_reason?`), `exhausted` (auto-emitted when `uses_remaining` reaches 0), `refused` (carries `refusal_reason`: `expired` / `revoked` / `holder_type_mismatch` / `bad_proof` / `freshness_violation` / `key_unknown` / `consent_denied`).
+- **`core.invite_template.v1`** — the owner's saved invite shapes on `th_invite_templates`. Fields: `template_id`, `label`, `ttl_seconds`, `max_uses`, `scopes[]`, `accept_holder_types[]`, `notes?`. Surfaces in the `spl invite templates` picker.
 - **`core.identity.grant.v1`** — a grant between principals; membership is one of these. Carries the scopes, `expires_at`, limits (`max_depth` / `max_fanout` / `budget`), and `chain`, the ordered list of grants above it, checked when the record is saved (up to 64). Credentials created when a membership is accepted belong to this grant, and every request checks the grant is still valid (`401 GRANT_EXPIRED` / `GRANT_REVOKED`). See [Principals & grants](/docs/concepts/principals-and-grants).
 - **`core.identity.acceptance.v1`** — the signed acceptance that completes a membership. It shows the member agreed, rather than the grant being done *to* them. Written when a membership is accepted, alongside the grant.
 - **`core.identity.revoke.v1`** — a signed revocation naming a grant (`revoked_grant`). One record ends a membership: every credential that belongs to the revoked grant (bearers, agent sub-grants) stops working with it. Also emitted on renewal (reason `membership-renewed`) to close the superseded grant.
-- **`core.api_token.activity.v1`** — when a bearer token was last used. Written on every request authenticated by the token and joined into invite list rows via `bearer_token_id`. Used by the **Last seen** column on the operator panel.
+- **`core.api_token.activity.v1`** — when a bearer token was last used. Written on every request authenticated by the token and joined into invite list rows via `bearer_token_id`. Used by the **Last seen** column in the invite list.
 - **`core.runtime.v1`** — describes a runtime that an extension plugs in. See [Extensions](/docs/guides/extensions).
 - **`core.artifact.v1`** — published artifact records.
 - **`infer.query.v1`** — inference query records. Documented in detail at [infer.query.v1 schema reference](/docs/reference/infer-query-schema).

@@ -32,7 +32,7 @@ You can also start a loop without chat, with `spl work-loop "..."` or `POST /v1/
 Every agent has a **capability**: which tools it can call and what budget it has. Its tier sets this, not the launch:
 
 - The **granted** set is what the agent can call without asking, typically reading and writing records on threads.
-- The **requestable** set is what the agent can ask the owner to grant for a specific loop, through a structured decision request. The operator approves or declines; either way the request is a record.
+- The **requestable** set is what the agent can ask the owner to grant for a specific loop, through a structured decision request. The owner approves or declines; either way the request is a record.
 - The **budget** is the time and token limit the loop runs under. Loops that exceed the budget are halted with a clear reason.
 
 The launch surface (when you type `@agent <goal>` in Compose) shows the capability before the loop starts, so you know what the agent can do before it tries. If a goal needs something not granted, such as a tool its tier doesn't have or a thread it can't read, the loop stops and says so rather than guessing.
@@ -76,7 +76,7 @@ A blocked loop is not a bad outcome, it is the agent being honest about what it 
 
 An agent running on your own machine can do real work, not just write records. A loop can have a **workspace tool set**: it can run commands and read, write and edit files, but only inside a workspace directory you point it at. That is how an agent builds something: it edits files, runs a test, reads the output and tries again, with every step recorded on the loop's thread.
 
-This depends on who the agent runs as. Running shell commands and touching files is reserved for the owner's own loops (the operator tier). It is off by default and is enabled only when the owner has set up a workspace directory for the loop. Loops on a shared workspace do **not** get a shell. They work only with records and the storage they are given, never the underlying machine.
+This depends on who the agent runs as. Running shell commands and touching files is reserved for the owner's own loops (the Operator tier). It is off by default and is enabled only when the owner has set up a workspace directory for the loop. Loops on a shared workspace do **not** get a shell. They work only with records and the storage they are given, never the underlying machine.
 
 In short:
 

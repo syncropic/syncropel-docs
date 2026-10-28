@@ -1,6 +1,6 @@
 ---
 title: Summarize a research paper with 3 AI models
-description: Three AI models each summarise a paper, and Syncropel picks the answer most of them agree on. Shown for the command line, the TypeScript SDK and the Python SDK.
+description: Three AI models each summarize a paper, and Syncropel picks the answer most of them agree on. Shown for the command line, the TypeScript SDK and the Python SDK.
 ---
 
 ## Problem
@@ -9,7 +9,7 @@ You want a reliable one-paragraph summary of a research paper, plus a 1-5 rating
 
 ## Recipe
 
-One query, three AI models, combined with `consensus` (take the answer most agree on). `min_quorum: 2` means the query doesn't wait for a slow third model.
+One query to three AI models. The fold (the `--fold` option) decides how their answers are combined into one; here it is `consensus`, which takes the answer most of them agree on. `min_quorum: 2` means the query doesn't wait for a slow third model.
 
 ### With the command line
 
@@ -124,6 +124,6 @@ With three LLM providers configured in `~/.syncro/providers.yaml`, the command a
 
 ## See also
 
-- **[Fold Functions — consensus](/docs/guides/inference/fold-functions#function-consensus)** — how the votes are counted.
-- **[Orchestration Patterns — single_shot](/docs/guides/inference/orchestration-patterns#pattern-single_shot)** — the default pattern, used here.
-- **[Cost-bounded query waterfall](/docs/cookbook/cost-bounded-query-waterfall)** — try models in turn instead of asking all at once.
+- **[Fold Functions — consensus](/docs/guides/inference/fold-functions#function-consensus)**: how the votes are counted.
+- **[Orchestration Patterns — single_shot](/docs/guides/inference/orchestration-patterns#pattern-single_shot)**: the default pattern, used here.
+- **[Cost-bounded query waterfall](/docs/cookbook/cost-bounded-query-waterfall)**: try models in turn instead of asking all at once.

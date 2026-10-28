@@ -38,7 +38,7 @@ This reads `~/.syncro/run/spl.pid`, sends `SIGTERM` to the instance process, and
 
 ### When `spl stop` says "not running" but the instance clearly is
 
-This happens after long-running instances lose their PID file (host reboot, WSL restart, or the file was clobbered by a runaway test). The instance is still bound to port 9100 but `--stop` can't find it.
+This happens after long-running instances lose their PID file (host reboot, WSL restart, or the file was clobbered by a runaway test). The instance is still bound to port 9100 but `spl stop` can't find it.
 
 Recovery:
 
@@ -152,7 +152,7 @@ The sqlite `.bak` protects against local file loss. For a backup that travels �
 spl repo publish <namespace>/<repo> --relocation
 ```
 
-`--relocation` is shorthand for `--visibility L3 --scope instance --no-listing --carry-tokens`: it snapshots the instance as a verified, portable repository tree. Restore with `spl repo restore <dir-or-https-url>` (client-side, daemon stopped) or hydrate a fresh home at boot with `spl serve --repo <locator>`. The published repository is the canonical portable recovery form; the `.bak` remains the fast local safety net.
+`--relocation` is shorthand for `--visibility L3 --scope instance --no-listing --carry-tokens`: it snapshots the instance as a verified, portable repository tree. Restore with `spl repo restore <dir-or-https-url>` (client-side, daemon stopped) or hydrate a fresh home at boot with `spl serve --repo <locator>`. The published repository is the portable way to recover; the `.bak` stays the fast local safety net.
 
 ### What does NOT need to be backed up separately
 
@@ -457,7 +457,7 @@ spl fleet list
   3 live · 0 stale · 0 archived
 ```
 
-All declared instances should appear with status `live` and a recent `last_heartbeat`. If any show `stale` or are missing, see [Worker not registering](#worker-not-registering).
+All declared instances should appear with status `live`. If any show `stale` or are missing, see [Worker not registering](#worker-not-registering).
 
 ### Observing the fleet
 

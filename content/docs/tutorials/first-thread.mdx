@@ -1,15 +1,15 @@
 ---
 title: Working with Threads
-description: Threads group related records into workflows. Learn to create, track, and close threads.
+description: A thread groups related records into one piece of work. Create a thread, add records to it and close it.
 ---
 
 ## What you'll learn
 
-A thread is a sequence of related records that represent a workflow. Every task, conversation, and coordination flow is a thread. In this tutorial, you'll create a thread, add records to it, and close it.
+A thread is a sequence of related records that make up one piece of work. Every task and conversation is a thread. In this tutorial you'll create a thread, add records to it and close it.
 
 ## Create a thread
 
-Every intent opens a new thread automatically:
+Every INTEND opens a new thread:
 
 ```bash
 spl intend "Migrate the user database to the new schema"
@@ -21,7 +21,7 @@ The output includes a thread ID:
 ✓ Record created on thread th_7f3a...
 ```
 
-All subsequent records on this thread reference this ID.
+Pass this ID to add later records to the same thread.
 
 ## Add records to the thread
 
@@ -33,7 +33,7 @@ spl do "Applied migration script" --thread th_7f3a...
 spl know "All tables migrated, zero data loss" --thread th_7f3a...
 ```
 
-Each record builds the story of the thread — what was intended, what was done, and what was observed.
+Each record adds to the story of the thread: what was intended, what was done and what was observed.
 
 ## View the thread
 
@@ -49,20 +49,20 @@ This shows every record on the thread in chronological order, with the actor, ac
 spl thread list
 ```
 
-Shows all active threads with their latest activity, participant count, and record count.
+This shows all active threads with their latest activity, participant count and record count.
 
 ## Close a thread
 
-A thread closes when a KNOW fulfills its opening intent. Pass `--fulfills` on the closing KNOW; on its own, it fulfills
-this thread's opening INTEND for you.
+A thread closes when a KNOW fulfills its opening INTEND. Pass `--fulfills` on the closing KNOW. With no value, it
+fulfills the thread's opening INTEND.
 
 ```bash
 spl know "Migration complete, all services verified" --thread th_7f3a... --fulfills
 ```
 
 To fulfill a specific record rather than the thread's opening intent, name it:
-`--fulfills <record-id>`. Either way the KNOW carries `body.fulfills`, and the thread shows as done because of that link. The whole chain of records, from
-intent through the work to the closing observation, is kept as a history that never changes.
+`--fulfills <record-id>`. Either way the KNOW carries `body.fulfills`, and that link is what marks the thread as done. The whole chain of records, from
+the intent through the work to the closing observation, is kept as a history that never changes.
 
 ## Capture insights
 
@@ -72,7 +72,7 @@ After completing work, record what you learned:
 spl learn "Schema migrations should run in maintenance windows to avoid connection timeouts"
 ```
 
-LEARN records capture insights that improve future work. They are kept in your memory and inform future decisions.
+LEARN records capture insights for future work. They are kept in your memory and inform later decisions.
 
 ## What's next
 

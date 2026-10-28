@@ -62,7 +62,7 @@ a close (×) button to clear the selection.
 
 ## Edit a file
 
-Click **Edit** in the viewer chrome to switch into the editor. Editable kinds
+Click **Edit** in the viewer toolbar to switch into the editor. Editable kinds
 are markdown, code, JSON, CSV, and plain text. Images, PDFs, and other
 binary files have no editor (replace them by uploading again instead).
 
@@ -91,15 +91,15 @@ you type. Concretely:
 - **Saved on close**: closing the editor (Done button) or the browser tab
   flushes a final save first.
 
-The indicator next to the Save button always tells you the truth about
+The indicator next to the Save button always shows whether you have
 unsaved changes:
 
 | Indicator | Meaning |
 |---|---|
 | No changes yet | The file is exactly as it was when you opened it. |
 | Saving shortly… | You typed something; autosave will fire in a moment. |
-| Saving… | A save is in flight. |
-| ✓ Saved | Your most recent changes are persisted. Fades after a few seconds. |
+| Saving… | A save is in progress. |
+| ✓ Saved | Your most recent changes are saved. Fades after a few seconds. |
 | Unsaved changes | You typed more after the last save; the next autosave will pick them up. |
 | Retrying… | A save failed (network blip); the editor will retry once automatically. |
 | Save failed | A save failed twice. Click **Retry** to try again. |
@@ -210,14 +210,14 @@ mobile is optimized for **checking** files, not heavy organizing.
   recently touched, so you can dive straight in without browsing.
 - Editing works the same as on desktop: autosave, Save button, conflict
   handling all apply.
-- The Save button is always visible in the editor chrome, so you don't
+- The Save button is always visible in the editor, so you don't
   need a keyboard shortcut.
 - Tapping outside the editor area (the most natural "leave this screen"
   gesture) saves your changes.
 
 For complex moves and reorganization, switch to desktop or use the
-[command line](/docs/guides/filesystem). Mobile is the "read and quickly
-edit" surface; desktop is the "organize everything" surface.
+[command line](/docs/guides/filesystem). Use mobile to read and make quick
+edits, and desktop to organize.
 
 ## Agent activity
 

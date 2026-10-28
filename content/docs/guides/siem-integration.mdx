@@ -1,6 +1,6 @@
 ---
 title: SIEM Integration
-description: Send `spl audit export` to Splunk, Elastic, Loki or Datadog, with scheduled export and setup recipes for each.
+description: Send `spl audit export` output to Splunk, Elastic, Loki or Datadog, with a scheduled export and a setup recipe for each.
 ---
 
 ## What this guide covers
@@ -57,10 +57,10 @@ Known limit: `spl audit export` fetches records one thread at a time, so it is s
 
 The simplest production pattern:
 
-1. **Cron job** runs `spl audit export --since <window>` every N minutes
-2. **Output captured** to a rotating file or piped directly to a shipper
-3. **Shipper** (filebeat, vector, fluent-bit, splunk forwarder) tails the file and ships to SIEM
-4. **State file** tracks last successful export window so you don't double-ship or skip
+1. A **cron job** runs `spl audit export --since <window>` every N minutes.
+2. The **output** goes to a rotating file or straight to a log shipper.
+3. The **shipper** (Filebeat, Vector, Fluent Bit, Splunk forwarder) tails the file and sends it to your SIEM.
+4. A **state file** tracks the last successful export, so you don't send twice or skip a window.
 
 Here's a baseline cron script you can adapt:
 
@@ -107,9 +107,9 @@ sudo crontab -e
 # */5 * * * * /usr/local/bin/spl-audit-ship.sh >> /var/log/spl-audit-cron.log 2>&1
 ```
 
-### Idempotency considerations
+### Avoiding duplicates
 
-`spl audit export --since X` returns ALL records since X. If your last export was at Unix time `1712000000` and you run again with `--since 1712000000`, you'll get every record from that exact second forward, including ones already exported. There's no built-in deduplication.
+`spl audit export --since X` returns all records since X. If your last export was at Unix time `1712000000` and you run again with `--since 1712000000`, you'll get every record from that exact second forward, including ones already exported. There's no built-in deduplication.
 
 Three strategies:
 
@@ -234,7 +234,7 @@ Vector is a single program with lower memory use than Filebeat. A good choice if
 
 ## Loki
 
-Loki indexes labels rather than full text, so the trick is choosing useful labels without exploding cardinality. Use `category` (4 distinct values) and `record_actor_class` (a derived label like `system`/`agent`/`user` from the DID prefix). DON'T use the full DID or thread ID as a label — that explodes cardinality.
+Loki indexes labels rather than full text, so choose a few labels with few distinct values. Use `category` (4 distinct values) and an actor class (`system`, `agent` or `user`, taken from the DID prefix). Don't use the full DID or thread ID as a label: each distinct value creates a new stream, which makes Loki slow and expensive.
 
 ### Promtail approach
 
@@ -359,7 +359,7 @@ filebeat.inputs:
       stream: instance
 ```
 
-Filter for permission denials in the workspace log. They are NOT in the audit export:
+Filter for permission denials in the workspace log. They are not in the audit export:
 
 ```text
 index=security sourcetype=syncropel:instance "PERMISSION DENIED"
@@ -386,4 +386,4 @@ Before declaring your audit pipeline production-ready:
 
 - [`spl audit export`](/docs/reference/cli#developer-tools) — full CLI flags
 - [Debugging Syncropel](/docs/guides/debugging) — when to reach for audit export vs other tools
-- [Operator Runbook](/docs/operate/runbook) — workspace-log filtering for permission denials
+- [Runbook](/docs/operate/runbook) — workspace-log filtering for permission denials
