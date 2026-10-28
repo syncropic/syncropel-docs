@@ -7,14 +7,14 @@ description: Find other instances by URL with `spl discover`, or search the opt-
 
 Discovery answers a simple question: how do you find an instance worth connecting to? Syncropel gives you two ways, and you can use both:
 
-- **Direct, by URL** — if you already know (or can guess) a peer's address, fetch its signed description and check exactly what it advertises before you connect. No middleman is involved. Covered first, below.
-- **The public directory** — if you *don't* know who's out there, search an opt-in index by handle and topic. Instances choose to list themselves. The directory only holds a handle and a few topics, never your content.
+- **Direct, by URL**: if you already know (or can guess) a peer's address, fetch its signed description and check exactly what it advertises before you connect. No middleman is involved. Covered first, below.
+- **The public directory**: if you *don't* know who's out there, search an opt-in index by handle and topic. Instances choose to list themselves. The directory only holds a handle and a few topics, never your content.
 
 Both end the same way: you reach a real instance at a real URL, and everything it shows you is signed by that instance. No central authority decides who you can find or reach.
 
 If you already have a peer's URL and want to sync records with them, see the [federation pairing guide](./federation). This guide is for *finding* instances and for sharing or reading public work.
 
-## Direct discovery — `spl discover`
+## Direct discovery: `spl discover`
 
 Every instance publishes a description of itself (a "manifest") at `/.well-known/syncropel`. `spl discover` fetches it, checks the signature, and shows you what the peer advertises. You don't have to trust anything you can't check.
 
@@ -88,12 +88,12 @@ If the peer doesn't advertise a match, the command exits with an error code. Use
 
 ## The public directory
 
-Direct discovery works when you already know a URL. The **public directory** is how instances find each other when they don't — a voluntary, searchable index of instances that have chosen to be listed.
+Direct discovery works when you already know a URL. The **public directory** is how instances find each other when they don't: a voluntary, searchable index of instances that have chosen to be listed.
 
 It is a phone book, not a gatekeeper:
 
 - **Opt-in.** An instance is invisible until its owner turns discovery on. Off by default.
-- **Minimal.** A listing carries a **handle** and a few **topics** — never your records, threads, or content.
+- **Minimal.** A listing carries a **handle** and a few **topics**, never your records, threads, or content.
 - **Self-attested.** Each listing is signed by its instance and checked before it is indexed. The directory cannot forge or change a listing.
 - **Not authoritative.** The directory is a convenience. You can still reach and verify any instance directly by URL, whether or not it is listed.
 
@@ -101,11 +101,11 @@ It is a phone book, not a gatekeeper:
 
 On a hosted instance, you choose at signup whether to be listed. Turn it on and your listing is published automatically. Turn it off and it is withdrawn. The listing advertises only your handle and the topics you choose.
 
-You can change this at any time from your instance settings. Nothing about your records or threads is shared by being listed — discoverability and *making a thread public* (below) are separate, independent choices.
+You can change this at any time from your instance settings. Nothing about your records or threads is shared by being listed. Discoverability and *making a thread public* (below) are separate, independent choices.
 
 ### Search the directory
 
-The directory is searchable from **Studio** — open discovery and search by handle or topic; matching instances appear with their handle, topics, and a link to view their public work.
+The directory is searchable from **Studio**: open discovery and search by handle or topic; matching instances appear with their handle, topics, and a link to view their public work.
 
 To query it directly, the directory exposes a public read:
 
@@ -139,8 +139,8 @@ Discoverability lists your *instance*. Making a **thread** public is what lets s
 
 From **Studio**, open a note or workspace thread you own and use its visibility control:
 
-- **Full content** — readers see the whole thread. This is the default for a document you mean to share.
-- **Structure only** — readers see that the thread exists and its shape, but not its contents.
+- **Full content**: readers see the whole thread. This is the default for a document you mean to share.
+- **Structure only**: readers see that the thread exists and its shape, but not its contents.
 
 A thread stays public for about a week, then the grant expires on its own; you can make it private again at any time. The visibility Studio shows is always current.
 
@@ -160,7 +160,7 @@ Making a thread public is done in Studio or over the API. The `spl consent grant
 
 ## Read someone's public work
 
-From **Studio**, a directory result with public threads offers **View public work** — it reads the peer's public threads and renders them read-only, the same way your own threads render.
+From **Studio**, a directory result with public threads offers **View public work**. It reads the peer's public threads and renders them read-only, the same way your own threads render.
 
 Over HTTP, a peer's public thread can be read from the peer's own instance without signing in:
 
@@ -169,11 +169,11 @@ Over HTTP, a peer's public thread can be read from the peer's own instance witho
 curl "https://rae.syncropel.app/v1/public/thread/th_..."
 ```
 
-A thread that isn't public returns `404` — the response never reveals whether a private thread exists. You get only the level the owner granted: a `Full content` grant returns the readable body; a `Structure only` grant returns shape without contents.
+A thread that isn't public returns `404`, and the response never reveals whether a private thread exists. You get only the level the owner granted: a `Full content` grant returns the readable body; a `Structure only` grant returns shape without contents.
 
 ## Connections
 
-Discovering and reading a peer is read-only. To record an ongoing relationship — **view**, **follow**, or **pair** — you create a connection. Studio offers one-click connect from a directory result; you can also manage connections with `spl connection` (add, list, archive, revoke). Pairing, which enables two-way record sync, is covered in the [federation pairing guide](./federation).
+Discovering and reading a peer is read-only. To record an ongoing relationship (**view**, **follow**, or **pair**), you create a connection. Studio offers one-click connect from a directory result; you can also manage connections with `spl connection` (add, list, archive, revoke). Pairing, which enables two-way record sync, is covered in the [federation pairing guide](./federation).
 
 ## Security properties
 
@@ -185,14 +185,14 @@ Discovering and reading a peer is read-only. To record an ongoing relationship �
 
 ## Common troubleshooting
 
-- **`peer served /.well-known/syncropel but no federation_manifest key`** — the peer has no identity configured. Run `spl init` or `spl identity generate` on it.
-- **`signature verification failed`** — the manifest was altered in transit, or the peer's identity belongs to a different key than the one that signed. Fetch again. If it keeps failing, the peer's identity is set up wrongly.
-- **`manifest expired`** — the peer's manifest has expired. Ask its owner to restart it.
-- **A directory result won't load its public work** — the owner may have made the thread private again, or set it to *structure only*. A `404` on a public read looks the same as "no such thread".
+- **`peer served /.well-known/syncropel but no federation_manifest key`**: the peer has no identity configured. Run `spl init` or `spl identity generate` on it.
+- **`signature verification failed`**: the manifest was altered in transit, or the peer's identity belongs to a different key than the one that signed. Fetch again. If it keeps failing, the peer's identity is set up wrongly.
+- **`manifest expired`**: the peer's manifest has expired. Ask its owner to restart it.
+- **A directory result won't load its public work**: the owner may have made the thread private again, or set it to *structure only*. A `404` on a public read looks the same as "no such thread".
 
 ## Next steps
 
-- [**Federation pairing**](./federation) — once you've found a peer, pair to sync records two-way.
-- [**Consent**](./consent) — the grant model behind public threads and cross-namespace sharing.
-- [**Async federation**](./async-federation) — deliver records to peers that are offline through a relay.
-- [**Capability manifest**](../reference/api) — the sibling manifest at `/.well-known/syncropel`, covering the rest of the API.
+- [**Federation pairing**](./federation): once you've found a peer, pair to sync records two-way.
+- [**Consent**](./consent): the grant model behind public threads and cross-namespace sharing.
+- [**Async federation**](./async-federation): deliver records to peers that are offline through a relay.
+- [**Capability manifest**](../reference/api): the sibling manifest at `/.well-known/syncropel`, covering the rest of the API.

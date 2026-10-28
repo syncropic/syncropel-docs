@@ -41,13 +41,13 @@ Exempt routes (unauthenticated even when auth is enforced):
 - `GET /.well-known/syncropel`
 - `POST /v1/recredential` (the proof in the body is the credential; every refusal looks the same; rate limited; see [Self](#self))
 
-For the full model — scopes, token format, rotation, federation composition — see the [Authentication & Service Accounts guide](/docs/operate/keyring). Endpoints for managing service accounts and tokens are documented in the [Service accounts](#service-accounts) section below.
+For the full model (scopes, token format, rotation, federation composition), see the [Authentication & Service Accounts guide](/docs/operate/keyring). Endpoints for managing service accounts and tokens are documented in the [Service accounts](#service-accounts) section below.
 
 ## Health
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health` | Health check — returns `{"status": "ok", "version", "instance_did", "proof_kinds_accepted"}`. `proof_kinds_accepted` lists which re-credential proofs this instance takes (`recovery_code`, and `account` or `passkey` once declared), and `passkey_rp: {rp_id}` names the relying party when one is declared, so a client can tell before authenticating. |
+| GET | `/health` | Health check. Returns `{"status": "ok", "version", "instance_did", "proof_kinds_accepted"}`. `proof_kinds_accepted` lists which re-credential proofs this instance takes (`recovery_code`, and `account` or `passkey` once declared), and `passkey_rp: {rp_id}` names the relying party when one is declared, so a client can tell before authenticating. |
 
 ## Records
 
@@ -57,17 +57,17 @@ For the full model — scopes, token format, rotation, federation composition �
 | GET | `/v1/records/:id` | Get a record by ID |
 | GET | `/v1/records?thread=X` | List records filtered by thread |
 | GET | `/v1/records?actor=X` | List records filtered by actor |
-| POST | `/v1/records/query` | Rich query — MongoDB-style filter document over the log |
-| POST | `/v1/records/search` | Semantic search — rank records by cosine similarity to an embedded query |
+| POST | `/v1/records/query` | Rich query: a MongoDB-style filter document over the log |
+| POST | `/v1/records/search` | Semantic search: rank records by cosine similarity to an embedded query |
 | POST | `/v1/records/embed` | Backfill embeddings for records that don't yet have one under the active provider |
 
 ## Find
 
-Blended text search — file names, file contents, and conversations in one ranked result set. No embedding provider required. See the [Find guide](/docs/guides/find) for hit shapes and examples.
+Blended text search: file names, file contents, and conversations in one ranked result set. No embedding provider required. See the [Find guide](/docs/guides/find) for hit shapes and examples.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/v1/find?q=X` | Blended search. Params: `limit` (≤100), `types` (`material`\|`thread`), `explain`, `prefix` (type-ahead — last word matches as a prefix) |
+| GET | `/v1/find?q=X` | Blended search. Params: `limit` (≤100), `types` (`material`\|`thread`), `explain`, `prefix` (type-ahead: last word matches as a prefix) |
 | GET | `/v1/search/stats` | Index health: coverage, pending items, last indexing failure |
 | POST | `/v1/search/rebuild` | Drop + incrementally re-index. Body: `{"scope": "materials" \| "threads" \| "all"}` |
 
@@ -121,7 +121,7 @@ The error always names the failing ancestor and includes the exact recovery comm
 
 ### Rich query
 
-`POST /v1/records/query` runs a structured filter over the record log server-side. The body is the filter AST — top-level keys are AND-combined, values are either scalars (sugar for `$eq`) or operator documents (`$in`, `$gt`, `$like`, `$regex`, `$and`, `$or`, `$not`, …). Body fields are addressed with dot-paths (`body.kind`, `body.priority`, `body._refs.track.id`). See the [query guide](/docs/guides/query) for the full grammar, operator semantics, and index-awareness.
+`POST /v1/records/query` runs a structured filter over the record log server-side. The body is the filter AST: top-level keys are AND-combined, values are either scalars (sugar for `$eq`) or operator documents (`$in`, `$gt`, `$like`, `$regex`, `$and`, `$or`, `$not`, …). Body fields are addressed with dot-paths (`body.kind`, `body.priority`, `body._refs.track.id`). See the [query guide](/docs/guides/query) for the full grammar, operator semantics, and index-awareness.
 
 ```bash
 curl -s -X POST http://localhost:9100/v1/records/query \
@@ -142,9 +142,9 @@ Request body:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `thread` | string | — | Optional thread scope. Shorthand for adding `{"thread": "..."}` to the filter; lets the backend use the thread index |
+| `thread` | string | None | Optional thread scope. Shorthand for adding `{"thread": "..."}` to the filter; lets the backend use the thread index |
 | `filter` | object | `{}` | MongoDB-style filter document |
-| `sort` | object | — | Single-key sort spec: `{"clock": -1}` or `{"created_at": 1}` |
+| `sort` | object | None | Single-key sort spec: `{"clock": -1}` or `{"created_at": 1}` |
 | `limit` | int | 100 | Result cap. Clamped to 1000: asking for more returns 1000 and `capped: true` |
 | `offset` | int | 0 | Pagination offset |
 | `explain` | bool | `false` | When `true`, response includes a `plan` block describing the translated SQL, bind count, and which fields used the indexed fast path vs. `json_extract` |
@@ -182,7 +182,7 @@ Response:
 }
 ```
 
-The `plan` block is only present when `explain=true`. Results are always filtered to the caller's namespace — records outside it never appear.
+The `plan` block is only present when `explain=true`. Results are always filtered to the caller's namespace. Records outside it never appear.
 
 Error codes:
 
@@ -191,7 +191,7 @@ Error codes:
 | `400` | `INVALID_QUERY` | Unknown operator, unknown field path, type mismatch, malformed filter |
 | `500` | `INTERNAL` | Storage backend failure |
 
-Index-backed fast paths depend on the [indexed field registry](/docs/guides/body-kind-manifest) — declare indexed `body.<field>` paths via `spl config add-body-kind-manifest` so predicates on them use `CREATE INDEX` expressions instead of scanning JSON.
+Index-backed fast paths depend on the [indexed field registry](/docs/guides/body-kind-manifest). Declare indexed `body.<field>` paths via `spl config add-body-kind-manifest` so predicates on them use `CREATE INDEX` expressions instead of scanning JSON.
 
 ### Semantic search
 
@@ -212,12 +212,12 @@ Request body:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `query` | string | — | Free-text query. Must be non-empty |
+| `query` | string | None | Free-text query. Must be non-empty |
 | `k` | int | 10 | Top-K to return. Clamped to `[1, 100]` |
-| `thread` | string | — | Restrict to records on this thread |
-| `actor` | string | — | Restrict to records emitted by this actor DID |
-| `kind` | string | — | Restrict to records whose `body.kind` matches |
-| `after_clock` | int | — | Restrict to records with `clock > N` |
+| `thread` | string | None | Restrict to records on this thread |
+| `actor` | string | None | Restrict to records emitted by this actor DID |
+| `kind` | string | None | Restrict to records whose `body.kind` matches |
+| `after_clock` | int | None | Restrict to records with `clock > N` |
 
 Response:
 
@@ -243,7 +243,7 @@ Response:
 }
 ```
 
-Results are filtered to the caller's namespace *after* scoring — a record outside it never reaches the response, regardless of score.
+Results are filtered to the caller's namespace *after* scoring. A record outside it never reaches the response, regardless of score.
 
 Error codes:
 
@@ -251,7 +251,7 @@ Error codes:
 |---|---|---|
 | `400` | `EMPTY_QUERY` | `query` was absent or blank |
 | `502` | `EMBEDDER_FAILED` | The configured provider rejected the embedding request |
-| `503` | `SEMANTIC_SEARCH_DISABLED` | No embedding provider is configured — see the [`embedding_provider` topic](/docs/reference/configuration#embedding-provider) |
+| `503` | `SEMANTIC_SEARCH_DISABLED` | No embedding provider is configured. See the [`embedding_provider` topic](/docs/reference/configuration#embedding-provider) |
 
 ### Backfill embeddings
 
@@ -264,7 +264,7 @@ curl -s -X POST http://localhost:9100/v1/records/embed \
   -d '{"limit": 100}'
 ```
 
-`limit` defaults to 100, max 500. Response: `{embedder, embedded, skipped_empty, failed, remaining, has_more}`. Loop until `has_more` is `false` — or drive the CLI wrapper `spl embed --loop`.
+`limit` defaults to 100, max 500. Response: `{embedder, embedded, skipped_empty, failed, remaining, has_more}`. Loop until `has_more` is `false`, or drive the CLI wrapper `spl embed --loop`.
 
 ## Threads
 
@@ -314,7 +314,7 @@ Files live in a per-namespace virtual filesystem. The `/v1/data/*` endpoints man
 
 ### Writing a file
 
-A write is three steps: initiate, upload (chunked), commit. Pass `precondition.expected_hash` for optimistic concurrency — a string for compare-and-swap, `null` for create-only; omit it for last-writer-wins. A mismatch returns `409` with `{ expected_hash, current_hash }`.
+A write is three steps: initiate, upload (chunked), commit. Pass `precondition.expected_hash` for optimistic concurrency: a string for compare-and-swap, `null` for create-only. Omit it for last-writer-wins. A mismatch returns `409` with `{ expected_hash, current_hash }`.
 
 ```bash
 # 1. initiate
@@ -435,10 +435,10 @@ curl -X POST http://localhost:9100/v1/dispatch \
 | Method | Path | Description |
 |---|---|---|
 | POST | `/v1/work/loop` | Start a work loop. Body: `{goal, max_turns?, token_budget?, wall_clock_secs?, workspace?}`. Returns the loop's `thread` id. |
-| POST | `/v1/work/loop/preview` | Cost preview — returns effective tier caps, usage so far today, `would_be_denied`, and `denial_reason` without starting a loop. |
+| POST | `/v1/work/loop/preview` | Cost preview. Returns effective tier caps, usage so far today, `would_be_denied`, and `denial_reason` without starting a loop. |
 | GET | `/v1/work/loop/{thread}` | Loop status for the given thread. |
 | POST | `/v1/work/loop/{thread}/cancel` | Cancel a running loop. Emits a `core.work.loop_cancel.v1` `DO` record; the cancel reaches the running loop. |
-| GET | `/v1/work/loop/{thread}/stream` | SSE live progress for the given loop thread. Alias for the thread-watch handler — the loop thread itself is the filter. |
+| GET | `/v1/work/loop/{thread}/stream` | SSE live progress for the given loop thread. Alias for the thread-watch handler: the loop thread itself is the filter. |
 | GET | `/v1/work/compensation/review` | Per-actor review of corrected runs (`operator` tier only). Returns the total number of corrections, a breakdown by where in the run they happened and by the assumption that was broken, and an anomaly score compared with the median across actors. |
 | GET | `/v1/work/compensation/review/top` | The actors corrected most often, by rate (`operator` tier only). |
 
@@ -472,7 +472,7 @@ The response shape:
 }
 ```
 
-The thread id is the loop id (there is no separate `loop_id` field). `tier` is the actor's resolved tier. `effective_config` carries the resource ceilings the loop will run under — combining the tier's daily limits with any per-loop `task_budget` you sent. `watch` is the SSE stream URL for live progress.
+The thread id is the loop id (there is no separate `loop_id` field). `tier` is the actor's resolved tier. `effective_config` carries the resource ceilings the loop will run under, combining the tier's daily limits with any per-loop `task_budget` you sent. `watch` is the SSE stream URL for live progress.
 
 ### Cost preview before starting
 
@@ -483,7 +483,7 @@ curl -X POST http://localhost:9100/v1/work/loop/preview \
   -d '{"goal": "..."}'
 ```
 
-Returns the actor's effective tier (Trial / Paid / Team / Operator), the tier caps (`max_turns`, `wall_clock_secs`, `token_budget`, `daily_cost_cap_usd`, `daily_loop_cap`), usage so far today (`loop_count`, `cost_usd`), `estimated_cost_usd`, the `tool_grant` shape (`default` and `requestable` tool sets), and — if the request would exceed a cap — `would_be_denied: true` with `denial_reason` set to `WORK_DAILY_CAP_EXCEEDED` or `WORK_DAILY_COUNT_EXCEEDED`.
+Returns the actor's effective tier (Trial / Paid / Team / Operator), the tier caps (`max_turns`, `wall_clock_secs`, `token_budget`, `daily_cost_cap_usd`, `daily_loop_cap`), usage so far today (`loop_count`, `cost_usd`), `estimated_cost_usd`, the `tool_grant` shape (`default` and `requestable` tool sets), and, if the request would exceed a cap, `would_be_denied: true` with `denial_reason` set to `WORK_DAILY_CAP_EXCEEDED` or `WORK_DAILY_COUNT_EXCEEDED`.
 
 ### Watch live progress over SSE
 
@@ -492,7 +492,7 @@ curl -N http://localhost:9100/v1/work/loop/th_abc123.../stream \
   -H "Authorization: Bearer $SPL_TOKEN"
 ```
 
-Emits the loop's thread records as they land — `core.work.turn.v1`, `core.work.tool_call.v1`, `core.work.tool_result.v1`, and ultimately `core.work.loop_outcome.v1`.
+Emits the loop's thread records as they land: `core.work.turn.v1`, `core.work.tool_call.v1`, `core.work.tool_result.v1`, and ultimately `core.work.loop_outcome.v1`.
 
 ### Cancel a loop
 
@@ -541,7 +541,7 @@ your own sentence, never on an id.
 | Method | Path | Description |
 |---|---|---|
 | GET | `/v1/engine/health` | Engine health counters |
-| GET | `/v1/engine/expression_cache/stats` | CEL expression cache statistics (hit rate, size, avg compile time) — used by `spl doctor` |
+| GET | `/v1/engine/expression_cache/stats` | CEL expression cache statistics (hit rate, size, avg compile time), used by `spl doctor` |
 | GET | `/v1/config/rules` | List routing rules |
 | GET | `/v1/adapters` | List registered adapters |
 
@@ -562,7 +562,7 @@ There is no dedicated `/v1/audit/*` endpoint family. The [`spl audit export`](/d
 3. Filter client-side by category (system actor, the decision gate verdict, dispatch outcome, governance) and time window
 4. Emit one JSON object per matching record on stdout
 
-This means `spl audit export` works against any Syncropel instance without server-side changes. The trade-off is that it's O(n) over thread count — for very large stores you should pass `--thread <id>` to scope the query.
+This means `spl audit export` works against any Syncropel instance without server-side changes. The trade-off is that it's O(n) over thread count. For very large stores you should pass `--thread <id>` to scope the query.
 
 There is no server-side `/v1/audit/export` endpoint. Use `spl audit export` (scoped with `--thread <id>` for large stores).
 
@@ -582,16 +582,16 @@ The proxy endpoint accepts a Messages-API-shape request body and translates it i
 
 ## Capability discovery
 
-Two endpoints expose what the instance supports. Clients should prefer them over hard-coding feature flags — the manifest is the single source of truth.
+Two endpoints expose what the instance supports. Clients should prefer them over hard-coding feature flags: the manifest is the single source of truth.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/v1/capabilities` | authenticated (optional when auth is off) | Client-facing capability manifest |
-| GET | `/.well-known/syncropel` | unauthenticated | Public envelope — `capabilities_manifest` + `federation_manifest` as sibling keys |
+| GET | `/.well-known/syncropel` | unauthenticated | Public envelope: `capabilities_manifest` + `federation_manifest` as sibling keys |
 
 ### GET `/v1/capabilities`
 
-The authenticated surface. Returns the capability manifest scoped to the caller — auth state, advertised MCP tools, supported DID methods, store backend, available transports, API version. Clients use this to enable or disable features based on what the connected instance actually supports; SDKs feature-detect without a trial-and-error HTTP round trip.
+The authenticated surface. Returns the capability manifest scoped to the caller: auth state, advertised MCP tools, supported DID methods, store backend, available transports, API version. Clients use this to enable or disable features based on what the connected instance actually supports; SDKs feature-detect without a trial-and-error HTTP round trip.
 
 ```bash
 curl -s -H "Authorization: Bearer $SPL_TOKEN" \
@@ -636,9 +636,9 @@ Response (elided):
 }
 ```
 
-The `capabilities` map is a set of boolean feature flags covering the full surface — `sync`, `directory` (gated by `config.directory_enabled`), `federation_consent`, `identity`, `dispatch_observability`, `cusum_alerts`, `trust_detail`, `reconcile_queue`, and more. Flags are additive across releases; absence of a flag means unsupported.
+The `capabilities` map is a set of boolean feature flags covering the full surface: `sync`, `directory` (gated by `config.directory_enabled`), `federation_consent`, `identity`, `dispatch_observability`, `cusum_alerts`, `trust_detail`, `reconcile_queue`, and more. Flags are additive across releases; absence of a flag means unsupported.
 
-When auth is off, the endpoint is reachable without a token. When auth is on, an unauthenticated call returns `401 AUTH_REQUIRED` — use `/.well-known/syncropel` below for the public view.
+When auth is off, the endpoint is reachable without a token. When auth is on, an unauthenticated call returns `401 AUTH_REQUIRED`. Use `/.well-known/syncropel` below for the public view.
 
 ### GET `/.well-known/syncropel`
 
@@ -646,7 +646,7 @@ The unauthenticated surface, served at the [Well-Known URI](https://datatracker.
 
 | Key | Audience | Purpose |
 |---|---|---|
-| `capabilities_manifest` | Prospective client | Same shape as `/v1/capabilities` — a peer can feature-detect before authenticating |
+| `capabilities_manifest` | Prospective client | Same shape as `/v1/capabilities`, so a peer can feature-detect before authenticating |
 | `federation_manifest` | Prospective federation peer | Ed25519-signed; describes what this instance offers federation peers |
 
 ```bash
@@ -658,7 +658,7 @@ The `federation_manifest` key is present only when the instance is federation-en
 
 #### Federation manifest shape
 
-The `federation_manifest` is Ed25519-signed over its canonical JSON (excluding the `signature` field). Verification proceeds against the DID document resolved from `instance.did`. Consumers — `spl discover`, federation directories, peer-discovery CLIs — verify the signature before trusting any advertised field.
+The `federation_manifest` is Ed25519-signed over its canonical JSON (excluding the `signature` field). Verification proceeds against the DID document resolved from `instance.did`. Consumers (`spl discover`, federation directories, peer-discovery CLIs) verify the signature before trusting any advertised field.
 
 ```json
 {
@@ -729,7 +729,7 @@ For the discovery workflow and how this composes with `did:web`, `did:sync`, and
 |---|---|---|
 | GET | `/v1/identity` | The instance's identity, plus the calling token's authentication state |
 
-Returns the instance's own identity — `{actor, display_name, did, method, key_path, key_fingerprint}` — populated at instance startup. `spl init` creates a `did:key:...` identity. An install that has no DID needs `spl init --force` once.
+Returns the instance's own identity, `{actor, display_name, did, method, key_path, key_fingerprint}`, populated at instance startup. `spl init` creates a `did:key:...` identity. An install that has no DID needs `spl init --force` once.
 
 This endpoint requires a valid bearer token. The response also reports the calling token's own authentication state, so a renderer can decide what to show the viewer:
 
@@ -740,7 +740,7 @@ This endpoint requires a valid bearer token. The response also reports the calli
 | `service_account_id` | The service account behind the token, or `null` for a key-based identity. |
 | `expires_at` | When the token expires, or `null` if it does not. |
 
-The anonymous form of this block — `is_authenticated: false`, `scopes: []` — is what an unauthenticated caller sees inside the [bootstrap aggregate](#instance) below.
+The anonymous form of this block (`is_authenticated: false`, `scopes: []`) is what an unauthenticated caller sees inside the [bootstrap aggregate](#instance) below.
 
 ## Self
 
@@ -772,7 +772,7 @@ Refusals always look the same. `401 RECREDENTIAL_REFUSED` is the one answer for 
 
 ## Instance
 
-Endpoints that resolve an instance's **chrome** — the `core.instance.shell.v1` record that frames every screen of Studio. See [Instance chrome](/docs/concepts/instance-chrome) for the concept.
+Endpoints that resolve an instance's **chrome**: the `core.instance.shell.v1` record that frames every screen of Studio. See [Instance chrome](/docs/concepts/instance-chrome) for the concept.
 
 | Method | Path | Description |
 |---|---|---|
@@ -785,7 +785,7 @@ Returns the resolved `core.instance.shell.v1` record. Requires a valid bearer to
 
 | Query parameter | Description |
 |---|---|
-| `lifecycle` | `published` (default) — the live chrome. `draft` — the owner's unpublished draft; owner-only. |
+| `lifecycle` | `published` (default): the live chrome. `draft`: the owner's unpublished draft, owner-only. |
 
 ```json
 {
@@ -795,13 +795,13 @@ Returns the resolved `core.instance.shell.v1` record. Requires a valid bearer to
 }
 ```
 
-Returns `404` when no chrome has been published — a renderer falls back to its bundled default.
+Returns `404` when no chrome has been published. A renderer falls back to its bundled default.
 
 ### GET `/v1/instance/bootstrap`
 
 The aggregate a renderer calls on load. Returns the published chrome, the instance metadata, and the caller's identity together, so the frame draws without a waterfall of requests.
 
-This endpoint is **open** — it needs no token. An anonymous caller gets the public surface; a caller presenting a valid token additionally sees their resolved scopes in the `identity` block.
+This endpoint is **open**: it needs no token. An anonymous caller gets the public surface; a caller presenting a valid token additionally sees their resolved scopes in the `identity` block.
 
 ```json
 {
@@ -827,9 +827,9 @@ Federation is pull-first HTTP replication between two instances. Both flat (`/v1
 | GET | `/v1/sync/changes?thread=X&since=CURSOR&limit=N&feed=MODE&target_namespace=NS` | Cursor-paginated changes feed |
 
 Feed modes:
-- `normal` (default) — single response, returns up to `limit` (default 1000, max 10000) records
-- `longpoll` — holds the connection up to 30s waiting for new records
-- `continuous` — Server-Sent Events stream (for live subscriptions)
+- `normal` (default): single response, returns up to `limit` (default 1000, max 10000) records
+- `longpoll`: holds the connection up to 30s waiting for new records
+- `continuous`: Server-Sent Events stream (for live subscriptions)
 
 Response: `{records: [{id, record}], next_cursor: "opaque", has_more: bool}`. Records are consent-filtered per `target_namespace` (see [consent guide](../guides/consent)).
 
@@ -839,7 +839,7 @@ Response: `{records: [{id, record}], next_cursor: "opaque", has_more: bool}`. Re
 |---|---|---|
 | POST | `/v1/sync/records` | Fetch specific records by ID (federation-flagged path requires sig) |
 
-Request body: `{ids: [...]}` or `{records: [...]}`. When the `x-syncropel-federation: 1` header is set, each record must include a `sig` field — Ed25519 over canonical JSON. Unsigned federation requests return HTTP 422. Replay of previously-accepted records is deduped via content-addressed hash.
+Request body: `{ids: [...]}` or `{records: [...]}`. When the `x-syncropel-federation: 1` header is set, each record must include a `sig` field: Ed25519 over canonical JSON. Unsigned federation requests return HTTP 422. Replay of previously-accepted records is deduped via content-addressed hash.
 
 ### Pair management
 
@@ -855,16 +855,16 @@ Request body: `{ids: [...]}` or `{records: [...]}`. When the `x-syncropel-federa
 
 Create body: `{peer_did, peer_url, thread_id}`. Response includes `pair_id` and, if the instance detects a loopback misconfiguration, a `warning` field with the recovery command.
 
-The pair direction is semantically "target pulls source" — creating a pair on B with `peer_did=A` means records flow A→B. For bidirectional sync, create a pair on each side.
+The pair direction is semantically "target pulls source": creating a pair on B with `peer_did=A` means records flow A→B. For bidirectional sync, create a pair on each side.
 
-Pair state is persistent across instance restart — the registry is rebuilt from lifecycle records on a reserved control thread at startup.
+Pair state is persistent across instance restart. The registry is rebuilt from lifecycle records on a reserved control thread at startup.
 
 ### Federation health + per-pair stats
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/v1/sync/health` | Overall federation health — pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency, top slowest + error-prone pairs, active drift alerts |
-| GET | `/v1/sync/pairs/{id}/stats` | Per-pair detail — rolling rate, latency histogram, error count last hour, poll interval state, cumulative counters |
+| GET | `/v1/sync/health` | Overall federation health: pair counts by state, records pulled per hour/minute, mean/p50/p95 delivery latency, top slowest + error-prone pairs, active drift alerts |
+| GET | `/v1/sync/pairs/{id}/stats` | Per-pair detail: rolling rate, latency histogram, error count last hour, poll interval state, cumulative counters |
 
 Aggregate response shape (elided):
 
@@ -882,7 +882,7 @@ Aggregate response shape (elided):
 }
 ```
 
-Metrics are in-memory with a 1-hour rolling window — ephemeral, reset on instance restart. The instance-wide `/health` endpoint also includes a `federation` summary for one-glance status.
+Metrics are in-memory with a 1-hour rolling window: ephemeral, reset on instance restart. The instance-wide `/health` endpoint also includes a `federation` summary for one-glance status.
 
 ### LAN peer discovery
 
@@ -905,13 +905,13 @@ The instance advertises itself on `_syncropel._tcp.local` when `[sync.discovery]
 | GET | `/directory/{hash}/operations` | Full operation log for a did:sync |
 | GET | `/directory/handle/{handle}` | Resolve a human-readable handle to its did:sync |
 
-Gated by `config.directory_enabled` — off by default. An instance can act as a did:sync directory provider; most installs don't need to.
+Gated by `config.directory_enabled`, off by default. An instance can act as a did:sync directory provider; most installs don't need to.
 
 ## Service accounts
 
 | Method | Path | Scope | Description |
 |---|---|---|---|
-| POST | `/v1/bootstrap/service-account` | — (unauthenticated) | Create the first SA on a fresh install. One-shot per namespace |
+| POST | `/v1/bootstrap/service-account` | None (unauthenticated) | Create the first SA on a fresh install. One-shot per namespace |
 | GET | `/v1/service-accounts` | `admin` | List service accounts |
 | POST | `/v1/service-accounts` | `admin` | Create a new service account + token |
 | DELETE | `/v1/service-accounts/{id}` | `admin` | Revoke a service account (invalidates all its tokens) |
@@ -959,7 +959,7 @@ curl -H "Authorization: Bearer $SPL_TOKEN" \
   http://localhost:9100/v1/service-accounts
 ```
 
-Returns an array. `api_key` is always `null` in list responses — plaintext tokens are only disclosed at creation time.
+Returns an array. `api_key` is always `null` in list responses. Plaintext tokens are only disclosed at creation time.
 
 ```json
 [
@@ -983,7 +983,7 @@ curl -X POST http://localhost:9100/v1/service-accounts \
   -d '{"name": "Webhook integration"}'
 ```
 
-Response (`201 Created`) includes the plaintext bearer token **once** — save it immediately:
+Response (`201 Created`) includes the plaintext bearer token **once**. Save it immediately:
 
 ```json
 {
@@ -1040,11 +1040,11 @@ The surface for adding either a new device of yours (guest holder) or a federate
 
 | Method | Path | Scope | Description |
 |---|---|---|---|
-| GET | `/v1/scope_presets` | — (public) | Discover preset scope shapes (reader / contributor / admin) |
-| POST | `/v1/invites` | `admin` (always — even on `auth.required=false`) | Issue a new pair invite |
+| GET | `/v1/scope_presets` | None (public) | Discover preset scope shapes (reader / contributor / admin) |
+| POST | `/v1/invites` | `admin` (always, even on `auth.required=false`) | Issue a new pair invite |
 | GET | `/v1/invites` | `admin` | List every invite this instance has issued + per-row current state |
-| GET | `/v1/invites/{id}` | — (public) | Public preview of the current state consumed by the QR landing page |
-| POST | `/v1/invites/{id}/redeem` | — (public; holder credential in body) | Guest or federated holder mints SA + bearer |
+| GET | `/v1/invites/{id}` | None (public) | Public preview of the current state consumed by the QR landing page |
+| POST | `/v1/invites/{id}/redeem` | None (public; holder credential in body) | Guest or federated holder mints SA + bearer |
 | POST | `/v1/invites/{id}/revoke` | `admin` | Idempotent revoke |
 | GET | `/v1/invites/audit` | `admin` (always) | Feed of `core.invite.event.v1` records from `th_audit_invites` |
 | POST | `/v1/invites/bulk-revoke` | `admin` (always) | Sweep every `expired` or `exhausted` invite in one call |
@@ -1067,7 +1067,7 @@ curl -X POST http://localhost:9100/v1/invites \
     "scopes": ["records:read", "records:write"],
     "accept_holder_types": ["guest"],
     "device_label": "Alice phone",
-    "notes": "personal device — for travel"
+    "notes": "personal device, for travel"
   }'
 ```
 
@@ -1089,9 +1089,9 @@ Response (`201`):
 }
 ```
 
-The optional `scope_target` body field narrows the invite — `{"kind": "thread", "thread_id": "th_..."}` or `{"kind": "namespace", "namespace": "..."}` instead of the default `{"kind": "instance"}`.
+The optional `scope_target` body field narrows the invite: `{"kind": "thread", "thread_id": "th_..."}` or `{"kind": "namespace", "namespace": "..."}` instead of the default `{"kind": "instance"}`.
 
-**Membership envelope.** An optional `membership` object turns the invite principal-creating — redemption mints an identity + membership grant instead of a bare credential:
+**Membership envelope.** An optional `membership` object turns the invite principal-creating: redemption mints an identity + membership grant instead of a bare credential:
 
 ```json
 {
@@ -1104,7 +1104,7 @@ The optional `scope_target` body field narrows the invite — `{"kind": "thread"
 }
 ```
 
-`preset` resolves the membership grant's scopes (`reader` / `contributor` / `admin`); `membership.ttl_seconds` is the *grant* lifetime (1 hour to 10 years, default 180 days — distinct from the invite link's own `ttl_seconds`); the optional `label` pins the member name, which is how renewal works — redeeming a label-pinned invite for an existing custodial member renews the same principal with a fresh grant + bearer, revoking the old grant. CLI: `spl invite create --member --preset contributor`.
+`preset` resolves the membership grant's scopes (`reader` / `contributor` / `admin`); `membership.ttl_seconds` is the *grant* lifetime (1 hour to 10 years, default 180 days, distinct from the invite link's own `ttl_seconds`); the optional `label` pins the member name, which is how renewal works: redeeming a label-pinned invite for an existing custodial member renews the same principal with a fresh grant + bearer, revoking the old grant. CLI: `spl invite create --member --preset contributor`.
 
 ### Preview an invite (public)
 
@@ -1112,9 +1112,9 @@ The optional `scope_target` body field narrows the invite — `{"kind": "thread"
 curl https://alice.syncropel.app/v1/invites/inv_a3f9...
 ```
 
-Returns the current state: `revoked`, `expired`, `uses_remaining`, `accept_holder_types`, `scopes`, and the issuer's signature for verification. No bearer required — this is what the QR landing page reads.
+Returns the current state: `revoked`, `expired`, `uses_remaining`, `accept_holder_types`, `scopes`, and the issuer's signature for verification. No bearer required: this is what the QR landing page reads.
 
-### Redeem — guest holder
+### Redeem: guest holder
 
 A guest redemption mints a **principal**, not just a credential: a custodial anchor, the guest DID kept as a label, and a guest-classed grant that the bearer is parented to. Revoking that grant fails the bearer on its next request (`401 GRANT_REVOKED`), and the guest can [keep a key](/docs/guides/keeping-your-access) to come back on another device. The response gains `guest_principal: {guest_did, master_did, grant_id}`.
 
@@ -1130,7 +1130,7 @@ curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
 
 Response includes the new bearer (`bearer`), the actor DID Syncropel minted for the holder (`actor_did`), the granted `scopes`, and the bearer's `expires_at`.
 
-### Redeem — federated holder
+### Redeem: federated holder
 
 ```bash
 curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
@@ -1146,7 +1146,7 @@ curl -X POST https://alice.syncropel.app/v1/invites/inv_a3f9.../redeem \
 
 Syncropel resolves Bob's DID document, verifies the Ed25519 signature against the `signer_instance_did`'s key, and rejects (with audit) on `bad_proof`, `key_unknown`, or `freshness_violation` (issued-at-ms outside the ±60s window).
 
-### Redeem — membership invite
+### Redeem: membership invite
 
 When the invite carries a `membership` envelope, the redeem body names the member and accepts custody:
 
@@ -1179,7 +1179,7 @@ curl -X POST http://localhost:9100/v1/tokens/$TOKEN_ID/rotate \
   -H "Authorization: Bearer $CURRENT_BEARER"
 ```
 
-Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROTATE_NOT_SELF` if it doesn't match `$TOKEN_ID`. Response includes the new bearer + new `expires_at`. The previous bearer is invalidated.
+Self-only: Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROTATE_NOT_SELF` if it doesn't match `$TOKEN_ID`. Response includes the new bearer + new `expires_at`. The previous bearer is invalidated.
 
 ### Error codes
 
@@ -1198,7 +1198,7 @@ Self-only — Syncropel computes `sha256($CURRENT_BEARER)` and rejects with `ROT
 | `403` | `FRESHNESS_VIOLATION` | `holder_proof_issued_at_ms` outside the ±60s window |
 | `403` | `ROTATE_NOT_SELF` | Rotation attempted by a bearer different from the path's `token_id` |
 | `409` | `MEMBER_LABEL_TAKEN` | Membership redeem against a label that already belongs to a member, from an invite not pinned to that label (the takeover guard) |
-| `501` | — | Membership redeem with `custody: "device"` — custodial custody is the only implemented mode |
+| `501` | None | Membership redeem with `custody: "device"`. Custodial custody is the only implemented mode |
 | `401` | `RECREDENTIAL_REFUSED` | The single refusal of `POST /v1/recredential`: an unknown principal, a missing binding and a wrong proof all look the same |
 | `409` | `NO_LIVE_GRANT` | A proof verified, but nothing is granted to that principal any more; no bearer that reads nothing is minted |
 | `409` | `ROTATION_REQUIRES_PROOF` | A binding of that kind already exists; rotating it needs the current proof |
@@ -1223,7 +1223,7 @@ curl -s http://localhost:9100/v1/members \
   -H "Authorization: Bearer $SPL_TOKEN"
 ```
 
-Rows carry `member` (the DID), `status`, `scopes`, and `expires_at`. A non-admin caller receives exactly their own row — a one-row answer is complete, not truncated.
+Rows carry `member` (the DID), `status`, `scopes`, and `expires_at`. A non-admin caller receives exactly their own row. A one-row answer is complete, not truncated.
 
 Each person row also carries the fields below, and `GET /v1/principals` serves the same name fields:
 
@@ -1252,7 +1252,7 @@ curl -X POST http://localhost:9100/v1/members/adopt \
   -d '{"label": "mora", "sa_id": "sa_1f8e2c9a"}'
 ```
 
-Without `sa_id`: binds an existing local actor (whose signing key this instance already holds) as a principal — after which that actor's signed task verdicts verify when they are written. With `sa_id`: mints a custodial principal for the service account's holder and re-parents the credential without breaking the bearer. Optional `ttl_seconds` sets the grant lifetime (default 180 days). Idempotent on an existing principal (`already_principal: true`).
+Without `sa_id`: binds an existing local actor (whose signing key this instance already holds) as a principal, after which that actor's signed task verdicts verify when they are written. With `sa_id`: mints a custodial principal for the service account's holder and re-parents the credential without breaking the bearer. Optional `ttl_seconds` sets the grant lifetime (default 180 days). Idempotent on an existing principal (`already_principal: true`).
 
 ### Revoke a membership
 

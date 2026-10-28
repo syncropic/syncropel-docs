@@ -1,11 +1,11 @@
 ---
 title: Helpers
-description: A helper is an automated participant that does one kind of work well — a solver, a classifier, a checker. It need not be a language model, but it is still an actor with an identity, a trust record and an audit trail.
+description: "A helper is an automated participant that does one kind of work well: a solver, a classifier, a checker. It need not be a language model, but it is still an actor with an identity, a trust record and an audit trail."
 ---
 
 ## Overview
 
-Syncropel coordinates more than chat assistants. A **helper** is an automated participant that does one kind of work well and returns its result as a record. A scheduling solver that optimises a route, a classifier that tags incoming records, a checker that validates data against a set of rules — each is a helper.
+Syncropel coordinates more than chat assistants. A **helper** is an automated participant that does one kind of work well and returns its result as a record. A scheduling solver that optimises a route, a classifier that tags incoming records, a checker that validates data against a set of rules: each is a helper.
 
 A helper differs from an [agent](/docs/concepts/agents) in how it works. An agent uses a language model in a [work loop](/docs/concepts/work-loop), taking many turns and calling tools. A helper is usually one focused computation: it takes a request, produces an answer, and is done. The answer might come from a solver, a classifier, a rules checker, or a mix. Syncropel does not care how a helper computes.
 
@@ -35,7 +35,7 @@ Adding a custom helper is an **advanced step for the workspace owner**. The owne
 
 ## Where it fits
 
-- **[Actors](/docs/concepts/actors)** — the identity every helper has.
-- **[Agents](/docs/concepts/agents)** — the language-model kind of helper, running a work loop.
-- **[Trust](/docs/concepts/trust)** — how reviewed outcomes decide which helper work routes to.
-- **[Threads](/docs/concepts/threads)** — where a request reaches a helper and its result comes back.
+- **[Actors](/docs/concepts/actors)**: the identity every helper has.
+- **[Agents](/docs/concepts/agents)**: the language-model kind of helper, running a work loop.
+- **[Trust](/docs/concepts/trust)**: how reviewed outcomes decide which helper work routes to.
+- **[Threads](/docs/concepts/threads)**: where a request reaches a helper and its result comes back.

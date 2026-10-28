@@ -13,10 +13,10 @@ Four categories are emitted; filter any subset with `--categories`:
 
 | Category | What it captures |
 |---|---|
-| `system` | Records authored by `did:sync:system:*` actors — startup, AI proposals, trust feedback, recovery events |
-| `decision` | Decision records: request and answer (`body.verdict` accept/reject) — reviewer approvals, dispatch verdicts |
-| `dispatch` | KNOW records with `body.topic == "dispatch_complete"` — the outcome and metrics of every adapter run |
-| `governance` | Records authored by `did:sync:system:governance` — policy decisions when permissions are enabled |
+| `system` | Records authored by `did:sync:system:*` actors: startup, AI proposals, trust feedback, recovery events |
+| `decision` | Decision records: request and answer (`body.verdict` accept/reject): reviewer approvals, dispatch verdicts |
+| `dispatch` | KNOW records with `body.topic == "dispatch_complete"`: the outcome and metrics of every adapter run |
+| `governance` | Records authored by `did:sync:system:governance`: policy decisions when permissions are enabled |
 
 ## Quickstart
 
@@ -27,10 +27,10 @@ spl audit export --since 1h
 # Last 24 hours, decisions and dispatch only, piped to jq
 spl audit export --since 24h --categories decision,dispatch | jq '.'
 
-# Single actor, single thread — useful for incident scoping
+# Single actor, single thread: useful for incident scoping
 spl audit export --actor did:sync:agent:dev --thread th_abc123...
 
-# Retained forever — pipe to your shipper
+# Retained forever. Pipe to your shipper
 spl audit export --since 24h | /usr/local/bin/fluent-bit-stdin-plugin
 ```
 
@@ -114,9 +114,9 @@ spl audit export --since 24h --categories decision \
 
 ## Pairs with
 
-- **[SIEM integration guide](/docs/guides/siem-integration)** — concrete
+- **[SIEM integration guide](/docs/guides/siem-integration)**: concrete
   pipeline recipes for Splunk, Elastic, Loki, and Datadog
-- **[Debug replay](/docs/reference/cli)** (`spl debug replay`) — step
+- **[Debug replay](/docs/reference/cli)** (`spl debug replay`): step
   through individual threads when an audit event surfaces something
   interesting
 

@@ -24,7 +24,7 @@ Records never change. "Editing" a file saves a new version and the old one still
 
 You can organize by **what things are and how they relate** (types, threads, metadata) and ask for what you want, instead of navigating to where you filed it. A folder view is available for familiarity.
 
-**Finding things:** browse everything, filter by type and recency, or use [Find](/docs/guides/find) — one query searches file names, the text *inside* your files (text, Markdown, code and CSV; PDFs and images are not searched by content), and your conversations, with snippets showing why each result matched. "Find things like this" (meaning-based search) additionally works wherever an [embedding provider](/docs/guides/search) is configured.
+**Finding things:** browse everything, filter by type and recency, or use [Find](/docs/guides/find): one query searches file names, the text *inside* your files (text, Markdown, code and CSV; PDFs and images are not searched by content), and your conversations, with snippets showing why each result matched. "Find things like this" (meaning-based search) additionally works wherever an [embedding provider](/docs/guides/search) is configured.
 
 ## "Made by you"
 
@@ -34,8 +34,8 @@ When you create or upload something, the library records that **you** made it. Y
 
 Everything in the UI is available through the API and the SDKs, so an app or script can add, read, list and manage content directly:
 
-- **TypeScript / JavaScript** — the `client.data` surface in the [SDK data plane guide](/docs/guides/sdk-data-plane).
-- **Python** — the same `client.data` surface in the Python SDK.
+- **TypeScript / JavaScript**: the `client.data` surface in the [SDK data plane guide](/docs/guides/sdk-data-plane).
+- **Python**: the same `client.data` surface in the Python SDK.
 
 These give you create, read, list and delete, plus safe edits that only save if the file is unchanged, so a tool never overwrites a file someone else just changed.
 

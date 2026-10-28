@@ -129,9 +129,9 @@ Tiers of increasing authority. Syncropel runs tier 1, checks an expression, and 
 
 A person can reply in three ways:
 
-- **`infer.accept.v1`** — "I'll take it." It carries `eta_seconds`, and Syncropel waits that much longer. It does NOT count toward `min_quorum`.
-- **`infer.decline.v1`** — "I can't." It carries `reason: "out_of_domain" | "overbooked" | "conflict_of_interest" | "other"`. It does not count toward quorum, and the query continues with whoever else responded.
-- **Submit** — the answer itself, with a body matching `answer_shape.kind`. It is included when answers are combined. Include `body._confidence` and `body._rationale` when you can.
+- **`infer.accept.v1`**: "I'll take it." It carries `eta_seconds`, and Syncropel waits that much longer. It does NOT count toward `min_quorum`.
+- **`infer.decline.v1`**: "I can't." It carries `reason: "out_of_domain" | "overbooked" | "conflict_of_interest" | "other"`. It does not count toward quorum, and the query continues with whoever else responded.
+- **Submit**: the answer itself, with a body matching `answer_shape.kind`. It is included when answers are combined. Include `body._confidence` and `body._rationale` when you can.
 
 A person's availability (`availability.status`, `availability.hours`, `availability.typical_response_delay_s`, `availability.last_seen_at`) is used when ranking, so a query doesn't go to someone who is away. If `typical_response_delay_s > max_latency_secs × 0.5`, that person is skipped.
 
@@ -173,9 +173,9 @@ If the auditor approves, the combined result is saved. If they reject, a record 
 
 You can't script the patterns themselves. But you can use a CEL expression in three places:
 
-1. **Responder conditions** — each `responders[].expression` can be any CEL condition about the responder. (This works with every pattern, including `single_shot`.)
-2. **Combining** — `ensemble_weighted.weight_expression`, and `fold.expression` for the `expression` function.
-3. **Thresholds** — `verify.agreement_threshold` (a number by default), `retry_on_low_confidence.threshold_expression`, `escalate.escalation_expression`, `ensemble_with_audit.audit_expression`, and `waterfall.accept_expression`.
+1. **Responder conditions**: each `responders[].expression` can be any CEL condition about the responder. (This works with every pattern, including `single_shot`.)
+2. **Combining**: `ensemble_weighted.weight_expression`, and `fold.expression` for the `expression` function.
+3. **Thresholds**: `verify.agreement_threshold` (a number by default), `retry_on_low_confidence.threshold_expression`, `escalate.escalation_expression`, `ensemble_with_audit.audit_expression`, and `waterfall.accept_expression`.
 
 There are no `if` blocks or loops. If you need something else, chain queries.
 
@@ -199,7 +199,7 @@ If you restore the query thread on another instance, the query carries on from w
 
 A query's KNOW record can be the `input.record_id` of another query. This is how you go beyond the six patterns.
 
-**Example** — "classify this document, then summarise only if the classification is 'research'":
+**Example**: "classify this document, then summarise only if the classification is 'research'":
 
 Query A (classification):
 ```json
@@ -234,7 +234,7 @@ The chain A → B is two records, each citing the one before it. You can chain a
 
 | You need | Reach for |
 |---|---|
-| The common case — parallel fan-out, pick best | `single_shot` |
+| The common case: parallel fan-out, pick best | `single_shot` |
 | Independent second opinion + tiebreaker | `verify` |
 | Cheap-to-expensive stop-early cost cascade | `waterfall` |
 | Recovery from underconfident first attempt | `retry_on_low_confidence` |
@@ -244,8 +244,8 @@ The chain A → B is two records, each citing the one before it. You can chain a
 
 ## See also
 
-- **[Query Anatomy — Orchestration](/docs/guides/inference/query-anatomy#orchestration)** — field reference.
-- **[Fold Functions](/docs/guides/inference/fold-functions)** — the ways answers are combined.
-- **[Event triggers](/docs/guides/scheduled-triggers)** — how to wire nested-query chains.
-- **[CEL Expressions](/docs/guides/cel-expressions)** — syntax for threshold / acceptance expressions.
-- **[Actors and adapters](/docs/guides/actors-and-adapters)** — how human and system responders are registered.
+- **[Query Anatomy: Orchestration](/docs/guides/inference/query-anatomy#orchestration)**: field reference.
+- **[Fold Functions](/docs/guides/inference/fold-functions)**: the ways answers are combined.
+- **[Event triggers](/docs/guides/scheduled-triggers)**: how to wire nested-query chains.
+- **[CEL Expressions](/docs/guides/cel-expressions)**: syntax for threshold / acceptance expressions.
+- **[Actors and adapters](/docs/guides/actors-and-adapters)**: how human and system responders are registered.

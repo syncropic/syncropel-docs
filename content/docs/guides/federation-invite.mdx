@@ -68,7 +68,7 @@ To pair now and share later, leave out `--grant-namespace` and `--grant-thread`.
 
 One of:
 
-- A URL — `https://...` or `http://...`. Pairing happens on first contact.
+- A URL: `https://...` or `http://...`. Pairing happens on first contact.
 - An existing `pair_id` (the `pair_<hash>` form). The command finds the pair, then adds the grants.
 
 Bare handles (`alice/code`, `bob`) aren't supported as a peer and are rejected.
@@ -77,7 +77,7 @@ Bare handles (`alice/code`, `bob`) aren't supported as a peer and are rejected.
 
 Emit one consent grant per namespace. Defaults to a same-name
 local-to-peer mapping at hash level L1 (records pass but with redacted
-bodies — see [Consent management](./consent) for what each level
+bodies, and [Consent management](./consent) explains what each level
 shares). Repeat the flag for multiple namespaces:
 
 ```bash
@@ -201,21 +201,21 @@ echo "Forward this to the recipient: $RECIPIENT_URL"
 
 ## Failure modes
 
-- **Peer unreachable** — you see the same error as `spl federation pair`. Run
+- **Peer unreachable**: you see the same error as `spl federation pair`. Run
   `curl https://bob.example.com/.well-known/syncropel` manually to
   verify reachability.
-- **Peer manifest expired** — this fails by default. Pass `--no-strict` if you trust the peer, or try again after the peer refreshes its manifest.
-- **Thread without `th_` prefix** — `--grant-thread foo` is rejected. Use the full thread ID, which starts with `th_`.
-- **Bare handle as peer** — `spl federation invite alice/code` is
+- **Peer manifest expired**: this fails by default. Pass `--no-strict` if you trust the peer, or try again after the peer refreshes its manifest.
+- **Thread without `th_` prefix**: `--grant-thread foo` is rejected. Use the full thread ID, which starts with `th_`.
+- **Bare handle as peer**: `spl federation invite alice/code` is
   rejected. Use a URL or an existing `pair_id`.
 
 If a step fails partway through, earlier steps are NOT undone. The pair stays in place and any grants already made are listed in the audit log. Run the command again; it is safe to repeat.
 
 ## See also
 
-- [Federation pairing](./federation-pair) — what `invite` builds on.
-- [Consent management](./consent) — what hash levels mean and how
+- [Federation pairing](./federation-pair): what `invite` builds on.
+- [Consent management](./consent): what hash levels mean and how
   sharing is decided when grants overlap.
-- [Async federation](./async-federation) — deliver records through a relay when the peer is offline.
-- [`code-review-pair` walkthrough](../tutorials/code-review-pair) —
+- [Async federation](./async-federation): deliver records through a relay when the peer is offline.
+- [`code-review-pair` walkthrough](../tutorials/code-review-pair):
   worked example of the full two-person flow.

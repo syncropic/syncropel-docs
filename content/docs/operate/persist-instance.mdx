@@ -1,26 +1,26 @@
 ---
 title: Keeping Your Instance Running
-description: Make `spl serve` start automatically at login, restart after crashes, and survive reboots — systemd user unit on Linux, launchd plist on macOS, Windows Service on Windows.
+description: "Make `spl serve` start automatically at login, restart after crashes, and survive reboots: systemd user unit on Linux, launchd plist on macOS, Windows Service on Windows."
 ---
 
 `spl serve --daemon` detaches from your terminal and runs in the
 background, but it doesn't survive a reboot or laptop sleep on its
 own. To keep your instance running across sessions you need a
-supervisor — the per-OS pattern is below.
+supervisor. The per-OS pattern is below.
 
 A single user on their own laptop usually wants two things:
 
-1. **Auto-start at login** — open laptop, instance is already there.
-2. **Auto-restart on crash** — survive an unexpected exit without
+1. **Auto-start at login**: open laptop, instance is already there.
+2. **Auto-restart on crash**: survive an unexpected exit without
    you noticing.
 
 Each section below sets up both.
 
-## Linux — systemd user unit
+## Linux: systemd user unit
 
 Most Linux distros (Ubuntu 22+, Fedora 38+, Arch, Debian 12+) ship
 systemd in user mode. A user unit lives in `~/.config/systemd/user/`
-and supervises processes scoped to your user — no root, no `sudo`.
+and supervises processes scoped to your user: no root, no `sudo`.
 
 ### 1. Write the unit file
 
@@ -42,7 +42,7 @@ WantedBy=default.target
 EOF
 ```
 
-`%h` expands to your home directory at runtime — works for any user
+`%h` expands to your home directory at runtime, so it works for any user
 without hard-coding `/home/maya`.
 
 Run plain `spl serve` here, never `spl serve --daemon`: systemd is the
@@ -89,7 +89,7 @@ journalctl --user -u spl-serve -f       # follow live
 journalctl --user -u spl-serve -n 200   # last 200 lines
 ```
 
-The instance also writes its own log to `~/.syncro/logs/spl.log` —
+The instance also writes its own log to `~/.syncro/logs/spl.log`, and
 both are kept in sync.
 
 ### Stop / uninstall
@@ -100,7 +100,7 @@ systemctl --user disable spl-serve
 rm ~/.config/systemd/user/spl-serve.service
 ```
 
-## macOS — launchd LaunchAgent
+## macOS: launchd LaunchAgent
 
 macOS uses `launchd` instead of systemd. A LaunchAgent runs in your
 user session; a LaunchDaemon runs system-wide. For a personal
@@ -186,11 +186,11 @@ launchctl unload ~/Library/LaunchAgents/com.syncropic.spl-serve.plist
 rm ~/Library/LaunchAgents/com.syncropic.spl-serve.plist
 ```
 
-## Windows — Service Control Manager
+## Windows: Service Control Manager
 
 Windows needs a different approach because console applications are
 bound to the session that started them. `spl serve` ships a Windows
-Service wrapper that handles this — see the dedicated
+Service wrapper that handles this. See the dedicated
 [Windows Service](/docs/operate/windows-service) page for the full
 guide. Quickstart from an elevated PowerShell:
 
@@ -220,7 +220,7 @@ re-pair against the now default-secure one. See
 **Logs are empty.**
 Systemd's `journalctl --user` and launchd's `StandardOutPath` only
 capture what the instance writes to stdout/stderr at boot. Most of
-the action lives in `~/.syncro/logs/spl.log` — that's the canonical
+the action lives in `~/.syncro/logs/spl.log`. That's the canonical
 log regardless of which supervisor wraps the binary.
 
 **"Operation not permitted" on macOS load.**
@@ -231,9 +231,9 @@ preferred shell host).
 
 ## See also
 
-- [Starting Your Instance](/docs/get-started/instance) — the three modes
+- [Starting Your Instance](/docs/get-started/instance): the three modes
   `spl serve` runs in (dev / secure local / exposed)
-- [Windows Service](/docs/operate/windows-service) — full Windows
+- [Windows Service](/docs/operate/windows-service): full Windows
   Service install + lifecycle reference
-- [Operator runbook](/docs/operate/runbook) — backup discipline,
+- [Operator runbook](/docs/operate/runbook): backup discipline,
   recovery, upgrades

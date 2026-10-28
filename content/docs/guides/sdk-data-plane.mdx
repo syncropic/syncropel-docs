@@ -37,8 +37,8 @@ const result = await client.data.write({
   data: pdfBytes,                  // Uint8Array | ArrayBuffer | string
   contentType: "application/pdf",  // optional; inferred from the path otherwise
 });
-// result.contentHash — checksum (SHA-256) of the stored bytes
-// result.sizeBytes   — bytes written
+// result.contentHash: checksum (SHA-256) of the stored bytes
+// result.sizeBytes:   bytes written
 ```
 
 `data` accepts a `string` (encoded UTF-8), a `Uint8Array`, or an `ArrayBuffer`. Large files are uploaded in chunks automatically.
@@ -60,8 +60,8 @@ try {
   });
 } catch (e) {
   if (e instanceof SyncropelDataError && e.isConflict) {
-    // Someone wrote first. e.currentHash is the file's actual hash now —
-    // reload, re-apply the edit, and retry.
+    // Someone wrote first. e.currentHash is the file's actual hash now.
+    // Reload, re-apply the edit, and retry.
   }
 }
 ```
@@ -74,7 +74,7 @@ try {
 | a hash string | Write only if the file's current hash matches. |
 | `null` | Create only: fails if the path already exists. |
 
-On a conflict the write throws `SyncropelDataError` with `isConflict === true`, `expectedHash` (what you expected), and `currentHash` (the file's real hash) — everything you need to offer a reload-or-overwrite prompt.
+On a conflict the write throws `SyncropelDataError` with `isConflict === true`, `expectedHash` (what you expected), and `currentHash` (the file's real hash): everything you need to offer a reload-or-overwrite prompt.
 
 ## Reading
 
@@ -150,11 +150,11 @@ try {
   await client.data.write({ path: "/files/x", data, expectedHash });
 } catch (e) {
   if (e instanceof SyncropelDataError) {
-    // e.status  — HTTP status (e.g. 409, 403, 507)
-    // e.code    — error code (e.g. "precondition_failed", "quota_exceeded")
-    // e.detail  — human-readable detail
-    // e.isConflict — true for a compare-and-swap / create-only conflict (409)
-    // e.expectedHash / e.currentHash — set on a conflict
+    // e.status:  HTTP status (e.g. 409, 403, 507)
+    // e.code:    error code (e.g. "precondition_failed", "quota_exceeded")
+    // e.detail:  human-readable detail
+    // e.isConflict: true for a compare-and-swap / create-only conflict (409)
+    // e.expectedHash / e.currentHash: set on a conflict
   }
 }
 ```

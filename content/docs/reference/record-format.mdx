@@ -1,6 +1,6 @@
 ---
 title: Record Format
-description: The 8-field record — wire format, canonical JSON rules, how the ID is computed, act types, data types, and common body conventions.
+description: "The 8-field record: wire format, canonical JSON rules, how the ID is computed, act types, data types, and common body conventions."
 ---
 
 ## The 8 fields
@@ -39,7 +39,7 @@ Rules:
 3. **Numbers in their shortest form**. No leading zeros. No trailing zeros in fractions. No exponent unless required by magnitude.
 4. **Strings use JSON escaping**. Control characters `U+0000` through `U+001F` are `\uXXXX`-escaped. `"` and `\` are escaped. UTF-8 bytes pass through otherwise.
 5. **Booleans and null** as `true`, `false`, `null`.
-6. **Arrays preserve element order**. This matters for `parents` — preserve ascending sort.
+6. **Arrays preserve element order**. This matters for `parents`: preserve ascending sort.
 
 Reference encoders are `syncropel.canonical.canonical_json` (Python SDK) and the Rust `canonical::encode`. Both produce identical bytes for identical content.
 
@@ -53,9 +53,9 @@ The `th_` prefix is required. It lets code tell thread IDs from record IDs (bare
 
 Seed inputs vary by creator:
 
-- **Task threads** — `SHA-256(alias + nonce)`; the CLI generates the nonce at `spl task add` time.
-- **Dispatch threads** — `SHA-256(parent_thread + target_actor + dispatch_timestamp_ms)`; each dispatch run has a fresh thread.
-- **Reserved threads** — fixed IDs built into the server:
+- **Task threads**: `SHA-256(alias + nonce)`; the CLI generates the nonce at `spl task add` time.
+- **Dispatch threads**: `SHA-256(parent_thread + target_actor + dispatch_timestamp_ms)`; each dispatch run has a fresh thread.
+- **Reserved threads** are fixed IDs built into the server:
   - `th_engine_config`
   - `th_actor_registry`
   - `th_namespace_registry`
@@ -92,7 +92,7 @@ Eight types in two groups of four.
 | Type | Meaning |
 |---|---|
 | `SCALAR` | A single value. The default for most records. |
-| `FORMULA` | A computation specification — the body carries an expression. |
+| `FORMULA` | A computation specification. The body carries an expression. |
 | `DISTRIBUTION` | A probability distribution, interval, or range. |
 | `REFERENCE` | A pointer to outside content (a URL, a hash, or a stored file). |
 | `MORPHISM` | A transformation function between types. Used by MAP. |
@@ -102,7 +102,7 @@ Eight types in two groups of four.
 
 - **Monotonically increasing** per `(actor, thread)`. Cannot go backwards.
 - **Starts at 0** for an actor's first record on a thread.
-- **Gaps allowed** — `0, 1, 5, 7` is valid. Gaps don't mean records are missing; the actor usually wrote elsewhere in between.
+- **Gaps allowed**: `0, 1, 5, 7` is valid. Gaps don't mean records are missing; the actor usually wrote elsewhere in between.
 - **Per-actor per-thread**. Two actors on the same thread each have independent clock sequences.
 - **A repeated clock returns `DUPLICATE_CLOCK`.** This makes retries safe. If you see it, your client's clock is wrong or another writer is active. Increase the clock and retry.
 - **Clocks are i64.** Values from 0 to 9,223,372,036,854,775,807 are valid. You will not run out in normal use.
@@ -236,7 +236,7 @@ The server checks a short list:
 5. **`data_type` is one of the 6 types.**
 6. **`clock` is a non-negative i64.**
 7. **`parents` is a sorted-ascending array of valid record IDs (64-hex each).**
-8. **`body.namespace` (if present) passes the [namespace rules](/docs/concepts/namespaces)** — every parent namespace must exist and be active.
+8. **`body.namespace` (if present) passes the [namespace rules](/docs/concepts/namespaces)**: every parent namespace must exist and be active.
 
 The server **does not** check:
 
@@ -260,8 +260,8 @@ Error responses include the failing field and, where applicable, a recovery hint
 
 ## Where to go next
 
-- **[Records concept](/docs/concepts/records)** — why records have these 8 fields.
-- **[API reference](/docs/reference/api)** — HTTP endpoints that accept and return records.
-- **[CEL expressions](/docs/guides/cel-expressions)** — `record` bindings available in triggers, routing, preconditions.
-- **[`body.kind` grammar](/docs/guides/body-kind-manifest)** — SDK-level structure inside `body`.
-- **[Glossary](/docs/reference/glossary)** — plain definitions of the terms used here.
+- **[Records concept](/docs/concepts/records)**: why records have these 8 fields.
+- **[API reference](/docs/reference/api)**: HTTP endpoints that accept and return records.
+- **[CEL expressions](/docs/guides/cel-expressions)**: `record` bindings available in triggers, routing, preconditions.
+- **[`body.kind` grammar](/docs/guides/body-kind-manifest)**: SDK-level structure inside `body`.
+- **[Glossary](/docs/reference/glossary)**: plain definitions of the terms used here.

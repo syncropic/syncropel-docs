@@ -46,10 +46,10 @@ Here `export-audit.sh` is a script that runs the command above and handles error
 
 The export includes only security-related records. By default it includes:
 
-- **`system`** — records from `did:sync:system:engine` and other system actors (settings reloads, notifications, governance events).
-- **`decision`** — decisions waiting and decisions made.
-- **`dispatch`** — agent run outcomes, budget used up, timeouts.
-- **`governance`** — refused namespace changes, permission denials, emergency-stop records.
+- **`system`**: records from `did:sync:system:engine` and other system actors (settings reloads, notifications, governance events).
+- **`decision`**: decisions waiting and decisions made.
+- **`dispatch`**: agent run outcomes, budget used up, timeouts.
+- **`governance`**: refused namespace changes, permission denials, emergency-stop records.
 
 Export less if your SIEM charges by volume:
 
@@ -69,5 +69,5 @@ spl audit export --since 65m --categories decision,governance
 ## See also
 
 - **[SIEM integration guide](/docs/guides/siem-integration)**: complete setups for Elastic, Splunk, Datadog and generic webhooks.
-- **[CLI reference — audit export](/docs/reference/cli)**: every flag the command takes.
+- **[CLI reference: audit export](/docs/reference/cli)**: every flag the command takes.
 - **[Governance](/docs/reference/glossary#g)**: what Syncropel treats as security-related.

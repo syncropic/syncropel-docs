@@ -10,7 +10,7 @@ description: Plain-language definitions of the terms used across Syncropel.
 One of 8 types that classify what a record represents: `INTEND`, `DO`, `KNOW`, `LEARN` (coordination) and `GET`, `PUT`, `CALL`, `MAP` (effects). See [Records](/docs/concepts/records).
 
 **Actor**
-Any participant that creates records — a person, an AI agent, a service account, or a system component. Identified by a DID. See [Actors](/docs/concepts/actors).
+Any participant that creates records: a person, an AI agent, a service account, or a system component. Identified by a DID. See [Actors](/docs/concepts/actors).
 
 **Adapter**
 The connection between Syncropel and something that does work for it. A command-line adapter runs a program on your machine (an agent such as Claude Code, Codex CLI, or OpenCode, plus `bash` and your own programs). A web adapter calls an AI provider such as Anthropic or OpenAI over HTTP. Once an actor is linked to an adapter, work sent to that actor goes through it.
@@ -38,7 +38,7 @@ How your workspace tells everything that is listening (live views, automations, 
 ## C
 
 **Canonical JSON**
-A fixed way of writing JSON (keys in alphabetical order, no extra spaces) so that the same content always produces the same bytes. It is used to compute a record's ID. See [Record Format — canonical JSON](/docs/reference/record-format#canonical-json-encoding).
+A fixed way of writing JSON (keys in alphabetical order, no extra spaces) so that the same content always produces the same bytes. It is used to compute a record's ID. See [Record Format: canonical JSON](/docs/reference/record-format#canonical-json-encoding).
 
 **CEL (Common Expression Language)**
 The small expression language you use to write conditions for triggers, routing, preconditions, status rules, health checks, decision policies, and permissions. See [CEL expressions](/docs/guides/cel-expressions).
@@ -64,7 +64,7 @@ When a pattern has proven reliable enough to run automatically. It must meet fou
 How your workspace asks someone to decide before it goes on. The request can come from the assistant, a paused task, a `spl decompose` plan, or a paired workspace. If the assistant is at least 0.90 confident, the change applies by itself. At 0.60 or above, it asks a person. Below that, it is logged and dropped. See requests with `spl decisions list` (they also appear under NEEDS in `spl resume`) and answer them with `spl decisions approve`, `reject`, `choose`, `provide`, or `ack`. You can pick an option, provide a value, or acknowledge. See [Your first decision gate](/docs/tutorials/your-first-decision).
 
 **Dial**
-A continuous value in `[0, 1]` that maps trust and pattern match strength to cost zones. Zones: REPLAY (0.00–0.33), ADAPT (0.33–0.50), EXPLORE (0.50–0.67), CREATE (0.67–1.00). See [Trust — the dial](/docs/concepts/trust).
+A continuous value in `[0, 1]` that maps trust and pattern match strength to cost zones. Zones: REPLAY (0.00–0.33), ADAPT (0.33–0.50), EXPLORE (0.50–0.67), CREATE (0.67–1.00). See [Trust: the dial](/docs/concepts/trust).
 
 **DID (Decentralized Identifier)**
 An actor's permanent identity. Three kinds work: `did:key`, `did:web`, and `did:sync`. Names inside your workspace look like `did:sync:user:…`, `did:sync:agent:…`, and `did:sync:system:…`.
@@ -84,7 +84,7 @@ A warning that an actor's success rate has changed meaningfully. See current ale
 The part of your workspace that does the background work. It stores each new record and announces it, sends work to the right actor, updates trust and watches for stalled work, and runs scheduled maintenance. You rarely deal with it directly. See [The Engine](/docs/concepts/engine).
 
 **Evaluation Gate**
-The rule that completed work must be reviewed by an independent evaluator (a different DID from the one that did the work) before it counts as trust evidence. The workspace enforces this: judging your own work earns no trust. See [Trust — independence](/docs/concepts/trust).
+The rule that completed work must be reviewed by an independent evaluator (a different DID from the one that did the work) before it counts as trust evidence. The workspace enforces this: judging your own work earns no trust. See [Trust: independence](/docs/concepts/trust).
 
 **Event Trigger**
 A setting that starts an actor when a matching record appears or at a scheduled time. It has a cooldown and loop protection so it cannot fire endlessly. See [Scheduled triggers](/docs/guides/scheduled-triggers).
@@ -160,7 +160,7 @@ See **Clock**.
 Sends each piece of work to the most trusted [Faculty](/docs/concepts/faculty) that says it can do it, judged only by earned trust in that domain. A minimum bar keeps unproven candidates from displacing proven ones, and ties favor the current choice. See [The Calibrated Marketplace](/docs/concepts/marketplace).
 
 **Memory**
-What an actor remembers between sessions: preferences, corrections, project state, and references. It is saved as `LEARN` records and loaded when work is sent to the actor. See [Actors — memory](/docs/concepts/actors#memory-persistent-context-across-sessions).
+What an actor remembers between sessions: preferences, corrections, project state, and references. It is saved as `LEARN` records and loaded when work is sent to the actor. See [Actors: memory](/docs/concepts/actors#memory-persistent-context-across-sessions).
 
 **Meta-Trust**
 The trust score of Syncropel's assistant itself, kept apart from any one domain. It rises when its proposals are accepted and falls when they are rejected.
@@ -174,7 +174,7 @@ A scope that groups records by organization, project, environment, or job. Every
 The list of namespaces you have declared. It updates as soon as you add one.
 
 **Narrowing rule**
-A child namespace can never have more permissions than its parent. A record in a child namespace is refused if any parent is missing or not active. See [Namespaces — narrowing](/docs/concepts/namespaces#the-narrowing-rule).
+A child namespace can never have more permissions than its parent. A record in a child namespace is refused if any parent is missing or not active. See [Namespaces: narrowing](/docs/concepts/namespaces#the-narrowing-rule).
 
 ## P
 
@@ -188,7 +188,7 @@ Any actor who has written a record on a thread. `spl thread show` lists particip
 A repeated shape of successful work, matched at several levels of detail (L1 exact through L3 intent). A pattern can crystallize once it meets the four tests. See [Patterns](/docs/concepts/patterns).
 
 **Permission Rule**
-A CEL condition checked on every write to allow or deny it. When permissions are enabled, anything not allowed is denied. Saved as a settings record. See [CEL — permission context](/docs/guides/cel-expressions).
+A CEL condition checked on every write to allow or deny it. When permissions are enabled, anything not allowed is denied. Saved as a settings record. See [CEL: permission context](/docs/guides/cel-expressions).
 
 **Precondition**
 A CEL condition on a task that keeps it from starting until it is true. Once it holds, the task becomes ready. See [Task management](/docs/guides/task-management).
@@ -225,7 +225,7 @@ A `.snap.jsonl` file holding a thread's records and a checklist that detects tam
 A way for the server to stream updates to you over one HTTP connection. Syncropel uses it for streamed model replies (`/v1/proxy/messages` with `stream=true`) and for MCP (`/v1/mcp/sse`).
 
 **Status Rule**
-A CEL expression, saved as a settings record, that changes how a task or thread status is worked out. Use it for status changes specific to your workspace. See [CEL — fold_rule context](/docs/guides/cel-expressions).
+A CEL expression, saved as a settings record, that changes how a task or thread status is worked out. Use it for status changes specific to your workspace. See [CEL: fold_rule context](/docs/guides/cel-expressions).
 
 **Substrate**
 The shared, append-only record of everything that happens, which every actor reads from and writes to. An actor's DID stays the same; what powers it (the AI model, adapter, or tool) can change.

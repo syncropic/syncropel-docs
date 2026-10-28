@@ -4,14 +4,14 @@ description: Run `spl serve` as a Windows Service so the instance starts at boot
 ---
 
 On Linux and macOS, `spl serve --daemon` already detaches from the
-terminal, writes a PID file, and survives shell close — a quick
+terminal, writes a PID file, and survives shell close, so a quick
 `systemd` or `launchd` unit is enough for boot-time autostart.
 
 Windows needs something different. {/* vocab-lint-disable-next-line: "Console applications" is a Windows OS term, not the retired UI primitive */}
 Console applications launched from
 PowerShell or CMD are bound to the session that started them and are
 torn down when the user logs off. The native supervisor on Windows is
-the Service Control Manager (SCM) — the same thing that owns `lsass`,
+the Service Control Manager (SCM), the same thing that owns `lsass`,
 `spooler`, and every other background service listed in
 `services.msc`.
 
@@ -33,20 +33,20 @@ manually inside a PowerShell window don't need any of this.
 From an **elevated PowerShell** (Run as Administrator):
 
 ```powershell
-# 1. Install — registers the service, creates the Event Log source
+# 1. Install: registers the service, creates the Event Log source
 spl serve --install-service
 
-# 2. Start — SCM invokes the binary; the service appears in services.msc
+# 2. Start: SCM invokes the binary; the service appears in services.msc
 sc.exe start SyncropelInstance
 
-# 3. Verify — /v1/capabilities responds, spl status shows the instance
+# 3. Verify: /v1/capabilities responds, spl status shows the instance
 curl http://127.0.0.1:9100/v1/capabilities
 spl status
 
-# 4. Stop — graceful shutdown (drains in-flight work)
+# 4. Stop: graceful shutdown (drains in-flight work)
 sc.exe stop SyncropelInstance
 
-# 5. Uninstall — removes SCM registration and Event Log source
+# 5. Uninstall: removes SCM registration and Event Log source
 spl serve --uninstall-service
 ```
 
@@ -81,7 +81,7 @@ A stop from Windows (`sc.exe stop <name>`, or the stop button in Services) shuts
 ## Event Log
 
 Install registers an Event Log source whose name matches the service
-name. Lifecycle events — start, stop, unexpected exits — land in
+name. Lifecycle events (start, stop, unexpected exits) land in
 **Event Viewer → Windows Logs → Application** filtered by **Source =
 SyncropelInstance** (or your `--service-name` override).
 
@@ -111,16 +111,16 @@ non-elevated token.
 Error 1053 means "service did not respond to the start or control
 request in a timely fashion." Most common causes:
 
-1. **Port 9100 already in use** — another `spl serve` is already
+1. **Port 9100 already in use**: another `spl serve` is already
    listening. Run `spl status` from a regular shell to see the
    existing instance, then stop it first.
-2. **Missing first sign-in setup** — if `auth.required = true` and
+2. **Missing first sign-in setup**: if `auth.required = true` and
    no service account is set up for the instance's default
    user, the start-up check fails. Stop the service,
    run interactively with
    `spl serve --insecure-localhost` once to mint a recovery token,
    then restart the service.
-3. **Binary path changed** — the service remembers the `.exe` path
+3. **Binary path changed**: the service remembers the `.exe` path
    from install time. If you moved or reinstalled `spl.exe`, the
    service still points at the old path. Fix:
    `spl serve --uninstall-service` → move / reinstall → `spl serve
@@ -135,14 +135,14 @@ You moved `spl.exe` (or installed a new build to a different path)
 without uninstalling first. Run
 `spl serve --uninstall-service --service-name <name>` to clear the
 stale registration, then `--install-service` again. The error is
-deliberate — silently overwriting the service registration would
+deliberate: silently overwriting the service registration would
 hide which binary is actually running.
 
 ### `sc.exe stop` hangs
 
 The service reports `StopPending` to SCM and then runs the same
 graceful-shutdown path as `Ctrl+C` on Unix. Shutdown can take a few seconds while in-flight work finishes and the store is saved. If it hasn't stopped after ~30
-seconds, the service may be hung — use `sc.exe queryex <name>`
+seconds, the service may be hung. Use `sc.exe queryex <name>`
 to read the PID and kill it forcibly:
 
 ```powershell

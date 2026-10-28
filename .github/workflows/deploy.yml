@@ -39,6 +39,9 @@ jobs:
       - name: Internal links and anchors
         run: python3 tools/check-anchors.py content/docs
 
+      - name: No em dashes in prose
+        run: python3 tools/check-no-emdash.py content/docs
+
       - name: Build static site
         run: npm run build
 

@@ -27,15 +27,15 @@ An `infer.query.v1` body has four required parts and several optional ones.
 
 ```text
 infer.query.v1
-├── input              (required) — what you want answered
-├── responders         (required) — who may answer
-├── answer_shape       (required) — what the answer must look like
-├── fold               (required) — how multiple answers become one
-├── dial               (optional) — how much novelty is acceptable
-├── orchestration      (optional) — multi-step pattern: verify, waterfall, escalate…
-├── side_effects       (optional) — reversibility, cost ceiling, timeout
-├── relevance          (optional) — keeps only the best-ranked responders
-└── metadata           (optional) — trace/correlation string bag
+├── input              (required): what you want answered
+├── responders         (required): who may answer
+├── answer_shape       (required): what the answer must look like
+├── fold               (required): how multiple answers become one
+├── dial               (optional): how much novelty is acceptable
+├── orchestration      (optional): multi-step pattern (verify, waterfall, escalate…)
+├── side_effects       (optional): reversibility, cost ceiling, timeout
+├── relevance          (optional): keeps only the best-ranked responders
+└── metadata           (optional): trace/correlation string bag
 ```
 
 See [Query Anatomy](/docs/guides/inference/query-anatomy) for the full schema with every field.
@@ -84,7 +84,7 @@ The default pattern, `single_shot`, asks the top-ranked responders once and comb
 
 If you're deciding whether a request should be an `infer.query.v1` or a plain dispatch, the split is:
 
-- **Use a query** when you care about *which answer is best across multiple responders*. Consensus of 3 LLMs, verify with a human tiebreaker, cost waterfall from cheap to expensive — all queries.
+- **Use a query** when you care about *which answer is best across multiple responders*. Consensus of 3 LLMs, verify with a human tiebreaker, cost waterfall from cheap to expensive: all queries.
 - **Use plain dispatch** when you know exactly who answers and you just want their output. A task routed to a specific dev agent via a routing rule is plain dispatch.
 
 With a query, you describe what you want and Syncropel picks the participants and combines their answers. With dispatch, you pick the participant and get back what they say.
@@ -97,9 +97,9 @@ With a query, you describe what you want and Syncropel picks the participants an
 
 ## See also
 
-- **[Query Anatomy](/docs/guides/inference/query-anatomy)** — every field of `infer.query.v1`.
-- **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 ways to combine answers.
-- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step flows.
-- **[`spl infer` CLI](/docs/reference/cli#inference--spl-infer)** — run queries from the shell.
-- **[Records](/docs/concepts/records)** — the record format queries use.
-- **[Trust](/docs/concepts/trust)** — how trust feeds combining and ranking.
+- **[Query Anatomy](/docs/guides/inference/query-anatomy)**: every field of `infer.query.v1`.
+- **[Fold Functions](/docs/guides/inference/fold-functions)**: the 5 ways to combine answers.
+- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)**: the 6 multi-step flows.
+- **[`spl infer` CLI](/docs/reference/cli#inference-spl-infer)**: run queries from the shell.
+- **[Records](/docs/concepts/records)**: the record format queries use.
+- **[Trust](/docs/concepts/trust)**: how trust feeds combining and ranking.

@@ -119,7 +119,7 @@ So the cascade can spend up to the limit but never past it. If stage 3 (Opus) wo
 
 If your models take very different times (say Haiku 3 seconds, Opus 30), the worst case is about 40 seconds in total. Asking all of them at once with `consensus` takes about 30 seconds, the time of the slowest. The cascade is cheaper in the usual case and slower in the worst case.
 
-Note that `waterfall_first` is something different: it picks the first acceptable answer from a group that were all asked at once. The `waterfall` pattern above asks one at a time. See [Fold Functions — waterfall_first](/docs/guides/inference/fold-functions#function-waterfall_first).
+Note that `waterfall_first` is something different: it picks the first acceptable answer from a group that were all asked at once. The `waterfall` pattern above asks one at a time. See [Fold Functions: waterfall_first](/docs/guides/inference/fold-functions#function-waterfall_first).
 
 ## Try it on a test workspace
 
@@ -138,6 +138,6 @@ You'll see:
 
 ## See also
 
-- **[Orchestration Patterns — waterfall](/docs/guides/inference/orchestration-patterns#pattern-waterfall)**: full description.
-- **[Query Anatomy — SideEffects](/docs/guides/inference/query-anatomy#side-effects)**: all the cost and time-limit fields.
+- **[Orchestration Patterns: waterfall](/docs/guides/inference/orchestration-patterns#pattern-waterfall)**: full description.
+- **[Query Anatomy: SideEffects](/docs/guides/inference/query-anatomy#side-effects)**: all the cost and time-limit fields.
 - **[Summarize with consensus](/docs/cookbook/summarize-research-paper-consensus)**: asking all models at once, when you want reliability more than low cost.

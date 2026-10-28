@@ -3,7 +3,7 @@ title: Files
 description: "Every Syncropel workspace has a filesystem: a place for your working files, published files, connected drives and files from your threads."
 ---
 
-Every Syncropel instance has a **filesystem** — a place to keep files. You
+Every Syncropel instance has a **filesystem**: a place to keep files. You
 browse it, upload to it, and organize it much like the filesystem on your own
 computer, except it lives with your instance and follows you wherever you
 reach that instance from.
@@ -18,17 +18,17 @@ The filesystem has four top-level areas, each with its own rules:
 
 | Area | What it holds | Can you change it? |
 |---|---|---|
-| `/files` | Your working files — anything you're actively using or editing | Yes — upload, rename, move, delete freely |
-| `/artifacts` | Published files — finished work you've promoted from `/files` | No — artifacts are permanent and read-only |
-| `/mnt` | Connected drives — external storage you've mounted into the instance | Depends on the drive |
-| `/threads` | Files derived from your threads — attachments and outputs tied to a conversation or task | No — read-only |
+| `/files` | Your working files: anything you're actively using or editing | Yes: upload, rename, move, delete freely |
+| `/artifacts` | Published files: finished work you've promoted from `/files` | No: artifacts are permanent and read-only |
+| `/mnt` | Connected drives: external storage you've mounted into the instance | Depends on the drive |
+| `/threads` | Files derived from your threads: attachments and outputs tied to a conversation or task | No: read-only |
 
 You'll spend most of your time in `/files`. The other three areas each have a
 specific job, described below.
 
 ## Working files and artifacts
 
-`/files` is your working area. Put anything there — a draft, a dataset you're
+`/files` is your working area. Put anything there: a draft, a dataset you're
 cleaning, a report in progress. You can change or delete a working file at any
 time; nothing is fixed until you decide it is.
 
@@ -48,12 +48,12 @@ spl fs publish /files/report.md
 
 The working file stays in `/files`; the published copy is now an immutable
 artifact. Publishing draws a clean line between work in progress and finished,
-shareable output — you work freely in `/files`, then promote a file to
+shareable output. You work freely in `/files`, then promote a file to
 something fixed when it's ready.
 
 ## Connected drives
 
-`/mnt` is where **connected drives** appear — external storage you mount into
+`/mnt` is where **connected drives** appear: external storage you mount into
 the instance so you can browse it alongside your own files. A connected drive
 shows up as `/mnt/<name>`, and whether you can write to it depends on the
 drive itself.
@@ -62,7 +62,7 @@ drive itself.
 
 ## Files from your threads
 
-`/threads` holds files that belong to your [threads](/docs/concepts/threads) —
+`/threads` holds files that belong to your [threads](/docs/concepts/threads):
 attachments and outputs produced in the course of a conversation or a task. It
 is read-only: these files are a view of what your threads contain, and the
 thread is where they're actually managed.
@@ -71,17 +71,17 @@ thread is where they're actually managed.
 
 There are three ways to work with the filesystem:
 
-- **The command line** — `spl fs` browses and manages the filesystem from your
+- **The command line**: `spl fs` browses and manages the filesystem from your
   terminal: `ls`, `cat`, `cp`, `mkdir`, `mv`, `rm`, `publish`, and more. The
   [command-line guide](/docs/guides/filesystem) is a full walkthrough.
-- **The Files tab** — when you open your instance on the web, the Files tab
+- **The Files tab**: when you open your instance on the web, the Files tab
   is a full visual browser and editor: open and edit markdown, code, JSON,
   CSV, and text directly, drag files in from your computer to upload them,
   drag files between folders to move them, and right-click to create or
   rename. Edits autosave as you type, with a manual save shortcut and an
   always-visible Save button. The [Files in your instance
   guide](/docs/guides/files-in-studio) walks through it end to end.
-- **The SDK** — read and write files from your own code with `client.data.*`
+- **The SDK**: read and write files from your own code with `client.data.*`
   in the [TypeScript SDK](/docs/guides/typescript-sdk): write (with safe
   compare-and-swap edits), read, list, publish, and search. The [Files & blobs
   guide](/docs/guides/sdk-data-plane) is the full walkthrough.
@@ -91,8 +91,8 @@ the Files tab and through the SDK, and vice versa.
 
 ## Made by you
 
-Every file remembers **who made it and when**. A file you create — from the
-terminal, the Files tab, or the SDK — reads as *yours*, not as something
+Every file remembers **who made it and when**. A file you create (from the
+terminal, the Files tab, or the SDK) reads as *yours*, not as something
 "adopted" from elsewhere. That authorship travels with the file: when you look
 at it later, or hand your instance to a teammate, the record of who produced it
 is right there. Files brought in from a connected drive or another instance
@@ -100,22 +100,22 @@ carry *their* origin instead, so it's always clear where something came from.
 
 ## Privacy
 
-Your filesystem belongs to you. Each instance's files are isolated — reaching
+Your filesystem belongs to you. Each instance's files are isolated: reaching
 an instance gives you its filesystem, and only its filesystem. Browsing,
 uploading, and downloading all require a valid credential, exactly like the
 rest of the instance; see [Authentication](/docs/get-started/pairing).
 
 ## What's next
 
-- [Working with files from the command line](/docs/guides/filesystem) — a
+- [Working with files from the command line](/docs/guides/filesystem): a
   hands-on walkthrough of every `spl fs` command, from your first upload to
   publishing an artifact.
-- [Working with files in your instance](/docs/guides/files-in-studio) — the
+- [Working with files in your instance](/docs/guides/files-in-studio): the
   same filesystem in a browser: tree, viewer, editor, drag-upload, and quick
   find.
-- [CLI reference: Files](/docs/reference/cli#files) — the complete `spl fs`
+- [CLI reference: Files](/docs/reference/cli#files): the complete `spl fs`
   command list.
-- [Files & blobs (SDK)](/docs/guides/sdk-data-plane) — read and write the
+- [Files & blobs (SDK)](/docs/guides/sdk-data-plane): read and write the
   filesystem from your own code with `client.data.*`.
-- [Threads](/docs/concepts/threads) — the conversations and tasks the
+- [Threads](/docs/concepts/threads): the conversations and tasks the
   `/threads` area draws its files from.

@@ -43,7 +43,7 @@ There are eleven audit-thread families.
 |---|---|---|
 | Sync pair | `th_sync_control` | LEARN with `topic: pair_state` (lifecycle transitions) + `topic: pair_removed` (terminal) |
 | Namespaces | `th_namespace_registry` | LEARN with `topic: namespace_entry` (create / archive / unarchive / delete) |
-| decision approve/reject | (the original decision-gate proposal thread) | DO with `body.fulfills` or `body.cancels` — the decision IS the audit |
+| decision approve/reject | (the original decision-gate proposal thread) | DO with `body.fulfills` or `body.cancels`: the decision IS the audit |
 
 These areas do not meet C1, C2 or C3 strongly enough for their own thread. The normal thread is the audit trail, and reading it gives you the same detail.
 

@@ -50,7 +50,7 @@ A single Syncropel record (available in `trigger`, `routing`, `aitl`, `permissio
 record.act          // string: "KNOW", "DO", "INTEND", "LEARN", etc.
 record.actor        // string: actor DID
 record.thread       // string: thread ID
-record.body         // map: the payload — access as record.body.topic, record.body.domain, etc.
+record.body         // map: the payload, access as record.body.topic, record.body.domain, etc.
 record.body.topic   // dot-access works for any body field
 record.clock        // int: logical timestamp
 record.data_type    // string: "SCALAR", "FORMULA", etc.
@@ -168,7 +168,7 @@ resource == "record_delete" && current_actor() == "did:sync:user:admin"
 
 These functions work only in the contexts named below.
 
-**`fleet_frozen_namespaces()`** — *Permission context only.* Returns a `list<string>` of namespace IDs currently under a soft or hard freeze. Used in the default permission rule that denies new INTEND/DO/CALL in frozen namespaces:
+**`fleet_frozen_namespaces()`**: *Permission context only.* Returns a `list<string>` of namespace IDs currently under a soft or hard freeze. Used in the default permission rule that denies new INTEND/DO/CALL in frozen namespaces:
 
 ```text
 !fleet_frozen_namespaces().exists(ns,
@@ -176,26 +176,26 @@ These functions work only in the contexts named below.
   (record.act == "INTEND" || record.act == "DO" || record.act == "CALL"))
 ```
 
-**`fleet_hard_frozen_past_grace()`** — *Permission context only.* Returns a `list<string>` of namespaces where a hard freeze is past its grace period. Used in the rule that denies everything at that point:
+**`fleet_hard_frozen_past_grace()`**: *Permission context only.* Returns a `list<string>` of namespaces where a hard freeze is past its grace period. Used in the rule that denies everything at that point:
 
 ```text
 !fleet_hard_frozen_past_grace().exists(ns, record.body.namespace == ns)
 ```
 
-**`fleet_emergency_active()`** — *Permission context only.* Returns `bool`. True if an emergency stop is active. Paired with an allow-only-reads clause:
+**`fleet_emergency_active()`**: *Permission context only.* Returns `bool`. True if an emergency stop is active. Paired with an allow-only-reads clause:
 
 ```text
 !fleet_emergency_active() ||
 (record.act == "GET" || record.act == "KNOW" || record.act == "LEARN")
 ```
 
-**`fleet_instances_live()`** — *Health check context only.* Returns `list<string>` of instance DIDs currently live. Useful for health rules like "at least one worker must be reachable":
+**`fleet_instances_live()`**: *Health check context only.* Returns `list<string>` of instance DIDs currently live. Useful for health rules like "at least one worker must be reachable":
 
 ```text
 fleet_instances_live().filter(did, did.contains("worker-")).size() >= 1
 ```
 
-**`fanout_status(thread_id)`** — *Routing and Permission contexts.* Given a thread ID, returns one of `"none"`, `"spawning"`, `"in_progress"`, `"ready_to_join"`, `"done"`. Useful for routing rules that check whether a parent fan-out has already completed before acting on child records.
+**`fanout_status(thread_id)`**: *Routing and Permission contexts.* Given a thread ID, returns one of `"none"`, `"spawning"`, `"in_progress"`, `"ready_to_join"`, `"done"`. Useful for routing rules that check whether a parent fan-out has already completed before acting on child records.
 
 ### `children` (Join context only)
 
@@ -351,9 +351,9 @@ Permission rules are **off by default**. Turn them on explicitly:
 # 1. Author an admin allow rule FIRST. It must cover EVERY resource
 #    `spl config permissions-disable` touches (otherwise you'll lock
 #    yourself out and need permissions-unlock to recover):
-#      * record_write — POST /v1/records (the record that turns enforcement off)
-#      * thread_read  — GET /v1/threads/.../state (read last_clock first)
-#      * config_read  — GET /v1/config/* (so you can list rules)
+#      * record_write: POST /v1/records (the record that turns enforcement off)
+#      * thread_read:  GET /v1/threads/.../state (read last_clock first)
+#      * config_read:  GET /v1/config/* (so you can list rules)
 spl config add-permission-rule \
   --name admin-self \
   --action allow \
@@ -369,7 +369,7 @@ spl config add-permission-rule \
 
 # 3. Finally, enable enforcement. A safety check runs first
 #    and refuses if your admin rule doesn't cover all three resources
-#    above — preventing the lockout trap before it happens.
+#    above, preventing the lockout trap before it happens.
 spl config permissions-enable
 ```
 

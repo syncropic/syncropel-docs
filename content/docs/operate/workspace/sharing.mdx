@@ -18,7 +18,7 @@ It's the right tool for:
   reach (different namespace, different instance, or a federated peer).
 - An auditor needs a snapshot of a thread for offline review.
 
-It's **not** the right tool for installing a workspace — that's
+It's **not** the right tool for installing a workspace. That's
 [`spl workspace install`](/docs/operate/workspace/lifecycle).
 `spl share` is one-shot, recipient-scoped, signature-verified, and
 optionally time-bounded.
@@ -56,7 +56,7 @@ What happens:
    ```
 
 The bundle is a flat file. Mail it, drop it in S3, attach it to a
-GitHub issue — whatever channel works. The consent record proves the
+GitHub issue, whatever channel works. The consent record proves the
 recipient is authorized to replay it.
 
 ### Include causal dependencies
@@ -107,7 +107,7 @@ What happens:
 3. It checks the consent hasn't expired.
 4. It validates each record's signature against the actor DIDs in the
    bundle.
-5. It replays the records into Alice's instance — by default into a
+5. It replays the records into Alice's instance, by default into a
    temporary in-memory store so your real data isn't touched.
 6. It prints a summary:
 
@@ -123,7 +123,7 @@ instance and the bundle is gone.
 For long-lived investigations, use `--persist` to import into Alice's
 default store instead of an ephemeral one. The records carry their
 original actor DIDs, so they don't pollute Alice's audit trail with
-phantom authorship — they're clearly marked as replayed.
+phantom authorship: they're clearly marked as replayed.
 
 ## What a share is made of
 
@@ -131,7 +131,7 @@ phantom authorship — they're clearly marked as replayed.
 
 - `core.consent.v1` 
   gives a specific recipient access, with an optional expiry.
-- The bundle file is just JSONL canonical records — the same shape
+- The bundle file is just JSONL canonical records, the same shape
   `spl thread snapshot` produces.
 - Replay checks every signature as records are added.
 
@@ -157,7 +157,7 @@ forked thread first (emit corrections, archive the originals), then
 
 ## See also
 
-- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) — installing and managing a workspace, not one-off sharing
-- [Installing & managing workspaces](/docs/operate/workspace/lifecycle) — install, update, archive
-- [Authoring a workspace](/docs/operate/workspace/authoring) — write a workspace document
-- [Backup & recovery](/docs/guides/backup-restore) — durable snapshots of a whole instance
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace): installing and managing a workspace, not one-off sharing
+- [Installing & managing workspaces](/docs/operate/workspace/lifecycle): install, update, archive
+- [Authoring a workspace](/docs/operate/workspace/authoring): write a workspace document
+- [Backup & recovery](/docs/guides/backup-restore): durable snapshots of a whole instance

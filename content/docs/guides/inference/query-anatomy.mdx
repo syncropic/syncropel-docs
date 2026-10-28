@@ -29,11 +29,11 @@ That dispatches one CALL to any Claude Sonnet responder, takes its answer as `be
 
 | Field | Type | Required | Default |
 |---|---|---|---|
-| `kind` | literal `"infer.query.v1"` | yes | — |
-| `input` | Input (oneOf three shapes) | yes | — |
-| `answer_shape` | AnswerShape | yes | — |
-| `responders` | ResponderPredicate[] (min 1) | yes | — |
-| `fold` | Fold | yes | — |
+| `kind` | literal `"infer.query.v1"` | yes | None |
+| `input` | Input (oneOf three shapes) | yes | None |
+| `answer_shape` | AnswerShape | yes | None |
+| `responders` | ResponderPredicate[] (min 1) | yes | None |
+| `fold` | Fold | yes | None |
 | `dial` | number 0–1 OR AdaptiveDial | no | `0.5` |
 | `orchestration` | Orchestration | no | `{ pattern: "single_shot" }` |
 | `side_effects` | SideEffects | no | namespace defaults |
@@ -74,9 +74,9 @@ Checks the **combined** result, not individual responses. Responders can return 
 }
 ```
 
-- `kind` (required) — the `body.kind` of the result, such as `core.translation.v1`.
-- `required_fields` (optional) — dot-paths that must be present (not null) in the result.
-- `schema_ref` (optional) — URI of a full JSON Schema. If present, the result is validated against it.
+- `kind` (required): the `body.kind` of the result, such as `core.translation.v1`.
+- `required_fields` (optional): dot-paths that must be present (not null) in the result.
+- `schema_ref` (optional): URI of a full JSON Schema. If present, the result is validated against it.
 
 If the result doesn't match, you get an `infer.error.v1` record with `code: "answer_shape_mismatch"` instead of an answer. The query thread shows the result that failed and why.
 
@@ -114,7 +114,7 @@ All fields are optional. Within one entry, a responder must meet every field you
 | `any` | Any responder that meets the other fields |
 | (via `expression`) | Any condition you write in CEL |
 
-**Worked example — two kinds of responder:**
+**Worked example: two kinds of responder:**
 
 ```json
 "responders": [
@@ -141,11 +141,11 @@ How answers are combined. See [Fold Functions](/docs/guides/inference/fold-funct
 
 | Field | Type | Default | Applies when |
 |---|---|---|---|
-| `function` | enum | — (required) | always |
+| `function` | enum | None (required) | always |
 | `weight_expression` | CEL string | `"trust * recency * pattern_confidence"` | `consensus`, `ensemble_weighted` |
 | `tie_break` | enum | `"highest_trust"` | any function |
 | `min_quorum` | int ≥ 1 | `1` | all functions |
-| `expression` | CEL string | — (required when `function == "expression"`) | `expression` |
+| `expression` | CEL string | None (required when `function == "expression"`) | `expression` |
 
 **Enum values:**
 - `function`: `consensus`, `best_of`, `waterfall_first`, `ensemble_weighted`, `expression`.
@@ -198,9 +198,9 @@ Cost and safety limits. Namespace-level defaults apply if unset (see [namespaces
 | `obligation_resolution` | enum | `last_writer_wins` | How to resolve modifier conflicts (fulfills/cancels/awaits) |
 
 Obligation resolution values:
-- `last_writer_wins` — most recent response's modifiers win.
-- `fulfills_wins` — any response with `body.fulfills` preempts one with `body.cancels`.
-- `validation_error` — any conflict aborts the fold with `obligation_conflict`.
+- `last_writer_wins`: most recent response's modifiers win.
+- `fulfills_wins`: any response with `body.fulfills` preempts one with `body.cancels`.
+- `validation_error`: any conflict aborts the fold with `obligation_conflict`.
 
 ## Relevance
 
@@ -248,13 +248,13 @@ If `replay_if` matches, the dial is set to 0.1 (strongly favour proven answers).
 
 ## Metadata
 
-A map of strings to strings that you own. Use it for trace IDs, customer IDs, feature flags — whatever you need to correlate queries across your own systems. Syncropel doesn't use it; it just copies it onto the answer.
+A map of strings to strings that you own. Use it for trace IDs, customer IDs, feature flags: whatever you need to correlate queries across your own systems. Syncropel doesn't use it; it just copies it onto the answer.
 
 ```json
 { "metadata": { "trace_id": "trace_abc123", "customer_id": "cust_42" } }
 ```
 
-## Worked example — single LLM
+## Worked example: single LLM
 
 ```json
 {
@@ -269,7 +269,7 @@ A map of strings to strings that you own. Use it for trace IDs, customer IDs, fe
 
 One responder, `best_of` (which simply picks the only answer), and a limit of 5 cents and 30 seconds.
 
-## Worked example — consensus ensemble
+## Worked example: consensus ensemble
 
 ```json
 {
@@ -292,7 +292,7 @@ One responder, `best_of` (which simply picks the only answer), and a limit of 5 
 
 Asks three AI models at the same time, needs at least 2 to respond, and picks the answer most of them agree on.
 
-## Worked example — verify pattern
+## Worked example: verify pattern
 
 ```json
 {
@@ -320,8 +320,8 @@ Claude Sonnet does the primary review. GPT-4 verifies. If they disagree beyond t
 
 ## See also
 
-- **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 ways to combine answers.
-- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step flows.
-- **[Schema reference](/docs/reference/infer-query-schema)** — the authoritative JSON Schema.
-- **[CEL Expressions](/docs/guides/cel-expressions)** — bindings for predicate and fold expressions.
-- **[`spl infer` CLI](/docs/reference/cli#inference--spl-infer)** — build queries from the shell.
+- **[Fold Functions](/docs/guides/inference/fold-functions)**: the 5 ways to combine answers.
+- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)**: the 6 multi-step flows.
+- **[Schema reference](/docs/reference/infer-query-schema)**: the authoritative JSON Schema.
+- **[CEL Expressions](/docs/guides/cel-expressions)**: bindings for predicate and fold expressions.
+- **[`spl infer` CLI](/docs/reference/cli#inference-spl-infer)**: build queries from the shell.

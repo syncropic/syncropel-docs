@@ -1,6 +1,6 @@
 ---
 title: Publishing a repository
-description: The operator flow — create a repository handle, dry-run the snapshot, publish it signed, and verify what readers will see.
+description: "The operator flow: create a repository handle, dry-run the snapshot, publish it signed, and verify what readers will see."
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
@@ -33,7 +33,7 @@ spl repo show acme/product-notes
 spl repo publish acme/product-notes --dry-run
 ```
 
-The dry run builds and stages the full publish tree locally — nothing
+The dry run builds and stages the full publish tree locally. Nothing
 uploads, nothing becomes visible. Use it to see exactly what a publish
 *would* contain before the first real one, and as a pre-flight in scripts.
 
@@ -52,12 +52,12 @@ Useful flags:
 
 | Flag | What it does |
 |---|---|
-| `--visibility public` | Full detail (the default). Reduced-detail levels publish structure over content — see [the Graph](/docs/concepts/graph). |
+| `--visibility public` | Full detail (the default). Reduced-detail levels publish structure over content (see [the Graph](/docs/concepts/graph)). |
 | `--topic <topic>` | Advertise a topic on the listing (repeatable) so readers can find the repository by subject. |
 | `--dry-run` | Stage locally, upload nothing. |
 | `--json` | Machine-readable output for scripts. |
 
-Re-running `publish` advances the published state — each run is a fresh
+Re-running `publish` advances the published state: each run is a fresh
 signed snapshot; readers always see the latest complete one.
 
 ### Keep it published automatically
@@ -118,7 +118,7 @@ https://graph.syncropel.com/acme/product-notes
 ```
 
 Check the overview renders, the records tab shows what you intended to
-share, and nothing you meant to keep private is present — the published
+share, and nothing you meant to keep private is present. The published
 snapshot is exactly what a stranger sees, so review it as one.
 
 ## Reading it back: clone, mount, fork
@@ -127,7 +127,7 @@ A published repository is not just a page. It is a complete, verified
 copy other machines can attach to:
 
 ```bash
-# A fresh home from a publication — the `git clone` equivalent.
+# A fresh home from a publication: the `git clone` equivalent.
 spl repo clone syncropel://acme/product-notes
 
 # Pull ONLY what changed since the last hydration (incremental).
@@ -153,7 +153,7 @@ spl repo drift acme/product-notes
 Exit `0` means aligned, `3` means they differ (the output shows which side has
 what the other lacks).
 
-## Deploy keys — scoped access without your identity
+## Deploy keys: scoped access without your identity
 
 For CI jobs, viewers, or another instance that should read (or write)
 one repository without holding your identity:
@@ -162,21 +162,21 @@ one repository without holding your identity:
 spl repo key acme/product-notes --scope read
 ```
 
-The command is owner-gated and prints the bearer **once** — store it in
+The command is owner-gated and prints the bearer **once**. Store it in
 your secret manager. The key carries a grant scoped to exactly
 `repo:acme/product-notes:read` (or `read-write`, which also allows
 publish and `fork`); it opens nothing else on the instance. Add
 `--expires-days` for a bounded lifetime, and revoke at any time with
 `spl token revoke`.
 
-## Unlisting — retract discovery, keep the data
+## Unlisting: retract discovery, keep the data
 
 ```bash
 spl repo unlist acme/product-notes
 ```
 
-Unlisting retracts the repository's **directory listing** — it stops
-being discoverable — while the published tree itself stays in storage
+Unlisting retracts the repository's **directory listing** (it stops
+being discoverable), while the published tree itself stays in storage
 for anyone who already holds the locator or a deploy key. It removes
 *discovery*, not data. Owner-gated; re-publishing with a listing makes
 it discoverable again.
@@ -212,6 +212,6 @@ a workspace that is killed outright can lose up to that much of its newest work.
 
 ## See also
 
-- [Repositories](/docs/concepts/repositories) — the concept
-- [The Graph](/docs/concepts/graph) — how published work is read
-- [Namespaces](/docs/concepts/namespaces) — ownership and the `{ns}/` half of the handle
+- [Repositories](/docs/concepts/repositories): the concept
+- [The Graph](/docs/concepts/graph): how published work is read
+- [Namespaces](/docs/concepts/namespaces): ownership and the `{ns}/` half of the handle

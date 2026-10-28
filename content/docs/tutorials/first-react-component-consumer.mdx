@@ -15,7 +15,7 @@ When you're done you'll have a skeleton you can build any Syncropel web app from
 
 Total time: **about 30 minutes**.
 
-## Section A — Scaffold the app (5 minutes)
+## Section A: Scaffold the app (5 minutes)
 
 ```bash
 npx create-next-app@latest my-inbox --typescript --app --eslint --tailwind=false --src-dir=false --import-alias="@/*"
@@ -48,7 +48,7 @@ export default function RootLayout({
 
 The stylesheet contains design tokens at `:root` and the component styles. There is **no** `<ThemeProvider>` wrapper: the components read CSS variables directly.
 
-## Section B — Wire the SDK as a server route (5 minutes)
+## Section B: Wire the SDK as a server route (5 minutes)
 
 Browser code can't read `~/.syncro/token` directly. Put the code that talks to your workspace in a Next.js API route so the token stays server-side.
 
@@ -111,7 +111,7 @@ curl http://localhost:3000/api/inbox | jq '.records[].body.goal'
 
 You should see the title come back, plus any other records on the thread.
 
-## Section C — Render the inbox (10 minutes)
+## Section C: Render the inbox (10 minutes)
 
 Replace `app/page.tsx` with:
 
@@ -248,7 +248,7 @@ Reload `http://localhost:3000`. You should see:
 
 Add a few entries. They appear right away, and the list also refreshes every three seconds.
 
-## Section D — Theme tokens (5 minutes)
+## Section D: Theme tokens (5 minutes)
 
 The components keep their shape, but every colour, spacing and text-size value is a CSS variable you can override.
 
@@ -282,7 +282,7 @@ Reload: buttons, chips and card outlines pick up the indigo accent. The componen
 
 For the full token reference, see [Theming via CSS variables](/docs/guides/react-components#theming-via-css-variables) in the React Components guide.
 
-## Section E — What you can extend from here (5 minutes)
+## Section E: What you can extend from here (5 minutes)
 
 The skeleton you built has everything you need to start:
 

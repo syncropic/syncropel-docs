@@ -33,11 +33,11 @@ For the conceptual walkthrough with worked examples, see the [Query Anatomy](/do
 
 | Field | Type | Required | Default |
 |---|---|---|---|
-| `kind` | const `"infer.query.v1"` | yes | — |
-| `input` | Input — oneOf three shapes | yes | — |
-| `answer_shape` | AnswerShape | yes | — |
-| `responders` | ResponderPredicate[] (minItems 1) | yes | — |
-| `fold` | Fold | yes | — |
+| `kind` | const `"infer.query.v1"` | yes | None |
+| `input` | Input: oneOf three shapes | yes | None |
+| `answer_shape` | AnswerShape | yes | None |
+| `responders` | ResponderPredicate[] (minItems 1) | yes | None |
+| `fold` | Fold | yes | None |
 | `dial` | number OR AdaptiveDial | no | `0.5` |
 | `orchestration` | Orchestration | no | `{ pattern: "single_shot" }` |
 | `side_effects` | SideEffects | no | namespace defaults |
@@ -139,11 +139,11 @@ How the responses are combined into one answer.
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `function` | enum | — (required) | `consensus` \| `best_of` \| `waterfall_first` \| `ensemble_weighted` \| `expression` |
+| `function` | enum | None (required) | `consensus` \| `best_of` \| `waterfall_first` \| `ensemble_weighted` \| `expression` |
 | `weight_expression` | CEL string | `"trust * recency * pattern_confidence"` | Applies to `consensus` and `ensemble_weighted` |
 | `tie_break` | enum | `"highest_trust"` | `highest_trust` \| `highest_confidence` \| `most_recent` \| `lexicographic` |
 | `min_quorum` | integer ≥ 1 | `1` | Minimum number of non-error responses before the answers are combined |
-| `expression` | CEL string | — | Required when `function == "expression"` |
+| `expression` | CEL string | None | Required when `function == "expression"` |
 
 ## Orchestration
 
@@ -220,7 +220,7 @@ Per-pattern fields:
 | `idempotent` | boolean | `true` |
 | `max_cost_usd` | number | namespace cap |
 | `max_latency_secs` | integer | `300` |
-| `obligation_resolution` | enum | `last_writer_wins` — also `fulfills_wins`, `validation_error` |
+| `obligation_resolution` | enum | `last_writer_wins` (also `fulfills_wins`, `validation_error`) |
 
 ## Relevance
 
@@ -234,7 +234,7 @@ Per-pattern fields:
 
 | Field | Type | Default |
 |---|---|---|
-| `model` | string | `"current"` — also `"heuristic"` to use the simple scorer |
+| `model` | string | `"current"` (also `"heuristic"` to use the simple scorer) |
 | `threshold` | number 0..1 | `0.5` |
 | `top_k` | integer | `3` |
 
@@ -260,8 +260,8 @@ AdaptiveDial form:
 
 | Field | Type |
 |---|---|
-| `replay_if` | CEL string — if matches, dial = 0.1 |
-| `create_if` | CEL string — if matches, dial = 0.9 |
+| `replay_if` | CEL string. If it matches, dial = 0.1 |
+| `create_if` | CEL string. If it matches, dial = 0.9 |
 | `else` | number 0..1 |
 
 ## Metadata
@@ -276,13 +276,13 @@ A free-form map of text to text. It is copied unchanged into the KNOW record.
 
 Provided in the `@syncropel/config` package alongside `infer-query.schema.json`:
 
-- `infer.call.v1` — a CALL record written for each responder the query is sent to.
-- `infer.error.v1` — KNOW with an error code instead of an answer. 10 codes: `invalid_query`, `no_candidates`, `no_relevant_candidates`, `cost_budget_exceeded`, `latency_timeout`, `responder_unavailable`, `quorum_not_met`, `fold_failed`, `answer_shape_mismatch`, `obligation_conflict`.
+- `infer.call.v1`: a CALL record written for each responder the query is sent to.
+- `infer.error.v1`: KNOW with an error code instead of an answer. 10 codes: `invalid_query`, `no_candidates`, `no_relevant_candidates`, `cost_budget_exceeded`, `latency_timeout`, `responder_unavailable`, `quorum_not_met`, `fold_failed`, `answer_shape_mismatch`, `obligation_conflict`.
 
 ## See also
 
-- **[Query Anatomy guide](/docs/guides/inference/query-anatomy)** — conceptual walkthrough.
-- **[Fold Functions](/docs/guides/inference/fold-functions)** — the 5 ways to combine answers.
-- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — the 6 multi-step patterns.
-- **[body.kind manifest](/docs/guides/body-kind-manifest)** — grammar and reserved scopes.
-- **[`spl infer` CLI](/docs/reference/cli#inference--spl-infer)** — shell invocation reference.
+- **[Query Anatomy guide](/docs/guides/inference/query-anatomy)**: conceptual walkthrough.
+- **[Fold Functions](/docs/guides/inference/fold-functions)**: the 5 ways to combine answers.
+- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)**: the 6 multi-step patterns.
+- **[body.kind manifest](/docs/guides/body-kind-manifest)**: grammar and reserved scopes.
+- **[`spl infer` CLI](/docs/reference/cli#inference-spl-infer)**: shell invocation reference.

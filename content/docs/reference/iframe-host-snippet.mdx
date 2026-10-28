@@ -11,13 +11,13 @@ description: A copy-paste-able vanilla HTML + JS snippet that embeds a Syncropel
 
 You're building a host product (web app, dashboard, IDE panel, internal tool) that wants to embed a Syncropel-aware extension built with [`@syncropel/extensions`](/docs/guides/extensions) and you don't yet have a workspace UI to host it in.
 
-The snippet is intentionally framework-free — vanilla HTML + JS, no build step, no React, no bundler — so you can drop it into any page and tweak it. For production, port the same logic into your framework of choice.
+The snippet is intentionally framework-free (vanilla HTML + JS, no build step, no React, no bundler), so you can drop it into any page and tweak it. For production, port the same logic into your framework of choice.
 
 ## What it implements
 
 - A sandboxed `<iframe>` pointed at the extension's URL
 - A `message` listener that validates each inbound envelope (version, kind, payload shape)
-- Origin allowlisting — messages from any origin not in `EXT_ORIGINS` are dropped
+- Origin allowlisting: messages from any origin not in `EXT_ORIGINS` are dropped
 - The full host-side handshake: `hello` → wait for `ready` → reply with `action.result` confirming granted capabilities
 - A capability policy that gates `records.emit`, `records.query`, `records.subscribe`, `navigate`
 - Forwarding of `records.emit` calls to a Syncropel instance with an authenticated `fetch`
@@ -71,7 +71,7 @@ Save this as `host.html`:
       // product, set this from the user's current context.
       const SELECTED_THREAD = "th_iframe_host_demo";
 
-      // The host's policy — the maximum capabilities any extension may use.
+      // The host's policy: the maximum capabilities any extension may use.
       // The granted set will be the intersection with what the ext requests.
       const HOST_POLICY = new Set([
         "records.emit",
@@ -80,7 +80,7 @@ Save this as `host.html`:
         "navigate",
       ]);
 
-      // Sensitive capabilities — prompt the user the first time the
+      // Sensitive capabilities: prompt the user the first time the
       // extension requests them. Add to this set to gate more capabilities.
       const SENSITIVE = new Set([
         "permissions.camera",
@@ -122,7 +122,7 @@ Save this as `host.html`:
 
       function postToExt(env) {
         if (!extWindow) return;
-        // Always pin the target origin — never use "*" from the host side.
+        // Always pin the target origin. Never use "*" from the host side.
         extWindow.postMessage(env, extOrigin);
       }
 
@@ -359,7 +359,7 @@ Three constants control everything:
 
 | Constant | What |
 |---|---|
-| `EXT_URL` | Where the extension lives. The scheme and port must match exactly — `http://localhost:5173/` is not the same origin as `http://127.0.0.1:5173/`. |
+| `EXT_URL` | Where the extension lives. The scheme and port must match exactly: `http://localhost:5173/` is not the same origin as `http://127.0.0.1:5173/`. |
 | `DAEMON_URL` | Your `spl serve` instance. Default `http://localhost:9100`. |
 | `DAEMON_TOKEN` | A bearer token. Read it from `~/.syncro/token` and paste in. **Never commit a token to git.** |
 
@@ -375,7 +375,7 @@ The browser cannot tell you which iframe sent a message; it tells you which **or
 
 ### Sandbox the iframe
 
-The default `sandbox="allow-scripts allow-same-origin allow-forms allow-popups"` lets the extension run JS, hold its own session storage, and submit forms. Drop `allow-same-origin` if the extension doesn't need persistent storage — that further isolates it.
+The default `sandbox="allow-scripts allow-same-origin allow-forms allow-popups"` lets the extension run JS, hold its own session storage, and submit forms. Drop `allow-same-origin` if the extension doesn't need persistent storage. That further isolates it.
 
 **Do not** add `allow-top-navigation` or `allow-modals` unless you've audited the extension. Both can be abused.
 
@@ -393,7 +393,7 @@ The snippet hard-codes `DAEMON_TOKEN`. For anything beyond local dev, fetch the 
 
 ### Sensitive capabilities prompt the user
 
-`SENSITIVE` lists capabilities that trigger a `window.confirm` on first request. Replace `consentFor` with your real consent UI — a one-time prompt is the floor, not the ceiling.
+`SENSITIVE` lists capabilities that trigger a `window.confirm` on first request. Replace `consentFor` with your real consent UI. A one-time prompt is the floor, not the ceiling.
 
 ### Clock-skew check
 
@@ -407,7 +407,7 @@ For more on iframe sandboxing, see the [OWASP Cheat Sheet on HTML5 Security](htt
 
 ## Where to go next
 
-- **See the snippet in action** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) uses this as the host page.
-- **Deeper protocol reference** — [Extensions SDK guide](/docs/guides/extensions) documents every message kind, payload, and the validator's rules.
-- **Permission policy** — [CEL expressions guide](/docs/guides/cel-expressions) covers the permission context, where you encode what records each actor may emit.
-- **Publishing your extension** — [Extension publishing playbook](/docs/operate/extension-publishing).
+- **See the snippet in action**: [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) uses this as the host page.
+- **Deeper protocol reference**: [Extensions SDK guide](/docs/guides/extensions) documents every message kind, payload, and the validator's rules.
+- **Permission policy**: [CEL expressions guide](/docs/guides/cel-expressions) covers the permission context, where you encode what records each actor may emit.
+- **Publishing your extension**: [Extension publishing playbook](/docs/operate/extension-publishing).

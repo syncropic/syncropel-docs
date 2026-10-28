@@ -92,7 +92,7 @@ Written whenever a dispatch ends, whether it succeeded or failed. It carries wha
 
 Three fields answer the common questions:
 
-**`completion_codepath`** — how the dispatch ended:
+**`completion_codepath`**: how the dispatch ended:
 
 | Value                  | When                                                                                                                |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -101,7 +101,7 @@ Three fields answer the common questions:
 | `budget_deadline`      | The overall time limit was reached and the agent was stopped.                                                       |
 | `stream_eof_fallback`  | The agent's output ended without a final result, because the agent exited or its output broke.                      |
 
-**`failure_reason`** — why the dispatch failed (empty on success):
+**`failure_reason`**: why the dispatch failed (empty on success):
 
 | Value                        | Meaning                                                                                          |
 | ---------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -112,7 +112,7 @@ Three fields answer the common questions:
 | `read_error`                 | Reading the agent's output failed partway through.                                               |
 | `result_reported_error`      | The agent reported its own failure (`is_error: true`).                                           |
 
-**`cost_source`** — where the cost figure came from:
+**`cost_source`**: where the cost figure came from:
 
 | Value                       | Meaning                                                                                               |
 | --------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -228,7 +228,7 @@ Set `days: 0` to keep old files (they are then removed only by size rotation).
 
 ## What to do when a dispatch goes wrong
 
-1. **`spl task diagnose <alias>`** — human-readable summary. This explains most incidents.
-2. **`spl logs --trace-id <sub_thread>`** — read the log lines for the dispatch.
-3. **`spl task dispatch --resume <alias>`** — re-run on the preserved work folder, with earlier commits included in the agent's briefing.
-4. **[Operator runbook](/docs/operate/runbook#a-worker-was-killed-recover-its-work)** — how to recover a partly finished task.
+1. **`spl task diagnose <alias>`**: human-readable summary. This explains most incidents.
+2. **`spl logs --trace-id <sub_thread>`**: read the log lines for the dispatch.
+3. **`spl task dispatch --resume <alias>`**: re-run on the preserved work folder, with earlier commits included in the agent's briefing.
+4. **[Operator runbook](/docs/operate/runbook#a-worker-was-killed-recover-its-work)**: how to recover a partly finished task.

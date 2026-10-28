@@ -20,7 +20,7 @@ This guide assumes you have two instances (**alice** and **bob**), each with an 
 ## Prerequisites
 
 - Both instances run `spl` (check with `spl version`).
-- Each instance has an identity. Run `spl identity show` — if it says "no identity," run `spl identity generate`.
+- Each instance has an identity. Run `spl identity show`. If it says "no identity," run `spl identity generate`.
 - Each instance's URL is reachable from the other. For local two-instance setups, use `--insecure-localhost` on both. For cross-host, both should serve TLS.
 - Optional but recommended: `spl identity verify` on each side first, to check that the local key matches the instance's identity.
 
@@ -197,15 +197,15 @@ spl thread records th_audit_federation_pairs -o json | jq '.[] | {when: .body.ti
 
 ## Troubleshooting
 
-**"peer served `/.well-known/syncropel` but no `federation_manifest` key"** — The peer has no identity set up. Run `spl identity generate` on the peer side.
+**"peer served `/.well-known/syncropel` but no `federation_manifest` key"**: the peer has no identity set up. Run `spl identity generate` on the peer side.
 
-**"pair_handshake_rejected: unauthenticated_initiator"** — Certificate (TLS) verification failed. If you're testing locally without TLS, both sides need `--insecure-localhost`.
+**"pair_handshake_rejected: unauthenticated_initiator"**: certificate (TLS) verification failed. If you're testing locally without TLS, both sides need `--insecure-localhost`.
 
-**"pair_paused" on `spl sync`** — Pair is paused. Run `spl federation resume <peer-did>`.
+**"pair_paused" on `spl sync`**: the pair is paused. Run `spl federation resume <peer-did>`.
 
-**"unpaired_peer"** — You're trying to sync from a URL or DID that doesn't match any pair record. Run `spl federation pair add <peer-url>` first.
+**"unpaired_peer"**: you're trying to sync from a URL or DID that doesn't match any pair record. Run `spl federation pair add <peer-url>` first.
 
-**Peer returns 410 Gone** — The request was already used. Run `spl federation pair` again; each attempt needs a fresh request.
+**Peer returns 410 Gone**: the request was already used. Run `spl federation pair` again; each attempt needs a fresh request.
 
 ## What you get
 
@@ -218,7 +218,7 @@ Pairing gives you:
 
 ## See also
 
-- [Federation discovery](./federation-discovery) — finding peers by URL or directory
-- [Async federation](./async-federation) — sync through a relay when peers are offline
-- [Concepts: Federation](../concepts/federation) — how federation works
-- [Consent](./consent) — cross-namespace record sharing rules
+- [Federation discovery](./federation-discovery): finding peers by URL or directory
+- [Async federation](./async-federation): sync through a relay when peers are offline
+- [Concepts: Federation](../concepts/federation): how federation works
+- [Consent](./consent): cross-namespace record sharing rules

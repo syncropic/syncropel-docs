@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Settings for your workspace — routing rules, event triggers, sign-in, search, relays, and where files live.
+description: "Settings for your workspace: routing rules, event triggers, sign-in, search, relays, and where files live."
 ---
 
 ## Configuration File
@@ -80,10 +80,10 @@ Trigger options:
 
 | Flag | Default | Description |
 |---|---|---|
-| `--match` | — | Record pattern: `"act=KNOW,body.topic=task_verdict"` |
-| `--schedule` | — | Cron expression: `"*/15 * * * *"` (mutually exclusive with match) |
-| `--target` | — | Actor DID to dispatch to |
-| `--goal` | — | Goal text for the dispatched actor |
+| `--match` | None | Record pattern: `"act=KNOW,body.topic=task_verdict"` |
+| `--schedule` | None | Cron expression: `"*/15 * * * *"` (mutually exclusive with match) |
+| `--target` | None | Actor DID to dispatch to |
+| `--goal` | None | Goal text for the dispatched actor |
 | `--budget` | 1.0 | Maximum cost per dispatch (USD) |
 | `--timeout` | 300 | Maximum duration per dispatch (seconds) |
 | `--cooldown` | 60 | Minimum seconds between fires |
@@ -115,7 +115,7 @@ curl -X POST http://127.0.0.1:9100/v1/records \
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `topic` | string | — | Must be `"auth_required"` |
+| `topic` | string | None | Must be `"auth_required"` |
 | `enabled` | bool | `false` | When `true`, every non-exempt endpoint requires `Authorization: Bearer <token>` |
 
 Exempt routes (always unauthenticated): `GET /health`, `POST /v1/bootstrap/service-account`, `GET /.well-known/syncropel`.
@@ -132,9 +132,9 @@ There is no `spl config` command for this, so you write the record to the `th_en
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `topic` | string | — | Must be `"actor_tier"` |
-| `actor` | string | — | The actor DID the assignment applies to |
-| `tier` | string | — | `"paid"` or `"team"`. An assignment never grants owner rights; higher values are treated as `team`. An empty or missing `tier` removes the assignment. |
+| `topic` | string | None | Must be `"actor_tier"` |
+| `actor` | string | None | The actor DID the assignment applies to |
+| `tier` | string | None | `"paid"` or `"team"`. An assignment never grants owner rights; higher values are treated as `team`. An empty or missing `tier` removes the assignment. |
 
 The latest record for each actor wins. The new level applies the next time actors are reloaded, which happens when the server starts and whenever you change an actor's definition. If you only write this record, restart the server to apply it. If the actor also has a level from its invite, the higher one is used.
 
@@ -148,7 +148,7 @@ The list applies only when required sign-in is on. With sign-in off, any website
 
 **3. Emergency recovery.** If you lose your tokens, `spl serve --insecure-localhost` starts the server on `127.0.0.1` only, with sign-in turned off. It logs a warning at every start. **Never use it in production.**
 
-See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full workflow — creating your first service account, managing tokens, pairing with another workspace, and recovering access.
+See the [Authentication & Service Accounts guide](/docs/operate/keyring) for the full workflow: creating your first service account, managing tokens, pairing with another workspace, and recovering access.
 
 ### Embedding provider
 
@@ -162,19 +162,19 @@ spl config embedding-provider set ollama --endpoint http://localhost:11434 --mod
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `topic` | string | — | Must be `"embedding_provider"` |
+| `topic` | string | None | Must be `"embedding_provider"` |
 | `provider` | object \| null | `null` | Provider config. Set `null` to clear (disables semantic search while retaining stored vectors) |
-| `provider.kind` | string | — | Provider kind. Only `"ollama"` is supported |
+| `provider.kind` | string | None | Provider kind. Only `"ollama"` is supported |
 | `provider.endpoint` | string | `"http://localhost:11434"` | HTTP endpoint of the embedding service (Ollama) |
-| `provider.model` | string | `"nomic-embed-text"` | Model name. Changing the model is a "different embedder" — old vectors become inactive (retained but unused until cleared) |
+| `provider.model` | string | `"nomic-embed-text"` | Model name. Changing the model is a "different embedder": old vectors become inactive (retained but unused until cleared) |
 
 After enabling a provider, backfill existing records with `spl embed --loop` (or `POST /v1/records/embed` in a shell loop). New records are indexed automatically as they arrive.
 
 ### Async-federation relay
 
-Configure one or more store-and-forward relays for [async federation](/docs/guides/async-federation) — used when peers aren't reliably online at the same time. Each entry links a relay URL to either a specific peer DID or the catch-all value `"all"`. An entry with `enabled: false` is kept but ignored, so you can switch it off without losing the URL.
+Configure one or more store-and-forward relays for [async federation](/docs/guides/async-federation), used when peers aren't reliably online at the same time. Each entry links a relay URL to either a specific peer DID or the catch-all value `"all"`. An entry with `enabled: false` is kept but ignored, so you can switch it off without losing the URL.
 
-Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation--pair-lifecycle-canonical)). Each command that changes settings saves a settings record:
+Managed via `spl config relay set|show|status|clear` (see the [CLI reference](/docs/reference/cli#federation-pair-lifecycle-canonical)). Each command that changes settings saves a settings record:
 
 ```bash
 spl config relay set https://relay.syncropel.com --for-pair all
@@ -182,16 +182,16 @@ spl config relay set https://relay.syncropel.com --for-pair all
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `topic` | string | — | Must be `"federation.relay"` |
-| `url` | string | — | Relay base URL (no trailing slash required) |
-| `for_pair` | string | — | Peer DID this relay is for, or `"all"` as the catch-all |
+| `topic` | string | None | Must be `"federation.relay"` |
+| `url` | string | None | Relay base URL (no trailing slash required) |
+| `for_pair` | string | None | Peer DID this relay is for, or `"all"` as the catch-all |
 | `enabled` | bool | `true` | When `false`, the entry is preserved but skipped at lookup time |
 
 When sending, a relay set for that exact peer wins; otherwise the `"all"` relay is used. Restart `spl serve` after adding a new relay URL so that it starts receiving through it.
 
 ### Responder overrides
 
-Responder details are filled in automatically from your connected adapters and actors, then merged with your overrides. Overrides let you choose the responders advertised on `/v1/capabilities` and `/.well-known/syncropel` — set a cost model, pin a trust floor, hide a responder from the list, or add a responder that has no automatic entry.
+Responder details are filled in automatically from your connected adapters and actors, then merged with your overrides. Overrides let you choose the responders advertised on `/v1/capabilities` and `/.well-known/syncropel`: set a cost model, pin a trust floor, hide a responder from the list, or add a responder that has no automatic entry.
 
 Managed via `spl config responders-add|responders-list|responders-remove` (see the [CLI reference](/docs/reference/cli#authentication)). Each command that changes an override saves a settings record with `topic: "responder_override"`:
 

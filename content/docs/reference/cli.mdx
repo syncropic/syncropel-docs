@@ -46,21 +46,21 @@ spl status
 spl version
 ```
 
-`--port` and `--host` follow one precedence everywhere (`serve`, `start`, `stop`, `restart`): an explicit flag wins, then the `[server]` block in `~/.syncro/config.toml`, then the compiled default (`9100` / `127.0.0.1`). Before spawning, the instance probes the target port and **refuses to start** when something is already serving there — you get an immediate error naming the port instead of a phantom second daemon.
+`--port` and `--host` follow one precedence everywhere (`serve`, `start`, `stop`, `restart`): an explicit flag wins, then the `[server]` block in `~/.syncro/config.toml`, then the compiled default (`9100` / `127.0.0.1`). Before spawning, the instance probes the target port and **refuses to start** when something is already serving there. You get an immediate error naming the port instead of a phantom second daemon.
 
-`spl serve` / `spl stop` / `spl restart` are convenience aliases over the instance-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the instance to stay attached for log capture + restart-on-crash semantics — systemd `Type=simple` units, Docker `CMD`, Kubernetes pods, and managed cloud platforms.
+`spl serve` / `spl stop` / `spl restart` are convenience aliases over the instance-mode `spl serve` flags. Use them for interactive work. Use `spl serve` (foreground) under process supervisors that expect the instance to stay attached for log capture + restart-on-crash semantics: systemd `Type=simple` units, Docker `CMD`, Kubernetes pods, and managed cloud platforms.
 
 | Command | Description |
 |---|---|
 | `serve` | Start the Syncropel server |
 | `serve --daemon` | Start in background mode |
 | `serve --memory` | Use ephemeral in-memory store (for development) |
-| `serve --echo` | Echo mode — no AI provider needed |
+| `serve --echo` | Echo mode: no AI provider needed |
 | `serve --stop` | Stop the background instance |
 | `serve --restart` | Stop the instance if running, then start in background mode |
 | `serve --status` | Print instance status without starting the server |
 | `serve --logs` | Tail the instance log file. `-n` controls the initial line count; `--no-follow` prints once and exits |
-| `serve --insecure-localhost` | Dev escape hatch: skip bearer-token authentication. Forces the instance to bind to `127.0.0.1` regardless of `--host` and emits a WARN log on startup. Intended for local dev instances and E2E tests — never pass in production |
+| `serve --insecure-localhost` | Dev escape hatch: skip bearer-token authentication. Forces the instance to bind to `127.0.0.1` regardless of `--host` and emits a WARN log on startup. Intended for local dev instances and E2E tests. Never pass in production |
 | `status` | Show server health, uptime, record count |
 | `version` | Show version |
 
@@ -97,7 +97,7 @@ spl reset --wipe-task-data  # also delete ~/.syncro-data/ (extra confirmation)
 
 Wipes `~/.syncro/` back to a fresh state by listing the directory at runtime and deleting every entry not protected by a `--keep-*` flag. With no `--keep-*` flag the home dir itself is also removed, so the next `spl init` works without `--force`.
 
-Refuses if any of four signals indicate an instance is running: PID file at `~/.syncro/run/spl.pid`, Unix socket connect, TCP `127.0.0.1:9100` connect, or `systemctl --user is-active spl-serve.service`. The TCP and systemd signals are scoped to the default `~/.syncro/` home so `SYNCROPEL_HOME=/some/other/path` invocations don't false-positive on unrelated instances. If you use a systemd user unit, stop it (`systemctl --user stop spl-serve.service`) — `spl stop` alone is insufficient because the unit respawns the instance.
+Refuses if any of four signals indicate an instance is running: PID file at `~/.syncro/run/spl.pid`, Unix socket connect, TCP `127.0.0.1:9100` connect, or `systemctl --user is-active spl-serve.service`. The TCP and systemd signals are scoped to the default `~/.syncro/` home so `SYNCROPEL_HOME=/some/other/path` invocations don't false-positive on unrelated instances. If you use a systemd user unit, stop it (`systemctl --user stop spl-serve.service`). `spl stop` alone is insufficient because the unit respawns the instance.
 
 Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601>` (outside `~/.syncro/` so the backup survives the reset) before deleting anything. Never touches `~/.syncro-data/` (task content + alias mappings) by default.
 
@@ -108,10 +108,10 @@ Backs up `hub.db` to `~/.local/share/syncropel/backups/hub.db.pre-reset.<iso8601
 | `--keep-config` | Preserve `config.toml` so API keys, routing rules, and CORS settings survive the reset |
 | `--keep-keys` | Preserve `keys/` so the actor DID stays the same after `spl init` (use when rolling back a corrupted record store without re-establishing identity) |
 | `--keep-secrets` | Preserve `secrets/` (encrypted API keys + secret backend) |
-| `--wipe-task-data` | ALSO delete `~/.syncro-data/` — destructive, requires an additional `[y/N]` prompt unless paired with `--force` |
+| `--wipe-task-data` | ALSO delete `~/.syncro-data/`. Destructive: requires an additional `[y/N]` prompt unless paired with `--force` |
 | `--json` / `-o json` | Emit a `reset_outcome` JSON envelope with the plan, backup path, deleted/failed counts, and the OS-keyring caveat |
 
-The full reset/uninstall guide is at [Reset and Uninstall](/docs/get-started/reset-uninstall) — including the manual `rm -rf` fallback for when `spl` itself is broken and can't run `spl reset`.
+The full reset/uninstall guide is at [Reset and Uninstall](/docs/get-started/reset-uninstall), including the manual `rm -rf` fallback for when `spl` itself is broken and can't run `spl reset`.
 
 ## Records
 
@@ -138,7 +138,7 @@ done.
 
 ## Find
 
-Blended text search over file names, file contents, and conversations — ranked together, with snippets. No embedding provider needed; see the [Find guide](/docs/guides/find).
+Blended text search over file names, file contents, and conversations, ranked together, with snippets. No embedding provider needed; see the [Find guide](/docs/guides/find).
 
 ```bash
 spl find "quarterly budget"                       # blended search
@@ -158,7 +158,7 @@ spl search "query" --thread th_abc --actor did:sync:agent:dev --kind core.task.r
 spl search "query" --json | jq '.hits[].record.id'
 ```
 
-Requires an embedding provider configured first — see the [Configuration → Embedding provider](#embedding-provider) section below.
+Requires an embedding provider configured first. See the [Configuration → Embedding provider](#embedding-provider) section below.
 
 ## Threads
 
@@ -179,8 +179,8 @@ spl decisions provide <id> <value>       # answer a PROVIDE with a value
 spl decisions ack <id>                   # acknowledge an ACKNOWLEDGE
 ```
 
-The decision gate is how anything on the instance — the intelligence
-layer, a work loop, a Faculty — asks a human for a call. Pending
+The decision gate is how anything on the instance (the intelligence
+layer, a work loop, a Faculty) asks a human for a call. Pending
 decisions also surface in `spl resume` under NEEDS.
 
 ## Sessions and re-entry
@@ -284,13 +284,13 @@ spl fs mounts                    # list connected external drives
 
 | Command | Purpose |
 |---|---|
-| `ls` | List a directory — `/files`, `/artifacts`, `/mnt/<name>`, `/threads` |
-| `stat` | Metadata for one path — kind, size, content hash |
+| `ls` | List a directory: `/files`, `/artifacts`, `/mnt/<name>`, `/threads` |
+| `stat` | Metadata for one path: kind, size, content hash |
 | `cat` | Print a file's bytes to stdout |
 | `cp` | Upload a local file into the `/files` working area |
 | `mkdir` | Create a directory |
 | `mv` | Move or rename a path |
-| `rm` | Remove a path — `--recursive` for a non-empty directory |
+| `rm` | Remove a path. Use `--recursive` for a non-empty directory |
 | `publish` | Promote a working file to a permanent, read-only artifact in `/artifacts` |
 | `mounts` | List external drives mounted into the instance |
 
@@ -299,7 +299,7 @@ Every subcommand accepts `-o json` (or `--json`) for scripting.
 ## Workspaces
 
 A workspace is a `core.workspace.v1` record that carries an interactive
-surface. You install one from a document file at runtime — no rebuild. See
+surface. You install one from a document file at runtime, with no rebuild. See
 [the workspace concept](/docs/concepts/workspaces) for the full picture.
 
 ```bash
@@ -316,9 +316,9 @@ spl workspace unsubscribe <workspace-ref> [--reason <text>]
 |---|---|
 | `workspace install <file>` | Validate a `core.workspace.v1` document file and emit it onto the instance's workspace catalog. The workspace is live immediately |
 | `workspace update <slug> <file>` | Re-emit the workspace under an existing slug. The file's `meta.slug` must match. Identical content is a no-op |
-| `workspace list` | List the workspaces the instance serves — the latest record per slug |
-| `workspace show <slug>` | Print the full `core.workspace.v1` body — `meta`, `capabilities`, `regions`, `lifecycle` |
-| `workspace archive <slug>` | Re-emit the workspace with `lifecycle: "archived"` — soft delete; existing subscriptions keep working |
+| `workspace list` | List the workspaces the instance serves: the latest record per slug |
+| `workspace show <slug>` | Print the full `core.workspace.v1` body: `meta`, `capabilities`, `regions`, `lifecycle` |
+| `workspace archive <slug>` | Re-emit the workspace with `lifecycle: "archived"`. This is a soft delete, and existing subscriptions keep working |
 | `workspace subscribe <ref>` | Record your subscription to a workspace by its content hash, optionally pinning a publisher and version. Namespace-local unless `--federated` |
 | `workspace unsubscribe <ref>` | Re-emit the subscription as inactive (records are immutable; no delete) |
 
@@ -326,8 +326,8 @@ Workspaces are covered step by step in [Build your first workspace](/docs/tutori
 
 ## Chrome
 
-Your instance's chrome — the navigation rail, side panels, and footer that
-wrap every screen — is a `core.instance.shell.v1` record. The `spl chrome`
+Your instance's chrome (the navigation rail, side panels, and footer that
+wrap every screen) is a `core.instance.shell.v1` record. The `spl chrome`
 family authors it. See [the instance chrome
 concept](/docs/concepts/instance-chrome) for the full picture.
 
@@ -341,10 +341,10 @@ spl chrome archive
 
 | Command | Description |
 |---|---|
-| `chrome show` | Print the current chrome record — the draft if one exists, otherwise the published record. `--published` forces the published lookup |
-| `chrome init` | Scaffold a draft `core.instance.shell.v1` from a bundled template. `--template` is one of `personal` (default), `graph-showcase`, `library`, `team`. Fails if a draft already exists — re-run with `--force` to overwrite |
-| `chrome validate <file>` | Schema-check a `core.instance.shell.v1` body in a local file. No instance needed — good for pre-commit hooks. Exit `0` on valid, `1` on invalid |
-| `chrome publish` | Promote the current draft to `lifecycle: published` — the live chrome that `GET /v1/instance/shell` serves and renderers draw |
+| `chrome show` | Print the current chrome record: the draft if one exists, otherwise the published record. `--published` forces the published lookup |
+| `chrome init` | Scaffold a draft `core.instance.shell.v1` from a bundled template. `--template` is one of `personal` (default), `graph-showcase`, `library`, `team`. Fails if a draft already exists. Re-run with `--force` to overwrite |
+| `chrome validate <file>` | Schema-check a `core.instance.shell.v1` body in a local file. No instance needed, so it suits pre-commit hooks. Exit `0` on valid, `1` on invalid |
+| `chrome publish` | Promote the current draft to `lifecycle: published`, the live chrome that `GET /v1/instance/shell` serves and renderers draw |
 | `chrome archive` | Archive the published record. Renderers fall back to the bundled default chrome |
 
 The command is named `chrome`, not `shell`, so it isn't mistaken for a
@@ -369,7 +369,7 @@ spl share receive <bundle-path> --from <sender-did> [--dry-run]
 | `share receive <bundle> --from <did>` | Verify signatures and content hashes, replay records into the local instance |
 | `share receive --dry-run` | Verify the bundle without importing it (good for checking before you replay) |
 
-The bundle format is just records. The receiving instance accepts them the same way it accepts any record. Tampering is detectable — re-hashing
+The bundle format is just records. The receiving instance accepts them the same way it accepts any record. Tampering is detectable: re-hashing
 the seven-field record envelope catches any mutation.
 
 ## Secrets
@@ -377,7 +377,7 @@ the seven-field record envelope catches any mutation.
 Manage credential handles. Syncropel stores the handle and its audit metadata; the value lives in your OS keychain (or the backend you reference). See [Secrets concepts](../concepts/secrets) for how secrets are protected.
 
 ```bash
-spl secret set <handle>          # interactive — TTY echo disabled, or piped stdin
+spl secret set <handle>          # interactive: TTY echo disabled, or piped stdin
 spl secret get <handle>          # returns metadata only (no value)
 spl secret get <handle> --reveal # prints value (warns to stderr)
 spl secret list                  # tabular: handle, backend, lifecycle, last_accessed
@@ -390,14 +390,14 @@ spl secret delete <handle>       # tombstone descriptor + audit record
 | `secret set <handle>` | Reads value from a TTY (`tcsetattr` echo disabled) or piped stdin. Never accepts a `--value` flag. Writes a `core.credential.v1` descriptor + sets the value at the configured backend |
 | `secret get <handle>` | Returns the descriptor metadata. The audit record is written before the response returns |
 | `secret get <handle> --reveal` | Prints the value to stdout. Audit record marks `outcome: allowed` with `purpose: revealed_to_operator` |
-| `secret list` | Lists every credential descriptor visible to the caller. Backend resolution is lazy — listing does not unlock values |
+| `secret list` | Lists every credential descriptor visible to the caller. Backend resolution is lazy: listing does not unlock values |
 | `secret promote <ENV_VAR>` | Reads the named environment variable, prompts confirmation, writes the value to the OS keychain, emits the descriptor + a `secret.access.v1` audit record |
 | `secret delete <handle>` | Marks the descriptor `lifecycle: erased` and removes the value from the backend. The descriptor record stays in the audit log |
 
 Supported backend URI schemes:
 
-- `keychain://syncropel/<handle>` — platform-native (macOS Keychain, Linux Secret Service, Windows DPAPI/Credential Manager)
-- `env://VAR_NAME` — reads an environment variable (read-only; works on every platform)
+- `keychain://syncropel/<handle>`: platform-native (macOS Keychain, Linux Secret Service, Windows DPAPI/Credential Manager)
+- `env://VAR_NAME`: reads an environment variable (read-only; works on every platform)
 
 Other schemes (`1password://`, `vault://`, `kms://`) are not supported.
 
@@ -498,7 +498,7 @@ spl config relay push --peer <did> --thread <thread_id>
 
 | Command | Description |
 |---|---|
-| `relay set` | Configure a relay URL for a peer. `--for-pair` defaults to `all` — the catch-all applied to any peer without a more specific mapping |
+| `relay set` | Configure a relay URL for a peer. `--for-pair` defaults to `all`, the catch-all applied to any peer without a more specific mapping |
 | `relay show` | List configured relay entries |
 | `relay status` | Probe configured relays against their `/health` endpoint. With `--for-pair <did>`, probes only the relay that would be used for that peer (specific match or catch-all fallback) |
 | `relay clear` | Remove a relay entry. `--for-pair` defaults to `all` to drop the catch-all; pass a DID to clear a specific mapping |
@@ -563,7 +563,7 @@ spl config responders-remove --did did:sync:agent:deprecated
 spl dispatch send <actor> "goal" [--thread ID] [--budget 1.0] [--timeout 600]
 ```
 
-## Inference — `spl infer`
+## Inference: `spl infer`
 
 Emit an `infer.query.v1` INTEND and (by default) wait for the KNOW. See the [Inference guide](/docs/guides/inference/overview) for what every field means.
 
@@ -597,7 +597,7 @@ spl infer <goal> --responder <KIND:SELECTOR> [--responder ...] \
 
 ### Three flag combinations
 
-**Simple — two responders, default consensus fold, budget ceiling:**
+**Simple: two responders, default consensus fold, budget ceiling:**
 
 ```bash
 spl infer "summarise this paper" \
@@ -637,7 +637,7 @@ For queries more complex than the CLI can build, pipe a JSON file:
 spl infer --query-file query.json --wait
 ```
 
-## Work loop — `spl work-loop`
+## Work loop: `spl work-loop`
 
 Run a records-native work loop with workspace tools. The loop emits records onto its thread as it works (`core.work.turn.v1`, `core.work.tool_call.v1`, etc.); in `--verify` mode, the workspace, not the loop, decides whether it succeeded. See the [Work loop concept page](/docs/concepts/work-loop) for details.
 
@@ -674,9 +674,9 @@ spl work-loop "Find every record tagged 'beta' and emit consent grants" \
   --remote --verify --json
 ```
 
-## Review a work loop — `spl work-loop-review`
+## Review a work loop: `spl work-loop-review`
 
-Record an external verdict on a completed work loop. This is how a loop's outcome is judged: an actor with standing accepts or rejects what the loop produced, and that verdict counts toward the loop actor's [trust](/docs/concepts/trust). A loop's own self-reported outcome never earns it trust — only this external verdict does, and it must come from a different actor than the one that ran the loop. See the [work loop concept page](/docs/concepts/work-loop#read-do-be-judged).
+Record an external verdict on a completed work loop. This is how a loop's outcome is judged: an actor with standing accepts or rejects what the loop produced, and that verdict counts toward the loop actor's [trust](/docs/concepts/trust). A loop's own self-reported outcome never earns it trust. Only this external verdict does, and it must come from a different actor than the one that ran the loop. See the [work loop concept page](/docs/concepts/work-loop#read-do-be-judged).
 
 ```bash
 spl work-loop-review <THREAD> \
@@ -824,11 +824,11 @@ spl task retry <parent-alias> --subtask <index> # Re-dispatch one failed child
 
 Each `--subtask` flag is a comma-separated list of `key=value` pairs. Supported keys:
 
-- **`goal`** (required) — the child subtask's INTEND goal, passed verbatim to the worker
-- **`target`** (required) — one of `worker-<alias>`, `specific:<full-did>`, `least-loaded-worker`, `round-robin` (see "Routing strategies" below)
-- **`budget`** (optional) — advisory per-subtask USD budget
-- **`timeout`** (optional) — worker-side timeout in seconds, default 600
-- **`depends`** (optional) — plus-separated list of 0-based subtask indices this child depends on. `depends=0+1` means "wait for subtasks 0 and 1 to accept before spawning this one." Circular dependencies are rejected when the command is read.
+- **`goal`** (required): the child subtask's INTEND goal, passed verbatim to the worker
+- **`target`** (required): one of `worker-<alias>`, `specific:<full-did>`, `least-loaded-worker`, `round-robin` (see "Routing strategies" below)
+- **`budget`** (optional): advisory per-subtask USD budget
+- **`timeout`** (optional): worker-side timeout in seconds, default 600
+- **`depends`** (optional): plus-separated list of 0-based subtask indices this child depends on. `depends=0+1` means "wait for subtasks 0 and 1 to accept before spawning this one." Circular dependencies are rejected when the command is read.
 
 <Callout type="info">
 Sub-tasks can only be declared with the `--subtask` flag, not in a task body file.
@@ -851,12 +851,12 @@ children.all(c, c.verdict == "accept" && c.cost_usd < 5.00)   # custom CEL
 
 Fan-out descriptors set `target` to one of:
 
-- **`worker-<alias>`** — direct lookup by instance DID last-segment alias
-- **`specific:<full-did>`** — exact DID match
-- **`least-loaded-worker`** — live worker with lowest `active_dispatches`, tie-break on longest uptime
-- **`round-robin`** — deterministic pick based on `hash(parent_id + descriptor_index) mod live_worker_count`
+- **`worker-<alias>`**: direct lookup by instance DID last-segment alias
+- **`specific:<full-did>`**: exact DID match
+- **`least-loaded-worker`**: live worker with lowest `active_dispatches`, tie-break on longest uptime
+- **`round-robin`**: deterministic pick based on `hash(parent_id + descriptor_index) mod live_worker_count`
 
-## Federation — Pair Lifecycle (canonical)
+## Federation: Pair Lifecycle (canonical)
 
 The `spl federation` verb is the canonical surface for federation pair management. One command establishes a pair; subsequent verbs manage its lifecycle. See the [federation pair guide](/docs/guides/federation-pair) for a walkthrough.
 
@@ -895,7 +895,7 @@ spl federation show <id>                         # ≡ spl federation pair show
 
 **Pair direction**: a pair on X with `peer_did=Y` means X pulls from Y (records flow Y→X). For bidirectional sync, run `spl federation pair` on each side.
 
-## Federation — Pair Sync (`spl fleet sync`)
+## Federation: Pair Sync (`spl fleet sync`)
 
 These commands still work, but use `spl federation` (above) for new pairs. See the [federation guide](/docs/guides/federation) for the older walkthrough.
 
@@ -910,7 +910,7 @@ spl fleet sync kick <PAIR_ID>                                # Force immediate p
 spl fleet sync remove <PAIR_ID>                              # Delete pair
 ```
 
-`--peer-url` overrides DID resolution — useful when the peer's DID isn't in a shared directory.
+`--peer-url` overrides DID resolution, useful when the peer's DID isn't in a shared directory.
 
 **One-shot sync** (bulk-fetch a thread from a peer without a continuous pair):
 
@@ -920,7 +920,7 @@ spl sync <THREAD_ID> from <PEER>   # PEER is URL or DID
 
 Uses thread snapshot/restore under the hood. Useful for setting up a new instance with existing history.
 
-## Federation — Peer Discovery
+## Federation: Peer Discovery
 
 Find other instances without hand-configured peer URLs. See the [federation pair guide](/docs/guides/federation-pair) for the canonical pairing flow once a peer is found, and the [federation discovery guide](/docs/guides/federation-discovery) for when each discovery method fits.
 
@@ -967,7 +967,7 @@ spl discover --peer-url https://alice.dev --kind music.catalog.track --strict --
 
 `spl discover` fetches directly from the peer and verifies did:key signatures. It does not query directories or resolve did:web / did:sync identifiers.
 
-### Identity — publish a did:web document
+### Identity: publish a did:web document
 
 Generate a W3C-conformant DID document if you control a domain. Upload the resulting file to `https://<domain>/.well-known/did.json` via your existing web hosting.
 
@@ -977,7 +977,7 @@ spl identity publish-did-web --domain alice.dev [--output did.json]
 
 The document includes the instance's current public key and a service entry of type `syncropel` pointing at the instance's advertised endpoint. Anyone who knows `alice.dev` can then resolve `did:web:alice.dev` without a directory service.
 
-## Federation — Consent
+## Federation: Consent
 
 Grant and manage cross-namespace record-sharing. See the [consent guide](/docs/guides/consent).
 
@@ -996,7 +996,7 @@ Source namespace is `default` unless written directly. Without L0 in `--hash-lev
 spl config permissions-unlock [--force]    # Unlock from permission lockout
 ```
 
-`permissions-unlock` writes a `permissions_enabled=false` LEARN record directly to the local SQLite store. Use it when your own permission rules refuse the change that would turn them off (a lockout). Refuses to run while the instance is up unless `--force` is passed — you still need to restart the instance for the change to take effect. Only sqlite stores are supported.
+`permissions-unlock` writes a `permissions_enabled=false` LEARN record directly to the local SQLite store. Use it when your own permission rules refuse the change that would turn them off (a lockout). Refuses to run while the instance is up unless `--force` is passed. You still need to restart the instance for the change to take effect. Only sqlite stores are supported.
 
 See [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the check that prevents a lockout in the first place.
 
@@ -1020,7 +1020,7 @@ spl service-account revoke <sa_id> [--reason "<text>"] [--namespace <ns>]
 | `--actors <csv>` | `create` | DIDs allowed to claim this SA via `X-Syncropel-Actor`. Empty ⇒ SA derives its own DID |
 | `--with-token` | `create` | Mint an initial bearer token atomically with the SA |
 | `--env-tag <tag>` | `create` | Env tag on the minted token (default `prod`). Only meaningful with `--with-token` |
-| `--bootstrap` | `create` | Use the privileged bootstrap endpoint (no auth required). One-shot per namespace — closes after first SA exists |
+| `--bootstrap` | `create` | Use the privileged bootstrap endpoint (no auth required). One-shot per namespace: closes after first SA exists |
 | `--reason "<text>"` | `revoke` | Revocation reason recorded in the audit trail |
 | `--namespace <ns>` | all | Namespace scope (default `default`) |
 
@@ -1040,7 +1040,7 @@ spl token revoke --sa <sa_id> --token-id <token_id> [--reason "<text>"] [--names
 |---|---|
 | `create` | Mint a new bearer token for an existing SA. Prints plaintext token once |
 | `list` | List tokens (all, or filtered by `--sa`). Shows status `active` or `REVOKED` |
-| `info` | Parse a token client-side — no network. Reports env_tag, sa_id, token_id (SHA-256 of secret) |
+| `info` | Parse a token client-side, with no network. Reports env_tag, sa_id, token_id (SHA-256 of secret) |
 | `rotate` | Mint a fresh token FIRST, then revoke old ones. Safe against partial failure |
 | `revoke` | Revoke a single token. SA and its other tokens keep working |
 
@@ -1052,17 +1052,17 @@ spl pair --device "<label>" --url "<remote_url>" [--scopes <csv>] [--namespace <
 
 Creates a dedicated service account, mints a token, and renders pairing payload three ways:
 
-1. **One-click URL** — first thing printed, of the form `https://syncropel.com/pair#<encoded-payload>`. Click it (or copy into a browser) to auto-pair without typing or scanning. The token rides in the URL fragment (after the `#`), which never reaches any server.
-2. **QR code** — for phones / camera-scan flows.
-3. **Plain-text payload** — for paste flows when QR scanning isn't an option.
+1. **One-click URL**: first thing printed, of the form `https://syncropel.com/pair#<encoded-payload>`. Click it (or copy into a browser) to auto-pair without typing or scanning. The token rides in the URL fragment (after the `#`), which never reaches any server.
+2. **QR code**: for phones / camera-scan flows.
+3. **Plain-text payload**: for paste flows when QR scanning isn't an option.
 
 Used to connect phones, browsers, and other devices to a `spl serve` instance.
 
 | Flag | Description |
 |---|---|
-| `--device "<label>"` | Device name (e.g. `"iPhone 17"`, `"browser-chrome"`) — required. The `browser-*` prefix defaults to scope `admin` so the dashboard's privileged panels render; `viewer-*` defaults to `records:read`; `emitter-*` defaults to `records:read,records:write`. |
-| `--url "<remote_url>"` | URL the device will call — required. Must be reachable from the device |
-| `--scopes <csv>` | Token scopes (default depends on device prefix — see `--device` above) |
+| `--device "<label>"` | Device name (e.g. `"iPhone 17"`, `"browser-chrome"`). Required. The `browser-*` prefix defaults to scope `admin` so the dashboard's privileged panels render; `viewer-*` defaults to `records:read`; `emitter-*` defaults to `records:read,records:write`. |
+| `--url "<remote_url>"` | URL the device will call. Required. Must be reachable from the device |
+| `--scopes <csv>` | Token scopes (default depends on device prefix. See `--device` above) |
 | `--env-tag <tag>` | Env tag on the token (default `prod`) |
 | `--namespace <ns>` | Namespace (default `default`) |
 | `--actors <csv>` | Allowed claimable DIDs (empty ⇒ SA derives its own DID) |
@@ -1093,7 +1093,7 @@ spl service-account revoke sa_abc123def456ghi7 --reason "laptop stolen"
 
 Principal-creating invites, the member roster, adoption, and offboarding. Concept: [Principals & grants](/docs/concepts/principals-and-grants); walkthrough: [Add a teammate](/docs/tutorials/add-a-teammate).
 
-### Invites — `spl invite`
+### Invites: `spl invite`
 
 ```bash
 spl invite create [--member] [--preset reader|contributor|admin] [--label <name>] \
@@ -1120,7 +1120,7 @@ spl invite templates [--json]
 | `--device-label "<text>"` | `create` | Label shown on the invite page |
 | `<filter>` | `bulk-revoke` | `expired`, `exhausted`, or `holder:<did>` |
 
-`spl invite audit` prints the invite lifecycle feed — issued / redeemed / exhausted / refused / `member_revoked`. `spl invite presets` and `spl invite templates` list the scope presets and saved invite templates.
+`spl invite audit` prints the invite lifecycle feed: issued / redeemed / exhausted / refused / `member_revoked`. `spl invite presets` and `spl invite templates` list the scope presets and saved invite templates.
 
 ```bash
 # The golden path: invite a teammate as a contributor
@@ -1131,7 +1131,7 @@ spl invite create --member --preset contributor
 spl invite create --member --label mora
 ```
 
-### Roster — `spl member`
+### Roster: `spl member`
 
 ```bash
 spl member list [--json]
@@ -1142,7 +1142,7 @@ spl member revoke <label> [--reason "<text>"] [--json]
 | Command | Description |
 |---|---|
 | `list` | The membership roster. Admin sees all rows; any other caller sees only their own |
-| `adopt` | Adopt an existing actor as a principal. Without `--sa`: binds a label whose signing key this instance already holds (the instance owner, a paired device) — after this, that actor's signed task verdicts verify. With `--sa <sa_id>`: mints a custodial principal for the service account's holder and re-parents the credential to a membership grant without breaking the bearer |
+| `adopt` | Adopt an existing actor as a principal. Without `--sa`: binds a label whose signing key this instance already holds (the instance owner, a paired device). After this, that actor's signed task verdicts verify. With `--sa <sa_id>`: mints a custodial principal for the service account's holder and re-parents the credential to a membership grant without breaking the bearer |
 | `revoke` | Offboarding as one revocation: the membership grant is revoked and every credential parented to it (bearers, agent sub-grants) stops working with it; the bearer is refused with `401` on its next request. A member may revoke their own membership. Safe to repeat. Applies to this instance only |
 
 ```bash

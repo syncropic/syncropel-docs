@@ -93,7 +93,7 @@ if (emit.status === "ok") {
 // One-shot query (the workspace validates it)
 const q = await adapter.query({ kind: "app.note", limit: 20 });
 
-// Live subscription — records arrive via onRecords hook
+// Live subscription: records arrive via onRecords hook
 const sub = await adapter.subscribe({ kind: "app.notification" });
 const subscriptionId = sub.result.subscription_id;
 
@@ -216,14 +216,14 @@ resizeObserver.observe(document.body);
 ## Best practices
 
 - **Ask for the minimum capabilities.** Users and workspace policies look harder at broad requests. Narrow requests are approved faster and keep working when policies change.
-- **Handle partial grants.** Check `capabilities_granted` inside `onInit` — don't assume every requested capability was given.
+- **Handle partial grants.** Check `capabilities_granted` inside `onInit`. Don't assume every requested capability was given.
 - **Update height accurately.** Hosts rely on your `setHeight` call to avoid scroll-within-scroll or clipped content. Use `ResizeObserver`.
 - **Use status for long-running work.** A pulsing status with a label tells the user more than a silent spinner inside your iframe.
 - **Always `destroy()` on unmount.** Leaked adapters keep processing messages after the user has navigated away.
 
 ## What's next
 
-- [Records concept](/docs/concepts/records) — what you're emitting from your extension
-- [TypeScript SDK](/docs/guides/typescript-sdk) — the same record model, but from a non-iframe context
-- [Projections SDK](/docs/guides/projections) — render declarative UI inside your extension
-- [React components](/docs/guides/react-components) — component palette for extensions that want a native Syncropel look
+- [Records concept](/docs/concepts/records): what you're emitting from your extension
+- [TypeScript SDK](/docs/guides/typescript-sdk): the same record model, but from a non-iframe context
+- [Projections SDK](/docs/guides/projections): render declarative UI inside your extension
+- [React components](/docs/guides/react-components): component palette for extensions that want a native Syncropel look

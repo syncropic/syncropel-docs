@@ -5,7 +5,7 @@ description: Grant, list, and revoke consent for cross-namespace record sharing 
 
 ## Who this is for
 
-You're running federation (see the [federation guide](./federation)) and you need to share records between two different namespaces — for example, your default namespace and a partner team's namespace. By default, cross-namespace sharing is blocked. Consent grants open specific source → target paths.
+You're running federation (see the [federation guide](./federation)) and you need to share records between two different namespaces (for example, your default namespace and a partner team's namespace). By default, cross-namespace sharing is blocked. Consent grants open specific source → target paths.
 
 If all your federation is inside one namespace, skip this guide. Same-namespace sync always passes unchanged.
 
@@ -13,15 +13,15 @@ If all your federation is inside one namespace, skip this guide. Same-namespace 
 
 A consent grant is a record that says "records in source namespace X may be shared with target namespace Y, at these detail levels." Each grant has three fields:
 
-- **source_namespace** — where the records originate (typically `default`)
-- **target_namespace** — who's allowed to receive them
-- **hash_levels** — how much detail is shared. L0 is the full record. L1, L2 and L3 share progressively less.
+- **source_namespace**: where the records originate (typically `default`)
+- **target_namespace**: who's allowed to receive them
+- **hash_levels**: how much detail is shared. L0 is the full record. L1, L2 and L3 share progressively less.
 
 When a sync pair pulls across namespaces, the most recent matching grant decides what is shared:
 
 | Grant state | What happens |
 |---|---|
-| No grant | 0 records pass — everything filtered out |
+| No grant | 0 records pass: everything filtered out |
 | Grant includes L0 | Full records pass (body and signature intact) |
 | Grant excludes L0 (for example L1 only) | Records pass, but the body is replaced with `{"redacted": true}` and the signature is removed |
 
@@ -35,11 +35,11 @@ spl consent grant \
 
 Options:
 
-- `--to-namespace <NS>` — target namespace (required)
-- `--hash-levels <LEVELS>` — comma-separated list. Default `L0,L1,L2,L3` (full sharing)
-- `--threads <IDS>` — comma-separated thread IDs, for information only. Default `*` (all threads)
-- `--purpose <TEXT>` — optional reason, stored with the grant
-- `--expires <ISO8601>` — optional expiration
+- `--to-namespace <NS>`: target namespace (required)
+- `--hash-levels <LEVELS>`: comma-separated list. Default `L0,L1,L2,L3` (full sharing)
+- `--threads <IDS>`: comma-separated thread IDs, for information only. Default `*` (all threads)
+- `--purpose <TEXT>`: optional reason, stored with the grant
+- `--expires <ISO8601>`: optional expiration
 
 The source namespace is always `default`. Granting from another source namespace isn't supported by this command.
 
@@ -114,4 +114,4 @@ This check runs on every pull. A new or revoked grant takes effect on the next s
 
 ## What's next
 
-- **[Federation quickstart](./federation)** — pair two workspaces end-to-end
+- **[Federation quickstart](./federation)**: pair two workspaces end-to-end

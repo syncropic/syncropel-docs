@@ -29,9 +29,9 @@ A Faculty is deployed as a manifest: a small record describing how to reach it a
 |---|---|
 | **actor** | The identity (DID) the Faculty runs as. Its results are attributed to it, and trust builds under it. |
 | **mechanism** | What it is made of: `llm`, `solver`, `search`, `model`, `perceptor`, `external_process`, `human`, `cel`, or `composite`. All are treated the same way. |
-| **transport** | How work reaches it: `proxy_http` (an HTTP service) or `local_binary` (a process your workspace starts — for owners only). |
+| **transport** | How work reaches it: `proxy_http` (an HTTP service) or `local_binary` (a process your workspace starts, for owners only). |
 | **seam** | Where it plugs in: `inference` (it reasons / produces results), `effect` (it acts on the world), or `both`. |
-| **intent kind** | The kind of work it serves — the capability it advertises. |
+| **intent kind** | The kind of work it serves: the capability it advertises. |
 | **declared kinds** | The result kinds it's allowed to emit. |
 | **lifecycle** | `standing`, `default_on`, `on_demand`, or `ephemeral`. |
 
@@ -54,7 +54,7 @@ spl faculty deploy did:sync:agent:writer \
   --prompt-ref embedded:writer.v1 \
   --intent-kind core.user.message.v1
 
-# A non-LLM solver reached over HTTP — note: no model/prompt needed
+# A non-LLM solver reached over HTTP (note: no model/prompt needed)
 spl faculty deploy did:sync:agent:optimizer \
   --mechanism solver \
   --transport proxy_http \
@@ -77,7 +77,7 @@ spl faculty list
 # One Faculty's manifest in full
 spl faculty show did:sync:agent:harness
 
-# Retire a Faculty — unregisters it live
+# Retire a Faculty: unregisters it live
 spl faculty retire did:sync:agent:optimizer
 ```
 
@@ -87,16 +87,16 @@ Retiring writes a disabled manifest, and the Faculty stops receiving work immedi
 
 A Faculty isn't trusted just because it was deployed. It earns standing on the same terms as every other participant:
 
-- **Grounded** — its results are real records attributed to its own DID, not anonymous output.
-- **Legible** — anyone with access to the thread can read what it produced and why.
-- **Accountable** — an *independent* evaluator judges its work; it can never grade itself. (See the evaluation gate in [Trust](/docs/concepts/trust).)
-- **Bounded** — it runs under a budget and a capability, and it can only emit the result kinds it declared.
+- **Grounded**: its results are real records attributed to its own DID, not anonymous output.
+- **Legible**: anyone with access to the thread can read what it produced and why.
+- **Accountable**: an *independent* evaluator judges its work; it can never grade itself. (See the evaluation gate in [Trust](/docs/concepts/trust).)
+- **Bounded**: it runs under a budget and a capability, and it can only emit the result kinds it declared.
 
 A new Faculty starts with no trust and earns it by producing results and being judged. It cannot displace a proven one until it has earned the standing.
 
 ## What's next
 
-- **[The calibrated marketplace](/docs/concepts/marketplace)** — how work is routed between competing Faculties on trust alone.
-- **[Trust](/docs/concepts/trust)** — the scoring that decides which Faculty gets the work.
-- **[Agents](/docs/concepts/agents)** — the most familiar Faculty: an actor driving a work loop with a language model.
-- **[CLI reference](/docs/reference/cli)** — the full `spl faculty` command surface.
+- **[The calibrated marketplace](/docs/concepts/marketplace)**: how work is routed between competing Faculties on trust alone.
+- **[Trust](/docs/concepts/trust)**: the scoring that decides which Faculty gets the work.
+- **[Agents](/docs/concepts/agents)**: the most familiar Faculty, an actor driving a work loop with a language model.
+- **[CLI reference](/docs/reference/cli)**: the full `spl faculty` command surface.

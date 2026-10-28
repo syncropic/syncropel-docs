@@ -53,7 +53,7 @@ docker build -t myorg/spl:latest .
 
 ## Single-instance deployment
 
-The simplest deployment — one instance, one volume, one host port:
+The simplest deployment: one instance, one volume, one host port:
 
 ```bash
 docker run -d \
@@ -134,7 +134,7 @@ The compose file defines three services on a private bridge network:
 | `worker-a` | `worker-a` | `9201` | `worker-a-home` | `did:sync:user:worker-a` |
 | `worker-b` | `worker-b` | `9202` | `worker-b-home` | `did:sync:user:worker-b` |
 
-Host ports are in the 9200 range so they don't collide with a production instance that may be running on `localhost:9100`. Inside each container the instance still listens on its own port 9100 — only the host-side mapping changes.
+Host ports are in the 9200 range so they don't collide with a production instance that may be running on `localhost:9100`. Inside each container the instance still listens on its own port 9100. Only the host-side mapping changes.
 
 Each container has its own database, trust, and config, so they are fully isolated. Containers reach each other on the `syncropel` network by service name:
 
@@ -164,7 +164,7 @@ When you're ready to put a docker deployment in front of real traffic:
   docker run --read-only --tmpfs /tmp -v spl-home:/syncropel ...
   ```
 - **Resource limits**: `--memory 1g --cpus 2` is plenty for a single-actor instance. Bump for multi-actor production loads.
-- **Permission enforcement**: turn on permission rules before exposing the instance — see [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) and author an admin allow rule first so you don't lock yourself out.
+- **Permission enforcement**: turn on permission rules before exposing the instance. See [Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) and author an admin allow rule first so you don't lock yourself out.
 
 ## Troubleshooting
 

@@ -27,7 +27,7 @@ Four commands (`spl doctor`, `spl debug replay`, `spl debug thread-diff`, `spl a
 
 Try steps 1-5 before the log. They tell you what is broken much faster than the log tells you what happened.
 
-## Step 1: `spl doctor` — is the instance healthy?
+## Step 1: `spl doctor` (is the instance healthy?)
 
 If you don't know whether the problem is in the instance or your understanding of the instance, run `spl doctor` first. It runs 7 read-only checks and prints PASS/WARN/FAIL with a short reason for each:
 
@@ -59,25 +59,25 @@ You can run it on a schedule: add `spl doctor --json` to your monitoring and ale
 
 ### What each check means
 
-**instance reachable** — `GET /health` returns 200. If this fails, the instance is not running OR not bound to localhost:9100 OR you're pointing `SPL_SERVE_URL` somewhere wrong.
+**instance reachable**: `GET /health` returns 200. If this fails, the instance is not running OR not bound to localhost:9100 OR you're pointing `SPL_SERVE_URL` somewhere wrong.
 
-**pid file** — `~/.syncro/run/spl.pid` exists, points at a live process, and that process's `/proc/<pid>/cmdline` contains "spl serve". A WARN here means the instance is responding but the PID file is missing — `spl stop` will not be able to find it. See [recovering an orphaned instance](/docs/operate/runbook#when-spl-stop-says-not-running-but-the-instance-clearly-is).
+**pid file**: `~/.syncro/run/spl.pid` exists, points at a live process, and that process's `/proc/<pid>/cmdline` contains "spl serve". A WARN here means the instance is responding but the PID file is missing, so `spl stop` will not be able to find it. See [recovering an orphaned instance](/docs/operate/runbook#when-spl-stop-says-not-running-but-the-instance-clearly-is).
 
-**store has records** — the store is non-empty. A WARN means it's empty (fresh install or a just-deleted store). A FAIL means the store query itself errored.
+**store has records**: the store is non-empty. A WARN means it's empty (fresh install or a just-deleted store). A FAIL means the store query itself errored.
 
-**store path agreement** — the instance's reported store URL matches what the config file says it should be. A WARN here means either the instance was started with an explicit `--store` override, or two instances are running against different stores and you're talking to the wrong one.
+**store path agreement**: the instance's reported store URL matches what the config file says it should be. A WARN here means either the instance was started with an explicit `--store` override, or two instances are running against different stores and you're talking to the wrong one.
 
-**intelligence** — whether the built-in AI assistant is enabled, and which model it uses. Disabled is fine if you didn't set up an API key; if you did and this says disabled, your key isn't being read.
+**intelligence**: whether the built-in AI assistant is enabled, and which model it uses. Disabled is fine if you didn't set up an API key; if you did and this says disabled, your key isn't being read.
 
-**engine config thread** — your settings thread (`th_engine_config`) has at least one record. A WARN means there is nothing to load, so your routing rules, status rules, permission rules and health checks are all empty.
+**engine config thread**: your settings thread (`th_engine_config`) has at least one record. A WARN means there is nothing to load, so your routing rules, status rules, permission rules and health checks are all empty.
 
-**expression cache** — how well the expression cache is working. An empty cache is normal just after a restart. A WARN means the hit rate is under 50%, which may mean expressions are being recompiled each time.
+**expression cache**: how well the expression cache is working. An empty cache is normal just after a restart. A WARN means the hit rate is under 50%, which may mean expressions are being recompiled each time.
 
 ### When doctor catches something
 
-If any check is non-PASS, the line tells you what to do. The PID file orphan case prints the exact recovery command. The store path mismatch tells you to check `--store` overrides. None of doctor's output is a dead end — every WARN/FAIL has a next step.
+If any check is non-PASS, the line tells you what to do. The PID file orphan case prints the exact recovery command. The store path mismatch tells you to check `--store` overrides. None of doctor's output is a dead end. Every WARN/FAIL has a next step.
 
-## Step 2: `spl status` and `spl task list` — what's the current state?
+## Step 2: `spl status` and `spl task list` (what's the current state?)
 
 If doctor was clean and you're still confused, look at the high-level state:
 
@@ -90,7 +90,7 @@ spl namespace list             # registered namespaces
 
 These are read-only summary commands. Together they tell you "the instance thinks the world looks like X". If X doesn't match what you expected, you've narrowed the problem to a single task, thread, or actor.
 
-## Step 3: `spl debug replay` — why is THIS task in THAT state?
+## Step 3: `spl debug replay` (why is THIS task in THAT state?)
 
 You found the problematic task. `spl task show TASK-0042` says it's in status `review`, but you expected `approved`. Why?
 
@@ -130,7 +130,7 @@ spl debug replay th_engine_config | head -10
 spl debug replay $(spl thread list | grep decision | head -1 | awk '{print $1}')
 ```
 
-## Step 4: `spl debug thread-diff` — how does this differ from a known-good one?
+## Step 4: `spl debug thread-diff` (how does this differ from a known-good one?)
 
 You have a task that's behaving differently from one you know works. Compare them structurally:
 
@@ -155,14 +155,14 @@ spl debug thread-diff
 Right away you can see:
 
 - The good one has 3 participants vs 2. Likely the missing participant is the evaluator.
-- It has 5 KNOW records vs 2 — the extra ones are usually verdicts.
+- It has 5 KNOW records vs 2. The extra ones are usually verdicts.
 - Its status is `approved`; the other is `review`.
 
 The differences point at the missing piece without you having to read both threads in full. Once you have a likely cause, go back to `spl debug replay` on each side to confirm.
 
-## Step 5: `spl audit export` — what security-relevant events fired recently?
+## Step 5: `spl audit export` (what security-relevant events fired recently?)
 
-If the problem looks like access denial, permission, or governance — "I tried to do X and got 403" or "this rule isn't matching" — pull the audit export:
+If the problem looks like access denial, permission, or governance ("I tried to do X and got 403" or "this rule isn't matching"), pull the audit export:
 
 ```bash
 spl audit export --since 1h
@@ -177,7 +177,7 @@ spl audit export --since 24h --actor did:sync:user:alice
 spl audit export --since 24h --thread th_be084400...
 ```
 
-The output is JSONL — each line is independent, suitable for piping to `jq`, ingest into Splunk/Elastic/Loki, or grep. See [SIEM Integration](/docs/guides/siem-integration) for production pipeline recipes.
+The output is JSONL: each line is independent, suitable for piping to `jq`, ingest into Splunk/Elastic/Loki, or grep. See [SIEM Integration](/docs/guides/siem-integration) for production pipeline recipes.
 
 ### What audit export does not include
 
@@ -258,7 +258,7 @@ If you've locked yourself out, see [`spl config permissions-unlock`](/docs/refer
 
 ### "I deleted the record store by accident"
 
-Don't restart the server. Starting a fresh server overwrites your good startup backup. See [Backup discipline](/docs/operate/runbook#backup-discipline) — restore from off-host first.
+Don't restart the server. Starting a fresh server overwrites your good startup backup. See [Backup discipline](/docs/operate/runbook#backup-discipline). Restore from off-host first.
 
 ### "A namespace claim is being rejected and I don't know why"
 
@@ -267,7 +267,7 @@ spl namespace list                    # what's actually in the registry?
 spl namespace show <claimed-ns>       # walk the ancestor chain
 ```
 
-The `show` output marks each ancestor with `✓` (Active) or `✗` (Archived/Deleted). If any ancestor is non-Active, the descendant is rejected — that is the [narrowing rule](/docs/concepts/namespaces#the-narrowing-rule).
+The `show` output marks each ancestor with `✓` (Active) or `✗` (Archived/Deleted). If any ancestor is non-Active, the descendant is rejected. That is the [narrowing rule](/docs/concepts/namespaces#the-narrowing-rule).
 
 ## What these tools don't cover
 
@@ -281,8 +281,8 @@ For everything else, the tools above are enough.
 
 ## Reference
 
-- [`spl doctor`](/docs/reference/cli#developer-tools) — CLI reference
-- [`spl debug replay/thread-diff`](/docs/reference/cli#developer-tools) — CLI reference
-- [`spl audit export`](/docs/reference/cli#developer-tools) — CLI reference
-- [SIEM Integration Guide](/docs/guides/siem-integration) — pipeline recipes for Splunk/Elastic/Loki
-- [Operator Runbook](/docs/operate/runbook) — recovery procedures
+- [`spl doctor`](/docs/reference/cli#developer-tools): CLI reference
+- [`spl debug replay/thread-diff`](/docs/reference/cli#developer-tools): CLI reference
+- [`spl audit export`](/docs/reference/cli#developer-tools): CLI reference
+- [SIEM Integration Guide](/docs/guides/siem-integration): pipeline recipes for Splunk/Elastic/Loki
+- [Operator Runbook](/docs/operate/runbook): recovery procedures

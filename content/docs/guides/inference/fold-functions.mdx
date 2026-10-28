@@ -80,9 +80,9 @@ Some responses carry modifiers in their body: `fulfills`, `cancels`, `awaits`. F
 
 The `obligation_resolution` field in `side_effects` decides what happens when responses carry conflicting modifiers (for example, one `fulfills` and one `cancels`):
 
-- `last_writer_wins` (default) — the most-recent response's modifiers apply.
-- `fulfills_wins` — any `fulfills` preempts any `cancels`.
-- `validation_error` — a conflict stops the query with `obligation_conflict`.
+- `last_writer_wins` (default): the most-recent response's modifiers apply.
+- `fulfills_wins`: any `fulfills` preempts any `cancels`.
+- `validation_error`: a conflict stops the query with `obligation_conflict`.
 
 ## Function: consensus
 
@@ -98,7 +98,7 @@ The floor applies after the full expression evaluates.
 
 **When to use:** classification, structured extraction, tagging. Anything where responses are naturally comparable as JSON trees and you want the system's collective best-guess.
 
-**Example — three LLMs agreeing on a sentiment label:**
+**Example: three LLMs agreeing on a sentiment label:**
 
 ```json
 {
@@ -117,9 +117,9 @@ A and B give the same answer. Weight sum for `positive` = 0.8 + 0.7 = 1.5. Weigh
 
 The highest-trust responder wins, and its whole answer is kept. Ties are broken by `clock` and `id` (lowest first), then by the `tie_break` rule.
 
-**When to use:** one expert is right about this, but you don't know which one when you send the query. Code review, medical suggestion, legal reasoning — domains where you'd rather hear the most-trusted voice than a mediocre consensus.
+**When to use:** one expert is right about this, but you don't know which one when you send the query. Code review, medical suggestion, legal reasoning: domains where you'd rather hear the most-trusted voice than a mediocre consensus.
 
-**Example — you have two code reviewers of known-different trust:**
+**Example: you have two code reviewers of known-different trust:**
 
 ```json
 {
@@ -127,7 +127,7 @@ The highest-trust responder wins, and its whole answer is kept. Ties are broken 
 }
 ```
 
-If Alice has trust 0.95 and Bob has 0.82, Alice's response wins. The full body — including her `confidence` and `rationale` — survives intact into the KNOW.
+If Alice has trust 0.95 and Bob has 0.82, Alice's response wins. The full body, including her `confidence` and `rationale`, survives intact into the KNOW.
 
 ## Function: waterfall_first
 
@@ -137,7 +137,7 @@ The first response, in the order described above, that passes the acceptance tes
 
 This is *not* the `waterfall` orchestration pattern, which asks responders one after another. `waterfall_first` takes responses that have already arrived and picks the first one that passes.
 
-**Example — pattern first, then LLM:**
+**Example: pattern first, then LLM:**
 
 Responders: one `pattern` responder at clock 100, one `llm` responder at clock 101. If the pattern answer passes `accept_expression: "response.body.confidence >= 0.8"`, fold picks the pattern. Otherwise it moves to the LLM.
 
@@ -150,7 +150,7 @@ Responders: one `pattern` responder at clock 100, one `llm` responder at clock 1
 }
 ```
 
-(When you want true sequential dispatch with early termination, use the `waterfall` orchestration pattern instead — see the orchestration guide.)
+(When you want true sequential dispatch with early termination, use the `waterfall` orchestration pattern instead. See the orchestration guide.)
 
 ## Function: ensemble_weighted
 
@@ -174,7 +174,7 @@ Write your own combining logic in CEL. `fold.expression` can use `responses` (th
 
 **When to use:** none of the first four fit. Median over numeric answers, inter-quartile-range filtering, regex extraction, custom multi-body merge.
 
-**Example — median numeric answer:**
+**Example: median numeric answer:**
 
 ```json
 {
@@ -185,7 +185,7 @@ Write your own combining logic in CEL. `fold.expression` can use `responses` (th
 }
 ```
 
-**Example — concatenate all non-empty string answers:**
+**Example: concatenate all non-empty string answers:**
 
 ```json
 {
@@ -208,11 +208,11 @@ Because `expression` doesn't produce a `chosen_response_id`, modifiers can't be 
 | Custom weight on trust (confidence, recency) | `ensemble_weighted` |
 | Custom aggregation logic (median, regex, merge) | `expression` |
 
-When in doubt, start with `consensus` — it is the most forgiving, and the tally shows how close second place was.
+When in doubt, start with `consensus`. It is the most forgiving, and the tally shows how close second place was.
 
 ## See also
 
-- **[Query Anatomy — Fold](/docs/guides/inference/query-anatomy#fold)** — field reference.
-- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)** — when you need policy around fold.
-- **[CEL Expressions](/docs/guides/cel-expressions)** — syntax for `weight_expression` and `expression`.
-- **[Trust](/docs/concepts/trust)** — how trust feeds `weight_expression`.
+- **[Query Anatomy: Fold](/docs/guides/inference/query-anatomy#fold)**: field reference.
+- **[Orchestration Patterns](/docs/guides/inference/orchestration-patterns)**: when you need policy around fold.
+- **[CEL Expressions](/docs/guides/cel-expressions)**: syntax for `weight_expression` and `expression`.
+- **[Trust](/docs/concepts/trust)**: how trust feeds `weight_expression`.

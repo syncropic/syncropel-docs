@@ -8,9 +8,9 @@ description: Search file names, file contents, and conversations in your workspa
 Find answers the question _"where is that thing?"_ across everything your
 workspace holds:
 
-- **Names** — files matched by name or path
-- **Content** — the full text inside your files
-- **Conversations** — messages in your threads, so "the chat where we
+- **Names**: files matched by name or path
+- **Content**: the full text inside your files
+- **Conversations**: messages in your threads, so "the chat where we
   discussed the launch budget" is one query away even if nothing was ever
   saved as a file
 
@@ -20,8 +20,8 @@ Find needs **no setup** and works on every workspace, including hosted ones. It 
 
 | Tool | When to use it |
 |---|---|
-| **Find** | You know words that appear in the thing — a name, a phrase, an identifier |
-| [Query](./query) | You know the *shape* of what you want — a kind, a field value, a thread |
+| **Find** | You know words that appear in the thing: a name, a phrase, an identifier |
+| [Query](./query) | You know the *shape* of what you want: a kind, a field value, a thread |
 | [Semantic Search](./search) | You know the *idea* but not the words (needs an embedding provider) |
 
 ## Searching
@@ -69,8 +69,8 @@ curl "$BASE/v1/find?q=quarterly+budget" -H "Authorization: Bearer $TOKEN"
 
 Two hit types come back:
 
-- **`material`** — a file. `node` has the same shape as a file in the library. `why` says whether the name, the content, or both matched.
-- **`thread`** — a conversation. Each thread appears once however many messages matched, with the snippet taken from the best-matching message.
+- **`material`**: a file. `node` has the same shape as a file in the library. `why` says whether the name, the content, or both matched.
+- **`thread`**: a conversation. Each thread appears once however many messages matched, with the snippet taken from the best-matching message.
 
 A snippet is plain text plus `offsets`, the byte ranges of the matched words inside `text`. Use the offsets to highlight matches. The text never contains markup.
 
@@ -78,7 +78,7 @@ A snippet is plain text plus `offsets`, the byte ranges of the matched words ins
 
 | Param | Default | What it does |
 |---|---|---|
-| `q` | — | The search text. Special characters are safe — they're treated as plain text, never as query operators |
+| `q` | None | The search text. Special characters are safe: they're treated as plain text, never as query operators |
 | `limit` | 20 | Max hits (up to 100) |
 | `types` | both | `material` or `thread` to filter hit types |
 | `prefix` | false | Type-ahead mode: the last word matches as a prefix, so `quart` finds "quarterly" as you type |

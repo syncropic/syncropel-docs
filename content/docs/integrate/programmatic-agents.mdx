@@ -37,7 +37,7 @@ And a Syncropel workspace reachable from the sandbox's network:
 - Local: `http://localhost:9100` if the sandbox runs on the same machine
 - Remote: `https://your-host.example.com:9100` with a bearer token
 
-## Quickstart — Python with a model that runs code
+## Quickstart: Python with a model that runs code
 
 A common combination: a model with code execution and the `syncropel` PyPI package. This example uses Anthropic's API. It works the same way for any other provider with a code-execution tool; only the call to the model changes.
 
@@ -117,7 +117,7 @@ verified it passes, and recorded 8 records in thread bug-342.
 
 It is efficient and auditable: the user can run `spl thread records bug-342` to see exactly what the agent did.
 
-## Quickstart — TypeScript, edge runtime
+## Quickstart: TypeScript, edge runtime
 
 ```typescript
 import { Client, Identity } from "@syncropel/sdk";
@@ -268,7 +268,7 @@ See [Authentication & Service Accounts](/docs/operate/keyring) for how to create
 
 ## When this pattern is the wrong choice
 
-- **You want a record of what the agent did without writing code** → [Pattern 1 (MCP)](/docs/integrate/ai-clients#pattern-1--traditional-mcp-stdio), which is simpler to set up
+- **You want a record of what the agent did without writing code** → [Pattern 1 (MCP)](/docs/integrate/ai-clients#pattern-1-traditional-mcp-stdio), which is simpler to set up
 - **You don't control the agent's runtime (an off-the-shelf AI client)** → Pattern 1 or 2
 - **You want the agent to see each tool result** (for example, "what did the query return?") → traditional MCP lets the agent reason over each result; the programmatic pattern is better when the code handles results itself
 - **You only write 1 or 2 records per session** → the extra setup isn't worth it

@@ -1,5 +1,5 @@
 ---
-title: Security model — secrets at rest, threat model, operator discipline
+title: "Security model: secrets at rest, threat model, operator discipline"
 description: What spl serve protects against (default-secure auth + filesystem permissions) and what it does NOT (host compromise, cloud-sync of identity dirs). Read before deploying to a multi-tenant or shared-storage environment.
 ---
 
@@ -32,11 +32,11 @@ Your instance never stores a bearer token as issued. It keeps only a hash. The t
 
 ### Per-instance keypair scope
 
-The identity keypair belongs to one instance (its `did:key`). Rotating the keypair (regenerating the DID) **invalidates all federation pairs** — peers cache the DID and reject pair traffic from a different keypair. Recovery: re-run `spl federation pair` after rotation.
+The identity keypair belongs to one instance (its `did:key`). Rotating the keypair (regenerating the DID) **invalidates all federation pairs**: peers cache the DID and reject pair traffic from a different keypair. Recovery: re-run `spl federation pair` after rotation.
 
 ### Bootstrap discipline
 
-`spl serve` writes a copy of the record store to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` automatically on every startup (the directory is keyed by the instance DID — see [Operator runbook → Backup discipline](/docs/operate/runbook#backup-discipline)). This backup deliberately does **NOT** include `~/.syncro/keys/` or `~/.syncro/secrets/` so a `cp` of the backup (e.g., to a different host for inspection) doesn't accidentally include identity material.
+`spl serve` writes a copy of the record store to `~/.local/share/syncropel/backups/instance-<did-tail>/hub.db.bak` automatically on every startup (the directory is keyed by the instance DID, see [Operator runbook → Backup discipline](/docs/operate/runbook#backup-discipline)). This backup deliberately does **NOT** include `~/.syncro/keys/` or `~/.syncro/secrets/` so a `cp` of the backup (e.g., to a different host for inspection) doesn't accidentally include identity material.
 
 ## What's NOT protected (operator must mitigate)
 
@@ -52,7 +52,7 @@ Root or the instance's user account can read every file in `~/.syncro/`. The ide
 
 ### Cloud-sync of `~/.syncro/`
 
-Dropbox, iCloud, OneDrive, Time Machine, rsync-to-NAS — all happily pick up `~/.syncro/keys/` and `~/.syncro/secrets/` by default. Once the contents are on a sync provider's servers:
+Dropbox, iCloud, OneDrive, Time Machine, rsync-to-NAS: all happily pick up `~/.syncro/keys/` and `~/.syncro/secrets/` by default. Once the contents are on a sync provider's servers:
 
 - The provider's logs may retain them indefinitely.
 - A subpoena to the provider yields your keys.
@@ -61,21 +61,21 @@ Dropbox, iCloud, OneDrive, Time Machine, rsync-to-NAS — all happily pick up `~
 **Mitigation**: explicitly exclude these paths from any sync tool you use. Examples:
 
 ```bash
-# rsync — exclude pattern
+# rsync: exclude pattern
 rsync --exclude='.syncro/keys/' --exclude='.syncro/secrets/' ...
 
 # Time Machine (macOS)
 sudo tmutil addexclusion ~/.syncro/keys
 sudo tmutil addexclusion ~/.syncro/secrets
 
-# Dropbox / iCloud / OneDrive — install spl OUTSIDE the sync root,
+# Dropbox / iCloud / OneDrive: install spl OUTSIDE the sync root,
 # or use a non-default data dir:
 SYNCROPEL_HOME=/var/lib/syncropel spl serve
 ```
 
 ### Accidental commit to a dotfiles repo
 
-Some operators commit `~/.syncro/config.toml` to a dotfiles repo. The default `.gitignore` may NOT exclude `keys/` and `secrets/` — re-check yours.
+Some operators commit `~/.syncro/config.toml` to a dotfiles repo. The default `.gitignore` may NOT exclude `keys/` and `secrets/`. Re-check yours.
 
 **Mitigation**: explicitly add to `.gitignore`:
 
@@ -103,7 +103,7 @@ Every export or import writes a `core.portability.event.v1` record on `th_audit_
 spl thread records th_audit_portability -o json | jq '.[] | .body'
 ```
 
-This audit thread does NOT prevent the export from happening — auth scope (`Admin` for instance-level export, `RecordsRead` for `GET /v1/actors/*/export`) is what gates access. The audit lets you trace who did what.
+This audit thread does NOT prevent the export from happening. Auth scope (`Admin` for instance-level export, `RecordsRead` for `GET /v1/actors/*/export`) is what gates access. The audit lets you trace who did what.
 
 ## Threat model summary
 
@@ -135,7 +135,7 @@ Host tools (`bash` and the file tools) are available on the operator's own machi
 
 ## See also
 
-- [Authentication & Service Accounts](./keyring.mdx) — bearer-token model + scope hierarchy
-- [Operator runbook — backup discipline](./runbook.mdx#backup-discipline) — what's backed up + restore procedure
-- [Actor portability](./actor-portability.mdx) — `spl actor export` / `spl actor import` mechanics
-- [`spl doctor`](./doctor.mdx) — automated permission audit
+- [Authentication & Service Accounts](./keyring.mdx): bearer-token model + scope hierarchy
+- [Operator runbook: backup discipline](./runbook.mdx#backup-discipline): what's backed up + restore procedure
+- [Actor portability](./actor-portability.mdx): `spl actor export` / `spl actor import` mechanics
+- [`spl doctor`](./doctor.mdx): automated permission audit

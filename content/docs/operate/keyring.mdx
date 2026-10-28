@@ -4,7 +4,7 @@ description: Enable bearer-token authentication, create service accounts, pair d
 ---
 
 <Callout type="info">
-**`spl serve` is default-secure.** `auth.required = true` is the default — every instance rejects unauthenticated requests out of the box. To bootstrap: create the first service account, save the token, and every `spl` command works from there.
+**`spl serve` is default-secure.** `auth.required = true` is the default: every instance rejects unauthenticated requests out of the box. To bootstrap: create the first service account, save the token, and every `spl` command works from there.
 </Callout>
 
 ## TL;DR
@@ -23,7 +23,7 @@ Bearer-token authentication protects every HTTP request, so your instance is saf
 - **Federation sync + discovery endpoints** require the `federation:manage` scope.
 - **A privileged bootstrap endpoint** lets operators create the first SA on a fresh install without needing an existing token.
 - **`spl pair` + QR rendering** makes phone pairing a one-command flow.
-- **The CLI auto-injects tokens** — reads from `--token` flag, `SPL_TOKEN` env, or `~/.syncro/token` file, so `spl task list`, `spl intend` and every other command work once you've saved a token.
+- **The CLI auto-injects tokens**: it reads from `--token` flag, `SPL_TOKEN` env, or `~/.syncro/token` file, so `spl task list`, `spl intend` and every other command work once you've saved a token.
 
 ## 2. The scope model
 
@@ -54,7 +54,7 @@ spl service-account create --bootstrap \
   --actors did:sync:user:$(spl config show | grep default_user_actor | awk '{print $2}')
 ```
 
-The `--bootstrap` flag routes to the privileged endpoint that works without existing auth, but only when the namespace has zero SAs. The response includes a plaintext `api_key` — copy it now, it will not be displayed again.
+The `--bootstrap` flag routes to the privileged endpoint that works without existing auth, but only when the namespace has zero SAs. The response includes a plaintext `api_key`. Copy it now, because it will not be displayed again.
 
 Save the token to a location your shell will source:
 
@@ -108,9 +108,9 @@ This writes `~/.syncro/token` with 0600 permissions. From here on, every `spl ta
 
 Token discovery precedence (first non-empty wins):
 
-1. `--token <value>` — global CLI flag for single-invocation override
-2. `SPL_TOKEN` env — useful in CI and one-off shells
-3. `~/.syncro/token` — the persistent default after `spl token save`
+1. `--token <value>`: global CLI flag for single-invocation override
+2. `SPL_TOKEN` env: useful in CI and one-off shells
+3. `~/.syncro/token`: the persistent default after `spl token save`
 
 `spl token show-source` reports which source is currently in use (masked; never prints the full secret).
 
@@ -127,7 +127,7 @@ spl pair \
 
 The command creates a dedicated service account, mints a token, and renders both as a QR code in the terminal plus a text fallback. The phone's Syncropel PWA scans the QR, stores the URL + token, and starts using them for API calls.
 
-**Choose `--url` carefully.** It's the URL the phone will call — not your instance's `localhost:9100`. In order of typical preference:
+**Choose `--url` carefully.** It's the URL the phone will call, not your instance's `localhost:9100`. In order of typical preference:
 
 - Private network / VPN: `https://your-host.example.com:9100` (works from anywhere the phone is on that network)
 - LAN: `http://192.168.1.50:9100` (works on home Wi-Fi; breaks when away)
@@ -143,7 +143,7 @@ One pairing per device. Revoke via `spl service-account revoke <sa_id>` if the p
 spl token rotate <sa_id>
 ```
 
-Mints a new token first (device continues to work), then revokes the old one. Partial-failure-safe: if the new mint succeeds but a revocation fails, you have both old + new tokens live — manually mop up with `spl token revoke`.
+Mints a new token first (device continues to work), then revokes the old one. Partial-failure-safe: if the new mint succeeds but a revocation fails, you have both old + new tokens live. Manually mop up with `spl token revoke`.
 
 ### Per-token revocation (one device compromised; others still trusted)
 
@@ -159,7 +159,7 @@ Kills a single token. The SA and its other tokens keep working. Use when a singl
 spl service-account revoke <sa_id>
 ```
 
-Kills every token ever issued under the SA plus blocks any future tokens minted for that SA. **This is irreversible** — the SA stays closed forever. If you genuinely want to start over with the same display name, create a new SA with a new ID.
+Kills every token ever issued under the SA plus blocks any future tokens minted for that SA. **This is irreversible**: the SA stays closed forever. If you genuinely want to start over with the same display name, create a new SA with a new ID.
 
 ### Which revocation to use
 
@@ -187,7 +187,7 @@ spl token rotate <sa_id>
 spl stop && spl serve
 ```
 
-The instance logs a WARN on every startup when `--insecure-localhost` is active. This is intentional — it should never be the default state.
+The instance logs a WARN on every startup when `--insecure-localhost` is active. This is intentional: it should never be the default state.
 
 ## 7. Troubleshooting
 
@@ -228,7 +228,7 @@ spl token create --sa <sa_id>                                     # if SA alread
 spl token save spl_prod_sa_<id>_<secret>
 ```
 
-Verify with `spl token show-source` — it should report `~/.syncro/token file` as the active source. If you see `SPL_TOKEN env` instead and that token is bad, `unset SPL_TOKEN` (env beats file).
+Verify with `spl token show-source`. It should report `~/.syncro/token file` as the active source. If you see `SPL_TOKEN env` instead and that token is bad, `unset SPL_TOKEN` (env beats file).
 
 ## 8. Federation + auth
 
@@ -250,12 +250,12 @@ spl service-account create \
   --actors did:sync:user:bob
 ```
 
-Exchange the tokens securely — these federate authority. Each side stores the other's token with its pair. When A pulls sync updates from B, it presents B's token; when B pulls from A, it presents A's. 
+Exchange the tokens securely: these federate authority. Each side stores the other's token with its pair. When A pulls sync updates from B, it presents B's token; when B pulls from A, it presents A's. 
 
 ## 9. Further reading
 
-- [CLI reference — `spl service-account`, `spl token`, `spl pair`](/docs/reference/cli#authentication)
-- [HTTP API reference — authentication endpoints](/docs/reference/api#authentication)
-- [Configuration reference — auth settings](/docs/reference/configuration#authentication)
-- [Federation pair guide](/docs/guides/federation-pair) — how bearer tokens compose with Ed25519 signatures for peer-to-peer sync
-- `spl service-account --help`, `spl token --help`, `spl pair --help` — inline CLI reference
+- [CLI reference: `spl service-account`, `spl token`, `spl pair`](/docs/reference/cli#authentication)
+- [HTTP API reference: authentication endpoints](/docs/reference/api#authentication)
+- [Configuration reference: auth settings](/docs/reference/configuration#authentication)
+- [Federation pair guide](/docs/guides/federation-pair): how bearer tokens compose with Ed25519 signatures for peer-to-peer sync
+- `spl service-account --help`, `spl token --help`, `spl pair --help`: inline CLI reference

@@ -378,12 +378,12 @@ Before declaring your audit pipeline production-ready:
 - [ ] Workspace log also being shipped (for permission denials)
 - [ ] Dedup strategy chosen (SIEM-side dedup on record.id is the easiest)
 - [ ] Logrotate or equivalent configured on the cron output
-- [ ] Alert rule for "no audit events for N minutes" — catches a broken pipeline before it matters
+- [ ] Alert rule for "no audit events for N minutes", which catches a broken pipeline before it matters
 - [ ] Retention policy aligned with your compliance requirements
 - [ ] Disk space monitoring on the output directory
 
 ## Reference
 
-- [`spl audit export`](/docs/reference/cli#developer-tools) — full CLI flags
-- [Debugging Syncropel](/docs/guides/debugging) — when to reach for audit export vs other tools
-- [Runbook](/docs/operate/runbook) — workspace-log filtering for permission denials
+- [`spl audit export`](/docs/reference/cli#developer-tools): full CLI flags
+- [Debugging Syncropel](/docs/guides/debugging): when to reach for audit export vs other tools
+- [Runbook](/docs/operate/runbook): workspace-log filtering for permission denials

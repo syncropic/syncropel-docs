@@ -85,19 +85,19 @@ For a credential issued under a grant, every request checks that the grant is st
 | DELETE | `/v1/self/credentials/{bearer_id}` | none (credential required) | Revoke one of the caller's own bearers. The grant stays. |
 | POST | `/v1/recredential` | **none** (no bearer) | The proof in the body is the credential. A refusal is always the same `401 RECREDENTIAL_REFUSED` answer. Requests are rate limited per person and per IP address. |
 
-Membership invites are issued through the invite endpoints — `POST /v1/invites` with a `membership` envelope; see the [API reference](/docs/reference/api#pair-share-invite).
+Membership invites are issued through the invite endpoints: `POST /v1/invites` with a `membership` envelope. See the [API reference](/docs/reference/api#pair-share-invite).
 
 ## Who sees what: roster and grants
 
 Two reads answer differently depending on the caller:
 
-- **`GET /v1/members`** — admin: all rows. Everyone else: only the row where they are the member.
-- **`GET /v1/folds/grant`** (the graph of grants) — admin: the full graph. Everyone else: only grants where they are the issuer (`iss`) or the audience (`aud`).
+- **`GET /v1/members`**. Admin: all rows. Everyone else: only the row where they are the member.
+- **`GET /v1/folds/grant`** (the graph of grants). Admin: the full graph. Everyone else: only grants where they are the issuer (`iss`) or the audience (`aud`).
 
 This is intended: a non-admin caller who gets one row back has received the complete answer for them. Don't treat a short list as cut off.
 
 ## Related
 
-- **[Authorization model](/docs/concepts/authorization-model)** — how scopes combine with the other five access checks.
-- **[Principals & grants](/docs/concepts/principals-and-grants)** — the grant model.
-- **[API reference](/docs/reference/api)** — every route's request and response.
+- **[Authorization model](/docs/concepts/authorization-model)**: how scopes combine with the other five access checks.
+- **[Principals & grants](/docs/concepts/principals-and-grants)**: the grant model.
+- **[API reference](/docs/reference/api)**: every route's request and response.

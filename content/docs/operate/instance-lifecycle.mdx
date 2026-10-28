@@ -5,7 +5,7 @@ description: Provision an instance, get past the first-run auth chicken-and-egg,
 
 ## Audience
 
-This page is for the operator standing up an `spl serve` instance for real work — laptop, server, container, or a Syncropic-hosted instance. It covers the lifecycle from `spl init` to teardown.
+This page is for the operator standing up an `spl serve` instance for real work: laptop, server, container, or a Syncropic-hosted instance. It covers the lifecycle from `spl init` to teardown.
 
 If something is broken right now, jump to [Recovery](/docs/operate/runbook#recovery-from-corruption-or-data-loss) on the runbook page. The lifecycle below assumes you're starting clean.
 
@@ -35,7 +35,7 @@ spl serve --daemon
 spl status
 ```
 
-For an instance that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance) — `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
+For an instance that survives reboots, see [Keeping Your Instance Running](/docs/operate/persist-instance): `systemd` user units on Linux, `launchd` plists on macOS, and Windows Service wrappers are all documented there.
 
 ### Hosted
 
@@ -45,7 +45,7 @@ Hosted instances are provisioned for you: sign in at syncropel.com and the insta
 
 A fresh database has zero service accounts. The auth middleware rejects every unauthenticated request, including the request you'd use to mint your first SA. Two paths through the chicken-and-egg:
 
-### Path A — `--insecure-localhost` (laptop dev)
+### Path A: `--insecure-localhost` (laptop dev)
 
 Restart the instance with `--insecure-localhost`. It binds 127.0.0.1 only and disables auth. Mint an SA via the bootstrap endpoint:
 
@@ -65,7 +65,7 @@ spl serve
 
 This is the path documented in [Authentication & Service Accounts](/docs/operate/keyring) and is fine for a single-user laptop. Avoid it on multi-tenant hosts: any local user can curl 127.0.0.1.
 
-### Path B — hosted (no shell access)
+### Path B: hosted (no shell access)
 
 Sign in at syncropel.com and provision. The instance is bootstrapped for you and you receive a working `https://<label>.syncropel.app` URL; connect with the code shown at sign-up.
 
@@ -73,10 +73,10 @@ Sign in at syncropel.com and provision. The instance is bootstrapped for you and
 
 Once bootstrapped, treat `auth.required = true` as load-bearing. It is the default and every route enforces it (including the federation surface). Specifics live in [Authentication & Service Accounts](/docs/operate/keyring); the operational rules are:
 
-- One service account per tool/agent/integration. Closed scope per SA — `records:read,records:write` for an emitter, `admin` only when minting tokens or setting policy.
+- One service account per tool/agent/integration. Closed scope per SA: `records:read,records:write` for an emitter, `admin` only when minting tokens or setting policy.
 - Tokens carry a snapshot of the SA's scopes at issuance time. Live-edit the SA's scopes for new tokens; revoke + re-mint the existing token only when scopes shrink.
 - Save the token once via `spl token save <bearer>`; the CLI auto-injects it for every subsequent invocation.
-- Permission rules (written as CEL expressions) fail closed: a request no rule allows is denied. Before turning on a permission rule, run `spl config permissions-enable` — its preflight refuses unless allow-rules cover `record_write`, `thread_read`, and `config_read` for the instance's own actor. Skipping the preflight is how operators lock themselves out.
+- Permission rules (written as CEL expressions) fail closed: a request no rule allows is denied. Before turning on a permission rule, run `spl config permissions-enable`. Its preflight refuses unless allow-rules cover `record_write`, `thread_read`, and `config_read` for the instance's own actor. Skipping the preflight is how operators lock themselves out.
 
 If the instance is ever exposed beyond loopback, stand up a CORS allowlist before the first cross-origin browser hit:
 
@@ -86,13 +86,13 @@ spl config auth-set-cors-origins https://syncropel.com https://app.example.com
 
 ## 4. Backup discipline
 
-> **CRITICAL — read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. 
+> **CRITICAL: read this section twice.** Syncropel's startup backup is a safety net, not a backup system. It will not save you if you don't supplement it with off-host copies. 
 
 ### What the instance does for you
 
 On every startup, `spl serve` snapshots `~/.syncro/hub.db` to `~/.local/share/syncropel/backups/<instance-key>/hub.db.bak`. The destination lives outside `~/.syncro/`, so a `rm -rf ~/.syncro/` does not nuke the backup.
 
-The `<instance-key>` is normally `instance-<did-tail>` — the 24-hex tail of the instance DID. To find your directory:
+The `<instance-key>` is normally `instance-<did-tail>`, the 24-hex tail of the instance DID. To find your directory:
 
 ```bash
 curl -s localhost:9100/health | jq -r .instance_did
@@ -137,7 +137,7 @@ cp ~/.local/share/syncropel/backups/<instance-key>/hub.db.bak ~/.syncro/hub.db
 spl serve
 ```
 
-On startup, trust scores and configuration are rebuilt from your records. Task content files and alias mappings live in `~/.syncro-data/` and are unaffected by `hub.db` operations — they survive on their own.
+On startup, trust scores and configuration are rebuilt from your records. Task content files and alias mappings live in `~/.syncro-data/` and are unaffected by `hub.db` operations. They survive on their own.
 
 > **WSL2 / UNC paths.** If `~/.syncro/` resolves to a UNC path (`\\wsl.localhost\...`) when accessed from Windows tooling, SQLite's file locks behave erratically. Keep `hub.db` on a native Linux filesystem (the WSL home directory itself) and copy backups out via `cp` rather than letting Windows Explorer touch them.
 
@@ -226,7 +226,7 @@ Only after the archive is verified somewhere durable:
 rm -rf ~/.syncro ~/.syncro-data ~/.local/share/syncropel
 ```
 
-If the instance had a federation pair, run `spl federation revoke <pair-id>` against the peer first — see [Federation Pairing](/docs/operate/federation-pairing) for the full pair-revocation procedure.
+If the instance had a federation pair, run `spl federation revoke <pair-id>` against the peer first. See [Federation Pairing](/docs/operate/federation-pairing) for the full pair-revocation procedure.
 
 ## What's next
 

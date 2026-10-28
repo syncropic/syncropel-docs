@@ -73,8 +73,8 @@ The loop continues as long as the agent keeps calling tools. When the agent take
 Three other paths end the loop early:
 
 - A **limit is reached**: turns, tokens, time, or a cost cap in USD. The outcome names which one.
-- The agent **can't make progress** — it needs a tool it doesn't have, the goal is ambiguous, or it needs a decision from you. The outcome is `blocked` with a structured coercion record alongside it.
-- A **repeated-failure pattern is detected** — the same tool call with the same arguments fails multiple times in a row. The loop halts with `guardrail_halt` rather than thrashing.
+- The agent **can't make progress**: it needs a tool it doesn't have, the goal is ambiguous, or it needs a decision from you. The outcome is `blocked` with a structured coercion record alongside it.
+- A **repeated-failure pattern is detected**: the same tool call with the same arguments fails multiple times in a row. The loop halts with `guardrail_halt` rather than thrashing.
 
 In every case the final record says exactly what happened. The loop never reports a made-up "done."
 
@@ -91,7 +91,7 @@ Every loop ends with a `core.work.loop_outcome.v1` record. The `outcome` field i
 | `max_turns` | `false` | The loop hit its turn ceiling before finishing. Increase `max_turns` or scope the goal smaller. |
 | `budget_exhausted` | `false` | A token, USD, or wall-clock budget ran out. The body carries a `budget_kind` field naming which one. |
 | `guardrail_halt` | `false` | The same tool call with the same arguments failed enough times in a row that the loop was stopped to prevent thrashing. The body carries the tool name, an arguments hash, and the failure count. |
-| `awaiting_actor` | — | The loop is paused waiting for a decision from a person (a `core.work.decision_request.v1` was raised). This is not a final outcome: the loop resumes when you respond. |
+| `awaiting_actor` | n/a | The loop is paused waiting for a decision from a person (a `core.work.decision_request.v1` was raised). This is not a final outcome: the loop resumes when you respond. |
 
 The `blocked` outcome is the most important one to understand: it is how a loop honestly says "I can't do this".
 
@@ -163,7 +163,7 @@ Owners can review these. `GET /v1/work/compensation/review` and `/review/top` co
 
 Compensation records are **not punishment**. One high count on a single goal may just mean the loop hit an unusual limit. A sustained high rate across many goals is what stands out.
 
-## Chat-actor delegation — `@agent`
+## Chat-actor delegation: `@agent`
 
 A conversation with [the chief of staff](/docs/get-started/the-assistant) is single-shot by default: you ask, it answers. A turn that needs tools becomes a loop automatically, and you can also start a governed run with `spl run`.
 
@@ -181,10 +181,10 @@ See [Agents](/docs/concepts/agents) for what the launch screen shows, what the c
 Three ways to start a loop:
 
 ```bash
-# CLI — run on your machine
+# CLI: run on your machine
 spl work-loop "Summarise this week's dispatches"
 
-# CLI — run in your workspace with a task budget
+# CLI: run in your workspace with a task budget
 spl work-loop "..." --remote --max-turns 8
 
 # HTTP API
@@ -193,17 +193,17 @@ curl -X POST http://localhost:9100/v1/work/loop \
   -H "Content-Type: application/json" \
   -d '{"goal": "...", "max_turns": 8}'
 
-# Chat — @agent delegation
+# Chat: @agent delegation
 # (type into any assistant thread)
 @agent audit my last 7 days of dispatches and write a summary
 ```
 
-See the [CLI reference](/docs/reference/cli#work-loop--spl-work-loop) and [API reference](/docs/reference/api#work-loops) for full surface, and the [body-kinds reference](/docs/reference/body-kinds#kinds-emitted-by-the-work-loop) for the records the loop emits.
+See the [CLI reference](/docs/reference/cli#work-loop-spl-work-loop) and [API reference](/docs/reference/api#work-loops) for full surface, and the [body-kinds reference](/docs/reference/body-kinds#kinds-emitted-by-the-work-loop) for the records the loop emits.
 
 ## What's next
 
-- [Agents](/docs/concepts/agents) — how AI agents run loops, including `@agent` and what the outcomes mean.
+- [Agents](/docs/concepts/agents): how AI agents run loops, including `@agent` and what the outcomes mean.
 - [The chief of staff](/docs/get-started/the-assistant) is the default conversational assistant; a turn that needs tools escalates to a loop.
-- [Actors](/docs/concepts/actors) — the identities records and loops are attributed to.
-- [Threads](/docs/concepts/threads) — where a loop's records live.
-- [Trust](/docs/concepts/trust) — how a loop's records feed trust.
+- [Actors](/docs/concepts/actors): the identities records and loops are attributed to.
+- [Threads](/docs/concepts/threads): where a loop's records live.
+- [Trust](/docs/concepts/trust): how a loop's records feed trust.

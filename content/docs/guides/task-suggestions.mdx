@@ -44,7 +44,7 @@ The `context:` line shows what the ranking is based on. By default, that is the 
 | `-n, --limit <N>` | How many suggestions to show (default 5). |
 
 ```bash
-# "I'm about to pick up auth work — what's relevant?"
+# "I'm about to pick up auth work. What's relevant?"
 spl task suggest --query "authentication and session management" -n 8
 
 # "What should I do next on this thread?"
@@ -86,8 +86,8 @@ Review, then close with `spl task cancel <id>` or `spl task done <id>`.
 
 Triage splits candidates into two buckets:
 
-- **Likely superseded** — each stale task is paired with a newer or already-completed task that looks like it covers the same work, with a similarity score. These are the likeliest to be safe to close.
-- **Stale, no clear superseder** — old open tasks with no obvious replacement. These need an individual judgment: still relevant, or quietly dead?
+- **Likely superseded**: each stale task is paired with a newer or already-completed task that looks like it covers the same work, with a similarity score. These are the likeliest to be safe to close.
+- **Stale, no clear superseder**: old open tasks with no obvious replacement. These need an individual judgment: still relevant, or quietly dead?
 
 Triage never closes anything. It hands you a reviewable list; you decide with `spl task cancel <id>` (dropped) or `spl task done <id>` (actually finished).
 
@@ -118,7 +118,7 @@ A good rhythm: `spl task suggest` at the start of a work session to choose your 
 
 ## What's next
 
-- **[Insights & observability](/docs/guides/insights-observability)** — what your workspace has noticed about your work.
-- **[Task management](/docs/guides/task-management)** — the full task lifecycle.
-- **[Search](/docs/guides/search)** — the semantic search behind relevance ranking.
-- **[CLI reference](/docs/reference/cli)** — full command surface.
+- **[Insights & observability](/docs/guides/insights-observability)**: what your workspace has noticed about your work.
+- **[Task management](/docs/guides/task-management)**: the full task lifecycle.
+- **[Search](/docs/guides/search)**: the semantic search behind relevance ranking.
+- **[CLI reference](/docs/reference/cli)**: full command surface.

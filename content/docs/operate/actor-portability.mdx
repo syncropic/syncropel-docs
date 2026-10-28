@@ -8,7 +8,7 @@ description: Export an actor's identity + work trail from one Syncropel instance
 Actor identities in Syncropel are DIDs (e.g.
 `did:sync:agent:dev`). If you're moving from a self-hosted instance to
 a managed one, consolidating across teams, or sunsetting an instance,
-you want the actor's **work trail** to move with them — not just the
+you want the actor's **work trail** to move with them, not just the
 bare DID.
 
 `spl actor export` and `spl actor import` cover that migration with
@@ -29,7 +29,7 @@ crosses the line.
 | Stays behind | Why |
 |---|---|
 | Trust scores **about other actors** | The importing instance builds its own trust graph from ingested records |
-| Bearer tokens + service accounts | Security boundary — the new instance mints its own credentials |
+| Bearer tokens + service accounts | Security boundary: the new instance mints its own credentials |
 | Federation pairs | The importing instance pairs explicitly on its own |
 | Consent records `th_consent` | Consent is per-instance; re-issue in the target |
 | Routing rules / triggers / health checks | Config is per-deployment |
@@ -46,13 +46,13 @@ spl actor export did:sync:agent:dev > /tmp/dev-actor-export.ndjson
 spl actor export did:sync:agent:dev --include-memories > /tmp/dev-actor-export.ndjson
 ```
 
-Content is a newline-delimited JSON stream — safe to `gzip`, `scp`, or
+Content is a newline-delimited JSON stream, safe to `gzip`, `scp`, or
 `cat` across hosts.
 
 ### Import to the target instance
 
 ```bash
-# Dry run — shows what would happen
+# Dry run: shows what would happen
 spl actor import /tmp/dev-actor-export.ndjson --dry-run
 
 # Actual import
@@ -69,7 +69,7 @@ none of it, so a partial failure doesn't leave the target half-imported.
 
 When an actor moves instances, their accumulated trust on the source
 may not fully transfer. A dev-agent that scored 0.95 on a 10-engineer
-team's work isn't automatically a 0.95 on a different team's work —
+team's work isn't automatically a 0.95 on a different team's work:
 the domain distribution is different, the expectations are different.
 
 `--trust-discount` multiplies every trust observation on import:
@@ -78,14 +78,14 @@ the domain distribution is different, the expectations are different.
 # Full trust preserved (default)
 spl actor import --trust-discount 1.0 export.ndjson
 
-# Half-weight on import — start from a conservative baseline
+# Half-weight on import: start from a conservative baseline
 spl actor import --trust-discount 0.5 export.ndjson
 
-# Trust reset — records ingested, but the actor starts with no trust evidence
+# Trust reset: records ingested, but the actor starts with no trust evidence
 spl actor import --trust-discount 0.0 export.ndjson
 ```
 
-Discount applies only to trust *inputs* — the records themselves
+Discount applies only to trust *inputs*. The records themselves
 preserve their original semantics.
 
 ## Consent implications
@@ -110,30 +110,30 @@ does not store any record twice, so you can re-run it after a transient failure.
 
 ## When you might migrate
 
-- **Hosted → self-hosted** — spin up a local instance, move your actor
+- **Hosted → self-hosted**: spin up a local instance, move your actor
   onto it, keep working locally
-- **Instance consolidation** — two teams that have been running
+- **Instance consolidation**: two teams that have been running
   separate instances merge; actors from both unify on the new shared
   instance
-- **Sunsetting an instance** — before tearing down, export all actors
+- **Sunsetting an instance**: before tearing down, export all actors
   to a consolidated archive instance
 
 ## What the command does NOT do
 
-- No network federation — you're producing a portable file, not a
+- No network federation: you're producing a portable file, not a
   live sync channel. Federation is a separate subsystem
   ([see Federation pair](/docs/guides/federation-pair)).
-- No automatic authorization — a target operator must import
+- No automatic authorization: a target operator must import
   deliberately. There's no "pull" from the source.
-- No scope translation — if the source used custom scopes, you may
+- No scope translation: if the source used custom scopes, you may
   need to adjust them on the target. Standard scopes migrate
   identically.
 
 ## Pairs with
 
-- **[Actors and adapters](/docs/guides/actors-and-adapters)** — how
+- **[Actors and adapters](/docs/guides/actors-and-adapters)**: how
   actors are registered and dispatched
-- **[Federation pair](/docs/guides/federation-pair)** — live network sync, the
+- **[Federation pair](/docs/guides/federation-pair)**: live network sync, the
   complement to portable export/import
-- **[Backup + restore](/docs/guides/backup-restore)** — whole-instance
+- **[Backup + restore](/docs/guides/backup-restore)**: whole-instance
   migration, if you want to move everything not just one actor

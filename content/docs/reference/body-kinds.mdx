@@ -33,7 +33,7 @@ any new kinds.
 | Kind | Step |
 |---|---|
 | `core.faculty.call.v1` | The outbound model call for a conversational turn. |
-| `core.faculty.response.v1` | The reply — content, `stop_reason`, `model_used`, `usage` (all four token dimensions), `cost_usd`, and a `context` block (below). |
+| `core.faculty.response.v1` | The reply: content, `stop_reason`, `model_used`, `usage` (all four token dimensions), `cost_usd`, and a `context` block (below). |
 | `core.faculty.error.v1` | The turn failed; the error is saved as a record, not just a log line. |
 | `core.faculty.cancelled.v1` | The user cancelled a reply in progress. |
 
@@ -141,7 +141,7 @@ The terminal completion record. Carries the usual completion fields plus three v
 |---|---|
 | `result_event` | Came from the final `result` event (most reliable). |
 | `accumulated_from_events` | Added up from per-event usage (used when no `result` arrived). |
-| `unknown` | No figure available — stream ended before any cost signal. |
+| `unknown` | No figure available. The stream ended before any cost signal. |
 
 #### `completion_codepath` (which exit branch fired)
 
@@ -164,7 +164,7 @@ The terminal completion record. Carries the usual completion fields plus three v
 | `read_error` | An error reading the agent's output mid-dispatch. |
 | `result_reported_error` | `result` event arrived but reported `is_error: true`. |
 
-See the [dispatch observability guide](/docs/guides/dispatch-observability) for example queries against these records — including `spl task diagnose <id>` and `spl logs --trace-id`.
+See the [dispatch observability guide](/docs/guides/dispatch-observability) for example queries against these records, including `spl task diagnose <id>` and `spl logs --trace-id`.
 
 ## Kinds emitted by inference
 
@@ -194,7 +194,7 @@ Each code matches a step of the query. Every failure produces exactly one of the
 
 | Code | Step | Meaning |
 |---|---|---|
-| `invalid_query` | 1 | Query body failed validation — missing required field, shape mismatch, unknown combine function. |
+| `invalid_query` | 1 | Query body failed validation: missing required field, shape mismatch, unknown combine function. |
 | `no_candidates` | 2 | The filters left no candidates. There were responders, but none matched. |
 | `no_relevant_candidates` | 3 | Candidates existed but every candidate scored below the relevance threshold (`top_k` empty). |
 | `cost_budget_exceeded` | 4 (pre-dispatch) | Projected total cost exceeded `side_effects.max_cost_usd` (or the namespace default). |
@@ -213,27 +213,27 @@ Every run of a work loop (`spl work-loop`, `POST /v1/work/loop`, or a chat assis
 
 ### Loop lifecycle
 
-- **`core.work.loop.v1`** — the loop record itself. Carries the goal, plan level, limits (`max_turns`, `wall_clock_secs`, `token_budget`), and any per-loop `task_budget`.
-- **`core.work.turn.v1`** — one turn of the loop. Sequenced by `body.turn_index`; carries the prompt, model call summary, and per-turn cost.
-- **`core.work.tool_call.v1`** + **`core.work.tool_result.v1`** — every tool invocation and its result. Each tool call is checked against permissions. The result carries success or a failure code. A failure is always returned to the agent as a result so that its next turn can correct itself.
-- **`core.work.loop_outcome.v1`** — the terminal record. `body.outcome` is one of `completed`, `failed`, `cancelled`, `blocked`, `max_turns`, `budget_exhausted`, `guardrail_halt`, or `awaiting_actor` (paused). Some outcomes carry extra details: `budget_exhausted` includes `budget_kind`; `guardrail_halt` includes `tool`, `args_hash`, and `count`.
+- **`core.work.loop.v1`**: the loop record itself. Carries the goal, plan level, limits (`max_turns`, `wall_clock_secs`, `token_budget`), and any per-loop `task_budget`.
+- **`core.work.turn.v1`**: one turn of the loop. Sequenced by `body.turn_index`; carries the prompt, model call summary, and per-turn cost.
+- **`core.work.tool_call.v1`** + **`core.work.tool_result.v1`**: every tool invocation and its result. Each tool call is checked against permissions. The result carries success or a failure code. A failure is always returned to the agent as a result so that its next turn can correct itself.
+- **`core.work.loop_outcome.v1`**: the terminal record. `body.outcome` is one of `completed`, `failed`, `cancelled`, `blocked`, `max_turns`, `budget_exhausted`, `guardrail_halt`, or `awaiting_actor` (paused). Some outcomes carry extra details: `budget_exhausted` includes `budget_kind`; `guardrail_halt` includes `tool`, `args_hash`, and `count`.
 
 ### Halts and signals
 
-- **`core.work.coercion.v1`** — paired with a `blocked` outcome. Names the structured `reason` (`tool_unavailable` / `ambiguous_goal` / `precondition_failed` / `decision_required` / `input_invalid` / `internal_error`), a `narrative` field, and where relevant a `missing_tools` array or `decision_request_ref`. This is how the loop says plainly "I can't do this" instead of producing junk.
-- **`core.work.guardrail.v1`** — written when the same failure repeats. `verdict: "block"` appears mid-loop when the agent's next identical attempt is refused with a made-up failure result (the loop continues and the agent can change approach). `verdict: "halt"` appears when the loop ends with a `guardrail_halt` outcome. Body carries `tool`, `args_hash`, `count`, and `threshold`.
-- **`core.work.compensation.v1`** — written when a loop does something unexpected, such as the model wrapping up too early as it nears its context limit. It names what happened and its context. You can review unusual runs per actor with `GET /v1/work/compensation/review`.
-- **`core.work.observation.v1`** — a nudge to a running actor. When something other than the model notices a problem and puts it in front of the model on its next turn, that nudge is saved as a record. It names the `rule` that fired, holds the exact `text` the actor was shown, and names the `loop_thread` it steered. You can always see afterwards why a run changed course. `rule` is required and must not be empty.
+- **`core.work.coercion.v1`**: paired with a `blocked` outcome. Names the structured `reason` (`tool_unavailable` / `ambiguous_goal` / `precondition_failed` / `decision_required` / `input_invalid` / `internal_error`), a `narrative` field, and where relevant a `missing_tools` array or `decision_request_ref`. This is how the loop says plainly "I can't do this" instead of producing junk.
+- **`core.work.guardrail.v1`**: written when the same failure repeats. `verdict: "block"` appears mid-loop when the agent's next identical attempt is refused with a made-up failure result (the loop continues and the agent can change approach). `verdict: "halt"` appears when the loop ends with a `guardrail_halt` outcome. Body carries `tool`, `args_hash`, `count`, and `threshold`.
+- **`core.work.compensation.v1`**: written when a loop does something unexpected, such as the model wrapping up too early as it nears its context limit. It names what happened and its context. You can review unusual runs per actor with `GET /v1/work/compensation/review`.
+- **`core.work.observation.v1`**: a nudge to a running actor. When something other than the model notices a problem and puts it in front of the model on its next turn, that nudge is saved as a record. It names the `rule` that fired, holds the exact `text` the actor was shown, and names the `loop_thread` it steered. You can always see afterwards why a run changed course. `rule` is required and must not be empty.
 
-- **`core.work.decision_request.v1`** — pause for human approval. When a loop needs a decision, it raises one of these and pauses with an `awaiting_actor` outcome until you respond.
-- **`core.work.loop_cancel.v1`** — cancel. A `DO` of this kind on the loop thread stops the running loop, which exits with a `cancelled` outcome.
+- **`core.work.decision_request.v1`**: pause for human approval. When a loop needs a decision, it raises one of these and pauses with an `awaiting_actor` outcome until you respond.
+- **`core.work.loop_cancel.v1`**: cancel. A `DO` of this kind on the loop thread stops the running loop, which exits with a `cancelled` outcome.
 
 ### Chat-actor delegation
 
 When a chat assistant receives a message that opens with `@agent <goal>`, it hands the goal to a real loop running under the **user**'s identity (not the chat assistant's), and reports back when the loop ends.
 
-- **`core.work.delegation.v1`** — the assistant's record that it handed a goal to a work loop. `body.parent_loop_id` references the loop it started.
-- **`core.actor.usage.v1`** — daily per-actor aggregate (loop count, input/output tokens, cost). Used by the cost-preview endpoint to show "you've used $X.YZ of your $Z.WW daily cap."
+- **`core.work.delegation.v1`**: the assistant's record that it handed a goal to a work loop. `body.parent_loop_id` references the loop it started.
+- **`core.actor.usage.v1`**: daily per-actor aggregate (loop count, input/output tokens, cost). Used by the cost-preview endpoint to show "you've used $X.YZ of your $Z.WW daily cap."
 
 For the complete work-loop family (including artifact, note, coercion, and the older chat call/response/error kinds) see [the body-kinds manifest](/docs/guides/body-kind-manifest).
 
@@ -241,29 +241,29 @@ For the complete work-loop family (including artifact, note, coercion, and the o
 
 Full details for these are on their own pages.
 
-- **`core.workspace.v1`** + **`core.workspace_view.v1`** — a workspace (an interactive screen saved as a record) and the view state remembered per thread and actor. See [Workspaces](/docs/concepts/workspaces).
-- **`core.instance.shell.v1`** — an instance's Studio frame (the navigation rail, side panels, and footer around every screen), saved as a record. Resolved at `GET /v1/instance/shell` and in the `GET /v1/instance/bootstrap` aggregate. See [Instance chrome](/docs/concepts/instance-chrome).
-- **`core.credential.v1`** — secrets and external credentials. See [Secrets](/docs/concepts/secrets).
-- **`core.consent.v1`** — cross-namespace consent grants for federation. See [Consent](/docs/guides/consent).
-- **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`** — CEL-based settings records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).
-- **`core.subscription.v1`** — live-update (Server-Sent Events) subscriptions.
-- **`core.invite.v1`** — pair-share-invite envelope on `th_invites`. Fields: `invite_id`, `issuer_did`, `issuer_key_fp`, `scope_target` (`instance` / `thread:<id>` / `namespace:<ns>`), `scopes[]`, `ttl_seconds`, `max_uses`, `accept_holder_types[]` (`guest` / `federated` / `*`), `device_label?`, `notes?`, `signature`. See [Pair, share, invite](/docs/guides/pair-share-invite) and the [API reference — pair, share, invite](/docs/reference/api#pair-share-invite).
-- **`core.invite.event.v1`** — invite lifecycle events, mirrored on `th_audit_invites`. Discriminated by `event_kind`: `redeemed` (carries `holder_type`, `holder_did?`, `holder_pubkey?`, `bearer_token_id?`, `bearer_sa_id?`), `revoked` (carries `revoker_actor`, `revoker_reason?`), `exhausted` (auto-emitted when `uses_remaining` reaches 0), `refused` (carries `refusal_reason`: `expired` / `revoked` / `holder_type_mismatch` / `bad_proof` / `freshness_violation` / `key_unknown` / `consent_denied`).
-- **`core.invite_template.v1`** — the owner's saved invite shapes on `th_invite_templates`. Fields: `template_id`, `label`, `ttl_seconds`, `max_uses`, `scopes[]`, `accept_holder_types[]`, `notes?`. Surfaces in the `spl invite templates` picker.
-- **`core.identity.grant.v1`** — a grant between principals; membership is one of these. Carries the scopes, `expires_at`, limits (`max_depth` / `max_fanout` / `budget`), and `chain`, the ordered list of grants above it, checked when the record is saved (up to 64). Credentials created when a membership is accepted belong to this grant, and every request checks the grant is still valid (`401 GRANT_EXPIRED` / `GRANT_REVOKED`). See [Principals & grants](/docs/concepts/principals-and-grants).
-- **`core.identity.acceptance.v1`** — the signed acceptance that completes a membership. It shows the member agreed, rather than the grant being done *to* them. Written when a membership is accepted, alongside the grant.
-- **`core.identity.revoke.v1`** — a signed revocation naming a grant (`revoked_grant`). One record ends a membership: every credential that belongs to the revoked grant (bearers, agent sub-grants) stops working with it. Also emitted on renewal (reason `membership-renewed`) to close the superseded grant.
-- **`core.api_token.activity.v1`** — when a bearer token was last used. Written on every request authenticated by the token and joined into invite list rows via `bearer_token_id`. Used by the **Last seen** column in the invite list.
-- **`core.runtime.v1`** — describes a runtime that an extension plugs in. See [Extensions](/docs/guides/extensions).
-- **`core.artifact.v1`** — published artifact records.
-- **`infer.query.v1`** — inference query records. Documented in detail at [infer.query.v1 schema reference](/docs/reference/infer-query-schema).
-- **`core.trigger.outcome.v1`** — the result of one trigger-started dispatch, on the dispatch thread. Carries `trigger`, `target`, `success`, `cost_usd`, `error`, and (when the dispatch hit its deadline while the loop was still running) `disposition: "pending"`. Trigger limits (simultaneous runs, daily spend, automatic pause) are counted from this record.
-- **`core.eval.case.v1`** — one eval case: a `request`, its established `answer`, a `quartile` naming how the case was obtained (`mined` / `held-out` / `adversarial` / `unknown` / `misdirected`), an optional `citation` (the record id of the primary evidence), and the `scope` / `subject` / `predicate` key that lets a newer case replace an older one.
-- **`core.eval.run.v1`** — one scoring of one definition (its 64-character hex id as `subject`) against its `suite`. Carries `structure_score` and `substance_score` separately, both in `[0, 1]`; a blended `score` field is refused, because a well-formatted wrong answer must not pass on style.
+- **`core.workspace.v1`** + **`core.workspace_view.v1`**: a workspace (an interactive screen saved as a record) and the view state remembered per thread and actor. See [Workspaces](/docs/concepts/workspaces).
+- **`core.instance.shell.v1`**: an instance's Studio frame (the navigation rail, side panels, and footer around every screen), saved as a record. Resolved at `GET /v1/instance/shell` and in the `GET /v1/instance/bootstrap` aggregate. See [Instance chrome](/docs/concepts/instance-chrome).
+- **`core.credential.v1`**: secrets and external credentials. See [Secrets](/docs/concepts/secrets).
+- **`core.consent.v1`**: cross-namespace consent grants for federation. See [Consent](/docs/guides/consent).
+- **`core.routing_rule.v1`** / **`core.fold_rule.v1`** / **`core.health_rule.v1`** / **`core.aitl_rule.v1`** / **`core.permission_rule.v1`** / **`core.trigger.v1`**: CEL-based settings records. See [CEL expressions](/docs/guides/cel-expressions) and [Routing rules](/docs/guides/routing-rules).
+- **`core.subscription.v1`**: live-update (Server-Sent Events) subscriptions.
+- **`core.invite.v1`**: pair-share-invite envelope on `th_invites`. Fields: `invite_id`, `issuer_did`, `issuer_key_fp`, `scope_target` (`instance` / `thread:<id>` / `namespace:<ns>`), `scopes[]`, `ttl_seconds`, `max_uses`, `accept_holder_types[]` (`guest` / `federated` / `*`), `device_label?`, `notes?`, `signature`. See [Pair, share, invite](/docs/guides/pair-share-invite) and the [API reference: pair, share, invite](/docs/reference/api#pair-share-invite).
+- **`core.invite.event.v1`**: invite lifecycle events, mirrored on `th_audit_invites`. Discriminated by `event_kind`: `redeemed` (carries `holder_type`, `holder_did?`, `holder_pubkey?`, `bearer_token_id?`, `bearer_sa_id?`), `revoked` (carries `revoker_actor`, `revoker_reason?`), `exhausted` (auto-emitted when `uses_remaining` reaches 0), `refused` (carries `refusal_reason`: `expired` / `revoked` / `holder_type_mismatch` / `bad_proof` / `freshness_violation` / `key_unknown` / `consent_denied`).
+- **`core.invite_template.v1`**: the owner's saved invite shapes on `th_invite_templates`. Fields: `template_id`, `label`, `ttl_seconds`, `max_uses`, `scopes[]`, `accept_holder_types[]`, `notes?`. Surfaces in the `spl invite templates` picker.
+- **`core.identity.grant.v1`**: a grant between principals; membership is one of these. Carries the scopes, `expires_at`, limits (`max_depth` / `max_fanout` / `budget`), and `chain`, the ordered list of grants above it, checked when the record is saved (up to 64). Credentials created when a membership is accepted belong to this grant, and every request checks the grant is still valid (`401 GRANT_EXPIRED` / `GRANT_REVOKED`). See [Principals & grants](/docs/concepts/principals-and-grants).
+- **`core.identity.acceptance.v1`**: the signed acceptance that completes a membership. It shows the member agreed, rather than the grant being done *to* them. Written when a membership is accepted, alongside the grant.
+- **`core.identity.revoke.v1`**: a signed revocation naming a grant (`revoked_grant`). One record ends a membership: every credential that belongs to the revoked grant (bearers, agent sub-grants) stops working with it. Also emitted on renewal (reason `membership-renewed`) to close the superseded grant.
+- **`core.api_token.activity.v1`**: when a bearer token was last used. Written on every request authenticated by the token and joined into invite list rows via `bearer_token_id`. Used by the **Last seen** column in the invite list.
+- **`core.runtime.v1`**: describes a runtime that an extension plugs in. See [Extensions](/docs/guides/extensions).
+- **`core.artifact.v1`**: published artifact records.
+- **`infer.query.v1`**: inference query records. Documented in detail at [infer.query.v1 schema reference](/docs/reference/infer-query-schema).
+- **`core.trigger.outcome.v1`**: the result of one trigger-started dispatch, on the dispatch thread. Carries `trigger`, `target`, `success`, `cost_usd`, `error`, and (when the dispatch hit its deadline while the loop was still running) `disposition: "pending"`. Trigger limits (simultaneous runs, daily spend, automatic pause) are counted from this record.
+- **`core.eval.case.v1`**: one eval case: a `request`, its established `answer`, a `quartile` naming how the case was obtained (`mined` / `held-out` / `adversarial` / `unknown` / `misdirected`), an optional `citation` (the record id of the primary evidence), and the `scope` / `subject` / `predicate` key that lets a newer case replace an older one.
+- **`core.eval.run.v1`**: one scoring of one definition (its 64-character hex id as `subject`) against its `suite`. Carries `structure_score` and `substance_score` separately, both in `[0, 1]`; a blended `score` field is refused, because a well-formatted wrong answer must not pass on style.
 
 ## Where to go next
 
-- **[CLI reference](/docs/reference/cli)** — commands that emit and query against these records.
-- **[Dispatch observability guide](/docs/guides/dispatch-observability)** — example queries and a `spl task diagnose` walkthrough.
-- **[`infer.query.v1` schema](/docs/reference/infer-query-schema)** — the inference query body that pairs with `infer.error.v1`.
-- **[body.kind manifest guide](/docs/guides/body-kind-manifest)** — the grammar all kinds (built-in or extension) follow.
+- **[CLI reference](/docs/reference/cli)**: commands that emit and query against these records.
+- **[Dispatch observability guide](/docs/guides/dispatch-observability)**: example queries and a `spl task diagnose` walkthrough.
+- **[`infer.query.v1` schema](/docs/reference/infer-query-schema)**: the inference query body that pairs with `infer.error.v1`.
+- **[body.kind manifest guide](/docs/guides/body-kind-manifest)**: the grammar all kinds (built-in or extension) follow.

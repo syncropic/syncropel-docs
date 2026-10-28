@@ -35,7 +35,7 @@ card underneath is always preserved.
 
 Every entry is optional. Drop only what you need.
 
-## `theme.css` — override visual variables
+## `theme.css`: override visual variables
 
 The identity card's typography, colors, and structural spacing all
 flow from CSS custom properties on `:root`. The page includes them
@@ -46,12 +46,12 @@ The variables you can safely override:
 
 ```css
 :root {
-  /* Accent — used for the kind label, the Connect button, link hover */
+  /* Accent: used for the kind label, the Connect button, link hover */
   --accent: #c2410c;
   --accent-strong: #9a3412;
   --accent-fg: #ffffff;
 
-  /* Glyph palette — the generative glyph in the masthead */
+  /* Glyph palette: the generative glyph in the masthead */
   --g1: #c2410c;
   --g2: #1f9d57;
   --g3: #b9842a;
@@ -83,26 +83,26 @@ You can also load a custom font and re-bind the typography variables:
 ```
 
 Notice the asset URL: `/site/local/AcmeSans-Regular.woff2`. That's the
-operator-asset route — see below.
+operator-asset route, described below.
 
 ### Budget
 
 `theme.css` content is inlined into the response HTML, so it counts
 against the per-render HTML weight budget (under 100 KB total). Keep
-the overlay small — a few hundred lines of focused overrides is
+the overlay small: a few hundred lines of focused overrides is
 plenty. If you need a lot of CSS, that's a sign you're building a UI;
 build it in a workspace instead.
 
-## `head.html` — extra `<head>` content
+## `head.html`: extra `<head>` content
 
 The instance checks `head.html` against a short allowed list before
 including it in the page. Only three element kinds are accepted:
 
-- `<meta>` — for Open Graph, Twitter cards, theme-color, etc.
-- `<link>` — for favicons, preconnect, manifest, RSS, atom feeds
-- `<style>` — additional inline CSS (combined with `theme.css`)
+- `<meta>`: for Open Graph, Twitter cards, theme-color, etc.
+- `<link>`: for favicons, preconnect, manifest, RSS, atom feeds
+- `<style>`: additional inline CSS (combined with `theme.css`)
 
-Anything else — `<script>`, `<noscript>`, `<iframe>`, raw text nodes —
+Anything else (`<script>`, `<noscript>`, `<iframe>`, raw text nodes)
 is rejected. The visitor sees no error (the head fragment is dropped); the instance log records the
 rejection with the offending tag. There is no path to
 inject JavaScript via Tier 3.
@@ -120,10 +120,10 @@ Example `head.html`:
 
 These appear in the page after the built-in `<meta>` tags.
 
-## `assets/` — operator-supplied files at `/site/local/<name>`
+## `assets/`: operator-supplied files at `/site/local/<name>`
 
 Anything under `~/.syncro/site/assets/` is served by the instance at
-`/site/local/<name>` — same origin as the landing page, no auth
+`/site/local/<name>`: same origin as the landing page, no auth
 required, content type set from the file extension.
 
 Allowed file extensions and their content types:
@@ -161,7 +161,7 @@ your assets; that is up to you.
 
 The Tier 3 overlay is read on each request and kept for 5
 seconds. Drop a file, wait up to 5 seconds, hit
-`GET /` — the new overlay is live. No restart and no new record are needed.
+`GET /`, and the new overlay is live. No restart and no new record are needed.
 
 To check what the instance is reading right now:
 
@@ -171,7 +171,7 @@ spl site preview --out /tmp/preview.html
 grep -E '<meta|<link|--accent' /tmp/preview.html
 ```
 
-## Worked example — accent + favicon + custom font
+## Worked example: accent + favicon + custom font
 
 Goal: switch the instance accent to a brand orange, swap the favicon,
 and load the brand's custom sans font.
@@ -220,9 +220,9 @@ up.
 ## When NOT to use Tier 3
 
 - If you only need to set the instance name and mission, use
-  [Tier 2 content overrides](/docs/operate/site/content-overrides) —
-  it's portable, federates, and shows up in the record log.
-- If your visual customization gets into "I want my own homepage" — at
+  [Tier 2 content overrides](/docs/operate/site/content-overrides).
+  It's portable, federates, and shows up in the record log.
+- If your visual customization gets into "I want my own homepage", at
   that point you want either a workspace (records + projection) or
   Studio (a real interactive app). The instance site is an identity
   card; treat it like the lobby, not the building.

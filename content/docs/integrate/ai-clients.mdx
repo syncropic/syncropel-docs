@@ -15,11 +15,11 @@ Different AI clients take different approaches to tool use. Syncropel has a matc
 
 None of these require the agent to know what Syncropel is. They connect, and records are written as the agent works.
 
-## Pattern 1 — Traditional MCP (stdio)
+## Pattern 1: Traditional MCP (stdio)
 
 For AI clients that support the [Model Context Protocol](https://modelcontextprotocol.io/). The agent calls Syncropel tools directly, and results come back into the model's context. This is the simplest option.
 
-### Quickstart — `spl mcp setup-<client>`
+### Quickstart: `spl mcp setup-<client>`
 
 There are nine setup commands. Each finds the client's config file for your operating system, reads it (keeping any other entries), adds a `syncropel` entry and writes it back in one step, so a failure never leaves a half-written file.
 
@@ -258,7 +258,7 @@ See [Authentication & Service Accounts](/docs/operate/keyring) for how to create
 - You want the least setup: one command and it works
 - Your workflow has fewer than about 10 tool calls per session (MCP handles many tools well, and Syncropel has 8)
 
-## Pattern 2 — Shell-integrated (no MCP needed)
+## Pattern 2: Shell-integrated (no MCP needed)
 
 For AI clients that can run shell commands, such as Claude Code and Cursor's agent mode. This pattern doesn't need MCP. The agent runs `spl` as a shell command and reads its output, as plain text or with `-o json`. The only setup is an optional system-prompt recipe.
 
@@ -293,7 +293,7 @@ For simple operations, coding agents (Claude Code, Cursor agent mode) tend to us
 - You want the agent's actions visible in both your terminal history and your Syncropel records (one shell line, one record)
 - You're writing custom agents driven by shell scripts
 
-## Pattern 3 — Programmatic Agents (for agents that write code)
+## Pattern 3: Programmatic Agents (for agents that write code)
 
 For agents that get tasks done by writing code: models with code execution, agents on serverless platforms, or custom frameworks that run code in a sandbox. The agent writes a short program using `@syncropel/sdk` (TypeScript) or `syncropel` (Python) that does multi-step work entirely in the sandbox. Only the final result goes back into the model's context.
 

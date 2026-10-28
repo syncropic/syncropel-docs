@@ -7,20 +7,20 @@ description: Install, configure, monitor, and troubleshoot a Syncropel async-fed
 
 This guide is for operators running a relay for their own organization, a small community, or an infrastructure provider serving multiple tenants. It assumes you've read the [async federation guide](/docs/guides/async-federation) and understand what the relay is (a simple store-and-forward mailbox) and what it isn't (an identity provider or a trust authority).
 
-If you're a user configuring a client to use a relay that already exists, you don't need this page — use `spl config relay set <url>`.
+If you're a user configuring a client to use a relay that already exists, you don't need this page. Use `spl config relay set <url>`.
 
 ## What a relay is
 
 An async-federation relay is a single HTTP service that accepts signed envelopes from senders and lets receivers poll for their mailbox contents when they come online. It implements four endpoints:
 
-- `POST /v1/mailbox/{did}` — deposit an envelope addressed to a receiver DID
-- `GET /v1/mailbox/{did}/receive` — list queued envelopes for a receiver
-- `POST /v1/mailbox/{did}/ack` — remove acknowledged envelopes
-- `GET /health` — liveness (no auth, for load balancers / Kubernetes)
+- `POST /v1/mailbox/{did}`: deposit an envelope addressed to a receiver DID
+- `GET /v1/mailbox/{did}/receive`: list queued envelopes for a receiver
+- `POST /v1/mailbox/{did}/ack`: remove acknowledged envelopes
+- `GET /health`: liveness (no auth, for load balancers / Kubernetes)
 
 Plus:
 
-- `GET /metrics` — Prometheus text format
+- `GET /metrics`: Prometheus text format
 
 The relay does **not** verify envelope signatures. Verification is end-to-end, performed by receivers after dequeue. The relay sees sender/receiver DIDs, envelope sizes, and timing; it does not see the records inside encrypted (MLS) envelopes.
 
@@ -28,12 +28,12 @@ The relay does **not** verify envelope signatures. Verification is end-to-end, p
 
 You want a relay of your own when any of the following apply:
 
-- **Sovereignty** — you want to guarantee no third party sees your federation traffic metadata (even when envelopes are MLS-encrypted, timing and DID pairs are visible).
-- **Latency** — your fleet is geographically clustered and `relay.syncropel.com` adds too much round-trip time.
-- **Self-hosting policy** — your organization prohibits external dependencies for production coordination.
-- **Custom retention** — default TTL is 30 days; if you need longer (or shorter for privacy), run your own.
+- **Sovereignty**: you want to guarantee no third party sees your federation traffic metadata (even when envelopes are MLS-encrypted, timing and DID pairs are visible).
+- **Latency**: your fleet is geographically clustered and `relay.syncropel.com` adds too much round-trip time.
+- **Self-hosting policy**: your organization prohibits external dependencies for production coordination.
+- **Custom retention**: default TTL is 30 days; if you need longer (or shorter for privacy), run your own.
 
-If none of those apply, use `relay.syncropel.com` — it's free and operated by the Syncropel team.
+If none of those apply, use `relay.syncropel.com`. It's free and operated by the Syncropel team.
 
 ## Install
 
@@ -125,7 +125,7 @@ Envelopes default to 30 days. Senders can override per-envelope via the `ttl_sec
 
 ### Auth
 
-The relay runs unauthenticated on the deposit side (envelopes are signed end-to-end, so deposit authority is not load-bearing for correctness — only for abuse control). For receive and ack:
+The relay runs unauthenticated on the deposit side (envelopes are signed end-to-end, so deposit authority is not load-bearing for correctness, only for abuse control). For receive and ack:
 
 - The DID in the URL path is the receiver identity. The relay does not challenge the caller to prove it.
 
@@ -140,7 +140,7 @@ location ~ ^/v1/mailbox/(did:sync:[^/]+) {
 }
 ```
 
-This is intentionally coarse — production operators should run the relay inside a VPN with mutual TLS.
+This is intentionally coarse: production operators should run the relay inside a VPN with mutual TLS.
 
 ### Rate limits
 
@@ -164,11 +164,11 @@ Metrics exposed:
 | `relay_receives_total` | counter | `did` | Receive calls served per receiver |
 | `relay_acks_total` | counter | `did` | Envelopes acknowledged per receiver |
 | `relay_rate_limit_hits_total` | counter | `kind` | Abuse-control rejections by kind (`queue_full`, `payload_too_large`) |
-| `relay_envelopes_expired_total` | counter | — | Envelopes dropped because they expired |
+| `relay_envelopes_expired_total` | counter | None | Envelopes dropped because they expired |
 | `relay_queue_size` | gauge | `did` | Current queue length per receiver |
 | `relay_oldest_envelope_seconds` | gauge | `did` | Age in seconds of the oldest queued envelope per receiver |
-| `relay_unique_senders` | gauge | — | Distinct senders represented in the current queue state |
-| `relay_unique_receivers` | gauge | — | Distinct receivers with at least one queued envelope |
+| `relay_unique_senders` | gauge | None | Distinct senders represented in the current queue state |
+| `relay_unique_receivers` | gauge | None | Distinct receivers with at least one queued envelope |
 
 ### Scrape config
 
@@ -208,7 +208,7 @@ rate(relay_rate_limit_hits_total{kind="queue_full"}[5m])
 sum(rate(relay_acks_total[5m])) / sum(rate(relay_deposits_total[5m]))
 ```
 
-A healthy ratio is near 1.0 — values persistently below 1.0 mean receivers are falling behind.
+A healthy ratio is near 1.0. Values persistently below 1.0 mean receivers are falling behind.
 
 ## Troubleshooting
 
@@ -219,12 +219,12 @@ Symptom: `relay_queue_size{did="..."}` climbing, `relay_acks_total{did="..."}` f
 Common causes:
 
 - **Receiver is offline or its relay URL is wrong.** On the receiver, check `spl config relay show`. If the URL points elsewhere, the receiver isn't polling this relay.
-- **Receiver's long-poll loop is dead.** Check `spl fleet sync status` on the receiver — look for a recent `last_receive_ms` timestamp per relay.
+- **Receiver's long-poll loop is dead.** Check `spl fleet sync status` on the receiver and look for a recent `last_receive_ms` timestamp per relay.
 - **Network path from receiver to relay is broken.** From the receiver, `curl https://<relay>/v1/mailbox/<did>/receive`. A timeout or connection-refused points at network, not relay logic.
 
 ### `/health` returns 200 but deposits fail with 507
 
-You've hit the per-receiver cap (default 10,000). This is a back-pressure signal — the receiver is offline long enough that its mailbox has overflowed.
+You've hit the per-receiver cap (default 10,000). This is a back-pressure signal: the receiver is offline long enough that its mailbox has overflowed.
 
 Immediate action: the sender MUST handle 507 gracefully (retain outbound, retry later with exponential backoff). No operator intervention on the relay is required; once the receiver comes online and drains, capacity frees up.
 
@@ -233,8 +233,8 @@ Root-cause action: if 507s are chronic for a particular receiver, that receiver 
 ### Envelopes deposited but never received
 
 - Verify the `to_did` on the envelope matches what the receiver is polling for. Mismatched DIDs queue the envelope under a DID the receiver never asks about.
-- Check `relay_queue_size{did="<receiver>"}` — if it's non-zero, the envelope is queued correctly and the problem is on the receiver side.
-- Check `relay_oldest_envelope_seconds{did="<receiver>"}` — very large values mean the receiver has been offline since that timestamp.
+- Check `relay_queue_size{did="<receiver>"}`. If it's non-zero, the envelope is queued correctly and the problem is on the receiver side.
+- Check `relay_oldest_envelope_seconds{did="<receiver>"}`. Very large values mean the receiver has been offline since that timestamp.
 
 ### Relay restarts lose in-flight envelopes
 
@@ -272,7 +272,7 @@ sudo systemctl restart syncropel-relay
 
 Envelopes waiting in the queue are lost during a restart. Plan upgrades for a quiet time; senders redeliver afterwards.
 
-## Privacy posture — what you can and can't see as operator
+## Privacy posture: what you can and can't see as operator
 
 You can see (by virtue of serving traffic):
 - Sender DID, receiver DID, envelope size, deposit timestamp, delivery timestamp
@@ -282,11 +282,11 @@ You can see (by virtue of serving traffic):
 You cannot see (by protocol design):
 - Envelope body contents when `encoding: mls`
 - Record-level semantics (what threads, what actors, what acts)
-- Correlation between envelopes and higher-level coordination — the relay only forwards
+- Correlation between envelopes and higher-level coordination (the relay only forwards)
 
-Operators running public relays are expected to publish a transparency statement describing what metadata is retained and for how long. No default policy — this is your call.
+Operators running public relays are expected to publish a transparency statement describing what metadata is retained and for how long. No default policy: this is your call.
 
 ## See also
 
-- [Async federation (user-facing)](/docs/guides/async-federation) — the "why" and "when" from the sender/receiver perspective
-- [Federation pair guide](/docs/guides/federation-pair) — the synchronous (no-relay) counterpart
+- [Async federation (user-facing)](/docs/guides/async-federation): the "why" and "when" from the sender/receiver perspective
+- [Federation pair guide](/docs/guides/federation-pair): the synchronous (no-relay) counterpart

@@ -11,7 +11,7 @@ profiles**, how to choose between them, and why upgrading an existing
 instance changes nothing.
 
 If you just want a conversational instance that answers when you type,
-you want the **assistant** profile — and on a Syncropic-hosted instance
+you want the **assistant** profile, and on a Syncropic-hosted instance
 you already have it. Read on only if you are self-hosting and want to
 control what your instance reacts to.
 
@@ -27,7 +27,7 @@ A **deployment profile** is the choice of what the instance starts with the firs
 | `assistant` | **The conversational defaults.** The chief of staff (a conversational actor) that replies on a thread, an intelligence agent that proposes routing when no rule matches, and a default rule that routes intents to work. |
 
 A blank instance is a true blank slate. You can pair it, query it,
-federate it, and store work on it — but it will sit quietly and
+federate it, and store work on it, but it will sit quietly and
 answer nothing until you give it something to do.
 
 ## How the profile is chosen
@@ -69,7 +69,7 @@ chief of staff is and how to give it a model on a self-hosted instance.
 Choose **`blank`** when you want the bare instance and nothing else:
 
 - You are using the instance purely as a record store, a federation peer,
-  or a backup target — and an agent answering your messages would be
+  or a backup target, and an agent answering your messages would be
   noise.
 - You want a deterministic, reaction-free instance for tests, demos, or
   seeding scripted data without auto-responses landing on your threads.
@@ -81,7 +81,7 @@ Choose **`blank`** when you want the bare instance and nothing else:
 
 The profile only decides what a new instance starts with, the
 **first** time it runs on an empty database. An instance that
-already deployed the assistant defaults keeps them when you upgrade —
+already deployed the assistant defaults keeps them when you upgrade:
 the profile does not remove anything, and there is no migration to run.
 
 In practice:
@@ -102,7 +102,7 @@ blank, set `SPL_PROFILE=assistant` and restart. The missing defaults are added w
 - [The assistant](/docs/get-started/the-assistant) is the conversational
   actor (the chief of staff) the assistant profile starts with, and how to give it
   a model on a self-hosted instance.
-- [Starting Your Instance](/docs/get-started/instance) — the run modes
+- [Starting Your Instance](/docs/get-started/instance): the run modes
   `spl serve` supports.
-- [Instance Lifecycle](/docs/operate/instance-lifecycle) — the end-to-end
+- [Instance Lifecycle](/docs/operate/instance-lifecycle): the end-to-end
   recipe from provisioning to teardown.

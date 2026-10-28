@@ -1,5 +1,5 @@
 ---
-title: Async federation — pairing across offline peers
+title: "Async federation: pairing across offline peers"
 description: Use a relay so instances that are rarely online together can still share records. Covers what the relay protects, what it can see, and how it works alongside direct federation.
 ---
 
@@ -66,7 +66,7 @@ spl config relay status
 # relay.syncropel.com → /health 200 ok (12ms)
 ```
 
-If this fails, you won't receive anything — fix connectivity before troubleshooting elsewhere.
+If this fails, you won't receive anything. Fix connectivity before troubleshooting elsewhere.
 
 ### Clear an entry
 
@@ -130,10 +130,10 @@ You don't have to choose. Set up both a federation pair and a relay, and the ins
 
 ### I configured a relay but nothing is arriving
 
-1. `spl config relay show` — is the URL what you expect? Catch-all vs peer-specific scoping matters.
-2. `spl config relay status` — does `/health` respond?
+1. `spl config relay show`: is the URL what you expect? Catch-all vs peer-specific scoping matters.
+2. `spl config relay status`: does `/health` respond?
 3. Did you restart `spl serve` after setting the relay? It only starts collecting at startup.
-4. From the sender side: `spl fleet sync status` — does it show the relay as the delivery path? If it's still trying direct and failing, check whether the peer's federation URL is correct on the sender.
+4. From the sender side: `spl fleet sync status`. Does it show the relay as the delivery path? If it's still trying direct and failing, check whether the peer's federation URL is correct on the sender.
 
 ### Envelopes keep redelivering (appearing again after I thought I acked them)
 
@@ -151,5 +151,5 @@ The relay's `/metrics` endpoint (if you're operating the relay or have read acce
 
 ## See also
 
-- [Federation pair guide](/docs/guides/federation-pair) — the synchronous, no-relay counterpart
-- [Operator guide to running a relay](/docs/operate/relay) — deploy your own
+- [Federation pair guide](/docs/guides/federation-pair): the synchronous, no-relay counterpart
+- [Operator guide to running a relay](/docs/operate/relay): deploy your own

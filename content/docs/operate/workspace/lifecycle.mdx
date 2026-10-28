@@ -1,6 +1,6 @@
 ---
 title: Installing & managing workspaces
-description: Install a workspace from a document file, list what your instance serves, inspect one, update it, and archive it — all at runtime, with no rebuild.
+description: Install a workspace from a document file, list what your instance serves, inspect one, update it, and archive it, all at runtime, with no rebuild.
 ---
 
 A workspace is a `core.workspace.v1` record. Managing workspaces means
@@ -15,11 +15,11 @@ spl workspace install ./my-workspace.json
 ```
 
 `install` reads a `core.workspace.v1` document file, checks its shape, and adds it as a record to your instance's
-workspace catalog. The moment the record lands, the workspace is live —
-open it at its `slug` route.
+workspace catalog. The moment the record lands, the workspace is live.
+Open it at its `slug` route.
 
-If the file is not a well-formed workspace document — for example, it is
-missing `meta.slug`, or a region is not a valid projection document — the
+If the file is not a well-formed workspace document (for example, it is
+missing `meta.slug`, or a region is not a valid projection document), the
 install is refused and nothing is emitted. See
 [Authoring a workspace](/docs/operate/workspace/authoring) for the
 document format.
@@ -31,7 +31,7 @@ spl workspace list
 ```
 
 This shows the latest record for each
-`slug` — title, lifecycle, and content hash. `list` always shows the most recent version of
+`slug`: title, lifecycle, and content hash. `list` always shows the most recent version of
 each workspace.
 
 Add `-o json` for a machine-readable list.
@@ -43,7 +43,7 @@ spl workspace show tasks
 ```
 
 `show <slug>` prints the full `core.workspace.v1` body of the named
-workspace — `meta`, `capabilities`, `regions`, and `lifecycle`. Read the
+workspace: `meta`, `capabilities`, `regions`, and `lifecycle`. Read the
 `capabilities` block before you trust a workspace someone else wrote: it
 is the complete list of what the surface may emit and where it may
 navigate.
@@ -68,9 +68,9 @@ Every workspace body carries a `lifecycle` field with one of three values:
 
 | Lifecycle | Meaning | Listed? | Subscribable? |
 |---|---|---|---|
-| `draft` | Work in progress — installed but not advertised. | No | No |
-| `published` | Ready for use — the normal state. | Yes | Yes |
-| `archived` | Retired — kept for history, not for new use. | No | Existing subscriptions keep working |
+| `draft` | Work in progress: installed but not advertised. | No | No |
+| `published` | Ready for use, the normal state. | Yes | Yes |
+| `archived` | Retired: kept for history, not for new use. | No | Existing subscriptions keep working |
 
 Lifecycle is just a field on the record. To move a
 workspace between states, add a new record with a different
@@ -87,7 +87,7 @@ spl workspace archive tasks
 
 - The workspace stops appearing in `spl workspace list`.
 - It can no longer be newly subscribed to.
-- Existing subscriptions are grandfathered — subscribers keep resolving it.
+- Existing subscriptions are grandfathered: subscribers keep resolving it.
 - Every earlier version stays available.
 
 To bring an archived workspace back, `update` it with a body whose
@@ -99,7 +99,7 @@ To bring an archived workspace back, `update` it with a body whose
 spl workspace subscribe <workspace-hash>
 ```
 
-`subscribe` records *your* relationship to a workspace — it adds a `core.subscription.v1` record naming the workspace by its hash.
+`subscribe` records *your* relationship to a workspace: it adds a `core.subscription.v1` record naming the workspace by its hash.
 Subscriptions carry your pin (which version you track), any permission
 grants you have accepted, and your pinned-publisher choice. `unsubscribe
 <workspace-hash>` re-asserts the relationship as inactive; it never
@@ -120,14 +120,14 @@ curl -s -X POST http://127.0.0.1:9100/v1/records/query \
 ```
 
 This is the same lookup `spl workspace list` performs. Filtering on
-`body.kind` is how any tool — a browser, a script, another instance —
+`body.kind` is how any tool (a browser, a script, another instance)
 finds the workspaces an instance serves.
 
 ## See also
 
-- [Workspaces](/docs/concepts/workspaces) — what a workspace is.
-- [Authoring a workspace](/docs/operate/workspace/authoring) — write the
+- [Workspaces](/docs/concepts/workspaces): what a workspace is.
+- [Authoring a workspace](/docs/operate/workspace/authoring): write the
   document you install.
-- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace) —
+- [Tutorial: Build your first workspace](/docs/tutorials/first-workspace):
   the happy path, end to end.
 - [`core.workspace.v1` schema](https://syncropel.com/schemas/config/core-workspace.v1.schema.json)

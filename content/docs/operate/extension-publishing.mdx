@@ -42,7 +42,7 @@ This is the same pattern Java packages, Android apps, and macOS bundle ids use, 
 
 ## Where to host extension bundles
 
-An extension is just a static web app — HTML + JS + CSS that runs in an iframe. Any static host works.
+An extension is just a static web app: HTML + JS + CSS that runs in an iframe. Any static host works.
 
 | Host type | Setup cost | Best for |
 |---|---|---|
@@ -56,7 +56,7 @@ An extension is just a static web app — HTML + JS + CSS that runs in an iframe
 - HTTPS-only (the host page is HTTPS; mixed content blocks the iframe)
 - A stable URL per version: `https://ext.acme.com/inbox/0.3.2/` rather than `https://ext.acme.com/inbox/latest/` if you want hosts to pin
 - Set `Cache-Control: max-age=31536000, immutable` on versioned bundles; hosts can safely cache them forever
-- Set `X-Frame-Options: ALLOWALL` (or no `X-Frame-Options` header) — your extension MUST be embeddable. The default of `SAMEORIGIN` from many hosts blocks all iframe usage.
+- Set `X-Frame-Options: ALLOWALL` (or no `X-Frame-Options` header). Your extension MUST be embeddable. The default of `SAMEORIGIN` from many hosts blocks all iframe usage.
 - A `manifest.json` at a predictable path (see next section) so hosts can discover capabilities before loading the iframe
 
 ## Capability manifest
@@ -121,7 +121,7 @@ Hosts trust you to behave like a well-meaning guest in their workspace. The cont
 
 - **Don't try to escape the iframe.** No `window.parent.location =`, no busting out of `sandbox` attrs. Hosts will block these and may stop embedding you.
 - **Don't request capabilities you don't use.** If your manifest lists `records.subscribe`, every supporting host has to wire that up. Asking for the maximum set is rude and increases the surface a user has to consent to.
-- **Validate every host message.** Use [`@syncropel/extensions`'s built-in `validateMessage`](/docs/guides/extensions) — don't trust envelopes that fail validation.
+- **Validate every host message.** Use [`@syncropel/extensions`'s built-in `validateMessage`](/docs/guides/extensions), and don't trust envelopes that fail validation.
 - **Treat the `actor` from `hello` as confidential.** It's the user's DID. Don't log it externally, don't ship it to analytics services, don't put it in URLs.
 - **Respect `goodbye`.** When the host signals shutdown, tear down subscriptions and stop posting messages.
 - **Stay below `setHeight(10000)`.** Extensions taller than 10000px get clamped. Use scrolling inside the iframe for content longer than the viewport.
@@ -133,7 +133,7 @@ Hosts trust you to behave like a well-meaning guest in their workspace. The cont
 - Capability grants that match the policy, never broader than what you requested.
 - `action.result` replies for every request you send, even on failure.
 - An origin pinned to one of yours when the host posts back to you.
-- A `goodbye` before the iframe is unloaded (best-effort — closing a tab may skip it).
+- A `goodbye` before the iframe is unloaded (best-effort: closing a tab may skip it).
 
 ### Content Security Policy
 
@@ -204,7 +204,7 @@ Before announcing your extension to anyone:
 
 ## What's next
 
-- **Build the extension** — [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) walks the build + deploy flow.
-- **Embed it in your own product** — [Iframe host snippet](/docs/reference/iframe-host-snippet) is a vanilla-JS reference host you can adapt.
-- **Deeper SDK reference** — [Extensions SDK guide](/docs/guides/extensions) covers every message kind, validator rule, and capability.
-- **Permission policy** — [CEL expressions guide](/docs/guides/cel-expressions) covers what record writes will be accepted regardless of what an extension asks for.
+- **Build the extension**: [Your First Iframe Extension](/docs/tutorials/first-iframe-extension) walks the build + deploy flow.
+- **Embed it in your own product**: [Iframe host snippet](/docs/reference/iframe-host-snippet) is a vanilla-JS reference host you can adapt.
+- **Deeper SDK reference**: [Extensions SDK guide](/docs/guides/extensions) covers every message kind, validator rule, and capability.
+- **Permission policy**: [CEL expressions guide](/docs/guides/cel-expressions) covers what record writes will be accepted regardless of what an extension asks for.

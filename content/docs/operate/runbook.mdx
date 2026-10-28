@@ -1,6 +1,6 @@
 ---
 title: Operator Runbook
-description: Day-2 operations for running Syncropel in production — instance lifecycle, recovery from corruption, backup discipline, in-place upgrades, and how to recognize the failure modes you're about to hit.
+description: "Day-2 operations for running Syncropel in production: instance lifecycle, recovery from corruption, backup discipline, in-place upgrades, and how to recognize the failure modes you're about to hit."
 ---
 
 ## Audience
@@ -81,7 +81,7 @@ grep "PERMISSION DENIED" ~/.syncro/logs/spl.log
 
 ## Backup discipline
 
-> **CRITICAL — read this section twice.** Syncropel's backup mechanism is a safety net, not a backup system. It will fail to save you if you don't supplement it with off-host copies. Copy your backups to another machine or disk.
+> **CRITICAL: read this section twice.** Syncropel's backup mechanism is a safety net, not a backup system. It will fail to save you if you don't supplement it with off-host copies. Copy your backups to another machine or disk.
 
 ### What the instance does for you
 
@@ -91,7 +91,7 @@ The instance key is one of:
 
 1. `instance-<did-tail>` once your instance has an identity (the normal case). `<did-tail>` is the last 24 hex characters of the instance DID.
 2. `home-<short-hash>` if `SYNCROPEL_HOME` is set but no DID exists yet.
-3. The legacy flat path `~/.local/share/syncropel/backups/hub.db.bak` — only for a default home with no instance DID at all, which is rare.
+3. The legacy flat path `~/.local/share/syncropel/backups/hub.db.bak`, only for a default home with no instance DID at all, which is rare.
 
 To find your instance's directory:
 
@@ -102,7 +102,7 @@ ls ~/.local/share/syncropel/backups/instance-<tail>/
 
 The daily backup job writes timestamped `hub.db.<YYYYMMDD-HHMMSS>` copies into the same per-instance directory, alongside the startup `hub.db.bak`.
 
-### What the instance does NOT do — and the trap to avoid
+### What the instance does NOT do, and the trap to avoid
 
 **The startup backup is destructive.** Every `spl serve` invocation overwrites the backup file with a snapshot of the current `hub.db`, **even if the current `hub.db` is empty, corrupt, or wrong.**
 
@@ -146,7 +146,7 @@ For added safety, a daily `cron` or `systemd timer` snapshotting that host direc
 
 ### Portable backup: publish the instance
 
-The sqlite `.bak` protects against local file loss. For a backup that travels — one you can rebuild a working instance from on any machine — publish the whole instance as a repository snapshot:
+The sqlite `.bak` protects against local file loss. For a backup that travels (one you can rebuild a working instance from on any machine), publish the whole instance as a repository snapshot:
 
 ```bash
 spl repo publish <namespace>/<repo> --relocation
@@ -164,8 +164,8 @@ Your records are the source of truth. As long as `hub.db` is intact, everything 
 
 ### What needs separate attention
 
-- **`~/.syncro/secrets/`**: API keys for any LLM provider you've configured (Anthropic, OpenAI, Google, etc.). Not in the record log. If you lose this, you lose your provider keys — back them up to a password manager or secure vault.
-- **`~/.syncro-data/`**: task content files (the rich-Markdown bodies for each task — addressed by their alias, e.g., `MY-001.md`) and the alias-to-thread mapping. The metadata (titles, statuses, hashes) lives in records on `hub.db`; the canonical content files live here on disk and are referenced by path during `spl task dispatch`. Backing up `hub.db` without `~/.syncro-data/` leaves task content stranded. Both belong in your snapshot.
+- **`~/.syncro/secrets/`**: API keys for any LLM provider you've configured (Anthropic, OpenAI, Google, etc.). Not in the record log. If you lose this, you lose your provider keys. Back them up to a password manager or secure vault.
+- **`~/.syncro-data/`**: task content files (the rich-Markdown bodies for each task, addressed by their alias, e.g., `MY-001.md`) and the alias-to-thread mapping. The metadata (titles, statuses, hashes) lives in records on `hub.db`; the canonical content files live here on disk and are referenced by path during `spl task dispatch`. Backing up `hub.db` without `~/.syncro-data/` leaves task content stranded. Both belong in your snapshot.
 
 ## Recovery from corruption or data loss
 
@@ -179,13 +179,13 @@ Recovery procedure:
 # 1. Stop the instance (or kill any lingering process)
 spl stop || pkill -f "spl serve"
 
-# 2. Move the corrupt store aside (don't delete — you may want it for forensics)
+# 2. Move the corrupt store aside (don't delete: you may want it for forensics)
 mv ~/.syncro/hub.db ~/.syncro/hub.db.corrupt.$(date +%s)
 mv ~/.syncro/hub.db-wal ~/.syncro/hub.db-wal.corrupt.$(date +%s) 2>/dev/null || true
 mv ~/.syncro/hub.db-shm ~/.syncro/hub.db-shm.corrupt.$(date +%s) 2>/dev/null || true
 
 # 3. Restore from your OFF-HOST backup (NOT the instance's auto-backup,
-#    which may have been overwritten — see "Backup discipline" above)
+#    which may have been overwritten, see "Backup discipline" above)
 cp $HOME/backups/syncropel/hub.db.20260412-123000.bak ~/.syncro/hub.db
 
 # 4. Restart and verify
@@ -232,7 +232,7 @@ You enabled `spl config permissions-enable` without an admin allow rule, and now
 ```bash
 spl stop                  # the running instance would override this change
 spl config permissions-unlock     # writes permissions_enabled=false direct to store
-spl serve                # restart — enforcement is off
+spl serve                # restart: enforcement is off
 ```
 
 See [CEL Expressions → Permission Enforcement](/docs/guides/cel-expressions#permission-enforcement) for the full lockout trap explanation.
@@ -292,7 +292,7 @@ spl serve
 
 ### `spl task done` returns "uncommitted changes"
 
-The task completion gate refuses to mark a task complete when the working tree has uncommitted changes — it's protecting against attributing wrong commits to the task. Either commit your work first, or use `--force` if you're sure (e.g. for triage of pre-existing tasks).
+The task completion gate refuses to mark a task complete when the working tree has uncommitted changes: it's protecting against attributing wrong commits to the task. Either commit your work first, or use `--force` if you're sure (e.g. for triage of pre-existing tasks).
 
 ### Health check returning non-200 even though the instance is up
 
@@ -480,7 +480,7 @@ Fleet status
   Emergency stop:   inactive
 ```
 
-`spl fleet show <did>` drills into one instance's details — endpoint, version, uptime, current dispatch count, store size, and last heartbeat:
+`spl fleet show <did>` drills into one instance's details: endpoint, version, uptime, current dispatch count, store size, and last heartbeat:
 
 ```text
 Instance: did:sync:instance:923a4e6d10646e27
@@ -508,7 +508,7 @@ Only the coordinator keeps the list of instances. If it dies, workers keep worki
 
 To replace a dead coordinator:
 
-1. **Pick a surviving worker** to promote. Any worker can play the coordinator role — they differ only in config.
+1. **Pick a surviving worker** to promote. Any worker can play the coordinator role. They differ only in config.
 2. **Stop the chosen worker cleanly**: `spl fleet stop --instance worker-a` (or send SIGTERM directly if `spl fleet` is unreachable).
 3. **Edit its config** at `~/.syncro-worker-a/config.toml`: remove the `[fleet] coordinator_url` line (so it no longer reports to an external coordinator), or leave it pointing at its own endpoint.
 4. **Restart**: `SYNCROPEL_HOME=~/.syncro-worker-a spl serve --port 9201`. The promoted instance now holds the registry.

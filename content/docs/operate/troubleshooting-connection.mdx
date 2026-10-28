@@ -49,7 +49,7 @@ browser has no stored credential for this instance's DID.
 **Fix (operator with the CLI)**: Run `spl pair --device browser-<name>`. The CLI's first line of output is a single clickable URL of the form
 `https://syncropel.com/pair#<encoded-payload>`. Click it (or copy
 into your browser). The page decodes the link, verifies the token,
-stores the credential, and redirects you to `/tasks` — all
+stores the credential, and redirects you to `/tasks`, all
 without typing or scanning anything. The token rides in the URL fragment
 (after the `#`), which never reaches any server: it stays inside your
 browser.
@@ -63,14 +63,14 @@ admin-only routes.
 **Symptom**: Banner says "Pairing invalid". The dashboard shows the
 expired-pairing screen.
 
-**Why**: Stored credential is rejected by the instance — usually because
+**Why**: Stored credential is rejected by the instance, usually because
 the instance's data was wiped since pairing (so its DID changed) or
 the token was revoked.
 
 **Fix**: if you kept a key, paste it into **+ add a connection** first; a revoked or expired bearer does not spend your key, and you come back under the same grant. Otherwise open `/diagnose` and click "Reset pairing", then re-pair
 with `spl pair --device browser-<name>` and click the printed URL.
 
-### 4. Limited (scope insufficient) — partial_access
+### 4. Limited (scope insufficient): partial_access
 
 **Symptom**: Banner is amber and says "Limited (scope insufficient)".
 Some panels render; others show an inline error panel saying the
@@ -138,7 +138,7 @@ test instances on `--port 9200 --memory`.
 **Why**: Healthy. `/health` 200 + credential injected + recent `/v1/*`
 queries succeeded.
 
-**Fix**: None — this is the happy path.
+**Fix**: None. This is the happy path.
 
 ### 10. Connecting / generic unreachable
 
@@ -181,6 +181,6 @@ The workspace shows these with a suggested fix you can copy.
 
 ## See also
 
-- [`spl doctor`](/docs/operate/doctor) — top-down instance diagnostic
-- [`spl pair`](/docs/get-started/pairing) — pairing flow + scope selection
+- [`spl doctor`](/docs/operate/doctor): top-down instance diagnostic
+- [`spl pair`](/docs/get-started/pairing): pairing flow + scope selection
 - Runbook section [Backup discipline](/docs/operate/runbook#backup-discipline)

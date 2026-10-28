@@ -204,7 +204,7 @@ You get back `InferPending` with `pending=True`, `correlation_id`, and `thread_i
 await client.infer(request, InferOptions(
     wait=True,                # default
     poll_interval_ms=500,     # default
-    poll_timeout_ms=300_000,  # default — 5 minutes
+    poll_timeout_ms=300_000,  # default: 5 minutes
     thread="th_abc123...",    # optional explicit thread
 ))
 ```

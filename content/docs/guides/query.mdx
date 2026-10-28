@@ -270,10 +270,10 @@ Everything above is a filter you send and a result you read. When a query is wor
 
 A one-off filter, a saved View and a standing (live) query are all the same kind of record, `core.query.v1`, kept on the `th_queries` thread. The record carries:
 
-- **`pipeline`** — the filter, facets, sort and window (the same filter you would send directly).
-- **`name`** — required once the query is `saved`.
-- **`saved` / `live`** — lifecycle flags: `saved` turns a one-time filter into a lasting View; `live` makes it a standing query.
-- **`provenance`** — where it came from: `source_thread` (the conversation that shaped it), `trigger_record`, `derived_from` (an earlier query it was copied from).
+- **`pipeline`**: the filter, facets, sort and window (the same filter you would send directly).
+- **`name`**: required once the query is `saved`.
+- **`saved` / `live`**: lifecycle flags. `saved` turns a one-time filter into a lasting View; `live` makes it a standing query.
+- **`provenance`**: where it came from, as `source_thread` (the conversation that shaped it), `trigger_record`, `derived_from` (an earlier query it was copied from).
 
 A saved View has a lasting identity and history you can revisit and share, so you don't have to retype it. Queries are saved and promoted in the workspace (the Studio scope bar). There is no CLI command for them: you write a `core.query.v1` record like any other.
 
@@ -281,6 +281,6 @@ A saved View has a lasting identity and history you can revisit and share, so yo
 
 ## Next Steps
 
-- [**Body-Kind Manifests**](./body-kind-manifest) — declare which body fields to index so filters on those fields run fast.
-- [**CEL Expressions**](./cel-expressions) — when you need conditions for triggers, routing or preconditions, use CEL.
-- [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk) — full client reference.
+- [**Body-Kind Manifests**](./body-kind-manifest): declare which body fields to index so filters on those fields run fast.
+- [**CEL Expressions**](./cel-expressions): when you need conditions for triggers, routing or preconditions, use CEL.
+- [**TypeScript SDK**](./typescript-sdk), [**Python SDK**](./python-sdk): full client reference.

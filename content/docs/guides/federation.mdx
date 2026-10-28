@@ -1,5 +1,5 @@
 ---
-title: Federation — pairing two instances
+title: "Federation: pairing two instances"
 description: Set up record sync between two Syncropel instances by hand. Covers identity setup, creating sync pairs, cross-namespace sharing, and common problems.
 ---
 
@@ -15,7 +15,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 ## Who this is for
 
-You have two Syncropel instances — one on your laptop and one on a server, or two servers, or any combination — and you want records emitted on one to show up on the other. This guide walks you through the setup.
+You have two Syncropel instances (one on your laptop and one on a server, or two servers, or any combination), and you want records emitted on one to show up on the other. This guide walks you through the setup.
 
 If you're trying to *find* peer instances you don't yet have URLs for, start with the [federation discovery guide](./federation-discovery) instead. If you want records to reach a peer that's offline, see the [async federation guide](./async-federation).
 
@@ -35,11 +35,11 @@ Records are signed when written and checked when received. Receiving the same re
 
 - `spl` installed on both instances. Verify with `spl version`.
 - Both instances reachable from each other over HTTP. If one is behind NAT or bound to `127.0.0.1`, see the troubleshooting section.
-- Each instance has an identity configured. Run `spl init` once on a fresh install — it creates a key and a `did:key:...` identity in `~/.syncro/config.toml`. If your config has no identity, run `spl init --force` once.
+- Each instance has an identity configured. Run `spl init` once on a fresh install. It creates a key and a `did:key:...` identity in `~/.syncro/config.toml`. If your config has no identity, run `spl init --force` once.
 
 ## Walk-through: pair two local instances
 
-As an example, run two instances on the same machine using different `SYNCROPEL_HOME` directories — instance A on port 9200, instance B on port 9250. The same commands apply when the instances are on different machines.
+As an example, run two instances on the same machine using different `SYNCROPEL_HOME` directories: instance A on port 9200, instance B on port 9250. The same commands apply when the instances are on different machines.
 
 ### 1. Start both instances
 
@@ -120,11 +120,11 @@ spl fleet sync status <pair_id>
 
 The `state` field shows one of:
 
-- `starting` — the pair was just created and hasn't checked yet
-- `running` — syncing, and the last check succeeded
-- `paused` — pair is paused via `spl fleet sync pause <pair_id>`
-- `failing` — the pair keeps retrying, waiting longer each time; `last_error` has the reason
-- `stopped` — pair has been removed
+- `starting`: the pair was just created and hasn't checked yet
+- `running`: syncing, and the last check succeeded
+- `paused`: pair is paused via `spl fleet sync pause <pair_id>`
+- `failing`: the pair keeps retrying, waiting longer each time; `last_error` has the reason
+- `stopped`: pair has been removed
 
 ### 7. Check all your pairs at a glance
 
@@ -140,10 +140,10 @@ Federation (5 pairs: 3 running, 1 failing, 1 paused)
 
 For machine-readable access use `spl status --json` or query the endpoints directly:
 
-- **`GET /v1/sync/health`** — overall health: pairs by state, records received per hour and per minute, delivery delay across all pairs, the slowest and most error-prone pairs, and any active alerts.
-- **`GET /v1/sync/pairs/{id}/stats`** — one pair: current rate, delay, errors in the last hour, and totals.
+- **`GET /v1/sync/health`**: overall health, covering pairs by state, records received per hour and per minute, delivery delay across all pairs, the slowest and most error-prone pairs, and any active alerts.
+- **`GET /v1/sync/pairs/{id}/stats`**: one pair's current rate, delay, errors in the last hour, and totals.
 
-## Peer discovery — finding other instances without typing URLs
+## Peer discovery: finding other instances without typing URLs
 
 You don't have to enter every `peer_did` and `peer_url` by hand. `spl fleet sync peers discover` finds peers in four ways:
 
@@ -155,13 +155,13 @@ spl fleet sync peers discover --method did-sync --namespace acme-corp
 spl fleet sync peers discover --method static            # Peers from config
 ```
 
-**mDNS (LAN broadcast)** — on the same local network, instances can advertise themselves on `_syncropel._tcp.local` and find each other in under a second. Listening is on by default. Advertising is off by default; turn it on with `[sync.discovery] mdns_broadcast = true` in `~/.syncro/config.toml`.
+**mDNS (LAN broadcast)**: on the same local network, instances can advertise themselves on `_syncropel._tcp.local` and find each other in under a second. Listening is on by default. Advertising is off by default; turn it on with `[sync.discovery] mdns_broadcast = true` in `~/.syncro/config.toml`.
 
-**did:web resolution** — if you know a peer's domain (e.g., `alice.dev`), Syncropel reads `https://alice.dev/.well-known/did.json` to find the peer's address. No directory service is needed. Publish your own with `spl identity publish-did-web --domain alice.dev`.
+**did:web resolution**: if you know a peer's domain (e.g., `alice.dev`), Syncropel reads `https://alice.dev/.well-known/did.json` to find the peer's address. No directory service is needed. Publish your own with `spl identity publish-did-web --domain alice.dev`.
 
-**did:sync directory lookup** — for peers registered in a shared directory (`discovery.syncropel.com` or your own), list the peers in a namespace and look up each one's address.
+**did:sync directory lookup**: for peers registered in a shared directory (`discovery.syncropel.com` or your own), list the peers in a namespace and look up each one's address.
 
-**Static config** — for isolated networks or debugging, list peers directly in `~/.syncro/config.toml`.
+**Static config**: for isolated networks or debugging, list peers directly in `~/.syncro/config.toml`.
 
 **Discovery never creates pairs for you.** Review the list, then run `spl fleet sync add <did> <thread>` for each peer you want.
 
@@ -180,7 +180,7 @@ When a pair is `failing`, `last_error` holds one of these codes:
 
 ## Cross-namespace sharing
 
-By default, records in one namespace are not visible to a peer in a different namespace — consent blocks them. To grant cross-namespace consent, use `spl consent grant` on the source instance:
+By default, records in one namespace are not visible to a peer in a different namespace, because consent blocks them. To grant cross-namespace consent, use `spl consent grant` on the source instance:
 
 ```bash
 spl consent grant --to-namespace partner-team --hash-levels L0,L1,L2,L3
@@ -224,8 +224,8 @@ Check consent. If the source and target namespaces differ and there's no matchin
 
 ## What's next
 
-- **[Federation concept](/docs/concepts/federation)** — how federation works
-- **[Consent management](/docs/guides/consent)** — the full flow for cross-namespace grants
-- **[Authentication & Service Accounts](/docs/operate/keyring)** — how bearer tokens and signatures work between peers
-- **[API reference: /v1/sync/*](/docs/reference/api)** — the HTTP API, for building clients
-- **[CLI reference: spl fleet sync](/docs/reference/cli)** — all subcommands
+- **[Federation concept](/docs/concepts/federation)**: how federation works
+- **[Consent management](/docs/guides/consent)**: the full flow for cross-namespace grants
+- **[Authentication & Service Accounts](/docs/operate/keyring)**: how bearer tokens and signatures work between peers
+- **[API reference: /v1/sync/*](/docs/reference/api)**: the HTTP API, for building clients
+- **[CLI reference: spl fleet sync](/docs/reference/cli)**: all subcommands

@@ -227,7 +227,7 @@ spl config add-permission-rule \
   --expression 'record.body.namespace == "acme-corp/payments/prod" && trust(current_actor(), "code") > 0.7'
 ```
 
-This rule fires for any record claiming the prod namespace. The actor's trust on the `code` domain must exceed 0.7 to be allowed. Any agent with lower trust is denied — including dispatching work into prod.
+This rule fires for any record claiming the prod namespace. The actor's trust on the `code` domain must exceed 0.7 to be allowed. Any agent with lower trust is denied, including dispatching work into prod.
 
 Pair this with a permissive rule for staging:
 
@@ -275,7 +275,7 @@ Making a namespace public is a deliberate act, so it requires an explicit acknow
 }
 ```
 
-Without `acknowledge_public: true`, the write is rejected with `NAMESPACE_PUBLIC_NOT_ACKNOWLEDGED` — that error is the guard working, not a bug. It exists because one mistyped policy would otherwise serve every record in the namespace to anonymous readers.
+Without `acknowledge_public: true`, the write is rejected with `NAMESPACE_PUBLIC_NOT_ACKNOWLEDGED`. That error is the guard working, not a bug. It exists because one mistyped policy would otherwise serve every record in the namespace to anonymous readers.
 
 Two habits keep this honest:
 
@@ -317,7 +317,7 @@ curl -X POST http://localhost:9100/v1/records \
 spl namespace delete acme-corp/payments/staging
 ```
 
-This is a **soft delete**. The namespace stays in the list (so history is preserved) but no new records are accepted. You can still see it in `spl namespace list` — it'll show as `deleted`.
+This is a **soft delete**. The namespace stays in the list (so history is preserved) but no new records are accepted. You can still see it in `spl namespace list`, where it shows as `deleted`.
 
 ### Re-activate by re-creating
 
@@ -368,7 +368,7 @@ You'll still see them in `spl namespace list` (with status `deleted`) as a histo
 
 ### Symptom: I locked myself out by enabling permissions without an admin allow rule
 
-Use the emergency unlock command — see [Emergency Recovery](/docs/reference/cli#emergency-recovery):
+Use the emergency unlock command. See [Emergency Recovery](/docs/reference/cli#emergency-recovery):
 
 ```bash
 spl stop

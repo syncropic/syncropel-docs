@@ -15,7 +15,7 @@ Every embeddable Syncropel surface has this shape: page widgets, IDE side panels
 
 Total time: **about 30 minutes**, split into five short sections.
 
-## Section A — Scaffold the extension (5 minutes)
+## Section A: Scaffold the extension (5 minutes)
 
 ```bash
 npm create vite@latest my-ext -- --template vanilla-ts
@@ -104,7 +104,7 @@ npm run dev
 
 Vite serves it at `http://localhost:5173`. Open the URL in a browser. The page renders, but `status` reads `connecting…` forever and the button stays disabled. That's expected: there is no host yet.
 
-## Section B — The handshake (5 minutes)
+## Section B: The handshake (5 minutes)
 
 The Syncropel host-to-extension protocol is a small four-message exchange:
 
@@ -119,7 +119,7 @@ The Syncropel host-to-extension protocol is a small four-message exchange:
 
 Whether the iframe is sandboxed with `allow-same-origin` depends on the host, so the SDK posts replies to any origin and lets the host match them to the right window. This is the standard `postMessage` pattern for iframes; see [the host snippet](/docs/reference/iframe-host-snippet) for the matching outer-page code.
 
-## Section C — Wire up the reference host (10 minutes)
+## Section C: Wire up the reference host (10 minutes)
 
 For a working end-to-end demo you need a host page. Copy [the reference host snippet](/docs/reference/iframe-host-snippet) into `host.html` next to your `package.json`:
 
@@ -158,7 +158,7 @@ ready as did:example:my-app in default (granted: records.emit, records.query, re
 
 The button is now enabled.
 
-## Section D — Write and verify (5 minutes)
+## Section D: Write and verify (5 minutes)
 
 Click **Emit a record** a couple of times. Each click shows a confirmation in the status line:
 
@@ -182,7 +182,7 @@ You should see:
 
 The DID on the records is `did:example:my-app`, the actor the host named in the `hello` message, **not** the extension itself. Extensions never act as themselves; they act as the host's signed-in user. The host's permissions decide what records the user may write, and the extension gets only that for the session.
 
-## Section E — Subscribe to live updates (5 minutes)
+## Section E: Subscribe to live updates (5 minutes)
 
 So far the extension only writes. Now make it react to live record changes too.
 

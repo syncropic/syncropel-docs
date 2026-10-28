@@ -9,7 +9,7 @@ A local fleet of three workspaces (one coordinator and two workers), a parent ta
 
 Total time: **under 5 minutes**. No API keys are needed (we use echo mode, which gives canned replies).
 
-## Step 1 — Start the fleet
+## Step 1: Start the fleet
 
 ```bash
 spl fleet start --workers 2
@@ -32,7 +32,7 @@ spl fleet list
 
 You should see 3 rows, all `live`, all `healthy`.
 
-## Step 2 — Create a parent task
+## Step 2: Create a parent task
 
 ```bash
 spl task add "My first fan-out" --priority high --alias FIRST-001
@@ -48,7 +48,7 @@ Output:
 
 Copy the worker DIDs from `spl fleet list`. You'll paste them into the next command.
 
-## Step 3 — Fan out to both workers
+## Step 3: Fan out to both workers
 
 Replace `<WORKER_A_DID>` and `<WORKER_B_DID>` with the actual DIDs from step 1.
 
@@ -71,7 +71,7 @@ Output:
 
 Each worker gets its own subtask. Because the workers are in echo mode (the default for local fleets), they finish almost immediately with canned results.
 
-## Step 4 — Watch the join
+## Step 4: Watch the join
 
 ```bash
 spl task join-status FIRST-001
@@ -94,7 +94,7 @@ Fan-out join status: th_abc123...
 
 All subtasks are done, so the parent is done.
 
-## Step 5 — Inspect the speedup
+## Step 5: Inspect the speedup
 
 ```bash
 spl task speedup FIRST-001
@@ -120,7 +120,7 @@ Fan-out speedup report: th_abc123...
 
 In echo mode every subtask takes about 1 second, so the ratio tells you little. In a real fan-out with real subtasks, this is where you see whether running in parallel saves time.
 
-## Step 6 — Tear down
+## Step 6: Tear down
 
 ```bash
 spl fleet stop --all

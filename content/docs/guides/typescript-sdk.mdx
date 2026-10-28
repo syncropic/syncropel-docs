@@ -282,7 +282,7 @@ You get back `InferPending = { pending: true; correlation_id: string; thread_id:
 await client.infer(request, {
   wait: true,                 // default
   poll_interval_ms: 500,      // default
-  poll_timeout_ms: 300_000,   // default — 5 minutes
+  poll_timeout_ms: 300_000,   // default: 5 minutes
   thread: "th_abc123...",     // optional explicit thread
 });
 ```
@@ -338,7 +338,7 @@ try {
   const { records } = await client.richQuery({ filter: { thread }, sort: { clock: -1 } });
 } catch (e) {
   if (e instanceof SyncropelQueryError) {
-    // the request was malformed (4xx) — fix the filter or sort, don't treat it as "empty"
+    // the request was malformed (4xx): fix the filter or sort, don't treat it as "empty"
   }
 }
 ```
@@ -400,10 +400,10 @@ export default {
 
 ## What's next
 
-- [Files & blobs](/docs/guides/sdk-data-plane) — read and write files with `client.data.*`
-- [Records concept](/docs/concepts/records) — what a record contains
-- [Threads concept](/docs/concepts/threads) — how records group into workflows
-- [Projections SDK](/docs/guides/projections) — types and validators for rendered documents you emit or consume
-- [React components](/docs/guides/react-components) — components that render projection documents
-- [Python SDK](/docs/guides/python-sdk) — the equivalent package for Python code
-- [Authentication & Service Accounts](/docs/operate/keyring) — securing the workspace your code talks to
+- [Files & blobs](/docs/guides/sdk-data-plane): read and write files with `client.data.*`
+- [Records concept](/docs/concepts/records): what a record contains
+- [Threads concept](/docs/concepts/threads): how records group into workflows
+- [Projections SDK](/docs/guides/projections): types and validators for rendered documents you emit or consume
+- [React components](/docs/guides/react-components): components that render projection documents
+- [Python SDK](/docs/guides/python-sdk): the equivalent package for Python code
+- [Authentication & Service Accounts](/docs/operate/keyring): securing the workspace your code talks to

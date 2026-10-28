@@ -17,7 +17,7 @@ Every authenticated request to your workspace passes through up to **six checks*
 |---|---|---|
 | **`scope`** | Does this credential's scope set cover this route class? (`records:read`, `admin`, and so on) | **Live** |
 | **`actor_claim`** | May this bearer act as the DID this request claims? | **Live** |
-| **`capability_grant`** (grant still valid) | Is the membership grant behind this credential still valid? An expired or revoked grant means the bearer is refused with `401 GRANT_EXPIRED` or `401 GRANT_REVOKED` — on the very next request after revocation. | **Live** for credentials created from a membership grant. Older credentials with no grant behind them are checked by scope and actor claim only. |
+| **`capability_grant`** (grant still valid) | Is the membership grant behind this credential still valid? An expired or revoked grant means the bearer is refused with `401 GRANT_EXPIRED` or `401 GRANT_REVOKED`, on the very next request after revocation. | **Live** for credentials created from a membership grant. Older credentials with no grant behind them are checked by scope and actor claim only. |
 | **`permission_rules`** | Do your [permission rules](/docs/concepts/governance) allow this actor to do this? | **Off** by default (the `permissions_enabled` setting). When off, scope and actor claim decide. |
 | **`impersonation`** | May this caller author records as another actor? Uses your permission rules. | **Off** by default. It is off whenever permission rules are off, and the credential's list of allowed actors decides instead. |
 | **`principal_proof`** | Does the caller hold the actor's key, not just a bearer token? | **Off** by default (the `require_principal_proof` setting). |
@@ -79,6 +79,6 @@ Task verdicts (`spl task approve` and `spl task reject`) are signed with the rev
 
 ## What's next
 
-- **[Principals & grants](/docs/concepts/principals-and-grants)** — the identity layer that grants build on.
-- **[Scopes & permissions](/docs/reference/scopes-and-permissions)** — the list of scopes and what each route requires.
-- **[Expressions](/docs/guides/cel-expressions)** — writing permission rules for when you turn them on.
+- **[Principals & grants](/docs/concepts/principals-and-grants)**: the identity layer that grants build on.
+- **[Scopes & permissions](/docs/reference/scopes-and-permissions)**: the list of scopes and what each route requires.
+- **[Expressions](/docs/guides/cel-expressions)**: writing permission rules for when you turn them on.

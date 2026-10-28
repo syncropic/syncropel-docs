@@ -1,6 +1,6 @@
 ---
 title: Content overrides (Tier 2)
-description: Author a core.site.v1 record to override the identity card's content slots — name, mission, links, Connect button. The spl site commands manage it; the record is portable.
+description: "Author a core.site.v1 record to override the identity card's content slots: name, mission, links, Connect button. The spl site commands manage it; the record is portable."
 ---
 
 Tier 2 is the record-driven layer of [the instance site](/docs/operate/site).
@@ -11,7 +11,7 @@ same one a provisioning script or a backup restore would write.
 ## The shape
 
 A site record carries the operator's DID as `owner`, a lifecycle flag,
-and an optional `content` object. Slots are optional — leave a slot
+and an optional `content` object. Slots are optional. Leave a slot
 absent to keep the built-in default for that field.
 
 ```json
@@ -71,7 +71,7 @@ links with a `↗` glyph and `target="_blank"` automatically when
 ```
 
 The `indicator` field accepts `"live"`, which shows a small
-animated green dot next to the label — used for status surfaces. 
+animated green dot next to the label, used for status surfaces. 
 
 ### `theme` (limit)
 
@@ -89,7 +89,7 @@ spl site init
 ```
 
 Creates an empty `core.site.v1` draft record on `th_site` for your
-operator DID. Fails if a draft already exists — pass `--force` to
+operator DID. Fails if a draft already exists. Pass `--force` to
 overwrite. A draft is invisible to `GET /`; the built-in default keeps
 serving until you publish.
 
@@ -111,7 +111,7 @@ spl site set --subheading "All artifacts are records. Browse the capabilities be
 spl site set --did-display true
 ```
 
-`set` is a patch — flags you don't pass leave the corresponding slot
+`set` is a patch: flags you don't pass leave the corresponding slot
 unchanged. To clear a slot and fall back to the built-in default, use
 `--unset`:
 
@@ -131,7 +131,7 @@ spl site link add --label "Team notes" --href "/w/handbook"
 # Remove the Nth link (0-indexed)
 spl site link remove 2
 
-# Clear all overrides — fall back to the 6 default links
+# Clear all overrides and fall back to the 6 default links
 spl site link clear
 ```
 
@@ -144,7 +144,7 @@ spl site connect set --label "Open in Studio" --href "https://syncropel.com/conn
 # Hide the Connect button entirely
 spl site connect hide
 
-# Clear the override — restore the default Connect → Studio
+# Clear the override and restore the default Connect → Studio
 spl site connect unset
 ```
 
@@ -163,7 +163,7 @@ spl site preview --out ./preview.html         # custom output path
 spl site preview --out ./preview.html --published  # preview the published version
 ```
 
-Opens nothing — the verb only writes the file. Open it in your browser
+Opens nothing. The verb only writes the file. Open it in your browser
 to verify the look before promoting the draft.
 
 ### Publish
@@ -173,7 +173,7 @@ spl site publish
 ```
 
 Promotes the current draft to `lifecycle: "published"`. The next
-`GET /` serves it. Publishing adds a new record, so the old version is kept — reading `th_site` shows the full history of edits.
+`GET /` serves it. Publishing adds a new record, so the old version is kept, and reading `th_site` shows the full history of edits.
 
 ### Archive
 
