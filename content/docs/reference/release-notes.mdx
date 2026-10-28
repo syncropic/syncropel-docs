@@ -9,6 +9,33 @@ This page summarizes releases in plain language: what changed and why it matters
 
 ---
 
+## 0.281.0
+
+**Erase receipts are true on every workspace you run yourself, and people who left and people who were erased read the same everywhere.**
+
+- **Erase receipts are true on a workspace you run yourself.** A workspace run in the foreground now says where its output goes and that it doesn't clear it, instead of promising the logs are cleared within days. Every receipt speaks to its reader: the person erased reads "you", and the owner reads "them".
+- **People who left and people who were erased read the same everywhere.** On every list of people, including the directory of everyone who has written here, both show as "A former member". Only the owner still sees the names of people who left.
+- **Making a repository public needs the owner's yes.** A key or an assistant that asks to make a repository public now asks the owner, who sees who asked and how much anyone could then read. Nothing is public until the owner says yes.
+- **A page never shows something only some people can read.** An app or a file kept for some people only can't go on a page, and neither can anything that shows what something cost.
+- **An erase reaches every version of a page's data and of a repository published once.** When someone is erased, a ledger shown on a page is redrawn without them, and every earlier version of a repository this workspace published once, and never kept writing to, loses their rows too.
+- **A class of information can be kept from every app.** An owner can mark a kind of information so that no app reads it, the owner's own apps included, while people still read it as before.
+- **Machines have one name.** A device, a key or the workspace itself shows as "A device key", "An access key", or the workspace's name, never a key or an id.
+- **Two people on one machine can each publish.** Each person's staged copy now lives in a folder only they can open.
+- **Archives are read more carefully.** An archive in a very old compression format is refused before anything is restored, and an archive that would grow far past its size is refused too.
+- **For the command line and the API.**
+  - A write an assistant makes where people other than its asker and the owner can read now waits for the owner's yes: `403 ESCAPE_NEEDS_OWNER_YES`, with `ESCAPE_NO_OWNER`, `ESCAPE_TOO_MANY_ASKS`, `ESCAPE_YES_NOT_OWNER` and `409 ESCAPE_RELEASE_STALE`. The owner accepts the ask that `details.proposal` names, or the run writes where only its asker and the owner read.
+  - A publish that leaves a repository public needs its owner in person, or the owner's yes: `403 REPO_PUBLIC_NEEDS_OWNER_YES`, `REPO_PUBLIC_OWNER_TERMS`, `REPO_YES_NOT_OWNER`, `409 REPO_PUBLIC_WHILE_BOUND`, `REPO_PUBLISH_STALE`. Publish as the owner, have the owner accept, or publish unlisted.
+  - Other refusals: `422 SITE_SOURCE_PRIVATE` (wider), `400 ARCHIVE_LEGACY_FRAME`, `400 DISCLOSURE_CLASS_INVALID`.
+  - A former member on `/v1/actors` is found by `did_digest`, as on the thread member doors.
+  - A machine's stand-in comes from `name_source` (`device_key`, `access_key`, `instance_default`), never from `fallback`.
+  - A dry-run publish stages under a folder for each user. Read its path from the output (`staged_path`).
+- **Known limits.**
+  - A workspace restored from a repository it published doesn't know who was erased before the restore. It could take back an erased person's rows from another copy. After restoring, erase that person again.
+  - A repository that was ever kept in step with the workspace isn't reached by the erase pass for its older versions.
+  - A list a guest or a member reads still shows whether a row refers to something they can't see.
+
+---
+
 ## 0.280.0
 
 **A page never carries a password or a key, and moving an admin to a role takes their admin access away.**
@@ -22,7 +49,7 @@ This page summarizes releases in plain language: what changed and why it matters
   - Refusals: `422 SITE_FILE_CARRIES_CREDENTIAL`, `409 MEMBER_RENEWAL_CUSTODY_UNAVAILABLE`, `400 RECORD_CARRIES_CREDENTIAL` (now with words), and `422 APP_READS_INVALID` for a package kind that holds a secret or an endpoint.
   - `GET /v1/self/workspace` gains `address`.
 - **Known limits.**
-  - On a workspace you run yourself in the foreground, rather than with `spl serve --daemon`, the erase receipt says the logs are cleared within a few days. They aren't. That workspace's output goes wherever you send it, and the workspace doesn't clear it.
+  - On a workspace you run yourself in the foreground, rather than with `spl serve --daemon`, the erase receipt says the logs are cleared within a few days. They aren't. That workspace's output goes wherever you send it, and the workspace doesn't clear it. Fixed in 0.281.0.
   - A list a guest or a member reads still shows whether a row refers to something they can't see.
   - If the off-machine copy is in storage that keeps old versions of files, those versions still hold the erased person's identifier. `spl doctor` warns about it.
 
