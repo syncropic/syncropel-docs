@@ -237,6 +237,7 @@ Hosted providers are not supported.
 
 ## Limits & Failure Modes
 
+- **What guests write**: Search doesn't find what guests write, even for you. You can still read it in its conversation.
 - **Embedding provider reachability**: if Ollama isn't running, the workspace logs an error when records are added (the record is still saved, but not searchable) and search returns 503. Restart the provider, and re-load any records you want searchable.
 - **`k` clamp**: `k` above 100 is quietly reduced to 100. For very large result sets, combine search (for relevance) with [Query](./query) (for structural pagination).
 - **Empty query**: both SDKs raise an error on an empty query.

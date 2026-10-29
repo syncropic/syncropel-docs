@@ -112,6 +112,8 @@ conversation before acting on it:
 
 This is the owner's tool. For a guest or a member, `find` (over MCP and `GET /v1/find`) is refused with `400 QUERY_FIELD_NOT_READABLE`, the same answer whether or not the term exists, because find matches body text. A non-owner reads the records of the conversations they're in with `read_thread`, or with `POST /v1/records/query` by kind. See [Reads, budgets and cursors](/docs/reference/read-path#filtering-is-decided-by-who-you-are).
 
+Search doesn't find what guests write, even for you. You can still read it in its conversation.
+
 ## Index health and rebuild
 
 The index keeps itself up to date: content is indexed as you save, and a background check fills any gaps. In the rare case you want to look closer, use:
