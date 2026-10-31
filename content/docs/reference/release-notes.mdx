@@ -32,6 +32,7 @@ This page summarizes releases in plain language: what changed and why it matters
   - Text deleted or replaced before this version can still sit in unused space inside the workspace's data file, and nothing in this version clears it. A backup made with `spl backup` doesn't carry it.
   - A copy of your keys made before this version can still be refused by a restore on a new machine that has only your repository. Copies made after you upgrade are counted correctly.
   - A list a guest or a member reads still shows whether a row refers to something they can't see.
+  - A guest who can see a question but isn't the one it asks may see their answer saved, though it doesn't settle the question. The question stays open for the person it asks.
 
 ---
 
