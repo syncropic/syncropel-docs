@@ -20,10 +20,13 @@ This page summarizes releases in plain language: what changed and why it matters
 - **Taken-back and erased words leave search.** When a message is taken back or someone is erased, search stops finding their words, and the space they used in the workspace's data file is wiped.
 - **A guest's screen catches up when something is taken away.** When something a guest already read stops being theirs to read, their screen notices and drops it.
 - **Erase receipts are exact about backups.** The receipt now says how many backups still hold the erased person's own words, whether anything ever replaces them, and which copies the workspace didn't make itself.
+- **The owner sees their first passkey.** When the first passkey for a workspace is added, the owner sees a notice wherever they're signed in, with a way to remove it within 24 hours.
 - **A restore with a recovery code no longer refuses at random.**
 - **A workspace restored from a repository it published remembers who was erased.**
 - **For the command line and the API.**
-  - Refusals now come with plain words when an assistant's write needs the owner's yes, when a repository can't be made public, when a page's source is kept for some people or shows a cost (`details.reason` says which), when no list has the name asked for, and when an app asks to filter by something it can't read.
+  - Refusals that had no words now have them: `ESCAPE_NEEDS_OWNER_YES`, `ESCAPE_NO_OWNER`, `ESCAPE_TOO_MANY_ASKS`, `ESCAPE_YES_NOT_OWNER` and `ESCAPE_RELEASE_STALE` (an assistant's write that needs the owner's yes), `REPO_PUBLIC_OWNER_TERMS` and `REPO_PUBLIC_WHILE_BOUND` (a repository that can't be made public this way), and `REDUCTION_UNKNOWN` (no list has the name asked for).
+  - `SITE_SOURCE_PRIVATE` now says why in `details.reason`: `above_public` when the page's source is kept for some people, `cost` when it shows what something cost.
+  - When an app asks to filter by something it can't read, `QUERY_FIELD_NOT_READABLE` now says so in words meant for apps.
   - `POST /v1/records/query` marks a page that was cut short at 1,000 rows, and names how to continue (`read.truncated.next`).
   - An app's sign-in token is accepted only at the address it was issued for. Any other address answers `404`.
   - A member's session no longer reads `/v1/connections` or `/v1/namespaces`, which are the owner's.
@@ -51,12 +54,12 @@ This page summarizes releases in plain language: what changed and why it matters
 - **Two people on one machine can each publish.** Each person's staged copy now lives in a folder only they can open.
 - **Archives are read more carefully.** An archive in a very old compression format is refused before anything is restored, and an archive that would grow far past its size is refused too.
 - **For the command line and the API.**
-  - A write an assistant makes where people other than its asker and the owner can read now waits for the owner's yes: `403 ESCAPE_NEEDS_OWNER_YES`, with `ESCAPE_NO_OWNER`, `ESCAPE_TOO_MANY_ASKS`, `ESCAPE_YES_NOT_OWNER` and `409 ESCAPE_RELEASE_STALE`. The owner accepts the ask that `details.proposal` names, or the run writes where only its asker and the owner read.
-  - A publish that leaves a repository public needs its owner in person, or the owner's yes: `403 REPO_PUBLIC_NEEDS_OWNER_YES`, `REPO_PUBLIC_OWNER_TERMS`, `REPO_YES_NOT_OWNER`, `409 REPO_PUBLIC_WHILE_BOUND`, `REPO_PUBLISH_STALE`. Publish as the owner, have the owner accept, or publish unlisted.
-  - Other refusals: `422 SITE_SOURCE_PRIVATE` (wider), `400 ARCHIVE_LEGACY_FRAME`, `400 DISCLOSURE_CLASS_INVALID`.
-  - A former member on `/v1/actors` is found by `did_digest`, as on the thread member doors.
-  - A machine's stand-in comes from `name_source` (`device_key`, `access_key`, `instance_default`), never from `fallback`.
-  - A dry-run publish stages under a folder for each user. Read its path from the output (`staged_path`).
+  - `403 ESCAPE_NEEDS_OWNER_YES`: an assistant tried to write where people other than the one who asked can read, so the workspace asked the owner first. `ESCAPE_NO_OWNER`: there was no owner to ask. `ESCAPE_TOO_MANY_ASKS`: the assistant is already waiting on too many answers. `ESCAPE_YES_NOT_OWNER`: someone other than the owner tried to answer. `409 ESCAPE_RELEASE_STALE`: something changed since the ask. To go ahead, the owner accepts the ask that `details.proposal` names, or the assistant writes where only its asker and the owner can read.
+  - `403 REPO_PUBLIC_NEEDS_OWNER_YES`: making a repository public needs its owner, so the owner was asked. `REPO_PUBLIC_OWNER_TERMS`: only the owner can include the workspace's keys or add listing topics. `REPO_YES_NOT_OWNER`: someone other than the owner tried to approve. `409 REPO_PUBLIC_WHILE_BOUND`: the workspace keeps saving into this repository, so it can't be made public. `REPO_PUBLISH_STALE`: the repository changed since the ask. To go ahead, publish as the owner, have the owner accept, or publish it unlisted.
+  - `422 SITE_SOURCE_PRIVATE`: a page's source is kept for some people, or shows what something cost. `400 ARCHIVE_LEGACY_FRAME`: an archive uses a compression format the workspace doesn't open. `400 DISCLOSURE_CLASS_INVALID`: a class of information was declared with a setting the workspace doesn't know.
+  - A former member is listed on `/v1/actors` by `did_digest`, the same as in a conversation's list of members.
+  - A device, a key or the workspace itself may have no name of its own. `name_source` says which (`device_key`, `access_key`, `instance_default`), so draw its name from that, not from `fallback`.
+  - A dry-run publish now prepares its copy in a folder for each user on the machine. Read where from the output (`staged_path`).
 - **Known limits.**
   - A workspace restored from a repository it published doesn't know who was erased before the restore. It could take back an erased person's rows from another copy. After restoring, erase that person again. Fixed in 0.282.0.
   - A repository that was ever kept in step with the workspace isn't reached by the erase pass for its older versions.
@@ -73,9 +76,9 @@ This page summarizes releases in plain language: what changed and why it matters
 - **Counts change as soon as someone is erased.** A count or a total no longer includes an erased person's rows for a few seconds after the erase.
 - **A workspace you run yourself no longer leaves private items out when it reads back its copy.** After going back to an older version by copying the workspace's files, and then upgrading again, it could leave some private items out with no warning. They were never lost from the copy. Now it stops, `spl doctor` says how many, and it tries again the next time it reads the copy.
 - **For the command line and the API.**
-  - A guest, a member, a limited key or a restricted admin is served positions (`sequence`, `clock`, `next_before`, `next_after`) as opaque strings, and the id of a record it can't open as a token. Send them back as given. Don't subtract or sort by them.
-  - Refusals: `422 SITE_FILE_CARRIES_CREDENTIAL`, `409 MEMBER_RENEWAL_CUSTODY_UNAVAILABLE`, `400 RECORD_CARRIES_CREDENTIAL` (now with words), and `422 APP_READS_INVALID` for a package kind that holds a secret or an endpoint.
-  - `GET /v1/self/workspace` gains `address`.
+  - A guest, a member, a limited key or a restricted admin now gets a record's place in a list (`sequence`, `clock`, `next_before`, `next_after`) as an opaque string, and the id of a record it can't open as a token. Send them back as given, and don't subtract or sort by them.
+  - `422 SITE_FILE_CARRIES_CREDENTIAL`: a file to publish looks like it holds a password or a key. `409 MEMBER_RENEWAL_CUSTODY_UNAVAILABLE`: a member's access couldn't be changed safely, so nothing changed. `400 RECORD_CARRIES_CREDENTIAL`: something to save looks like it holds a password or a key, and it now says so in words. `422 APP_READS_INVALID`: an app asked to read a kind of item that holds a secret or an address.
+  - `GET /v1/self/workspace` now includes the workspace's `address`.
 - **Known limits.**
   - On a workspace you run yourself in the foreground, rather than with `spl serve --daemon`, the erase receipt says the logs are cleared within a few days. They aren't. That workspace's output goes wherever you send it, and the workspace doesn't clear it. Fixed in 0.281.0.
   - A list a guest or a member reads still shows whether a row refers to something they can't see.
@@ -98,12 +101,11 @@ This page summarizes releases in plain language: what changed and why it matters
 - **Saved copies are checked.** `spl doctor` compares the off-machine copy with the workspace and fails when the copy lacks records the workspace holds. Where the check can't run, as on a hosted workspace, it says so.
 - **Apps that read, and pages you publish.** Both are off on hosted workspaces. An app reads only what it declares, and only what the person using it can already read. The owner can publish an app's files as a page at the workspace's address, after approving it. See [Apps that read, and published pages](/docs/reference/apps-and-sites).
 - **For the command line and the API.**
-  - A page cursor from an older version is refused with `CURSOR_INVALID`. Start the walk again from the first page.
-  - `/v1/principals` serves `display_name: null`, `name_source: "none"` and `standing` for an unnamed person.
-  - A record count that takes too long is `read.total: null` with `read.total_at_least`. Send `"total": "skip"` to skip counting.
-  - Refusals: `503 READ_BUDGET_EXCEEDED`, `429 READ_IN_FLIGHT`, `409 READ_STOPPED_BY_ERASE`, `400 QUERY_FIELD_NOT_READABLE`, `403 SITE_THREAD_KERNEL_ONLY`.
-  - An anonymous `/health` shows only the write-back state. Send the owner's bearer, or read through the socket, for the detail.
-  - Threads whose names start with `th_site_` are managed by Syncropel. Writing to one is refused.
+  - `CURSOR_INVALID`: a page marker from an older version can't be used. Start again from the first page.
+  - For a person with no name, `/v1/principals` gives `display_name: null`, `name_source: "none"` and their `standing`.
+  - When counting records takes too long, `read.total` is `null` and `read.total_at_least` gives a lower bound. Send `"total": "skip"` to skip counting.
+  - `503 READ_BUDGET_EXCEEDED`: a read took longer than allowed and stopped. `429 READ_IN_FLIGHT`: an earlier read of yours is still running. `409 READ_STOPPED_BY_ERASE`: a read stopped because the workspace changed while it ran. `400 QUERY_FIELD_NOT_READABLE`: only the owner can search or filter by that. `403 SITE_THREAD_KERNEL_ONLY`: the conversations that run published pages, whose names start with `th_site_`, can't be written to directly.
+  - `/health` asked without signing in shows only whether the workspace is saving off the machine. Sign in as the owner to see the rest.
 - **Known limits.**
   - Files uploaded before this version have no recorded writer. Save one again to publish it.
   - Restore a saved copy with the same or a newer version than the one that made it. An older version brings other people's sealed items back as gaps, and restoring again with a newer version fills them.
