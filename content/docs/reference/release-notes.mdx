@@ -23,11 +23,11 @@ This page summarizes releases in plain language: what changed and why it matters
 - **A restore with a recovery code no longer refuses at random.**
 - **A workspace restored from a repository it published remembers who was erased.**
 - **For the command line and the API.**
-  - Refusal words for `ESCAPE_*`, `REPO_PUBLIC_OWNER_TERMS`, `REPO_PUBLIC_WHILE_BOUND`, `SITE_SOURCE_PRIVATE` (`details.reason` is `above_public` or `cost`), `REDUCTION_UNKNOWN` and `QUERY_FIELD_NOT_READABLE` at the app door.
-  - `POST /v1/records/query` marks a page the store cut short at 1,000 rows, and names how to continue (`read.truncated.next`).
-  - An app's sign-in token is accepted only at the door it was issued for. Other doors answer `404`.
+  - Refusals now come with plain words when an assistant's write needs the owner's yes, when a repository can't be made public, when a page's source is kept for some people or shows a cost (`details.reason` says which), when no list has the name asked for, and when an app asks to filter by something it can't read.
+  - `POST /v1/records/query` marks a page that was cut short at 1,000 rows, and names how to continue (`read.truncated.next`).
+  - An app's sign-in token is accepted only at the address it was issued for. Any other address answers `404`.
   - A member's session no longer reads `/v1/connections` or `/v1/namespaces`, which are the owner's.
-  - A restore with a recovery code accepts `SPL_ACCEPT_MISSING_ERASED_LIST=1`, as the other restores do, and records it.
+  - A restore with a recovery code can be told to go ahead without the list of erased people, by setting `SPL_ACCEPT_MISSING_ERASED_LIST=1`, as the other restores can. The workspace records that it was used.
 - **Known limits.**
   - Text deleted or replaced before this version can still sit in unused space inside the workspace's data file, and nothing in this version clears it. A backup made with `spl backup` doesn't carry it.
   - A copy of your keys made before this version can still be refused by a restore on a new machine that has only your repository. Copies made after you upgrade are counted correctly.
