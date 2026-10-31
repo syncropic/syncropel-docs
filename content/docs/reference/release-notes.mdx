@@ -11,9 +11,9 @@ This page summarizes releases in plain language: what changed and why it matters
 
 ## 0.282.0
 
-**An assistant asks before it writes where others may read, and a guest reaches only what they were given.**
+**A guest reaches only what they were given, and keys never arrive from another workspace.**
 
-- **An assistant asks before it writes where others may read.** When an assistant would write into a conversation that people other than the one who asked can read, it asks the workspace's owner first, and nothing is written until the owner allows it. The owner sees exactly what will be written.
+- **An assistant asks before it writes where others may read, on a workspace you run yourself.** When an assistant would write into a conversation that people other than the one who asked can read, it asks the workspace's owner first, and nothing is written until the owner allows it. The owner sees exactly what will be written.
 - **A guest reaches only what they were given.** A guest invited to one conversation could reach some things beyond it, and on a hosted workspace, people who share the workspace's sign-in could be treated as one another. Each now reaches only what was given to them.
 - **Keys never arrive from another workspace.** A workspace paired with another could take in a working key from it. Keys and accounts are now never taken from a paired workspace, and one taken in before still doesn't work. A workspace that was never paired was never exposed.
 - **An app you connect uses only what you approved.** An app's sign-in now opens only the part of the workspace it was approved for.
@@ -31,6 +31,7 @@ This page summarizes releases in plain language: what changed and why it matters
 - **Known limits.**
   - Text deleted or replaced before this version can still sit in unused space inside the workspace's data file, and nothing in this version clears it. A backup made with `spl backup` doesn't carry it.
   - A copy of your keys made before this version can still be refused by a restore on a new machine that has only your repository. Copies made after you upgrade are counted correctly.
+  - On a hosted workspace, an assistant that would write where others may read is stopped instead of asking the owner. Nothing is written there.
   - A list a guest or a member reads still shows whether a row refers to something they can't see.
   - A guest who can see a question but isn't the one it asks may see their answer saved, though it doesn't settle the question. The question stays open for the person it asks.
 
