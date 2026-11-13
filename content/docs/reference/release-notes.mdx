@@ -9,6 +9,48 @@ This page summarizes releases in plain language: what changed and why it matters
 
 ---
 
+## 0.284.0
+
+**Your tasks and the workspace's own lists reach only the people they're for, and a key stops working when the person who made it goes.**
+
+- **Your task list stays yours.** A guest invited to one conversation, or someone reading a public workspace without a key, could read your tasks, with their names, titles, who they're assigned to and where they stand. A task now shows only to someone who may read all of it. As the owner, you may see a few more tasks on some lists than before, so every list now matches `spl task list`.
+- **The workspace's own lists reach only who they're for.** Asked one particular way, the workspace's task list, its register of what needs the owner, its list of erased people, its reports and every grant answered a guest, and a member could read some of them too. Each now answers everyone the way the other ways of asking already did.
+- **Removing a member ends their membership.** Removing someone who'd also accepted an invite to a conversation could take that conversation away and leave them a member, with a working key. Removal now ends the membership, and removing someone from a conversation ends only that conversation. Leaving the workspace ends everything you hold there, and erasing someone ends every grant they had.
+- **A key stops working when the person who made it goes.** Keys a removed admin had made kept working, and could make more. Every new key now records who made it, and stops working when that person is removed, leaves, is erased, or no longer holds the access the key carries. Only the owner, or whoever set up an account, can make or replace its keys. Keys made before this version keep working and are listed, so you can look them over.
+- **An erased person isn't named on their old messages.** After an erase, the stand-ins for that person's messages, and the lists of who took part in a conversation, still named them. Every read now shows them as a former member, the same as anyone who has left.
+- **After a clean stop, the request that wakes your workspace goes through.** The first thing you did after a workspace woke up could be refused as a sign-in error. It now goes through, and a request that was already used once is still refused.
+- **"Needs you" lists only questions you can answer, and Home counts the same.** Notices the system writes for itself no longer count as questions. Opening a question shows what there is to answer.
+- **A run whose saves were all refused says so.** It used to close as done. It now stops as blocked and names what wasn't saved. When only some saves were refused, the run is done and tells you which ones weren't saved.
+- **An assistant can save to a shared conversation again on later runs.** Before, its second save there failed.
+- **Something you keep private isn't refused at random as if it held a key.** About two saves in a million were refused this way.
+- **A restore never brings back someone erased.** Every restore leaves out what belongs to someone erased.
+- **New: `@syncropel/query` 0.1.0 on npm.** The query language for browsers, Node, Deno and Bun, with a guide to the language whose examples all run.
+- **For the command line and the API.**
+  - `GET /v1/dispatch/{id}` answers `404 DISPATCH_NOT_FOUND` for every miss: a task you can't read, a thread that doesn't exist, and a thread that isn't a task. `NOT_A_DISPATCH` is no longer returned.
+  - `MINTER_STANDING_ENDED`: whoever made this key is gone. `MINTER_STANDING_NARROWED`: whoever made it no longer holds all the access it carries. `SA_NOT_YOURS`: only the owner, or whoever set up the account, can make or replace its keys. When standing can't be read, the answer is `503 TRY_AGAIN`.
+  - Before upgrading, `spl service-account audit` says which keys this version would refuse, and exits 2 if any would. Run it with this version on a copy of your workspace's data, never on the live one. `GET /v1/service-accounts/unattributed` lists the keys nobody can trace to a maker, and `POST /v1/service-accounts/unattributed/revoke` revokes them.
+  - `POST /v1/threads/restore` counts what it left out for erased people in `erased_skipped`.
+  - `403 STANDING_ENDED`: a removed person's key tried to start, turn on or resume a schedule. It replaces `NOT_A_MEMBER` on those doors.
+  - A run that stopped because every save was refused closes with `write_refused`, listing each refused save. A definition that promises to write something it may not is refused `WRITE_KIND_NOT_ADMITTED` or `WRITE_THREAD_NOT_WRITABLE`.
+  - `/v1/capabilities` lists `choice_asks: true`.
+  - A ledger sort or filter on a column the reader isn't served answers `400 QUERY_FIELD_NOT_READABLE`.
+  - `/v1/health` shows the wake check's state under `boot_peak` (`dpop_floor_unix`, `dpop_clean_stop_unix`, `dpop_refused`). `SPL_DPOP_IAT_SKEW_SECS` is capped at 60 seconds.
+- **Known limits.**
+  - If someone else in a conversation gives their own task a name before your assistant uses it, the name stays theirs, and the brief you keep under that name can reach their task's runs. Declaring which assistants act for you closes this.
+  - Who wrote a record rests on the key that wrote it. Records carry no separate stamp of their writer.
+  - Under `--insecure-localhost` the workspace answers any website. Use it only for development, on a machine you trust.
+  - A member can still read the workspace's task list and some other lists that cover the whole workspace. Whether they should be the owner's alone is still open.
+  - Keys made before this version don't say who made them, so removing someone doesn't reach them. Look over the list. A key that speaks for one person comes back if they're let back in, and a person's keys come back if their access is widened again.
+  - An admin member can still revoke another account's keys. After an erase, the person's id stays on the record of the keys they made, which only admins read. A browser session can't revoke keys: use an owner's key or the same machine.
+  - Removing someone from the workspace leaves a conversation invite addressed to them in place. Remove them from that conversation too.
+  - Files uploaded before this version are recorded under the key that uploaded them, so erasing a person doesn't reach them. Erase that key's name too. An erase receipt counts them as kept.
+  - A workspace's own snapshot isn't a backup. It restores only into the copy of the data that took it, and stops working once the workspace's key changes or its data is restored or rebuilt. Recover with `spl repo restore`. `spl sync` between workspaces still refuses a conversation holding an assistant's work.
+  - After a crash, a rollback or a clock far out of step, the first request after a wake can still be refused, and in a few such cases a request already used once can pass again within a minute, as in earlier versions. Keep the workspace's files off a network file system. If every wake keeps being refused after a crash, stop the workspace and remove the stop record in its run folder.
+  - A question withdrawn before this version stays in "Needs you" after an upgrade. Withdraw it again, or answer or decline it, and `spl doctor` counts them. A question asked twice still needs an answer each time. A withdrawal sent with an automation's key instead of your own is kept as a suggestion. After restoring from your repository, a withdrawal that came from another workspace can be accepted.
+  - A run that ran a command or a test counts as having done something, even when its saves were refused.
+  - Something you keep private whose sealed text is exactly 10, 14 or 22 bytes can still, very rarely, be refused as if it held a key, and so can one whose sealed form happens to start like some cloud tokens. A key in a length no provider issues today isn't caught when it's saved, though logs still hide it.
+  - A live conversation opened without a position starts from its newest 200 records, so a view of a long conversation can show fewer. Page older ones through the read doors.
+
 ## 0.282.0
 
 **A guest reaches only what they were given, and keys never arrive from another workspace.**
