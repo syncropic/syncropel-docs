@@ -768,10 +768,14 @@ Commands for running several instances together (the instance registry and kill 
 
 ```bash
 spl fleet start [--workers N]        # Boot coordinator + N worker instances
+spl fleet start --workers N --share <threads>   # ...and give each worker these threads to start with
+spl fleet start --worker-port-base <port>       # Where workers' ports start (default 9201)
 spl fleet stop [--workers | --all]   # Stop workers only, or everything
 ```
 
 `spl fleet start --workers 2` boots two worker instances on auto-assigned `SYNCROPEL_HOME` paths (`~/.syncro-worker-{a,b}`) and auto-assigned ports (9201, 9202), with your main `~/.syncro` instance acting as coordinator. Each worker inherits `SPL_FLEET_COORDINATOR_URL` pointing at the coordinator and begins emitting heartbeats within ~15 seconds.
+
+**Workers start with nothing shared.** To give each worker some of the coordinator's threads, name them with `--share <threads>`. The coordinator's own configuration thread can't be shared, because it holds records only that workspace may hold, so a worker refuses it by name (`RESERVED_THREAD_FORBIDDEN`, `AUTHORITY_KIND_FORBIDDEN` or `KIND_KERNEL_ONLY`). The command says which daemon it read the threads from, and exits with an error if no worker took the share.
 
 Worker state roots are persistent across fleet restarts. Next `spl fleet start --workers 2` reuses them. To start fresh, delete `~/.syncro-worker-*` before booting.
 

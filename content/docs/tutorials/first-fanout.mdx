@@ -3,6 +3,10 @@ title: Your First Fan-Out
 description: A five-minute walkthrough. Start three local workspaces, split a small task between two workers, watch it finish, check the speedup and shut down. No model costs.
 ---
 
+<Callout type="warning">
+This walkthrough is being revised. On current versions the workers don't pick up the subtasks, so the fan-out in step 3 doesn't finish. The fleet commands themselves are described in [the CLI reference](/docs/reference/cli#fleet-lifecycle).
+</Callout>
+
 ## What you'll see
 
 A local fleet of three workspaces (one coordinator and two workers), a parent task split into two subtasks, each worker finishing its part, the parent completing, and `spl task speedup` comparing parallel time with the serial estimate.

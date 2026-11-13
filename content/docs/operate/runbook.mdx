@@ -440,7 +440,7 @@ Fleet ready. Inspect with:
   spl fleet status
 ```
 
-This boots the coordinator on `~/.syncro` port 9100 plus N workers on `~/.syncro-worker-{a,b,...}` ports 9201, 9202, ... Each worker inherits the coordinator URL from the `[fleet]` config section and begins emitting heartbeats within ~15 seconds. The wrapper polls `/v1/fleet/status` until all expected instances are live or 30 seconds pass; if convergence times out, fall through to [Worker not registering](#worker-not-registering).
+This boots the coordinator on `~/.syncro` port 9100 plus N workers on `~/.syncro-worker-{a,b,...}` ports 9201, 9202, ... Each worker inherits the coordinator URL from the `[fleet]` config section and begins emitting heartbeats within ~15 seconds. Workers start with nothing else shared: to give them some of the coordinator's threads, pass `--share <threads>` (see [the CLI reference](/docs/reference/cli#fleet-lifecycle)). The command exits with an error if no worker took the share. The wrapper polls `/v1/fleet/status` until all expected instances are live or 30 seconds pass; if convergence times out, fall through to [Worker not registering](#worker-not-registering).
 
 Verify the fleet is healthy:
 
