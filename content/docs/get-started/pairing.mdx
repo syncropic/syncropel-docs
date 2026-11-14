@@ -59,7 +59,7 @@ All three end at the same place: the device stores the address and token securel
 | State | Dot | What it means |
 |---|---|---|
 | Workspace not reachable | gray | `localhost:9100` isn't responding. Start `spl serve`. |
-| Connected, insecure mode | amber `DEV MODE` | `--insecure-localhost`: sign-in is off, fine when working alone. |
+| Connected, insecure mode | amber `DEV MODE` | `--insecure-localhost`: sign-in is off for programs on this machine. The dashboard still pairs with a key, like any web page. |
 | Pair required | amber | Your workspace wants a token; this browser has none. Run `spl pair` and click the printed URL. |
 | Connected, secure | green | Paired, token valid, records stream normally. |
 | Token expired or revoked | red | Your token was removed or has expired. Click **Re-pair** to run through pairing again. |

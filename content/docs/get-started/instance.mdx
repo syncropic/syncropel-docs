@@ -20,7 +20,8 @@ Use this the very first time, and any time you're doing local development withou
 What it does:
 
 - Makes the workspace listen on `127.0.0.1` only, so no other machine can reach it, whatever `--host` says.
-- Turns sign-in checks off (`auth.required = false`) while this workspace runs.
+- Turns sign-in checks off (`auth.required = false`) for programs on this machine, such as `spl`, `curl` or a script, while this workspace runs.
+- Still asks a web page for a key. A page in your browser, the dashboard included, has to be paired with `spl pair` first, so no website can use your workspace without you.
 - Writes a `WARN` line to the log at startup, so you notice if you leave it on by accident.
 
 To be precise about what this flag is: it turns **sign-in checks** off for
