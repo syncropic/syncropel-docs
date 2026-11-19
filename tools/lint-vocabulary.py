@@ -59,6 +59,42 @@ INTERNAL_PATTERNS = {
     r"open[- ]source (kernel|runtime|binar)": "(the runtime is not open source; the spec and SDKs are)",
 }
 
+# A record's `subject` can be a person, so "the subject was erased" reads two
+# ways (SKL-5257). These run on every file, on the same emphasis-, code- and
+# link-stripped line as the rules above, so `the **subject** was erased` still
+# matches: the gaps are `\s+` because stripping leaves spaces where the markers
+# were. Case-insensitive. An underscore joins a wire name (SUBJECT_ERASED,
+# subject_hash) into one word, so wire names pass. Rule 5 is checked within one
+# sentence on one line. Rule name -> (regex, suggested plain replacement).
+_Q = "['\u2019]"
+SUBJECT_WORD_RULES = {
+    "subject-erased": (
+        r"(?i)\bthe\s+subject\s+(?:was|is|has\s+been|had\s+been|will\s+be)\s+erased\b",
+        "say 'the person was erased' or 'the thing was erased'",
+    ),
+    "erased-subject": (
+        r"(?i)\berased\s+subjects?\b",
+        "say 'erased person' or 'erased thing'",
+    ),
+    "subjects-data": (
+        r"(?i)\bthe\s+subject" + _Q + r"s\s+data\b",
+        "say 'the person's data', or 'the record's subject' in privacy text",
+    ),
+    "erase-the-subject": (
+        r"(?i)\berase[sd]?\s+the\s+subject\b",
+        "say 'erase the person' or 'erase the thing'",
+    ),
+    "data-subject-beside-records-subject": (
+        r"(?i)\bdata\s+subjects?\b[^.!?]*\bthe\s+record" + _Q + r"s\s+subject\b"
+        r"|\bthe\s+record" + _Q + r"s\s+subject\b[^.!?]*\bdata\s+subjects?\b",
+        "keep 'data subject' out of the sentence that says 'the record's subject'",
+    ),
+    "internal-name": (
+        r"(?i)\bcoordi(?:net)?\b",
+        "(internal working name; never in a served sentence)",
+    ),
+}
+
 # ----- Scoped rule sets -----------------------------------------------------
 #
 # The global rules above run on every file. The rule sets below run only on
@@ -225,6 +261,9 @@ INTERNAL_PATTERN_RES = [(re.compile(p), s) for p, s in INTERNAL_PATTERNS.items()
 
 PERSON_FACING_RULE_RES = [
     (name, re.compile(p), s) for name, (p, s) in PERSON_FACING_RULES.items()
+]
+SUBJECT_WORD_RULE_RES = [
+    (name, re.compile(p), s) for name, (p, s) in SUBJECT_WORD_RULES.items()
 ]
 STRICT_WORD_RULE_RES = {
     name: (re.compile(p), s) for name, (p, s) in STRICT_WORD_RULES.items()
@@ -507,6 +546,20 @@ def scan_file(path: Path, rel_path: str) -> list[Hit]:
                         suggestion=suggestion,
                         line_text=raw_line.rstrip(),
                         rule="internal-reference",
+                    )
+                )
+
+        for rule_name, rx, suggestion in SUBJECT_WORD_RULE_RES:
+            for m in rx.finditer(line_for_match):
+                hits.append(
+                    Hit(
+                        path=path,
+                        line_no=idx,
+                        col=m.start() + 1,
+                        term=m.group(0),
+                        suggestion=suggestion,
+                        line_text=raw_line.rstrip(),
+                        rule=f"subject-words/{rule_name}",
                     )
                 )
 

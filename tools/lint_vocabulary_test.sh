@@ -13,6 +13,8 @@
 #  10. Auto-fix produces a clean diff that, applied, makes #1 disappear
 #  13-19. Scoped rule sets: person-facing rules fire in prose on in-scope
 #         pages only; strict words fire only on opted-in pages
+#  20-22. Subject words: each refused erased-subject form and internal name
+#         fires on every page, through emphasis; the look-alikes pass
 
 set -euo pipefail
 
@@ -304,6 +306,77 @@ if grep -q "install.mdx:.*strict-word" scoped.out; then
   report FAIL "fixture 19: strict words FALSELY applied to a page not opted in"
 else
   report PASS "fixture 19: strict words not applied to a page not opted in"
+fi
+
+# ----- Subject words (every page; through emphasis) -----------------------
+mkdir -p subject/content/docs/operate
+RSQ="$(printf '\342\200\231')"
+cat > subject/content/docs/operate/refused.mdx <<FIXTURE
+# Refused
+
+The subject was erased.
+The subject is erased.
+The subject has been erased.
+The subject had been erased.
+The subject will be erased.
+Nothing is kept for an erased subject.
+Two erased subjects remain.
+The subject's data is gone.
+The subject${RSQ}s data is gone.
+We erase the subject.
+It erases the subject.
+You erased the subject.
+The data subject is the record's subject here.
+Coordinet keeps it.
+Ask Coordi.
+The **subject** was erased.
+An *erased* subject.
+FIXTURE
+cat > subject/content/docs/operate/passes.mdx <<'FIXTURE'
+# Passes
+
+Erasure removes the record's subject from every view.
+The data subject asked. The record's subject is them.
+This record names a person who was erased.
+The person was erased. The thing was erased.
+Any coordination is kept, so coordinate with them.
+Put it in the subject line of the email.
+A refusal reads SUBJECT_ERASED or names subject_hash.
+FIXTURE
+set +e
+(cd subject && python3 ../tools/lint-vocabulary.py --mode error content/docs \
+  > /dev/null 2> ../subject.out)
+SUBJECT_RC=$?
+set -e
+if [ "${SUBJECT_RC}" = "2" ]; then
+  report PASS "fixture 20: subject-word findings exit 2"
+else
+  report FAIL "fixture 20: subject-word run exit was ${SUBJECT_RC}, expected 2"
+fi
+check_subject() {  # line rule
+  if grep -q "refused.mdx:$1: subject-words/$2:" subject.out; then
+    report PASS "fixture 21: line $1 flagged as subject-words/$2"
+  else
+    report FAIL "fixture 21: line $1 NOT flagged as subject-words/$2"
+  fi
+}
+for n in 3 4 5 6 7; do check_subject "$n" subject-erased; done
+check_subject 8 erased-subject
+check_subject 9 erased-subject
+check_subject 10 subjects-data
+check_subject 11 subjects-data
+check_subject 12 erase-the-subject
+check_subject 13 erase-the-subject
+check_subject 14 erase-the-subject
+check_subject 15 data-subject-beside-records-subject
+check_subject 16 internal-name
+check_subject 17 internal-name
+check_subject 18 subject-erased
+check_subject 19 erased-subject
+if grep -q "passes.mdx:" subject.out; then
+  report FAIL "fixture 22: a look-alike FALSELY flagged: $(grep passes.mdx: subject.out | head -3)"
+else
+  report PASS "fixture 22: the record's subject, a person who was erased, coordination, the subject line and wire names pass"
 fi
 
 echo
