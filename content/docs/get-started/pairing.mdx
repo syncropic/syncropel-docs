@@ -1,19 +1,19 @@
 ---
 title: Pairing a browser or phone
-description: Use `spl pair` to connect a browser, phone or other device to your workspace with its own limited account and token. Covers the one-click link, the QR code, manual pairing for servers, and removing a device.
+description: Use `spl pair` to connect a browser, phone or other device to your workspace with its own account and token, holding the access you choose. Covers the one-click link, the QR code, manual pairing for servers, and removing a device.
 ---
 
 This page is for people running their own workspace or using the API. If you use a workspace created at syncropel.com, start with [Your hosted workspace](/docs/get-started/your-hosted-workspace).
 
-Your command line uses the token in `~/.syncro/token`. Browsers and phones can't read that file, so each needs its own service account and token. `spl pair` does it all in one command: it creates a limited account, creates a token, and shows it in a form the other device can use.
+Your command line uses the token in `~/.syncro/token`. Browsers and phones can't read that file, so each needs its own service account and token. `spl pair` does it all in one command: it creates an account for the device with the access you choose, creates a token, and shows it in a form the other device can use.
 
 ## Why pairing exists
 
 A browser on `syncropel.com` has no way to sign in to a workspace on your computer. It doesn't know the address, and it has no token. There are three ways to fix that:
 
 1. **Paste the token manually.** Works, but painful: tokens are over 40 characters long and easy to mistype on a phone.
-2. **Share the CLI's token with the browser.** Bad: the CLI's token is usually `admin`-scoped and the browser doesn't need that.
-3. **Pair.** Create a new service account with limited access just for this device, and give its token to the device.
+2. **Share the CLI's token with the browser.** Bad: both would hold the same token, so you couldn't remove one without the other.
+3. **Pair.** Create a new service account just for this device, with the access you choose, and give its token to the device.
 
 Pairing is option 3. Each device gets its own service account, which you can remove if the device is lost.
 
@@ -73,7 +73,7 @@ For other problems, see [Troubleshooting](/docs/get-started/troubleshooting).
 
 | Action | When to use |
 |---|---|
-| **Scan pairing QR** | You're standing next to your laptop and just ran `spl pair --device browser-mobile`. Point the phone camera at the printed QR. |
+| **Scan pairing QR** | You're standing next to your laptop and just ran `spl pair --device browser-mobile --scopes admin`. Point the phone camera at the printed QR. |
 | **Enter workspace URL** | Your workspace is on Tailscale, a mesh VPN, or your home LAN. Type `http://100.x.y.z:9100` (or whatever your private URL is) and connect. |
 
 If you previously paired this phone and the workspace URL is stored, the dashboard connects to it directly and skips the welcome screen.
@@ -95,7 +95,7 @@ If the device can't reach the URL, the pairing is saved but every request fails.
 
 ### Scopes to give a device
 
-The `--device` label sets a sensible default scope for you, so you usually don't need `--scopes` at all:
+When you leave `--scopes` out, the start of the `--device` name picks the access. Give `--scopes` yourself, so the device holds the access you chose and not one picked by its name:
 
 | Device label prefix | Default scope | Use when |
 |---|---|---|
