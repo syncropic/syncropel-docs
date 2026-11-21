@@ -1066,7 +1066,7 @@ Used to connect phones, browsers, and other devices to a `spl serve` instance.
 |---|---|
 | `--device "<label>"` | Device name (e.g. `"iPhone 17"`, `"browser-chrome"`). Required. The `browser-*` prefix defaults to scope `admin` so the dashboard's privileged panels render; `viewer-*` defaults to `records:read`; `emitter-*` defaults to `records:read,records:write`. |
 | `--url "<remote_url>"` | URL the device will call. Required. Must be reachable from the device |
-| `--scopes <csv>` | Token scopes (default depends on device prefix. See `--device` above) |
+| `--scopes <csv>` | Token scopes. Give them, so the access is the one you chose. Left out, the start of the device name picks them (see `--device` above) |
 | `--env-tag <tag>` | Env tag on the token (default `prod`) |
 | `--namespace <ns>` | Namespace (default `default`) |
 | `--actors <csv>` | Allowed claimable DIDs (empty ⇒ SA derives its own DID) |
