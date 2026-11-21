@@ -46,7 +46,7 @@ browser has no stored credential for this instance's DID.
 
 **Fix (fastest, no CLI)**: if you kept a key to this place, open **+ add a connection** and paste the whole line; you are back in as the same person ([Keeping your access](/docs/guides/keeping-your-access)). Members and guests without the CLI should always start here.
 
-**Fix (operator with the CLI)**: Run `spl pair --device browser-<name>`. The CLI's first line of output is a single clickable URL of the form
+**Fix (operator with the CLI)**: Run `spl pair --device browser-<name> --scopes admin`. The CLI's first line of output is a single clickable URL of the form
 `https://syncropel.com/pair#<encoded-payload>`. Click it (or copy
 into your browser). The page decodes the link, verifies the token,
 stores the credential, and redirects you to `/tasks`, all
@@ -68,7 +68,7 @@ the instance's data was wiped since pairing (so its DID changed) or
 the token was revoked.
 
 **Fix**: if you kept a key, paste it into **+ add a connection** first; a revoked or expired bearer does not spend your key, and you come back under the same grant. Otherwise open `/diagnose` and click "Reset pairing", then re-pair
-with `spl pair --device browser-<name>` and click the printed URL.
+with `spl pair --device browser-<name> --scopes admin` and click the printed URL.
 
 ### 4. Limited (scope insufficient): partial_access
 
@@ -169,7 +169,7 @@ The workspace shows these with a suggested fix you can copy.
 
 | Code | Meaning | Remediation |
 |---|---|---|
-| `AUTH_REQUIRED` | No bearer token sent | `spl pair --device browser-<name>` and retry |
+| `AUTH_REQUIRED` | No bearer token sent | `spl pair --device browser-<name> --scopes admin` and retry |
 | `AUTH_INVALID` | Token rejected (expired, revoked, or instance changed) | Reset pairing on `/diagnose`, then re-pair |
 | `SCOPE_FORBIDDEN` | Token valid but missing required scope | Re-pair with `--scopes admin` (or narrower scope per use) |
 | `NOT_FOUND` | Endpoint not available on this instance | Upgrade the instance or stop using this view |

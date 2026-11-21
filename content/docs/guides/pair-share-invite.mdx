@@ -50,10 +50,12 @@ If you are building invites into your own app, see the [API reference](../refere
    spl invite create --preset contributor --ttl 900 --max-uses 1 --device-label "My phone"
    ```
 
-2. The command prints the signed link. For a scannable QR code in the terminal, run `spl pair --device "My phone" --url "<your instance URL>"` instead. The link also works pasted into the phone's browser.
+2. The command prints the signed link. Type or paste it into the phone's browser.
 3. On the phone, open the link (typed, pasted or scanned). The preview page shows a "Pair with this workspace" button.
 4. Tap it. The phone is signed in to your workspace.
 5. Back on the desktop, `spl invite list` shows the invite changed from `active` to `redeemed`.
+
+`spl pair` is a different way to connect a device. It gives the device a key directly and shows a QR code. It makes no invite, so `spl invite list` doesn't show it. See [Pairing a browser or phone](/docs/get-started/pairing).
 
 ## Step-by-step: invite a colleague from another workspace
 
