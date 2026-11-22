@@ -98,13 +98,15 @@ Six months later the membership grant expires. Mora's next request gets:
 401 GRANT_EXPIRED
 ```
 
-Renewal is for an **expired** grant. While her grant is live she never needs you to get back in: on any thread, **keep this access** makes her a key, and pasting it into the Studio on a new device signs her in again under the same grant (see [Keeping your access](/docs/guides/keeping-your-access)). To renew, issue a fresh invite **pinned to her name**. Only an admin can do this:
+Renewal is for an **expired** grant. While her grant is live she never needs you to get back in: on any thread, **keep this access** makes her a key, and pasting it into the Studio on a new device signs her in again under the same grant (see [Keeping your access](/docs/guides/keeping-your-access)). To renew, issue a fresh invite **pinned to her name**, and say what she may do, as you did the first time. Only an admin can do this:
 
 ```bash
-spl invite create --member --label mora
+spl invite create --member --preset contributor --label mora
 ```
 
 She accepts the new link exactly as before. Because the invite is pinned to her name, it becomes a **renewal**: the same member (same DID, same history, same trust) gets a fresh grant and token, and the old grant is revoked with reason `membership-renewed`.
+
+The new grant takes the preset or scopes in this invite, not the old grant's. Give the same ones to keep her access as it was.
 
 Pinning also prevents takeovers: an *unpinned* membership invite can never claim an existing name. If someone uses a generic invite and types `mora`, they get `409 MEMBER_LABEL_TAKEN`. Holding an invite link is not enough to become an existing member.
 

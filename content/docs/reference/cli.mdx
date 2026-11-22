@@ -1131,8 +1131,8 @@ spl invite templates [--json]
 spl invite create --member --preset contributor
 # → prints the link; send it; the teammate redeems in the browser
 
-# Renew an existing member (admin-pinned invite)
-spl invite create --member --label mora
+# Renew an existing member (admin-pinned invite). The new grant takes this preset.
+spl invite create --member --preset contributor --label mora
 ```
 
 ### Roster: `spl member`
