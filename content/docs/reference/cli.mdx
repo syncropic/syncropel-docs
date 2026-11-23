@@ -1112,16 +1112,18 @@ spl invite presets [--json]
 spl invite templates [--json]
 ```
 
+An invite has to say what it allows. Give `--preset` or `--scopes`. There is no default: an invite that names neither is refused and nothing is made.
+
 | Flag / arg | Applies to | Description |
 |---|---|---|
 | `--member` | `create` | Membership invite: redemption mints a **principal** (identity + membership grant + credential parented to the grant), not just a bearer |
-| `--preset <p>` | `create` | Scope preset (`reader` / `contributor` / `admin`). With `--member`, resolves the membership grant's scopes |
+| `--preset <p>` | `create` | Scope preset (`reader` / `contributor` / `admin`). With `--member`, resolves the membership grant's scopes. On a renewal, the new grant takes this preset |
 | `--label <name>` | `create` | Pin the member label. Redemption must use this label; if the label already belongs to a member this instance holds custody for, redemption becomes a **renewal** (same principal, fresh grant + bearer, old grant revoked) |
 | `--grant-ttl <secs>` | `create` | Membership grant lifetime (1h to 10y; default 180 days). Distinct from `--ttl` |
 | `--scopes <csv>` | `create` | Explicit scope wire strings; overrides `--preset` |
 | `--ttl <secs>` | `create` | Invite *link* lifetime (default 24h) |
 | `--max-uses <n>` | `create` | Maximum redemptions (default 1) |
-| `--device-label "<text>"` | `create` | Label shown on the invite page |
+| `--device-label "<text>"` | `create` | Name shown on the invite page. It gives no access by itself |
 | `<filter>` | `bulk-revoke` | `expired`, `exhausted`, or `holder:<did>` |
 
 `spl invite audit` prints the invite lifecycle feed: issued / redeemed / exhausted / refused / `member_revoked`. `spl invite presets` and `spl invite templates` list the scope presets and saved invite templates.
