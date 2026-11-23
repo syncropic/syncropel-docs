@@ -40,7 +40,7 @@ This page summarizes releases in plain language: what changed and why it matters
   - Packages. The first person bound to a venture role takes the token its install minted. `GET /v1/installs/{id}` then reads that bind `null` and names it in `binds_adopted`.
 - **Inside.** The kernel's code was split into more parts. Its 20 crates are now 23. Source files over 1,000 lines went from 249 to 233, those over 2,000 from 56 to 39, and those over 4,000 from 6 to 1. The integration test programs of its two largest crates went from 176 to 2, and from 49.4 GiB on disk to 0.6. Building after an edit takes as long as before.
 - **Known limits.**
-  - Someone with full admin access can reach the stored keys and connected accounts of everyone in the workspace, not only their own. Give full admin only to people you'd trust with those.
+  - Someone with full admin access can still, in some cases, act as the owner, and can reach the stored keys and connected accounts of everyone in the workspace, not only their own. Give full admin only to people you would trust with all of that.
   - After restoring into a fresh store, the workspace doesn't remember that you erased your newest list of assistants. Name the assistants that act for you again after a restore.
   - Someone who isn't the owner can still be told, in some places, how many rows have a value kept from them and what those fields are called.
   - On a list, the page's own note tells a guest nothing was held back, while each row names a field that's closed to them.
