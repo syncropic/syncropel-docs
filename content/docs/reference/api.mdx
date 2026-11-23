@@ -1106,6 +1106,8 @@ The optional `scope_target` body field narrows the invite: `{"kind": "thread", "
 
 `preset` resolves the membership grant's scopes (`reader` / `contributor` / `admin`); `membership.ttl_seconds` is the *grant* lifetime (1 hour to 10 years, default 180 days, distinct from the invite link's own `ttl_seconds`); the optional `label` pins the member name, which is how renewal works: redeeming a label-pinned invite for an existing custodial member renews the same principal with a fresh grant + bearer, revoking the old grant. CLI: `spl invite create --member --preset contributor`.
 
+An invite has to say what it allows. A `membership` object that names no preset and no scopes is refused `400 INVALID_MEMBERSHIP`. An invite with no `membership` and no scopes is refused `400 INVITE_SCOPES_REQUIRED`. In both cases no invite is made.
+
 ### Preview an invite (public)
 
 ```bash

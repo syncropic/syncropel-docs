@@ -28,7 +28,7 @@ If you are building invites into your own app, see the [API reference](../refere
 
 1. You create an invite from the command line, choosing:
    - An optional **device label** (`--device-label "iPhone 15"`, `"Alice's laptop"`).
-   - An **access level**: `--preset reader` (read records), `contributor` (read and write, the default) or `admin` (full control). You have to ask for admin explicitly.
+   - An **access level**: `--preset reader` (read records), `contributor` (read and write) or `admin` (full control). You have to choose one. An invite that doesn't say is refused.
    - **Expires in**: `--ttl <seconds>` (default 24 hours).
    - **Max uses**: `--max-uses 1|5|10`. One use is normal. More is for handing a QR code around a room.
 2. Run the command. It prints a signed link:
