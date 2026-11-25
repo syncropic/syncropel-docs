@@ -9,6 +9,68 @@ This page summarizes releases in plain language: what changed and why it matters
 
 ---
 
+## 0.288.0
+
+**A key now gets exactly the access it's asked for, and full access only when it's named. A list says when it was cut short and when something may be kept from you. The kernel's code was split into more parts, which changes nothing in how a workspace behaves.**
+
+- **A device or a key gets full access only when you ask for it by name.** Before this version, `spl pair` picked a device's access from its name, and a name starting `browser-` got full access. Now a device paired without `--scopes` can read and write records, whatever it's called, and a name starting `viewer-` can only read. `--scopes admin` gives full access. The command says the access a device will hold before it writes anything. With no access named it says "No access was named, so this device can read and write records. To give it full access, add --scopes admin." With full access it says "This device will have full access to this workspace. Pair it only if it's yours, or belongs to someone you mean to give that." A key made for a service account holds the access its request names, and read and write when it names none. Pairings and keys already made keep the access they have.
+
+- **Only the owner makes a key that acts as someone else, or a key with full admin.** Before this version, a member with full admin could make both. Now that member can still make keys that act as themselves, without full admin. Anything else is refused: "Only the workspace's owner can make a key that acts as someone else, so nothing was made or changed. Make one that acts as you, or ask the owner." The owner's keys work as before, the ones made before this version included.
+
+- **Rotating a key keeps its access and its end date.** Before this version, `spl token rotate` made a replacement that never expired. A rotated key now has exactly the access the old one had, and the earliest end date among the keys it replaces. A rotation that names different access, more or less, is refused: "Rotating a key keeps the access it had, and this asked for different access, so nothing was rotated. To change what a key can do, make a new key and name the access." An account whose keys don't all have the same access isn't rotated: "Rotating keeps the access a key had, and the keys on this account don't all have the same access, so nothing was rotated. Revoke the keys you don't need and rotate again, or make a new key and name the access." Neither is an account with no key that still works: "Rotating keeps the access a key had, and no key on this account still works, so nothing was rotated. Pair a device again, send a guest a new invite, or make a new key and name the access."
+
+- **`spl doctor` reports what the workspace records about who made what.** From this version a workspace records who made each key, who saved each tool and who set up each automation. `spl doctor` has new rows for the owner that count what has no such record: keys, tools that use a stored key, and enabled automations. It also lists the assistants that act for the owner, checks that the workspace's list of owners names a person, and counts keys that act as one of the owner's assistants and weren't made by the owner. These rows change nothing in this version. A later version is planned to act on the records: a key will need a record that the owner made it to do what only the owner can do, a tool will need a record that the owner saved it to use a stored key, and an automation with no record of who set it up will still start, but its runs won't use anyone's connected accounts or stored keys. Each row says what to do now.
+
+- **`spl --no-token` runs a command without the saved key.** The command line sends the key saved on a machine with every request. `--no-token`, before the command's name, sends none, so on the workspace's own machine the request is the machine owner's. Use it to make a key, save a tool again or resume an automation so that it records the owner.
+
+- **A list says what it may be keeping from you.** Everyone who isn't the owner now reads one note on a list, on its text form and on a summary's answer: "This is what you may read here. Some rows or values may not be shown." It's decided by who the reader is and never by what the list holds, so it says nothing about any one list. The owner reads "Nothing on this page was kept from you." Before this version, a guest could be told nothing was held back while each row named a field closed to them. A list grouped by a field can also say it isn't complete: "This list is grouped by a field. Rows may be missing if that field is one you can't read."
+
+- **A list that was cut short says so, and why.** When a list or an answer isn't complete it now gives its reason from one named set, each with its sentence, and says which reasons mean the workspace is still catching up. A cut list no longer reads as complete.
+
+- **Open questions aren't lost on a busy workspace.** Before this version, once a workspace had written more than 5,000 questions, the answered ones included, the newest weren't read. A new question could be missing from the list of what needs you, from the conversations marked as needing you, and from the inbox count. Every open question is now listed, unless more than 5,000 of a reader's own are open at once. Then the ones that have waited longest are listed and the list says so: "There are more open questions here than can be listed at once. The ones that have waited longest are listed, so newer ones may be missing.", with how many more are open. What other people have open never pushes a reader's own questions out, and tells them nothing.
+
+- **Each guest has a memory space of their own.** Before this version, guests' memories were kept in one space that all guests shared, by mistake. Memories written from this version on are the guest's alone. A guest's memories from before this version aren't carried over to their own space. The owner's, members' and named assistants' memories are where they were.
+
+- **A wake that never came now reads as missed.** A hosted workspace sleeps when it's idle and is woken for scheduled work. Before this version, if nothing woke it, it could still read as on time. The owner now gets one notice, "Scheduled work came due while the workspace was asleep and nothing woke it, so each schedule followed its catch-up rule.", and `spl doctor` names the schedules, the times and what happened to each. The catch-up rule itself is unchanged.
+
+- **Who can change an assistant.** Defining an assistant no longer replaces one you may not change, and a new assistant can't take a name already used by another assistant or by a person in the workspace. Only the owner, or whoever defined an assistant, can define it again or retire it: "Only the workspace's owner, or whoever defined this assistant, can retire it, so nothing was changed." Renaming an assistant stays the owner's.
+
+- **The workspace page answers sooner after a start.** On a workspace bound to a backing repository, each read of the workspace page in the first minutes after a start waited up to 3 seconds for a check of the off-machine copy. The page no longer waits. A check still running shows in `spl doctor` as not yet checked.
+
+- **If you run your own workspace, when you upgrade:**
+  - Run `spl doctor` as the owner and read the new rows. For a key that needs to do what only the owner can do, make a new one on the workspace's own machine with `spl --no-token service-account create --name <name> --scopes <scopes> --with-token`, then revoke the old one. A key made from another machine with an old key doesn't record the owner.
+  - Save again the tools that use a stored key, on the workspace's own machine: `spl --no-token tool resave --all-stored-key`. It now also saves the tools that were the owner's only because nobody had saved them as anyone's.
+  - For each enabled automation the row counts, pause it and resume it on the workspace's own machine: `spl --no-token trigger pause <name>`, then `spl --no-token trigger resume <name>`.
+  - A script that paired a browser by name and relied on full access now gets read and write. Add `--scopes admin`, which works on every version.
+  - A script that rotated a device's key and expected full access back now gets the key's own access. Full access is asked for by name, with `spl pair --scopes admin`.
+  - A rotated key keeps the old key's end date. A script that rotated to get a key with no end date gets one that ends when the old one did.
+  - A guest's memories from before this version aren't in their own space. If a guest relied on one, it has to be written again.
+
+- **For the command line and the API.**
+  - Pairing. `spl pair` with no `--scopes` gives `records:read,records:write`, and `records:read` for a `viewer-*` name. `--scopes admin` gives full access. `spl pair --scopes ""` is refused and pairs nothing. `spl pair --browser` with `--scopes` is refused, since a browser holds the access of the person who signs in there. `spl pair` checks that the device name fits the QR code before it writes anything.
+  - Making keys. The service-account door gives a key the access its request names, `records:read,records:write` when it names none, and full admin only when the request names `admin`. A request from anyone but the owner for a key that acts as another person is refused `ACTOR_NOT_DELEGABLE`. A member with full admin who asks for a key with full admin is refused `SCOPE_INSUFFICIENT`.
+  - Rotation. `POST /v1/service-accounts/{id}/rotate-key`, with or without `expect_actor`, `POST /v1/tokens/{id}/rotate` and `spl token rotate` keep the key's access exactly. The rotate-key body takes an optional `scopes`: naming nothing, or the key's own access, rotates. Any other access is refused `409 ROTATE_KEEPS_ACCESS`. An account whose live keys hold different access is refused `409 ROTATE_KEYS_DIFFER`, and one with no live key `409 ROTATE_NOTHING_TO_KEEP`. Both paths keep the earliest live end date. `spl token list` and `GET /v1/tokens` show each key once, at its latest record.
+  - What you may do. Each `may` word on `GET /v1/self` is now answered by the same rule its door uses. An owner's device key without full access is no longer offered removing members or leaving. A member with full admin is offered leaving. A guest invited to a conversation is offered the member list, writing and defining assistants. An owner's session is offered acknowledging notices.
+  - Lists. A ledger read, its text form and a reduction's answer carry the page note for every reader who isn't the owner. A reduction's answer to such a reader counts only the records they can read, and names only fields closed to them by the workspace's rules. A member is told which columns are closed to them. A guest is told neither the columns' names nor their classes. A list or answer that isn't complete serves `complete: false` with `incomplete_reasons`.
+  - Open questions. The register serves `asks_capped` and `asks_more_open` to every reader, for their own list, and `proposals_capped` and `proposals_more_open` to the owner. `GET /v1/lanes/{lane}`, `GET /v1/decisions`, the first page of `GET /v1/context` and the inbox on `GET /v1/self` serve the same two. `GET /v1/decisions` lists the questions a reader is asked first, then the oldest of the rest up to 1,000. `asks_scanned` counts the question records read and doesn't mean the limit is near.
+  - A missed wake. `/v1/health` and the workspace read carry `missed_wake` with `count`, `count_is_at_least`, `since`, `occurrences`, `detected` and `runs`. The wake state reads `late` until a wake lands in time or the owner acknowledges the notice. A schedule's next run is always on the published list, so the wake for a weekly schedule after a week asleep is accepted.
+  - Assistants. Defining an assistant under a name another assistant or a person has is refused. `ACTOR_ALREADY_DEFINED` answers someone who is neither the owner nor the one who defined it, and `RETIRE_FORBIDDEN` answers the same person on the retire door.
+  - Memories. Each guest has a memory space of their own, and so does an assistant named by a run.
+
+- **Correction to the 0.287.0 notes.** Those notes named four places where a guest is no longer told what kind of thing is kept from them. There was a fifth: the list of data classes a guest is shown. It now lists only the classes the guest can read somewhere, and no longer says who reads them.
+
+- **Inside.** The kernel's code was split into more parts again. Nothing in how a workspace behaves changes because of it.
+
+- **Known limits.**
+  - Someone with full admin access can still, in some cases, act as the owner. Give full admin only to people you would trust with everything in the workspace.
+  - A list can show a row for a record you can't read, with its cells empty.
+  - A summary can show an older value where a list shows an empty row for a newer record you can't read.
+  - A question that stays open after its run has ended can be asked again. Someone who answers an earlier copy and can't see the later one is told nothing about it, and may notice that the run behind their copy didn't continue after they answered. Nothing of the later question is shown to them.
+  - When more questions are open than the workspace reads at once, the newest ones may not be delivered.
+  - A list grouped by a field can read as possibly incomplete to anyone but the owner, because a single entry can be kept from them.
+
+---
+
 ## 0.287.0
 
 **An invite now has to say what it allows, and a question takes one answer. A key the owner stored outside a connected account is kept for the owner's own work.**
