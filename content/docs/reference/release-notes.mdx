@@ -62,7 +62,7 @@ This page summarizes releases in plain language: what changed and why it matters
 - **Inside.** The kernel's code was split into more parts again. The crates at its core went from 7 to 10. Its largest source file went from 8,646 lines to 3,369. The largest knot of files that depend on each other went from 103 files to 86 in one part of the kernel, and from 81 to 66 in another. A fingerprint of how a workspace behaves was compared at every step and didn't change.
 
 - **Known limits.**
-  - Someone with full admin access can still, in some cases, act as the owner, and so reach the owner's stored keys and connected accounts. Give full admin only to people you would trust with everything in the workspace.
+  - Someone with full admin access can still, in some cases, act as the owner, and can reach the stored keys and connected accounts of everyone in the workspace, not only their own. Give full admin only to people you would trust with all of that.
   - After restoring into a fresh store, the workspace doesn't remember that you erased your newest list of assistants. Name the assistants that act for you again after a restore.
   - Someone who isn't the owner is still told which fields are kept from them by the workspace's rules.
   - A list can show a row for a record you can't read, with its cells empty.
