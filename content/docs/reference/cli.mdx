@@ -1064,9 +1064,9 @@ Used to connect phones, browsers, and other devices to a `spl serve` instance.
 
 | Flag | Description |
 |---|---|
-| `--device "<label>"` | Device name (e.g. `"iPhone 17"`, `"browser-chrome"`). Required. The `browser-*` prefix defaults to scope `admin` so the dashboard's privileged panels render; `viewer-*` defaults to `records:read`; `emitter-*` defaults to `records:read,records:write`. |
+| `--device "<label>"` | Device name (e.g. `"iPhone 17"`, `"browser-chrome"`). Required. A `viewer-*` name defaults to `records:read`. Every other name defaults to `records:read,records:write`. No name gives full access |
 | `--url "<remote_url>"` | URL the device will call. Required. Must be reachable from the device |
-| `--scopes <csv>` | Token scopes. Give them, so the access is the one you chose. Left out, the start of the device name picks them (see `--device` above) |
+| `--scopes <csv>` | Token scopes. Left out, the device can read and write records, and a `viewer-*` name can only read. Full access is `--scopes admin`. The command says the access it gives before it does anything |
 | `--env-tag <tag>` | Env tag on the token (default `prod`) |
 | `--namespace <ns>` | Namespace (default `default`) |
 | `--actors <csv>` | Allowed claimable DIDs (empty ⇒ SA derives its own DID) |

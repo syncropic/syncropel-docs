@@ -95,14 +95,14 @@ If the device can't reach the URL, the pairing is saved but every request fails.
 
 ### Scopes to give a device
 
-When you leave `--scopes` out, the start of the `--device` name picks the access. Give `--scopes` yourself, so the device holds the access you chose and not one picked by its name:
+When you leave `--scopes` out, the device can read and write records, and a name starting `viewer-` can only read. No name gives full access: ask for it with `--scopes admin`. The command says the access a device will get before it does anything:
 
 | Device label prefix | Default scope | Use when |
 |---|---|---|
-| `browser-*` (e.g. `browser-chrome`) | `admin` | Pairing a browser to drive the full dashboard. Most common case. |
+| `browser-*` (e.g. `browser-chrome`) | `records:read,records:write` | A browser paired with no `--scopes`. To drive the full dashboard, add `--scopes admin`. |
 | `viewer-*` (e.g. `viewer-bigscreen`) | `records:read` | Read-only display surface (a screen, a status board). |
 | `emitter-*` (e.g. `emitter-linear`) | `records:read,records:write` | An integration that writes records but doesn't need to administer your workspace. |
-| Anything else | `records:read,records:write` | Limited access by default, with a hint to use one of the prefixes above. |
+| Anything else | `records:read,records:write` | Read and write of records. The command names `--scopes admin` for full access. |
 
 If the default isn't what you want, override with `--scopes` (comma-separated list). For example, `--scopes records:read` creates a viewer-only token regardless of device prefix.
 
