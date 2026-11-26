@@ -151,7 +151,7 @@ Request body:
 
 Two response fields are easy to misread. `capped: true` means more disclosable rows may exist beyond this page, whatever `limit` you asked for; it is the only truthful signal that a page is partial.
 
-`matched_total` **only counts what you are allowed to see**. It is served only when nothing was withheld from you; when something was, you are told how many rows *you* may see instead. An unrestricted reader is unaffected.
+`matched_total` **only counts what you are allowed to see**. For a guest, or anyone whose access is narrowed to part of the workspace, it counts the rows they are admitted to, never the full count. When that count can't be finished within its budget, `matched_total` is left out and the answer says it isn't complete. A member whose access isn't narrowed gets the full count. A row shown to them with some cells emptied still counts, and `read.withheld` says how many rows that is. An unrestricted reader is unaffected.
 
 So `matched_total` is a count over your own view, not over the instance. Two callers with different grants can both receive honest and different totals for the same filter, and neither number is evidence about what the other can see. It is still not a substitute for `capped` when deciding whether you have the whole answer.
 
