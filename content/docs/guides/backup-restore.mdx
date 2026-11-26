@@ -89,6 +89,8 @@ cp <backup>/hub.db.<timestamp> ~/.syncro/hub.db
 spl backup --auto restore-keys <backup>/keys.<timestamp>
 ```
 
+Use the `keys.<timestamp>` file whose timestamp matches the store copy you put in place, not the keys file with the newest date on disk. `spl backup list` shows which keys file goes with each store copy. A file's date isn't a guide: after a person is erased, older keys files are written again without that person's key, and their dates change. With a keys file from another backup, records sealed between the two backups can't be read after the restore, and nothing warns you. It never brings back someone you erased.
+
 Do it in this order. If you run `restore-keys` before the store is in place, the workspace signs with your
 original keys but can report the new machine's workspace name on `/health`. If that happened, put the store
 in place and run `restore-keys` again with `--force`.
