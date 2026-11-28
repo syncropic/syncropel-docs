@@ -5,6 +5,10 @@ description: Pair two workspaces with one command, write a record on one, read i
 
 ## What you'll build
 
+<Callout type="warn" title="Known limit: workspaces that require a key">
+Syncing from a workspace that requires a key doesn't work. Pairing with one reports success, and the first sync is then refused. Every hosted workspace requires a key.
+</Callout>
+
 Two workspaces (**alice** and **bob**), paired with `spl federation pair add`, exchanging records over a single signed link. You'll write a record on alice, sync it to bob, and check it arrived, without setting up any URLs or tokens by hand.
 
 Federation in Syncropel is **records on a reserved thread**, not a separate sign-in or transport system. The pair, its consent grants and its sync state are all records on `th_federation_pairs`.
@@ -239,4 +243,4 @@ Pairing is the gate to everything else federation does, such as relaying while a
 | `pair_handshake_rejected: unauthenticated_initiator` | Secure connection failed. Either the peer's address doesn't serve a valid certificate, or you forgot `--insecure-localhost` on a local-only setup. | For local testing, make sure both workspaces started with `--insecure-localhost`. For real setups across machines, confirm both sides use TLS. The flag is for testing only and is refused on any host other than `127.0.0.1`. |
 | The approval times out (alice's CLI prints `still pending after 60s`) | Nobody approved on bob's side within 60 seconds. The pair is still in `establishing` state. | The original `pair_pending.v1` decision on bob's side stays valid until bob rejects it or it expires. Re-run `spl federation pair add <url>` from alice to start a new attempt that can be approved. |
 | `unpaired_peer` on `spl sync` | You're syncing from a URL or DID that doesn't match any pair record on this side. | Run `spl federation list` to confirm what pairs exist on this side. If you expected one but it's missing, the pair was never completed (the handshake was interrupted). Re-run `spl federation pair add <url>`. |
-| Pair shows `degraded` state | The peer was unreachable for over 24 hours, or a sync call got a 401 (token expired or revoked). | Run `spl federation refresh <peer-did>` to check the peer again. If the peer is permanently gone, `spl federation revoke <peer-did>` cleanly closes out the pair. |
+| Pair shows `degraded` state | The peer was unreachable for over 24 hours, or a sync call got a 401 (token expired or revoked). | Pair again with `spl federation pair add <address>`. If the peer is permanently gone, `spl federation revoke <peer-did>` cleanly closes out the pair. |

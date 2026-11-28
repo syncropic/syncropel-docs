@@ -1,9 +1,13 @@
 ---
 title: Pair two instances in one command
-description: Use `spl federation pair` to set up a lasting, consent-gated connection between two instances with a single command. Covers approval, pausing, sharing rules, and token renewal.
+description: Use `spl federation pair` to set up a lasting, consent-gated connection between two instances with a single command. Covers approval, pausing and sharing rules.
 ---
 
 ## What this is
+
+<Callout type="warn" title="Known limit: workspaces that require a key">
+Syncing from a workspace that requires a key doesn't work. Pairing with one reports success, and the first sync is then refused. Every hosted workspace requires a key.
+</Callout>
 
 An *instance* is any running Syncropel server: your laptop, a hosted instance at `<label>.syncropel.app`, or a self-hosted server. Two instances can be **paired** so they share records, with consent controlling what is shared.
 
@@ -86,7 +90,7 @@ spl federation list                           # all pairs + state column
 spl federation show <peer-did>                # detail: tokens (IDs), grants, last-sync
 spl federation pause <peer-did>               # active → paused (sync calls fail with pair_paused)
 spl federation resume <peer-did>              # paused → active
-spl federation refresh <peer-did>             # re-fetch peer manifest
+spl federation refresh <peer-did>             # records that you asked, and changes nothing else
 spl federation revoke <peer-did> --reason X   # any → revoked (terminal)
 ```
 
@@ -178,14 +182,9 @@ This auto-approves any pair handshake where the peer DID starts with your org's 
 
 By default there is no auto-approval. Someone approves each pair.
 
-## Token rotation
+## A pair's token
 
-Pair tokens last 90 days and renew automatically at 83 days. The old token stops working as soon as the new one is issued.
-
-If automatic renewal fails:
-- One day before expiry, a `pair_renewal_failed` entry is added to the audit log.
-- At expiry, syncs fail with `token_expired_renew_pair` and the pair becomes `degraded`.
-- Run `spl federation refresh <peer-did>` to renew it by hand.
+Nothing renews the token a pair uses. If the peer refuses it, syncs fail and the pair becomes `degraded`. Pair again to get a new one: `spl federation pair add <address>`. `spl federation refresh` doesn't renew a token.
 
 ## Auditing
 
