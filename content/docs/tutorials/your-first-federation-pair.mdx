@@ -5,6 +5,10 @@ description: Pair two workspaces with one command, write a record on one, read i
 
 ## What you'll build
 
+<Callout type="warn" title="Known limit: workspaces that require a key">
+Syncing from a workspace that requires a key doesn't work. Pairing with one reports success, and the first sync is then refused. Every hosted workspace requires a key.
+</Callout>
+
 Two workspaces (**alice** and **bob**), paired with `spl federation pair add`, exchanging records over a single signed link. You'll write a record on alice, sync it to bob, and check it arrived, without setting up any URLs or tokens by hand.
 
 Federation in Syncropel is **records on a reserved thread**, not a separate sign-in or transport system. The pair, its consent grants and its sync state are all records on `th_federation_pairs`.

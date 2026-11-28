@@ -103,13 +103,21 @@ Or save the URL in your shell profile (`spl config path` shows where your settin
 
 ## 5. Import the bundle into the hosted workspace
 
-A workspace that has been started always holds some records of its own, so `spl import` refuses without `--force-overwrite`. Despite its name the flag replaces nothing: the import adds your records beside the ones already there. Check that `spl status` is answering from the hosted workspace (step 4), then:
+A workspace that has been started always holds some records of its own, so `spl import` refuses without `--force-overwrite`. Despite its name the flag replaces nothing: the import adds your records beside the ones already there. The import also needs a key with full access to the hosted workspace. With a key that has less, it is refused with `403` and nothing is imported.
+
+Check that `spl status` is answering from the hosted workspace (step 4), then:
 
 ```bash
 spl import ~/migration.tar.zst --force-overwrite
 ```
 
-Output:
+It names the workspace the bundle came from and asks you to type that workspace's ID to confirm. Copy it from the line above the prompt:
+
+```
+This will ingest <N> records from <source DID>. Type the source DID to confirm:
+```
+
+Then the output:
 
 ```
 imported from did:sync:instance:c530ad12a9e0810882aa0b2e
@@ -158,7 +166,11 @@ For each pairing you noted in step 1, pair again from the hosted side:
 spl federation pair add <the other workspace's address>
 ```
 
-The other workspace's owner approves it as they would any first pairing. You don't have to remove the copied record first. When you retire the local workspace (step 9), the other owner can revoke their pairing with it.
+Pairing needs a key with full access, as the import did. The other workspace's owner approves it as they would any first pairing. You don't have to remove the copied record first. When you retire the local workspace (step 9), the other owner can revoke their pairing with it.
+
+<Callout type="warn" title="Known limit: workspaces that require a key">
+Syncing from a workspace that requires a key doesn't work. Pairing with one reports success, and the first sync is then refused. Every hosted workspace requires a key. So the other workspace can't sync from your hosted one, and your hosted one can't sync from any workspace that requires a key.
+</Callout>
 
 For the full flow, see [Pairing workspaces](/docs/guides/federation-pair).
 

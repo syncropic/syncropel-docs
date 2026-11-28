@@ -95,7 +95,13 @@ The `manifest.json` carries:
 spl import /tmp/my-instance.tar.zst --force-overwrite
 ```
 
-`spl import` refuses when the workspace already holds records, and a workspace that has been started always does, because its first start writes its own. So an import needs `--force-overwrite` every time (see the safety section below).
+`spl import` refuses when the workspace already holds records, and a workspace that has been started always does, because its first start writes its own. So an import needs `--force-overwrite` every time (see the safety section below). On a workspace that requires a key, it also needs a key with full access. With less, the import is refused with `403` and nothing is imported.
+
+Run from a terminal, it first names the workspace the bundle came from and asks you to type that workspace's ID to confirm:
+
+```
+This will ingest <N> records from <source DID>. Type the source DID to confirm:
+```
 
 What it prints, here for a small workspace with one pairing:
 
@@ -149,7 +155,7 @@ The reverse (local → hosted) works the same way, and [From your laptop to a ho
 
 The new workspace has the records. Three things are yours to set up again:
 
-- **Pairings.** `spl federation list` on the new workspace shows the copy's pairings, and none of them works from there. The other workspace still knows the one the copy was made from. Pair again from the new workspace with `spl federation pair add <address>`. You don't have to remove the old record first. The other workspace's owner approves the new pairing as they would any first one, and can revoke the old one when the first workspace is retired.
+- **Pairings.** `spl federation list` on the new workspace shows the copy's pairings, and none of them works from there. The other workspace still knows the one the copy was made from. Pair again from the new workspace with `spl federation pair add <address>`. You don't have to remove the old record first. The other workspace's owner approves the new pairing as they would any first one, and can revoke the old one when the first workspace is retired. Pairing needs a key with full access. One known limit applies: syncing from a workspace that requires a key doesn't work, and every hosted workspace requires one (see [Pairing workspaces](./federation-pair)).
 - **Keys.** By default a bundle carries no working keys, and the import says so. Make new ones on the new workspace.
 - **Secrets.** A bundle holds references to secrets, never their values. Set the same secrets up on the new workspace.
 

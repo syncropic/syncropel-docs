@@ -5,6 +5,10 @@ description: Pair two Syncropel instances so they can sync threads, exchange rec
 
 ## Audience
 
+<Callout type="warn" title="Known limit: workspaces that require a key">
+Syncing from a workspace that requires a key doesn't work. Pairing with one reports success, and the first sync is then refused. Every hosted workspace requires a key.
+</Callout>
+
 This page is for the operator running two (or more) Syncropel instances that need to talk to each other. Single-instance operators don't need pairs. Pairs exist specifically to bridge separate instances under separate identities, with consent and credentials negotiated explicitly.
 
 If you only run `spl serve` on one machine, skip this page. If you run two and they need to share threads, read on.
