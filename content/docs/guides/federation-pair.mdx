@@ -86,7 +86,7 @@ spl federation list                           # all pairs + state column
 spl federation show <peer-did>                # detail: tokens (IDs), grants, last-sync
 spl federation pause <peer-did>               # active → paused (sync calls fail with pair_paused)
 spl federation resume <peer-did>              # paused → active
-spl federation refresh <peer-did>             # re-fetch peer manifest
+spl federation refresh <peer-did>             # records that you asked, and changes nothing else
 spl federation revoke <peer-did> --reason X   # any → revoked (terminal)
 ```
 
@@ -185,7 +185,7 @@ Pair tokens last 90 days and renew automatically at 83 days. The old token stops
 If automatic renewal fails:
 - One day before expiry, a `pair_renewal_failed` entry is added to the audit log.
 - At expiry, syncs fail with `token_expired_renew_pair` and the pair becomes `degraded`.
-- Run `spl federation refresh <peer-did>` to renew it by hand.
+- Pair again to get a new one: `spl federation pair add <address>`. `spl federation refresh` doesn't renew a token.
 
 ## Auditing
 

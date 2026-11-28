@@ -871,7 +871,7 @@ spl federation pair add <peer-url>              # Discover + verify + handshake 
 # Lifecycle CRUD
 spl federation list [--json]                    # All pairs with state column
 spl federation show <peer-did | pair-id>        # Detail (auto-detects which kind of id)
-spl federation refresh <peer-did | pair-id>     # Re-fetch peer manifest
+spl federation refresh <peer-did | pair-id>     # Record that you asked, and change nothing else
 
 # State transitions
 spl federation pause <peer-did | pair-id>       # Stop sync; cursors preserved

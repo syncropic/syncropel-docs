@@ -1,13 +1,13 @@
 ---
 title: Portability
-description: Move records, threads and workspace pairings between Syncropel workspaces. Export from one workspace and import into another without losing data.
+description: Copy a workspace's records and threads into another Syncropel workspace. What an export and import carries, and what you set up again.
 ---
 
 ## What this is
 
-`spl export` produces a signed bundle of one workspace's data. `spl import` loads that bundle into another workspace. After an export and import, every record, thread, workspace pairing and consent grant is present on the new side, unchanged.
+`spl export` produces a signed bundle of one workspace's data. `spl import` loads that bundle into another workspace. After an export and import, the first workspace's records and threads are in the second, with the same IDs.
 
-This is why hosted and self-hosted workspaces are equivalent: you can move a workspace between machines, between hosting providers, or between hosted and self-hosted, without losing data or relationships.
+An import makes a copy. The workspace that takes it is still itself: it keeps its own identity, and pairings with other workspaces are made again from it. You can copy a workspace's records between machines, between hosting providers, or between hosted and self-hosted, and take them with you when you leave.
 
 ## What's portable
 
@@ -15,7 +15,7 @@ Everything that's part of your workspace:
 
 - **Records**: every record on every thread. Importing the same bundle again changes nothing.
 - **Threads**: rebuilt from the records on import.
-- **Workspace pairings**: the lasting relationships you set up with `spl federation pair`. Addresses refresh on first contact after the move; you don't need to re-pair.
+- **Workspace pairings**: each pairing comes across as a record of what was paired. It can't be used from the new workspace, because the other workspace knows the one the copy was made from. Pair again from the new workspace (see [After an import](#after-an-import)).
 - **Consent grants**: cross-namespace permissions, kept on the `th_consent` thread.
 - **Identity**: the workspace's identity can travel in the bundle (optional, see below). An import does not install it, though. The imported workspace keeps its own identity until you bring the original back with `spl backup --auto restore-keys` or an identity sidecar file.
 - **Service accounts and adapters**: your configured accounts and adapters.
@@ -45,7 +45,7 @@ Useful flags:
 |---|---|
 | `--out PATH` | Bundle output path (required) |
 | `--uncompressed` | Plain `.tar` instead of `.tar.zst` (inspectable; larger) |
-| `--no-identity` | Leave out the private key and DID document. The bundle still imports; the importing workspace creates a new identity instead of adopting this one |
+| `--no-identity` | Leave out the private key and DID document. An import never installs the key, so use this whenever the bundle is only going to be imported. The bundle is then no longer a file that lets its holder act as your workspace |
 | `--carry-tokens` | Keep service-account tokens valid across migration |
 | `--offline` | Read the workspace files directly, with no running workspace (below) |
 
@@ -91,17 +91,26 @@ The `manifest.json` carries:
 
 ## Import
 
-Importing into a fresh workspace:
-
-```bash
-spl import /tmp/my-instance.tar.zst
-```
-
-Importing into a workspace that already holds records (see the safety section below):
-
 ```bash
 spl import /tmp/my-instance.tar.zst --force-overwrite
 ```
+
+`spl import` refuses when the workspace already holds records, and a workspace that has been started always does, because its first start writes its own. So an import needs `--force-overwrite` every time (see the safety section below).
+
+What it prints, here for a small workspace with one pairing:
+
+```
+imported from did:sync:instance:c530ad12a9e0810882aa0b2e
+  bundle: 82 records / 23 threads / 1 pairs / 0 secret refs
+  carries: identity key yes, credentials no, file bytes yes
+  this workspace answers as did:key:z6Mkgt9c...DL2K (its own identity, not the copy's)
+  inserted: 58, deduplicated: 18, skipped: 6, failed: 0
+    skipped 3a6c13303a72 (clock_taken): core.migration.v1 on th_audit_migrations by did:sync:system:engine at clock 0
+    ...
+  service-account tokens were revoked at export: re-mint with `spl service-account` if needed
+```
+
+The line to read is `this workspace answers as`. The workspace is the one it was before the import, now holding the copy's records. The skipped records are starting records of the first workspace. The new workspace already holds its own.
 
 Useful flags:
 
@@ -113,18 +122,13 @@ Useful flags:
 
 ## Safety: refusing to clobber
 
-By default `spl import` refuses to import into a workspace that already holds records. This stops you from accidentally overwriting work with a snapshot from somewhere else.
-
-To override:
+By default `spl import` refuses to import into a workspace that already holds records, and says how many it holds. This stops you from mixing a copy into the wrong workspace by accident.
 
 ```bash
 spl import bundle.tar.zst --force-overwrite
 ```
 
-Use this flag deliberately. Importing the same bundle twice never creates duplicates, so the usual flow is:
-
-1. Import once into a fresh workspace (no `--force-overwrite` needed).
-2. Re-import later if you want to check it. Nothing new is added (`records_inserted: 0`, `records_deduplicated: 100`).
+Despite its name, the flag replaces nothing. An import adds the copy's records beside the ones already there. A record the workspace already has is counted as deduplicated, so importing the same bundle twice adds nothing the second time. Check which workspace your command line is talking to before you pass it: `spl status` shows the store it answers from.
 
 ## Migrating between workspaces
 
@@ -136,13 +140,22 @@ spl export --out ~/migration.tar.zst
 
 # Locally
 spl serve
-spl identity generate
-spl import ~/migration.tar.zst
+spl import ~/migration.tar.zst --force-overwrite
 ```
 
-After import, your pairings still point at the hosted address. The first time you `spl sync` from a paired peer, your workspace notices the address is out of date, looks up the peer's new address, updates it, and carries on. **You don't need to re-pair.**
+The reverse (local → hosted) works the same way, and [From your laptop to a hosted workspace](/docs/tutorials/from-local-to-hosted) walks through it.
 
-The reverse migration (local → hosted) works the same way.
+### After an import
+
+The new workspace has the records. Three things are yours to set up again:
+
+- **Pairings.** `spl federation list` on the new workspace shows the copy's pairings, and none of them works from there. The other workspace still knows the one the copy was made from. Pair again from the new workspace with `spl federation pair add <address>`. You don't have to remove the old record first. The other workspace's owner approves the new pairing as they would any first one, and can revoke the old one when the first workspace is retired.
+- **Keys.** By default a bundle carries no working keys, and the import says so. Make new ones on the new workspace.
+- **Secrets.** A bundle holds references to secrets, never their values. Set the same secrets up on the new workspace.
+
+### Keeping a workspace's identity
+
+An export and import never carries a workspace's identity across. One command moves a workspace as itself: `spl move`, between two home folders on the same machine. The new home keeps the identity and the signing key, and the old home then refuses changes and says where the workspace went. It needs a workspace bound to a backing repository, and the passphrase for its keys (see [Backup and restore](./backup-restore)). Nothing moves a workspace's identity to or from a hosted workspace.
 
 ## What an export and import preserves
 
@@ -150,7 +163,6 @@ You can export any workspace and import it into a fresh one with **no difference
 
 - Records and their IDs
 - Threads
-- Workspace pairings
 - Consent grants
 
 You can leave any time and take your records with you.
@@ -167,10 +179,10 @@ You can leave any time and take your records with you.
 
 **Reading the import summary.** `records_inspected` equals `records_inserted` plus `records_deduplicated` (already there) plus `records_skipped` (a record already held under a different ID, which a fresh workspace's own starting configuration can cause) plus `records_failed`. `refusals_by_reason` names each reason. `identity_restored` says whether the bundle's identity was installed into the target workspace; when the bundle carried one and it was not, `identity_note` says so and names the paths that do bring an identity back (`spl backup --auto restore-keys`, `spl repo restore --identity-sidecar`). A restore of records without the identity boots as a different workspace.
 
-**A pairing shows an old address after import**: Expected. The address refreshes on first contact. If the peer is unreachable at the old address and its new address can't be found, sync reports a clear error pointing you at `spl federation refresh <peer-did>`.
+**A pairing from the copy doesn't sync**: Expected. The other workspace knows the one the copy was made from, and refuses this one. Pair again from the new workspace: `spl federation pair add <address>`.
 
 ## See also
 
-- [Pairing workspaces](./federation-pair): the relationship that survives migration
+- [Pairing workspaces](./federation-pair): how to pair again after an import
 - [Backup & restore](./backup-restore): local snapshot and restore
 - [Consent](./consent): the cross-namespace policy layer that round-trips with the bundle

@@ -106,13 +106,13 @@ spl federation resume <pair_id>
 
 Pause is the right move when you're upgrading the peer or making sensitive config changes: sync stops, credentials remain valid, no records are lost. Resume picks up from the saved cursor.
 
-### Refresh (re-fetch peer manifest)
+### Refresh
 
 ```bash
 spl federation refresh <pair_id>
 ```
 
-The instance re-reads the peer's manifest on a schedule, but `refresh` does it now. Use this after the peer rotated identity or changed `pair_endpoint`. The pair transitions through `peer_manifest_changed` and lands back in `active` if the new manifest verifies.
+`refresh` records that you asked for the pair to be looked at again, and does nothing else. It doesn't contact the peer, renew a token or change the peer's address, and the pair's state stays as it was, whatever the command prints. Afterwards `spl federation show` gives `operator-initiated refresh` as the last transition reason. To recover a pair the peer refuses, pair again with `spl federation pair add <address>`.
 
 ### Revoke (terminal)
 
@@ -195,7 +195,7 @@ spl federation show <pair_id>
 Causes, in order of likelihood:
 
 1. **`auth.required = true` on the peer + the federation token's scopes don't cover what's being read.** Check `spl federation show <pair_id>` for the peer-issued token's scopes; you need at minimum `federation:sync` and `federation:subscribe`. Mint a new token with the right scopes if needed.
-2. **The peer paused the pair and didn't tell you.** `spl federation refresh <pair_id>` will resync the manifest and surface state changes.
+2. **The peer paused the pair and didn't tell you.** Ask the peer's owner. `spl federation show <pair_id>` on their side shows the pair's state.
 3. **Network drop between cursor advances.** Re-running `spl sync` is safe; it resumes from the last good position.
 4. **A peer on an older version skipped a record.** Symptom: lag never decreases, even after a restart. Upgrade the peer, then run `spl federation pause` and `spl federation resume`.
 
@@ -272,7 +272,7 @@ The bearer-gated `GET /v1/health` carries a one-glance summary of the same data 
 - `errors_last_hour` is 0. A pair that is erroring is either in `failing` already or on its way there; the instance backs off and retries, so a single transient error is not a problem, a steady count is.
 - `drift_alerts` is empty. An alert with a rising `current_ms` and no error is usually the network between the peers, not the pair.
 
-If a pair looks wrong, the lifecycle section above is the recovery path: `spl federation refresh` to re-read the peer, `pause` and `resume` to restart the loop from its saved cursor, and `revoke` plus a fresh `pair` when the divergence is not repairable.
+If a pair looks wrong, the lifecycle section above is the recovery path: `pause` and `resume` to restart the loop from its saved cursor, and `revoke` plus a fresh `pair` when the divergence is not repairable.
 
 ## Capacity planning
 
