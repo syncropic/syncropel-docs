@@ -33,7 +33,7 @@ spl actor list
 
 Note your pairings. They come across as records and don't work from the hosted workspace, so you'll make each one again in step 7.
 
-Also note the record and thread counts on the `Store:` line of `spl status`. After the import, the hosted workspace holds these records and its own starting ones, so its count is higher.
+Also note the record and thread counts on the `Store:` line of `spl status`. After the import, the hosted workspace holds these records and its own, so its count is higher.
 
 ## 2. Export the local workspace
 
@@ -135,9 +135,8 @@ spl actor list
 
 Compare with what you saw in step 1 on the local workspace:
 - Your threads are listed, with the same thread IDs
-- Your actors are listed
 - Your pairings are listed, as records of what was paired (step 7)
-- The record count on the `Store:` line is higher than it was locally, by the hosted workspace's own starting records
+- The record count on the `Store:` line is higher than it was locally, because the hosted workspace also holds records of its own
 
 To check a thread, list its records on both sides:
 
