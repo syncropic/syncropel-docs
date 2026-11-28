@@ -3,6 +3,10 @@ title: Connect the command line
 description: For developers. Point the spl command line at your hosted workspace and give each device its own key.
 ---
 
+<Callout type="warn" title="Known limit: a key for the command line">
+Nothing gives the owner of a hosted workspace a key for the command line. The Studio shows none, the account site makes none, and the sign-up screen no longer offers one. So the owner of a hosted workspace can't use it from the command line unless they already hold a key.
+</Callout>
+
 This page is for people who work from a terminal. You don't need the command line to use Syncropel: everything a person does day to day is in the Studio, in your browser.
 
 The `spl` command line talks to a workspace on your own machine by default. To make it talk to your hosted workspace instead, you tell it two things: **where the workspace lives** (`SPL_SERVE_URL`) and **which key to use** (`spl token save`).
@@ -16,8 +20,7 @@ curl -sSf https://get.syncropic.com/spl | sh           # Linux / WSL. Windows: i
 # 2. Point the CLI at your hosted workspace
 export SPL_SERVE_URL=https://<label>.syncropel.app
 
-# 3. Connect this machine. Studio's Connect button (or the ready screen's
-#    CLI option) gives you a device key; save it:
+# 3. Save a key for this workspace, if you hold one:
 spl token save <token>
 ```
 
@@ -40,11 +43,11 @@ spl task list
 
 `spl status` prints which address it is using and whether your key is accepted. `spl thread list` and `spl task list` should show your workspace's threads and tasks (empty if you haven't added anything yet).
 
-If you get a `401`, connect this machine again and save the new key (`spl token save <token>`), and check that `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, open `<label>.syncropel.app/health` in a browser: the workspace may be waking up after a quiet period, so give it a few seconds.
+If you get a `401`, the key isn't accepted. Check that `SPL_SERVE_URL` points at the right `<label>.syncropel.app`. If you get connection errors, open `<label>.syncropel.app/health` in a browser: the workspace may be waking up after a quiet period, so give it a few seconds.
 
 ## A separate key for each device (recommended)
 
-Create a separate key for each device so you can switch one off without affecting the others:
+With a key that has full access, you can create a separate key for each device, so you can switch one off without affecting the others:
 
 ```bash
 spl pair --device "$(hostname)-cli" --url https://<label>.syncropel.app --scopes admin

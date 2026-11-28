@@ -5,6 +5,10 @@ description: Copy a local workspace's records into a hosted one. Export your loc
 
 ## What you'll build
 
+<Callout type="warn" title="Known limit: this can't be completed on a hosted workspace">
+The import in step 5 needs a command-line key with full access, and nothing gives the owner of a hosted workspace a key for the command line (see [Connect the command line](/docs/get-started/connect-the-command-line)). The export and import steps work between two workspaces you run yourself, and [Portability](/docs/guides/portability) covers them.
+</Callout>
+
 You've been running `spl serve` on your laptop, building up records, threads, federation pairs and trust. You want a hosted workspace with the same records, reachable from anywhere, with no `--insecure-localhost` flags. This tutorial walks through it: export locally, create a hosted workspace, import, point your CLI at it, verify, and pair again with the workspaces you were paired with.
 
 Hosted and self-hosted workspaces run the same software. `spl export` and `spl import` copy your records from one to the other, and every record keeps its ID. The hosted workspace keeps the identity it was created with. It doesn't become your laptop's workspace, so the workspaces you paired with are paired again from it (see [Federation](/docs/concepts/federation)).
@@ -74,22 +78,17 @@ Open a browser and go to `https://syncropel.com/signup`. Pick a label, which bec
 What happens:
 1. Your label is reserved.
 2. A hosted workspace is created, running the same `spl serve` you have locally, with its own storage.
-3. You land in your workspace, already connected. Your syncropel.com account owns it.
-
-The ready screen shows:
-- Your hosted URL (`<label>.syncropel.app`)
-- A CLI access option that creates a device token (copy it if you work from a terminal)
-- The commands to "Connect the CLI"
+3. You land in your workspace, in the Studio, signed in as its owner. Your syncropel.com account owns it. There are no keys to copy.
 
 For setup failures (label already taken, workspace limit, timeout), see [Hosted onboarding: if setup doesn't finish](/docs/get-started/hosted#if-setup-doesnt-finish).
 
 ## 4. Connect your CLI to the hosted workspace
 
-The ready screen gives you the commands. Here they are with placeholders:
+This step needs a key for the hosted workspace (see the known limit at the top). With one:
 
 ```bash
 export SPL_SERVE_URL=https://myteam.syncropel.app
-spl token save <your-device-token>
+spl token save <your-key>
 spl status
 ```
 
@@ -230,5 +229,5 @@ Hosted Syncropel differs from most services because your data and the system tha
 | `spl import` reports `import refused: local store has N records; pass --force-overwrite to import anyway` | Expected without `--force-overwrite`. A workspace that has been started always holds records of its own. | Check that `spl status` is answering from the hosted workspace, then run the import with `--force-overwrite`. It adds your records and replaces nothing. |
 | `bundle malformed: signature verification failed` | The bundle was changed, damaged in transit, or made by an incompatible version. | Re-export from the source. If the issue persists, check `spl version` on both sides: very different versions may not be compatible. |
 | A pairing copied from the local workspace doesn't sync | Expected. The other workspace knows your local workspace, and the hosted one is a different workspace. | Pair again from the hosted side: `spl federation pair add <address>` (step 7). |
-| `spl status` after token save returns `401` | The device token has expired or was revoked. | Open your workspace in the Studio and create a fresh device token from Settings → Connections, then `spl token save` it. |
+| `spl status` after token save returns `401` | The key isn't accepted: it expired, was revoked, or belongs to another workspace. | Check that `SPL_SERVE_URL` points at your workspace. Nothing in the Studio makes a new key for the command line (see the known limit at the top). |
 | The hosted workspace's identity differs from the local one's | Expected. An import copies records and never installs an identity, whatever the bundle carries. | Nothing to fix. Pair again from the hosted side (step 7). |
